@@ -1,5 +1,15 @@
-import { saveTabs, getUserSettings } from "../utils/storage";
+import { getUserSettings, saveTabsWithAutoCategory } from "../utils/storage";
 import { defineBackground } from "wxt/sandbox";
+
+// 型定義
+interface TabGroup {
+	id: string;
+	urls: Array<{ url: string }>;
+}
+
+interface ParentCategory {
+	domains: string[];
+}
 
 export default defineBackground(() => {
 	// ドラッグされたURL情報を一時保存するためのストア
@@ -44,9 +54,9 @@ export default defineBackground(() => {
 			});
 			console.log(`保存対象タブ: ${regularTabs.length}個`);
 
-			// タブを保存
-			await saveTabs(regularTabs);
-			console.log("タブの保存が完了しました");
+			// タブを保存して自動カテゴライズする
+			await saveTabsWithAutoCategory(regularTabs);
+			console.log("タブの保存と自動カテゴライズが完了しました");
 
 			// 保存完了通知を表示
 			chrome.notifications?.create({
@@ -262,9 +272,11 @@ export default defineBackground(() => {
 
 			// URLを含むグループを更新
 			const updatedGroups = savedTabs
-				.map((group) => {
+				.map((group: TabGroup) => {
 					const updatedUrls = group.urls.filter((item) => item.url !== url);
 					if (updatedUrls.length === 0) {
+						// グループが空になる場合、親カテゴリからも削除
+						removeFromParentCategories(group.id);
 						return null; // 空グループを削除
 					}
 					return { ...group, urls: updatedUrls };
@@ -280,11 +292,33 @@ export default defineBackground(() => {
 		}
 	}
 
+	// グループを親カテゴリから削除する関数
+	async function removeFromParentCategories(groupId: string) {
+		try {
+			const { parentCategories = [] } =
+				await chrome.storage.local.get("parentCategories");
+
+			// グループIDを含むカテゴリを更新
+			const updatedCategories = parentCategories.map(
+				(category: ParentCategory) => ({
+					...category,
+					domains: category.domains.filter((id) => id !== groupId),
+				}),
+			);
+
+			await chrome.storage.local.set({ parentCategories: updatedCategories });
+			console.log(`カテゴリからグループID ${groupId} を削除しました`);
+		} catch (error) {
+			console.error("親カテゴリからの削除中にエラーが発生しました:", error);
+		}
+	}
+
 	// コンテキストメニューの処理
 	if (chrome.contextMenus?.onClicked) {
 		chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 			if (info.menuItemId === "saveCurrentTab" && tab) {
-				await saveTabs([tab]);
+				// 単一タブ保存時も自動カテゴライズ
+				await saveTabsWithAutoCategory([tab]);
 				chrome.notifications?.create({
 					type: "basic",
 					iconUrl: "/assets/react.svg",
@@ -293,7 +327,8 @@ export default defineBackground(() => {
 				});
 			} else if (info.menuItemId === "saveAllTabs") {
 				const tabs = await chrome.tabs.query({ currentWindow: true });
-				await saveTabs(tabs);
+				// 複数タブ保存時も自動カテゴライズ
+				await saveTabsWithAutoCategory(tabs);
 				chrome.notifications?.create({
 					type: "basic",
 					iconUrl: "/assets/react.svg",
