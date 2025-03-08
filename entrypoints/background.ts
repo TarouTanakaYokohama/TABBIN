@@ -162,22 +162,28 @@ export default defineBackground(() => {
 		if (message.action === "urlDropped") {
 			console.log("URLドロップを検知:", message.url);
 
-			getUserSettings().then((settings) => {
-				if (settings.removeTabAfterOpen) {
-					removeUrlFromStorage(message.url)
-						.then(() => {
-							console.log("ドロップ後にURLを削除しました:", message.url);
-							sendResponse({ status: "removed" });
-						})
-						.catch((error) => {
-							console.error("URL削除エラー:", error);
-							sendResponse({ status: "error", error: error.toString() });
-						});
-				} else {
-					console.log("設定により削除をスキップ");
-					sendResponse({ status: "skipped" });
-				}
-			});
+			// fromExternal フラグが true の場合のみ処理（外部ドラッグの場合のみ）
+			if (message.fromExternal === true) {
+				getUserSettings().then((settings) => {
+					if (settings.removeTabAfterOpen) {
+						removeUrlFromStorage(message.url)
+							.then(() => {
+								console.log("外部ドロップ後にURLを削除しました:", message.url);
+								sendResponse({ status: "removed" });
+							})
+							.catch((error) => {
+								console.error("URL削除エラー:", error);
+								sendResponse({ status: "error", error: error.toString() });
+							});
+					} else {
+						console.log("設定により削除をスキップ");
+						sendResponse({ status: "skipped" });
+					}
+				});
+			} else {
+				console.log("内部操作のため削除をスキップ");
+				sendResponse({ status: "internal_operation" });
+			}
 			return true; // 非同期応答のため
 		}
 

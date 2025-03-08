@@ -65,7 +65,7 @@ const SortableDomainCard = ({
 							width="16"
 							height="16"
 							fill="currentColor"
-							viewBox="0 0 16 16"
+							viewBox="0 16 16"
 						>
 							<title>ドラッグして並び替え</title>
 							<path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
@@ -150,12 +150,16 @@ const SortableUrlItem = ({
 	};
 
 	const handleDragEnd = (e: React.DragEvent<HTMLButtonElement>) => {
-		// ドラッグ終了時に設定に応じた処理（ドロップ先が別ウィンドウの場合も対応）
-		if (
-			e.dataTransfer.dropEffect === "none" ||
-			e.dataTransfer.dropEffect === "copy"
-		) {
-			console.log("ドラッグ&ドロップ完了の可能性:", url);
+		// ドラッグ終了時にドロップ操作タイプを確認
+		console.log(
+			"ドラッグ終了時のドロップエフェクト:",
+			e.dataTransfer.dropEffect,
+		);
+
+		// 外部ウィンドウへのコピー操作の場合のみ削除処理を通知
+		// "copy"は外部アプリケーションへのドラッグを意味する
+		if (e.dataTransfer.dropEffect === "copy") {
+			console.log("外部へのドラッグ&ドロップを検知:", url);
 
 			// 少し遅延を入れて、ドロップ後の処理を通知
 			setTimeout(() => {
@@ -164,12 +168,19 @@ const SortableUrlItem = ({
 						action: "urlDropped",
 						url: url,
 						groupId: groupId,
+						fromExternal: true, // 外部操作フラグを追加
 					},
 					(response) => {
 						console.log("ドラッグ&ドロップ後の応答:", response);
 					},
 				);
 			}, 500);
+		} else {
+			// 内部ドラッグか操作キャンセル（"none"）の場合
+			console.log(
+				"内部操作またはキャンセル - 削除しません:",
+				e.dataTransfer.dropEffect,
+			);
 		}
 	};
 
