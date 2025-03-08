@@ -2,6 +2,7 @@ import "@/assets/tailwind.css";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { TabGroup } from "../../utils/storage";
+import { getUserSettings } from "../../utils/storage";
 import {
 	DndContext,
 	closestCenter,
@@ -251,6 +252,7 @@ const UrlList = ({
 const SavedTabs = () => {
 	const [tabGroups, setTabGroups] = useState<TabGroup[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const [settings, setSettings] = useState({ removeTabAfterOpen: false });
 
 	useEffect(() => {
 		const loadSavedTabs = async () => {
@@ -258,6 +260,10 @@ const SavedTabs = () => {
 				const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
 				console.log("読み込まれたタブ:", savedTabs);
 				setTabGroups(savedTabs);
+
+				// ユーザー設定を読み込み
+				const userSettings = await getUserSettings();
+				setSettings(userSettings);
 			} catch (error) {
 				console.error("保存されたタブの読み込みエラー:", error);
 			} finally {
@@ -273,16 +279,61 @@ const SavedTabs = () => {
 			if (changes.savedTabs) {
 				setTabGroups(changes.savedTabs.newValue || []);
 			}
+			if (changes.userSettings) {
+				setSettings((prev) => ({ ...prev, ...changes.userSettings.newValue }));
+			}
 		});
 	}, []);
 
-	const handleOpenTab = (url: string) => {
+	const handleOpenTab = async (url: string) => {
 		window.open(url, "_blank");
+
+		// 設定に基づいて、開いたタブを削除するかどうかを決定
+		if (settings.removeTabAfterOpen) {
+			// タブを開いた後に削除する処理
+			const updatedGroups = tabGroups
+				.map((group) => ({
+					...group,
+					urls: group.urls.filter((item) => item.url !== url),
+				}))
+				// 空のグループを削除
+				.filter((group) => group.urls.length > 0);
+
+			setTabGroups(updatedGroups);
+			await chrome.storage.local.set({ savedTabs: updatedGroups });
+		}
 	};
 
-	const handleOpenAllTabs = (urls: { url: string; title: string }[]) => {
+	const handleOpenAllTabs = async (urls: { url: string; title: string }[]) => {
 		for (const { url } of urls) {
 			window.open(url, "_blank");
+		}
+
+		// 設定に基づいて、開いたタブグループを削除するかどうかを決定
+		if (settings.removeTabAfterOpen) {
+			// 開いたすべてのタブを含むグループを削除する処理
+			const urlSet = new Set(urls.map((item) => item.url));
+
+			const updatedGroups = tabGroups
+				.map((group) => {
+					// このグループのURLsを確認
+					const remainingUrls = group.urls.filter(
+						(item) => !urlSet.has(item.url),
+					);
+
+					if (remainingUrls.length === 0) {
+						return null; // グループを削除
+					}
+
+					return {
+						...group,
+						urls: remainingUrls,
+					};
+				})
+				.filter(Boolean) as TabGroup[];
+
+			setTabGroups(updatedGroups);
+			await chrome.storage.local.set({ savedTabs: updatedGroups });
 		}
 	};
 

@@ -9,6 +9,26 @@ export interface TabGroup {
 	}[];
 }
 
+export interface UserSettings {
+	removeTabAfterOpen: boolean;
+}
+
+// デフォルト設定
+export const defaultSettings: UserSettings = {
+	removeTabAfterOpen: false,
+};
+
+// 設定を取得する関数
+export async function getUserSettings(): Promise<UserSettings> {
+	const { userSettings } = await chrome.storage.local.get("userSettings");
+	return { ...defaultSettings, ...(userSettings || {}) };
+}
+
+// 設定を保存する関数
+export async function saveUserSettings(settings: UserSettings): Promise<void> {
+	await chrome.storage.local.set({ userSettings: settings });
+}
+
 export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 	const groupedTabs = new Map<string, TabGroup>();
 
