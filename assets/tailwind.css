@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+
+/* Base
+*************************************************/
+@layer base {
+  /* * {
+    @apply outline-neon-pink outline-3 border-neon-blue border-4;
+  } */
+}

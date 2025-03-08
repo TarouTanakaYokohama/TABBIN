@@ -21,29 +21,37 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 	// 新しいタブを適切なグループに振り分け
 	for (const tab of tabs) {
 		if (!tab.url) continue;
-		const url = new URL(tab.url);
-		const domain = `${url.protocol}//${url.hostname}`;
 
-		if (!groupedTabs.has(domain)) {
-			groupedTabs.set(domain, {
-				id: uuidv4(),
-				domain,
-				urls: [],
-			});
-		}
+		// 拡張機能のURLは除外
+		if (tab.url.startsWith("chrome-extension://")) continue;
 
-		const group = groupedTabs.get(domain);
-		if (!group) continue;
+		try {
+			const url = new URL(tab.url);
+			const domain = `${url.protocol}//${url.hostname}`;
 
-		// URLが既に存在するかチェック
-		const urlExists = group.urls.some(
-			(existingUrl) => existingUrl.url === tab.url,
-		);
-		if (!urlExists) {
-			group.urls.push({
-				url: tab.url,
-				title: tab.title || "",
-			});
+			if (!groupedTabs.has(domain)) {
+				groupedTabs.set(domain, {
+					id: uuidv4(),
+					domain,
+					urls: [],
+				});
+			}
+
+			const group = groupedTabs.get(domain);
+			if (!group) continue;
+
+			// URLが既に存在するかチェック
+			const urlExists = group.urls.some(
+				(existingUrl) => existingUrl.url === tab.url,
+			);
+			if (!urlExists) {
+				group.urls.push({
+					url: tab.url,
+					title: tab.title || "",
+				});
+			}
+		} catch (error) {
+			console.error(`Invalid URL: ${tab.url}`, error);
 		}
 	}
 
