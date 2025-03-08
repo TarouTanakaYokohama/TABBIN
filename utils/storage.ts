@@ -11,11 +11,13 @@ export interface TabGroup {
 
 export interface UserSettings {
 	removeTabAfterOpen: boolean;
+	excludePatterns: string[];
 }
 
 // デフォルト設定
 export const defaultSettings: UserSettings = {
-	removeTabAfterOpen: false,
+	removeTabAfterOpen: true,
+	excludePatterns: ["chrome-extension://", "chrome://"],
 };
 
 // 設定を取得する関数
