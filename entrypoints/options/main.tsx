@@ -27,7 +27,12 @@ const OptionsPage = () => {
 
 	const handleSaveSettings = async () => {
 		try {
-			await saveUserSettings(settings);
+			// 保存する前に空の行を除外
+			const cleanSettings = {
+				...settings,
+				excludePatterns: settings.excludePatterns.filter((p) => p.trim()),
+			};
+			await saveUserSettings(cleanSettings);
 			setIsSaved(true);
 			setTimeout(() => setIsSaved(false), 2000);
 		} catch (error) {
@@ -42,6 +47,25 @@ const OptionsPage = () => {
 			...prev,
 			removeTabAfterOpen: e.target.checked,
 		}));
+	};
+
+	const handleExcludePatternsChange = (
+		e: React.ChangeEvent<HTMLTextAreaElement>,
+	) => {
+		// 空の行も含めて全ての行を保持
+		const patterns = e.target.value.split("\n");
+		setSettings((prev) => ({
+			...prev,
+			excludePatterns: patterns,
+		}));
+	};
+
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		if (e.key === "Enter") {
+			// Enterキーのデフォルトの動作（改行）を許可し、
+			// もし他にイベントハンドラがあれば伝播を止めておく
+			e.stopPropagation();
+		}
 	};
 
 	if (isLoading) {
@@ -78,6 +102,26 @@ const OptionsPage = () => {
 					<p className="text-sm text-gray-500 mt-1 ml-7">
 						オンにすると、保存したタブを開いた後、そのタブは保存リストから自動的に削除されます。
 						オフにすると、保存したタブを開いても、リストからは削除されません。
+					</p>
+				</div>
+			</div>
+
+			<div className="bg-white rounded-lg shadow-md p-6 mb-8">
+				<h2 className="text-xl font-semibold text-gray-700 mb-4">除外設定</h2>
+				<div className="mb-4">
+					<label htmlFor="excludePatterns" className="block text-gray-700 mb-2">
+						保存・閉じない URL パターン（1行に1つ）
+					</label>
+					<textarea
+						id="excludePatterns"
+						value={settings.excludePatterns.join("\n")}
+						onChange={handleExcludePatternsChange}
+						onKeyDown={handleKeyDown}
+						className="w-full h-32 p-2 border rounded focus:ring-2 focus:ring-blue-500"
+						placeholder="例：&#10;chrome-extension://&#10;chrome://"
+					/>
+					<p className="text-sm text-gray-500 mt-1">
+						これらのパターンに一致するURLは保存されず、タブも閉じられません。
 					</p>
 				</div>
 			</div>
