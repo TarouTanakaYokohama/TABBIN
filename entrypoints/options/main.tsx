@@ -1,5 +1,5 @@
 import "@/assets/tailwind.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { getUserSettings, saveUserSettings } from "../../utils/storage";
 import type {
@@ -19,6 +19,22 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 	const [activeCategory, setActiveCategory] = useState<string | null>(null);
 	const [keywords, setKeywords] = useState<string[]>([]);
 	const [newKeyword, setNewKeyword] = useState("");
+	const [newSubCategory, setNewSubCategory] = useState("");
+
+	// タブグループを更新するヘルパー関数
+	const updateTabGroup = async (updatedTabGroup: TabGroup) => {
+		try {
+			const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+			const updatedTabs = savedTabs.map((tab: TabGroup) =>
+				tab.id === updatedTabGroup.id ? updatedTabGroup : tab,
+			);
+			await chrome.storage.local.set({ savedTabs: updatedTabs });
+			return true;
+		} catch (error) {
+			console.error("タブグループ更新エラー:", error);
+			return false;
+		}
+	};
 
 	const handleCategorySelect = (categoryName: string) => {
 		setActiveCategory(categoryName);
@@ -28,8 +44,20 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 		setKeywords(categoryKeywords?.keywords || []);
 	};
 
+	// キーワード追加関数に重複チェックを追加
 	const handleAddKeyword = () => {
 		if (newKeyword.trim() && activeCategory) {
+			// 重複チェックを追加
+			if (
+				keywords.some(
+					(keyword) =>
+						keyword.toLowerCase() === newKeyword.trim().toLowerCase(),
+				)
+			) {
+				alert("このキーワードは既に追加されています");
+				return;
+			}
+
 			const updatedKeywords = [...keywords, newKeyword.trim()];
 			setKeywords(updatedKeywords);
 			setCategoryKeywords(tabGroup.id, activeCategory, updatedKeywords)
@@ -38,39 +66,224 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 		}
 	};
 
-	const handleRemoveKeyword = (keywordToRemove: string) => {
+	// キーワードを削除した時に自動保存する処理を修正
+	const handleRemoveKeyword = async (keywordToRemove: string) => {
 		if (activeCategory) {
-			const updatedKeywords = keywords.filter((k) => k !== keywordToRemove);
-			setKeywords(updatedKeywords);
-			setCategoryKeywords(tabGroup.id, activeCategory, updatedKeywords).catch(
-				(err) => console.error("キーワード削除エラー:", err),
+			try {
+				// キーワードをフィルタリング
+				const updatedKeywords = keywords.filter((k) => k !== keywordToRemove);
+
+				// UI状態を先に更新
+				setKeywords(updatedKeywords);
+
+				// ストレージに保存
+				await setCategoryKeywords(tabGroup.id, activeCategory, updatedKeywords);
+
+				console.log(`キーワード "${keywordToRemove}" を削除しました`);
+			} catch (error) {
+				console.error("キーワード削除エラー:", error);
+
+				// エラー時はキーワードリストを再取得して状態を元に戻す
+				const categoryKeywords = tabGroup.categoryKeywords?.find(
+					(ck) => ck.categoryName === activeCategory,
+				);
+				setKeywords(categoryKeywords?.keywords || []);
+
+				// エラーを表示
+				alert("キーワードの削除に失敗しました。再度お試しください。");
+			}
+		}
+	};
+
+	// 新しい子カテゴリを追加
+	const handleAddSubCategory = async () => {
+		if (newSubCategory.trim()) {
+			const categoryName = newSubCategory.trim();
+
+			// 既存の子カテゴリと重複していないか確認
+			if (tabGroup.subCategories?.includes(categoryName)) {
+				alert("この子カテゴリは既に存在します");
+				return;
+			}
+
+			// 子カテゴリを追加
+			const updatedTabGroup = {
+				...tabGroup,
+				subCategories: [...(tabGroup.subCategories || []), categoryName],
+				categoryKeywords: [
+					...(tabGroup.categoryKeywords || []),
+					{ categoryName, keywords: [] },
+				],
+			};
+
+			const success = await updateTabGroup(updatedTabGroup);
+			if (success) {
+				setNewSubCategory("");
+				setActiveCategory(categoryName); // 新しいカテゴリを選択状態に
+				setKeywords([]);
+			}
+		}
+	};
+
+	// 子カテゴリ削除関数を完全に書き換え - saved-tabs/main.tsxのパターンに基づく
+	const handleRemoveSubCategory = async (categoryToRemove: string) => {
+		console.log(`子カテゴリの削除を開始: "${categoryToRemove}"`);
+
+		try {
+			// 確認ダイアログを一時的にスキップ (問題特定のため)
+			// if (confirm(`子カテゴリ "${categoryToRemove}" を削除してもよろしいですか？`)) {
+
+			// 選択中のカテゴリを削除する場合は選択を解除
+			if (activeCategory === categoryToRemove) {
+				setActiveCategory(null);
+				setKeywords([]);
+			}
+
+			// saved-tabs/main.tsxのパターンに基づく直接的な実装
+			console.log("削除するカテゴリ:", categoryToRemove);
+			console.log("タブグループID:", tabGroup.id);
+
+			// タブの情報を取得
+			const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+			console.log("取得したsavedTabs:", savedTabs);
+
+			// 対象のタブグループを探す
+			const groupToUpdate = savedTabs.find(
+				(g: TabGroup) => g.id === tabGroup.id,
 			);
+			console.log("更新対象のグループ:", groupToUpdate);
+
+			if (!groupToUpdate) {
+				console.error("タブグループが見つかりません");
+				return;
+			}
+
+			// 子カテゴリリストと関連キーワードからカテゴリを削除
+			const updatedSubCategories = (groupToUpdate.subCategories || []).filter(
+				(cat: string) => cat !== categoryToRemove,
+			);
+
+			const updatedCategoryKeywords = (
+				groupToUpdate.categoryKeywords || []
+			).filter(
+				(ck: { categoryName: string }) => ck.categoryName !== categoryToRemove,
+			);
+
+			console.log("更新後のサブカテゴリ:", updatedSubCategories);
+			console.log("更新後のキーワード設定:", updatedCategoryKeywords);
+
+			// グループを更新
+			const updatedGroup = {
+				...groupToUpdate,
+				subCategories: updatedSubCategories,
+				categoryKeywords: updatedCategoryKeywords,
+			};
+
+			// 保存
+			const updatedTabs = savedTabs.map((g: TabGroup) =>
+				g.id === tabGroup.id ? updatedGroup : g,
+			);
+
+			// ストレージに保存
+			await chrome.storage.local.set({ savedTabs: updatedTabs });
+			console.log("ストレージに保存完了");
+
+			alert(`カテゴリ "${categoryToRemove}" を削除しました`);
+			// }
+		} catch (error) {
+			console.error("子カテゴリ削除エラー:", error);
+			alert(`カテゴリの削除中にエラーが発生しました: ${error}`);
 		}
 	};
 
 	if (!tabGroup.subCategories || tabGroup.subCategories.length === 0) {
+		// 子カテゴリがない場合も追加フォームを表示（ボタン削除）
 		return (
-			<p className="text-gray-500">このドメインには子カテゴリがありません。</p>
+			<div className="mt-4 border-t pt-4">
+				<p className="text-gray-500 mb-3">
+					このドメインには子カテゴリがありません。
+				</p>
+				<div className="mb-4">
+					<label
+						htmlFor="new-subcategory"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
+						新しい子カテゴリを追加
+					</label>
+					<input
+						id="new-subcategory"
+						type="text"
+						value={newSubCategory}
+						onChange={(e) => setNewSubCategory(e.target.value)}
+						onBlur={handleAddSubCategory}
+						placeholder="子カテゴリ名（入力後にフォーカスを外すと保存）"
+						className="w-full p-2 border rounded"
+						onKeyDown={(e) => {
+							if (e.key === "Enter") {
+								e.preventDefault();
+								handleAddSubCategory();
+							}
+						}}
+					/>
+				</div>
+			</div>
 		);
 	}
 
 	return (
 		<div className="mt-4 border-t pt-4">
 			<h4 className="text-md font-medium mb-2">子カテゴリキーワード管理</h4>
-			<div className="flex gap-2 mb-3">
+
+			{/* 新しい子カテゴリの追加フォーム（ボタン削除） */}
+			<div className="mb-4">
+				<label
+					htmlFor="new-subcategory"
+					className="block text-sm font-medium text-gray-700 mb-1"
+				>
+					新しい子カテゴリを追加
+				</label>
+				<input
+					id="new-subcategory"
+					type="text"
+					value={newSubCategory}
+					onChange={(e) => setNewSubCategory(e.target.value)}
+					onBlur={handleAddSubCategory}
+					placeholder="子カテゴリ名（入力後にフォーカスを外すと保存）"
+					className="w-full p-2 border rounded"
+					onKeyDown={(e) => {
+						if (e.key === "Enter") {
+							e.preventDefault();
+							handleAddSubCategory();
+						}
+					}}
+				/>
+			</div>
+
+			{/* 子カテゴリボタン一覧 - 削除ボタンのクリックイベントを確実に設定 */}
+			<div className="flex flex-wrap gap-2 mb-3">
 				{tabGroup.subCategories.map((category) => (
-					<button
-						key={category}
-						type="button"
-						onClick={() => handleCategorySelect(category)}
-						className={`px-2 py-1 text-sm rounded ${
-							activeCategory === category
-								? "bg-blue-500 text-white"
-								: "bg-gray-100 hover:bg-gray-200"
-						}`}
-					>
-						{category}
-					</button>
+					<div key={category} className="flex items-center">
+						<button
+							type="button"
+							onClick={() => handleCategorySelect(category)}
+							className={`px-2 py-1 text-sm rounded-l ${
+								activeCategory === category
+									? "bg-blue-500 text-white"
+									: "bg-gray-100 hover:bg-gray-200"
+							}`}
+						>
+							{category}
+						</button>
+						{/* 削除ボタンの onClick イベントを修正 */}
+						<button
+							type="button"
+							onClick={() => handleRemoveSubCategory(category)}
+							className="bg-red-500 text-white px-2 py-1 text-sm rounded-r hover:bg-red-600"
+							title="カテゴリを削除"
+						>
+							×
+						</button>
+					</div>
 				))}
 			</div>
 
@@ -83,23 +296,22 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 						>
 							「{activeCategory}」カテゴリのキーワード
 						</label>
-						<div className="flex">
-							<input
-								id={`keyword-input-${activeCategory}`}
-								type="text"
-								value={newKeyword}
-								onChange={(e) => setNewKeyword(e.target.value)}
-								placeholder="新しいキーワードを入力"
-								className="flex-grow p-1 border rounded-l"
-							/>
-							<button
-								type="button"
-								onClick={handleAddKeyword}
-								className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-r"
-							>
-								追加
-							</button>
-						</div>
+						{/* キーワード追加フォーム（ボタン削除） */}
+						<input
+							id={`keyword-input-${activeCategory}`}
+							type="text"
+							value={newKeyword}
+							onChange={(e) => setNewKeyword(e.target.value)}
+							placeholder="新しいキーワードを入力（入力後にフォーカスを外すと保存）"
+							className="w-full p-2 border rounded"
+							onBlur={handleAddKeyword}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") {
+									e.preventDefault();
+									handleAddKeyword();
+								}
+							}}
+						/>
 					</div>
 
 					<div className="flex flex-wrap gap-2 mt-2">
@@ -138,11 +350,13 @@ const OptionsPage = () => {
 	);
 	const [savedTabs, setSavedTabs] = useState<TabGroup[]>([]);
 	const [newCategoryName, setNewCategoryName] = useState("");
+	const [categoryError, setCategoryError] = useState<string | null>(null); // エラーメッセージ用の状態変数
 	const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
 		null,
 	);
 	const [editingCategoryName, setEditingCategoryName] = useState("");
 	const [activeTabId, setActiveTabId] = useState<string | null>(null);
+	const editInputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
 		const loadData = async () => {
@@ -200,6 +414,8 @@ const OptionsPage = () => {
 			...prev,
 			removeTabAfterOpen: e.target.checked,
 		}));
+		// 変更後に自動保存
+		setTimeout(handleSaveSettings, 0);
 	};
 
 	const handleToggleEnableCategories = (
@@ -209,6 +425,8 @@ const OptionsPage = () => {
 			...prev,
 			enableCategories: e.target.checked,
 		}));
+		// 変更後に自動保存
+		setTimeout(handleSaveSettings, 0);
 	};
 
 	const handleExcludePatternsChange = (
@@ -222,23 +440,52 @@ const OptionsPage = () => {
 		}));
 	};
 
-	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-		if (e.key === "Enter") {
-			// Enterキーのデフォルトの動作（改行）を許可し、
-			// もし他にイベントハンドラがあれば伝播を止めておく
-			e.stopPropagation();
-		}
+	// テキストエリアからフォーカスが外れたときに保存
+	const handleExcludePatternsBlur = () => {
+		handleSaveSettings();
 	};
 
 	// 新しいカテゴリを追加
 	const handleAddCategory = async () => {
 		if (newCategoryName.trim()) {
+			// 重複をチェック
+			const isDuplicate = parentCategories.some(
+				(cat) =>
+					cat.name.toLowerCase() === newCategoryName.trim().toLowerCase(),
+			);
+
+			if (isDuplicate) {
+				setCategoryError("同じ名前のカテゴリがすでに存在します。");
+				setTimeout(() => setCategoryError(null), 3000); // 3秒後にエラーメッセージを消す
+				return;
+			}
+
 			try {
 				await createParentCategory(newCategoryName.trim());
 				setNewCategoryName("");
+				setCategoryError(null);
 			} catch (error) {
 				console.error("カテゴリ追加エラー:", error);
+				setCategoryError("カテゴリの追加に失敗しました。");
+				setTimeout(() => setCategoryError(null), 3000);
 			}
+		}
+	};
+
+	// Enterキーを押したときのハンドラ
+	const handleKeyDown = (
+		e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+	) => {
+		// テキストエリアの場合は元の処理を維持
+		if (e.currentTarget.tagName.toLowerCase() === "textarea") {
+			if (e.key === "Enter") {
+				e.stopPropagation();
+			}
+		}
+		// カテゴリ入力の場合
+		else if (e.key === "Enter") {
+			e.preventDefault();
+			handleAddCategory();
 		}
 	};
 
@@ -246,6 +493,11 @@ const OptionsPage = () => {
 	const startEditingCategory = (category: ParentCategory) => {
 		setEditingCategoryId(category.id);
 		setEditingCategoryName(category.name);
+
+		// 編集モードに入った直後に実行される
+		setTimeout(() => {
+			editInputRef.current?.focus();
+		}, 0);
 	};
 
 	// カテゴリ名の編集を保存
@@ -261,21 +513,88 @@ const OptionsPage = () => {
 				await saveParentCategories(updatedCategories);
 				setEditingCategoryId(null);
 				setEditingCategoryName("");
+
+				// 保存成功通知
+				setIsSaved(true);
+				setTimeout(() => setIsSaved(false), 2000);
 			} catch (error) {
 				console.error("カテゴリ編集エラー:", error);
+				alert("カテゴリの保存に失敗しました");
 			}
+		} else {
+			// 空の場合は編集をキャンセル
+			setEditingCategoryId(null);
+		}
+	};
+
+	// 直接カテゴリを削除するための単純化メソッド
+	const deleteCategory = async (categoryId: string) => {
+		try {
+			console.log(`カテゴリ削除実行: ${categoryId}`);
+
+			// 更新前のカテゴリ数をログ
+			console.log(`削除前のカテゴリ数: ${parentCategories.length}`);
+
+			// フィルタリングで指定IDのカテゴリを除外
+			const filteredCategories = parentCategories.filter(
+				(cat) => cat.id !== categoryId,
+			);
+
+			console.log(`削除後のカテゴリ数: ${filteredCategories.length}`);
+			console.log("削除するカテゴリID:", categoryId);
+			console.log("フィルタリング後のカテゴリ:", filteredCategories);
+
+			// ストレージに保存
+			await chrome.storage.local.set({ parentCategories: filteredCategories });
+
+			// 関連するタブも更新
+			const updatedTabs = savedTabs.map((tab) =>
+				tab.parentCategoryId === categoryId
+					? { ...tab, parentCategoryId: undefined }
+					: tab,
+			);
+			await chrome.storage.local.set({ savedTabs: updatedTabs });
+
+			// ローカル状態を更新
+			setParentCategories(filteredCategories);
+			setSavedTabs(updatedTabs);
+
+			// 保存成功通知
+			setIsSaved(true);
+			setTimeout(() => setIsSaved(false), 2000);
+		} catch (error) {
+			console.error("カテゴリ削除エラー:", error);
+			alert("カテゴリの削除に失敗しました。");
 		}
 	};
 
 	// カテゴリを削除
-	const handleDeleteCategory = async (categoryId: string) => {
-		if (confirm("このカテゴリを削除してもよろしいですか？")) {
-			const updatedCategories = parentCategories.filter(
-				(cat) => cat.id !== categoryId,
-			);
+	const handleDeleteCategory = async (
+		categoryId: string,
+		skipConfirmation = false,
+	) => {
+		console.log(`親カテゴリ削除開始: ID=${categoryId}`);
 
-			try {
+		try {
+			// イベント伝播を防止するため、即時関数を使用
+			const proceedWithDeletion =
+				skipConfirmation ||
+				window.confirm("このカテゴリを削除してもよろしいですか？");
+			console.log("確認ダイアログの結果:", proceedWithDeletion);
+
+			if (proceedWithDeletion) {
+				// 削除前に現在のカテゴリをログ
+				console.log("削除前のカテゴリリスト:", parentCategories);
+
+				// 指定されたIDを持つカテゴリ以外をフィルタリング
+				const updatedCategories = parentCategories.filter(
+					(cat) => cat.id !== categoryId,
+				);
+				console.log("削除後のカテゴリリスト:", updatedCategories);
+
+				// 更新したカテゴリリストを保存
 				await saveParentCategories(updatedCategories);
+				console.log("カテゴリリストの保存完了");
 
 				// 関連するドメインの親カテゴリIDも削除
 				const updatedTabs = savedTabs.map((tab) =>
@@ -284,9 +603,21 @@ const OptionsPage = () => {
 						: tab,
 				);
 				await chrome.storage.local.set({ savedTabs: updatedTabs });
-			} catch (error) {
-				console.error("カテゴリ削除エラー:", error);
+				console.log("関連ドメインの親カテゴリ参照を削除しました");
+
+				// 状態を直接更新して即時反映
+				setParentCategories(updatedCategories);
+				setSavedTabs(updatedTabs);
+
+				// 削除成功通知
+				setIsSaved(true);
+				setTimeout(() => setIsSaved(false), 2000);
+			} else {
+				console.log("カテゴリ削除がキャンセルされました");
 			}
+		} catch (error) {
+			console.error("カテゴリ削除エラー:", error);
+			alert("カテゴリの削除中にエラーが発生しました。");
 		}
 	};
 
@@ -329,6 +660,53 @@ const OptionsPage = () => {
 			await chrome.storage.local.set({ savedTabs: updatedTabs });
 		} catch (error) {
 			console.error("ドメイン割り当てエラー:", error);
+			alert("ドメインの割り当てに失敗しました。");
+		}
+	};
+
+	// 単純なカテゴリ削除関数 - 確認ダイアログなし
+	const forceDeleteCategory = async (categoryId: string) => {
+		try {
+			console.log("強制削除を実行:", categoryId);
+
+			// chrome.storage.localから直接取得
+			const { parentCategories: storedCategories = [] } =
+				await chrome.storage.local.get("parentCategories");
+
+			// カテゴリを削除
+			const newCategories = storedCategories.filter(
+				(cat: ParentCategory) => cat.id !== categoryId,
+			);
+
+			console.log("削除前カテゴリ数:", storedCategories.length);
+			console.log("削除後カテゴリ数:", newCategories.length);
+
+			// ストレージに直接保存
+			await chrome.storage.local.set({ parentCategories: newCategories });
+
+			// タブの参照も更新
+			const { savedTabs: storedTabs = [] } =
+				await chrome.storage.local.get("savedTabs");
+			const newTabs = storedTabs.map((tab: TabGroup) =>
+				tab.parentCategoryId === categoryId
+					? { ...tab, parentCategoryId: undefined }
+					: tab,
+			);
+
+			await chrome.storage.local.set({ savedTabs: newTabs });
+
+			// React状態を更新
+			setParentCategories(newCategories);
+			setSavedTabs(newTabs);
+
+			// 成功メッセージ
+			setIsSaved(true);
+			setTimeout(() => setIsSaved(false), 2000);
+
+			return true;
+		} catch (error) {
+			console.error("強制削除エラー:", error);
+			return false;
 		}
 	};
 
@@ -395,6 +773,7 @@ const OptionsPage = () => {
 						id="excludePatterns"
 						value={settings.excludePatterns.join("\n")}
 						onChange={handleExcludePatternsChange}
+						onBlur={handleExcludePatternsBlur}
 						onKeyDown={handleKeyDown}
 						className="w-full h-32 p-2 border rounded focus:ring-2 focus:ring-blue-500"
 						placeholder="例：&#10;chrome-extension://&#10;chrome://"
@@ -416,22 +795,20 @@ const OptionsPage = () => {
 						<h3 className="text-lg font-medium text-gray-700 mb-3">
 							親カテゴリ
 						</h3>
-						<div className="flex mb-4">
+						<div className="mb-4">
 							<input
 								type="text"
 								value={newCategoryName}
 								onChange={(e) => setNewCategoryName(e.target.value)}
+								onBlur={handleAddCategory}
+								onKeyDown={handleKeyDown}
 								placeholder="新しいカテゴリ名"
-								className="flex-grow p-2 border rounded-l focus:ring-2 focus:ring-blue-500"
+								className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
 							/>
-							<button
-								type="button"
-								onClick={handleAddCategory}
-								className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-r"
-							>
-								追加
-							</button>
 						</div>
+						{categoryError && (
+							<p className="text-red-500 text-sm mb-3">{categoryError}</p>
+						)}
 
 						{parentCategories.length === 0 ? (
 							<p className="text-gray-500 italic">カテゴリがまだありません。</p>
@@ -446,24 +823,39 @@ const OptionsPage = () => {
 											<div className="flex flex-1">
 												<input
 													type="text"
+													ref={editInputRef}
 													value={editingCategoryName}
 													onChange={(e) =>
 														setEditingCategoryName(e.target.value)
 													}
-													className="flex-grow p-1 border rounded-l"
+													onBlur={saveEditingCategory}
+													onKeyDown={(e) => {
+														if (e.key === "Enter") {
+															e.preventDefault();
+															saveEditingCategory();
+														} else if (e.key === "Escape") {
+															setEditingCategoryId(null);
+														}
+													}}
+													className="flex-grow p-1 border rounded w-full"
 												/>
-												<button
-													type="button"
-													onClick={saveEditingCategory}
-													className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-r"
-												>
-													保存
-												</button>
 											</div>
 										) : (
-											<span className="font-medium">
+											<button
+												type="button"
+												className="font-medium cursor-pointer hover:text-blue-600 hover:underline flex-1 text-left bg-transparent border-none p-0"
+												onClick={() => startEditingCategory(category)}
+												onKeyDown={(e) => {
+													if (e.key === "Enter" || e.key === "Space") {
+														e.preventDefault();
+														startEditingCategory(category);
+													}
+												}}
+												title="クリックして編集"
+												aria-label={`${category.name}を編集 (${category.domains.length}ドメイン)`}
+											>
 												{category.name} ({category.domains.length}ドメイン)
-											</span>
+											</button>
 										)}
 										<div>
 											{editingCategoryId !== category.id && (
@@ -475,12 +867,18 @@ const OptionsPage = () => {
 													編集
 												</button>
 											)}
+											{/* 削除ボタン - 直接deleteCategory関数を呼び出す */}
 											<button
 												type="button"
-												onClick={() => handleDeleteCategory(category.id)}
-												className="text-red-500 hover:text-red-700"
+												onClick={(e) => {
+													e.preventDefault();
+													e.stopPropagation();
+													console.log("削除ボタンがクリックされました");
+													forceDeleteCategory(category.id);
+												}}
+												className="text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded"
 											>
-												削除
+												強制削除
 											</button>
 										</div>
 									</li>
@@ -577,21 +975,15 @@ const OptionsPage = () => {
 				</div>
 			)}
 
-			<div className="flex justify-between items-center">
-				<button
-					type="button"
-					onClick={handleSaveSettings}
-					className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-				>
-					設定を保存
-				</button>
+			{/* 保存ボタンは削除し、保存完了メッセージのみ表示 */}
 
-				{isSaved && (
+			{isSaved && (
+				<div className="text-center mb-4">
 					<span className="text-green-500 font-medium">
 						設定が保存されました！
 					</span>
-				)}
-			</div>
+				</div>
+			)}
 		</div>
 	);
 };

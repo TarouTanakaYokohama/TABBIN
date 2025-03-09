@@ -1,14 +1,32 @@
-import { getUserSettings, saveTabsWithAutoCategory } from "../utils/storage";
+import {
+	getUserSettings,
+	saveTabsWithAutoCategory,
+	updateDomainCategorySettings,
+	migrateParentCategoriesToDomainNames,
+	getParentCategories,
+	type SubCategoryKeyword,
+} from "../utils/storage";
 import { defineBackground } from "wxt/sandbox";
 
 // 型定義
 interface TabGroup {
 	id: string;
-	urls: Array<{ url: string }>;
+	domain: string;
+	parentCategoryId?: string;
+	urls: Array<{
+		url: string;
+		title: string;
+		subCategory?: string;
+	}>;
+	subCategories?: string[];
+	categoryKeywords?: SubCategoryKeyword[];
 }
 
 interface ParentCategory {
+	id: string;
+	name: string;
 	domains: string[];
+	domainNames: string[];
 }
 
 export default defineBackground(() => {
@@ -19,8 +37,29 @@ export default defineBackground(() => {
 		processed: boolean; // 処理済みフラグを追加
 	} | null = null;
 
-	// インストール時にコンテキストメニューを作成
-	chrome.runtime.onInstalled.addListener(() => {
+	// バックグラウンド初期化時に一度だけマイグレーションを実行
+	(async () => {
+		try {
+			console.log("バックグラウンド起動時のデータ構造チェックを開始...");
+
+			// 既存のカテゴリを確認
+			const categories = await getParentCategories();
+			console.log("現在の親カテゴリ:", categories);
+
+			// 強制的にマイグレーションを実行する
+			console.log("親カテゴリのdomainNamesの強制マイグレーションを実行");
+			await migrateParentCategoriesToDomainNames();
+
+			// 移行後のデータを確認
+			const updatedCategories = await getParentCategories();
+			console.log("移行後の親カテゴリ:", updatedCategories);
+		} catch (error) {
+			console.error("バックグラウンド初期化エラー:", error);
+		}
+	})();
+
+	// インストール時に実行する処理
+	chrome.runtime.onInstalled.addListener(async () => {
 		// コンテキストメニューを作成
 		chrome.contextMenus?.create({
 			id: "saveCurrentTab",
@@ -33,6 +72,17 @@ export default defineBackground(() => {
 			title: "すべてのタブを保存",
 			contexts: ["page"],
 		});
+
+		// データ構造の移行を実行
+		try {
+			console.log(
+				"拡張機能インストール/更新時の親カテゴリデータ構造移行を開始...",
+			);
+			await migrateParentCategoriesToDomainNames();
+			console.log("データ構造の移行が完了しました");
+		} catch (error) {
+			console.error("データ構造の移行に失敗しました:", error);
+		}
 	});
 
 	// ブラウザアクション（拡張機能アイコン）クリック時の処理
@@ -265,7 +315,14 @@ export default defineBackground(() => {
 		}
 	}
 
-	// URLをストレージから削除する関数
+	// URLをストレージから削除する関数（カテゴリ設定とマッピングを保持）
+	// TabGroupが空になった時の処理関数
+	async function handleTabGroupRemoval(groupId: string) {
+		console.log(`空になったグループの処理を開始: ${groupId}`);
+		await removeFromParentCategories(groupId);
+		console.log(`グループ ${groupId} の処理が完了しました`);
+	}
+
 	async function removeUrlFromStorage(url: string) {
 		try {
 			const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
@@ -275,8 +332,8 @@ export default defineBackground(() => {
 				.map((group: TabGroup) => {
 					const updatedUrls = group.urls.filter((item) => item.url !== url);
 					if (updatedUrls.length === 0) {
-						// グループが空になる場合、親カテゴリからも削除
-						removeFromParentCategories(group.id);
+						// グループが空になる場合は専用の処理関数を呼び出し
+						handleTabGroupRemoval(group.id);
 						return null; // 空グループを削除
 					}
 					return { ...group, urls: updatedUrls };
@@ -292,22 +349,85 @@ export default defineBackground(() => {
 		}
 	}
 
-	// グループを親カテゴリから削除する関数
+	// ドメインの設定を永続化する関数
+	async function saveDomainSettings(
+		domain: string,
+		subCategories: string[],
+		categoryKeywords: SubCategoryKeyword[],
+	) {
+		try {
+			// domainが実際のURLドメインでなければ処理しない
+			if (!domain.includes("://")) return;
+
+			await updateDomainCategorySettings(
+				domain,
+				subCategories,
+				categoryKeywords,
+			);
+			console.log(`ドメイン ${domain} のカテゴリ設定を永続化しました`);
+		} catch (error) {
+			console.error("カテゴリ設定の永続化エラー:", error);
+		}
+	}
+
+	// グループを親カテゴリから削除する関数を更新
 	async function removeFromParentCategories(groupId: string) {
 		try {
 			const { parentCategories = [] } =
 				await chrome.storage.local.get("parentCategories");
 
-			// グループIDを含むカテゴリを更新
+			// 削除対象のドメイン名を取得
+			const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+			const groupToRemove = savedTabs.find(
+				(group: TabGroup) => group.id === groupId,
+			);
+			const domainName = groupToRemove?.domain;
+
+			if (!groupToRemove || !domainName) {
+				console.log(
+					`削除対象のグループID ${groupId} が見つからないか、ドメイン名がありません`,
+				);
+				return;
+			}
+
+			console.log(
+				`カテゴリから削除: グループID ${groupId}, ドメイン ${domainName}`,
+			);
+
+			// ドメイン名を保持したままドメインIDのみを削除
 			const updatedCategories = parentCategories.map(
-				(category: ParentCategory) => ({
-					...category,
-					domains: category.domains.filter((id) => id !== groupId),
-				}),
+				(category: ParentCategory) => {
+					// domainNamesは変更せず、domainsからIDのみを削除
+					const updated = {
+						...category,
+						domains: category.domains.filter((id: string) => id !== groupId),
+					};
+
+					// ドメイン名がdomainNamesにあるか確認してログ出力
+					if (category.domainNames && Array.isArray(category.domainNames)) {
+						if (category.domainNames.includes(domainName)) {
+							console.log(
+								`ドメイン名 ${domainName} は ${category.name} のdomainNamesに保持されます`,
+							);
+						}
+					}
+
+					return updated;
+				},
 			);
 
 			await chrome.storage.local.set({ parentCategories: updatedCategories });
-			console.log(`カテゴリからグループID ${groupId} を削除しました`);
+
+			// 必要ならドメイン-カテゴリのマッピングを更新（削除しない）
+			if (groupToRemove.parentCategoryId) {
+				console.log(
+					`ドメイン ${domainName} のマッピングを親カテゴリ ${groupToRemove.parentCategoryId} に保持します`,
+				);
+			}
+
+			console.log(
+				`カテゴリからグループID ${groupId} を削除しました（ドメイン名を保持）`,
+			);
 		} catch (error) {
 			console.error("親カテゴリからの削除中にエラーが発生しました:", error);
 		}

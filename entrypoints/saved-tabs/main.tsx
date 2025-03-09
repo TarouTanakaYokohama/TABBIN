@@ -1,12 +1,21 @@
 import "@/assets/tailwind.css";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
-import type { TabGroup, ParentCategory } from "../../utils/storage";
+import type {
+	TabGroup,
+	ParentCategory,
+	UserSettings,
+} from "../../utils/storage";
 import {
 	getUserSettings,
 	getParentCategories,
 	addSubCategoryToGroup,
 	setUrlSubCategory,
+	setCategoryKeywords,
+	autoCategorizeTabs,
+	updateDomainCategorySettings,
+	saveParentCategories,
+	migrateParentCategoriesToDomainNames,
 } from "../../utils/storage";
 import {
 	DndContext,
@@ -35,6 +44,15 @@ interface CategoryGroupProps {
 	handleDeleteUrl: (groupId: string, url: string) => void;
 	handleOpenTab: (url: string) => void;
 	handleUpdateUrls: (groupId: string, updatedUrls: TabGroup["urls"]) => void;
+	handleUpdateDomainsOrder?: (
+		categoryId: string,
+		updatedDomains: TabGroup[],
+	) => void;
+	handleMoveDomainToCategory?: (
+		domainId: string,
+		fromCategoryId: string | null,
+		toCategoryId: string,
+	) => void;
 }
 
 const CategoryGroup = ({
@@ -45,14 +63,106 @@ const CategoryGroup = ({
 	handleDeleteUrl,
 	handleOpenTab,
 	handleUpdateUrls,
+	handleUpdateDomainsOrder,
+	handleMoveDomainToCategory,
 }: CategoryGroupProps) => {
 	const [isCollapsed, setIsCollapsed] = useState(false);
+	const [isDraggingOver, setIsDraggingOver] = useState(false);
+	// ドメインの状態を追加
+	const [localDomains, setLocalDomains] = useState<TabGroup[]>(domains);
+
+	// useSortableフックを使用してドラッグ機能を追加
+	const { attributes, listeners, setNodeRef, transform, transition } =
+		useSortable({ id: category.id });
+
+	const style = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+	};
+
+	// ドメインの変更を検知して更新
+	useEffect(() => {
+		setLocalDomains(domains);
+	}, [domains]);
 
 	// このカテゴリ内のすべてのURLを取得
 	const allUrls = domains.flatMap((group) => group.urls);
 
+	// ドラッグ&ドロップのためのセンサー
+	const sensors = useSensors(
+		useSensor(PointerSensor),
+		useSensor(KeyboardSensor, {
+			coordinateGetter: sortableKeyboardCoordinates,
+		}),
+	);
+
+	// ドラッグオーバー時の処理を追加
+	const handleDragOver = (event: React.DragEvent) => {
+		event.preventDefault();
+		setIsDraggingOver(true);
+	};
+
+	// ドラッグリーブ時の処理
+	const handleDragLeave = () => {
+		setIsDraggingOver(false);
+	};
+
+	// ドロップ時の処理
+	const handleDrop = (event: React.DragEvent) => {
+		event.preventDefault();
+		setIsDraggingOver(false);
+
+		const domainId = event.dataTransfer.getData("domain-id");
+		const fromCategoryId = event.dataTransfer.getData("from-category-id");
+
+		if (domainId && handleMoveDomainToCategory) {
+			// 同じカテゴリへのドロップでなければ処理
+			if (fromCategoryId !== category.id) {
+				handleMoveDomainToCategory(
+					domainId,
+					fromCategoryId || null,
+					category.id,
+				);
+			}
+		}
+	};
+
+	// ドラッグ終了時の処理
+	const handleDragEnd = (event: DragEndEvent) => {
+		const { active, over } = event;
+
+		if (over && active.id !== over.id) {
+			// ドメインの並び順を更新
+			const oldIndex = localDomains.findIndex(
+				(domain) => domain.id === active.id,
+			);
+			const newIndex = localDomains.findIndex(
+				(domain) => domain.id === over.id,
+			);
+
+			if (oldIndex !== -1 && newIndex !== -1) {
+				const updatedDomains = arrayMove(localDomains, oldIndex, newIndex);
+				// ローカル状態を更新
+				setLocalDomains(updatedDomains);
+				// 親コンポーネントに通知してストレージに保存
+				if (handleUpdateDomainsOrder) {
+					handleUpdateDomainsOrder(category.id, updatedDomains);
+				}
+			}
+		}
+	};
+
 	return (
-		<div className="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+		<div
+			ref={setNodeRef}
+			style={style}
+			className={`mb-6 bg-gray-50 p-4 rounded-lg border ${
+				isDraggingOver ? "border-blue-500 border-2" : "border-gray-200"
+			}`}
+			onDragOver={handleDragOver}
+			onDragLeave={handleDragLeave}
+			onDrop={handleDrop}
+		>
 			<div className="flex justify-between items-center mb-3">
 				<div className="flex items-center gap-2">
 					<button
@@ -62,10 +172,29 @@ const CategoryGroup = ({
 					>
 						{isCollapsed ? "▶" : "▼"}
 					</button>
-					<h2 className="text-xl font-bold text-gray-800">{category.name}</h2>
-					<span className="text-gray-500">
-						({domains.length}ドメイン / {allUrls.length}タブ)
-					</span>
+
+					<div
+						className="flex items-center cursor-move"
+						{...attributes}
+						{...listeners}
+					>
+						<span className="text-gray-400 ml-1">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="16"
+								height="16"
+								fill="currentColor"
+								viewBox="0 0 16 16"
+							>
+								<title>ドラッグして並び替え</title>
+								<path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
+							</svg>
+						</span>
+						<h2 className="text-xl font-bold text-gray-800">{category.name}</h2>
+						<span className="text-gray-500">
+							({domains.length}ドメイン / {allUrls.length}タブ)
+						</span>
+					</div>
 				</div>
 				<div>
 					<button
@@ -77,20 +206,32 @@ const CategoryGroup = ({
 					</button>
 				</div>
 			</div>
-
 			{!isCollapsed && (
 				<div className="space-y-4">
-					{domains.map((group) => (
-						<SortableDomainCard
-							key={group.id}
-							group={group}
-							handleOpenAllTabs={handleOpenAllTabs}
-							handleDeleteGroup={handleDeleteGroup}
-							handleDeleteUrl={handleDeleteUrl}
-							handleOpenTab={handleOpenTab}
-							handleUpdateUrls={handleUpdateUrls}
-						/>
-					))}
+					<DndContext
+						sensors={sensors}
+						collisionDetection={closestCenter}
+						onDragEnd={handleDragEnd}
+					>
+						<SortableContext
+							items={localDomains.map((domain) => domain.id)}
+							strategy={verticalListSortingStrategy}
+						>
+							{localDomains.map((group) => (
+								<SortableDomainCard
+									key={group.id}
+									group={group}
+									handleOpenAllTabs={handleOpenAllTabs}
+									handleDeleteGroup={handleDeleteGroup}
+									handleDeleteUrl={handleDeleteUrl}
+									handleOpenTab={handleOpenTab}
+									handleUpdateUrls={handleUpdateUrls}
+									categoryId={category.id} // 親カテゴリIDを渡す
+									isDraggingOver={false}
+								/>
+							))}
+						</SortableContext>
+					</DndContext>
 				</div>
 			)}
 		</div>
@@ -105,6 +246,8 @@ interface SortableDomainCardProps {
 	handleDeleteUrl: (groupId: string, url: string) => void;
 	handleOpenTab: (url: string) => void;
 	handleUpdateUrls: (groupId: string, updatedUrls: TabGroup["urls"]) => void;
+	categoryId?: string; // 親カテゴリIDを追加
+	isDraggingOver?: boolean; // ドラッグオーバー状態を追加
 }
 
 const SortableDomainCard = ({
@@ -114,24 +257,12 @@ const SortableDomainCard = ({
 	handleDeleteUrl,
 	handleOpenTab,
 	handleUpdateUrls,
+	categoryId, // 親カテゴリIDを受け取る
+	isDraggingOver,
 }: SortableDomainCardProps) => {
 	const { attributes, listeners, setNodeRef, transform, transition } =
 		useSortable({ id: group.id });
-	const [showAddSubCategory, setShowAddSubCategory] = useState(false);
-	const [newSubCategory, setNewSubCategory] = useState("");
 	const [showKeywordModal, setShowKeywordModal] = useState(false);
-
-	const handleAddSubCategory = async () => {
-		if (newSubCategory.trim()) {
-			try {
-				await addSubCategoryToGroup(group.id, newSubCategory.trim());
-				setNewSubCategory("");
-				setShowAddSubCategory(false);
-			} catch (error) {
-				console.error("子カテゴリ追加エラー:", error);
-			}
-		}
-	};
 
 	const handleSetSubCategory = async (
 		groupId: string,
@@ -159,6 +290,59 @@ const SortableDomainCard = ({
 		}
 	};
 
+	// 子カテゴリを削除する関数
+	const handleDeleteCategory = async (
+		groupId: string,
+		categoryName: string,
+	) => {
+		try {
+			// グループのタブ情報を取得
+			const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+			const groupToUpdate = savedTabs.find((g: TabGroup) => g.id === groupId);
+
+			if (!groupToUpdate) return;
+
+			// 選択されたカテゴリに属するURLの子カテゴリをリセット
+			const updatedUrls = groupToUpdate.urls.map(
+				(url: { subCategory: string }) => {
+					if (url.subCategory === categoryName) {
+						return { ...url, subCategory: undefined };
+					}
+					return url;
+				},
+			);
+
+			// 子カテゴリリストと関連キーワードからカテゴリを削除
+			const updatedSubCategories = (groupToUpdate.subCategories || []).filter(
+				(cat: string) => cat !== categoryName,
+			);
+
+			const updatedCategoryKeywords = (
+				groupToUpdate.categoryKeywords || []
+			).filter(
+				(ck: { categoryName: string }) => ck.categoryName !== categoryName,
+			);
+
+			// グループを更新
+			const updatedGroup = {
+				...groupToUpdate,
+				urls: updatedUrls,
+				subCategories: updatedSubCategories,
+				categoryKeywords: updatedCategoryKeywords,
+			};
+
+			// 保存
+			const updatedTabs = savedTabs.map((g: TabGroup) =>
+				g.id === groupId ? updatedGroup : g,
+			);
+
+			await chrome.storage.local.set({ savedTabs: updatedTabs });
+			console.log(`カテゴリ "${categoryName}" を削除しました`);
+		} catch (error) {
+			console.error("カテゴリ削除エラー:", error);
+		}
+	};
+
 	const style = {
 		transform: CSS.Transform.toString(transform),
 		transition,
@@ -168,7 +352,10 @@ const SortableDomainCard = ({
 		<div
 			ref={setNodeRef}
 			style={style}
-			className="bg-white rounded-lg shadow-md p-4 border border-gray-200"
+			className={`bg-white rounded-lg shadow-md p-4 border ${
+				isDraggingOver ? "border-blue-500 border-2" : "border-gray-200"
+			}`}
+			data-category-id={categoryId} // データ属性として親カテゴリIDを設定
 		>
 			<div className="flex justify-between items-center mb-3">
 				<div
@@ -182,7 +369,7 @@ const SortableDomainCard = ({
 							width="16"
 							height="16"
 							fill="currentColor"
-							viewBox="0 16 16"
+							viewBox="0 0 16 16"
 						>
 							<title>ドラッグして並び替え</title>
 							<path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
@@ -194,29 +381,25 @@ const SortableDomainCard = ({
 					<span className="text-sm text-gray-500">
 						({group.urls.length}個のタブ)
 					</span>
-				</div>
-				<div className="flex items-center">
 					{group.subCategories && group.subCategories.length > 0 && (
 						<span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded mr-2">
 							{group.subCategories.length}カテゴリ
 						</span>
 					)}
-					<button
-						type="button"
-						onClick={() => setShowAddSubCategory(true)}
-						className="text-sm bg-green-500 text-white px-2 py-1 rounded mr-2 hover:bg-green-600"
-						title="子カテゴリを追加"
-					>
-						+
-					</button>
+				</div>
+
+				{/* 単一のカテゴリ管理ボタン */}
+				<div className="flex items-center space-x-2">
 					<button
 						type="button"
 						onClick={() => setShowKeywordModal(true)}
-						className="text-sm bg-purple-500 text-white px-2 py-1 rounded mr-2 hover:bg-purple-600"
-						title="キーワード設定"
+						className="text-sm bg-indigo-500 text-white px-3 py-1 rounded mr-2 hover:bg-indigo-600 flex items-center"
+						title="カテゴリ管理"
 					>
-						⚙
+						<span className="mr-1">⚙</span>
+						カテゴリ管理
 					</button>
+
 					<button
 						type="button"
 						onClick={() => handleOpenAllTabs(group.urls)}
@@ -234,38 +417,13 @@ const SortableDomainCard = ({
 				</div>
 			</div>
 
-			{showAddSubCategory && (
-				<div className="mb-4 flex">
-					<input
-						type="text"
-						value={newSubCategory}
-						onChange={(e) => setNewSubCategory(e.target.value)}
-						placeholder="新しいカテゴリ名"
-						className="flex-grow p-1 border rounded-l"
-					/>
-					<button
-						type="button"
-						onClick={handleAddSubCategory}
-						className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-r"
-					>
-						追加
-					</button>
-					<button
-						type="button"
-						onClick={() => setShowAddSubCategory(false)}
-						className="ml-2 text-sm bg-gray-300 px-2 py-1 rounded hover:bg-gray-400"
-					>
-						キャンセル
-					</button>
-				</div>
-			)}
-
 			{showKeywordModal && (
 				<CategoryKeywordModal
 					group={group}
 					isOpen={showKeywordModal}
 					onClose={() => setShowKeywordModal(false)}
 					onSave={handleSaveKeywords}
+					onDeleteCategory={handleDeleteCategory}
 				/>
 			)}
 
@@ -314,14 +472,26 @@ const SortableUrlItem = ({
 		useSortable({ id });
 
 	const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+	const [isDragging, setIsDragging] = useState(false);
+	const [leftWindow, setLeftWindow] = useState(false);
+	const dragTimeoutRef = useRef<number | null>(null);
 
-	const handleDragStart = (e: React.DragEvent<HTMLButtonElement>) => {
+	// ドラッグが開始されたとき
+	const handleDragStart = (
+		e: React.DragEvent<HTMLButtonElement>,
+		url: string,
+	) => {
+		setIsDragging(true);
+		setLeftWindow(false);
 		// URLをテキストとして設定
 		e.dataTransfer.setData("text/plain", url);
 		// URI-listとしても設定（多くのブラウザやアプリがこのフォーマットを認識）
 		e.dataTransfer.setData("text/uri-list", url);
 
 		console.log("ドラッグ開始:", url);
+
+		// ドキュメント全体のmouseleaveイベントを監視
+		document.addEventListener("mouseleave", handleMouseLeave);
 
 		// ドラッグ開始をバックグラウンドに通知
 		chrome.runtime.sendMessage(
@@ -336,40 +506,64 @@ const SortableUrlItem = ({
 		);
 	};
 
-	const handleDragEnd = (e: React.DragEvent<HTMLButtonElement>) => {
-		// ドラッグ終了時にドロップ操作タイプを確認
-		console.log(
-			"ドラッグ終了時のドロップエフェクト:",
-			e.dataTransfer.dropEffect,
+	// 外部ウィンドウへのドロップ処理
+	const handleExternalDrop = useCallback(() => {
+		// 外部へのドロップ時にタブを削除するよう通知
+		chrome.runtime.sendMessage(
+			{
+				action: "urlDropped",
+				url: url,
+				groupId: groupId,
+				fromExternal: true,
+			},
+			(response) => {
+				console.log("外部ドロップ後の応答:", response);
+			},
 		);
+	}, [url, groupId]);
 
-		// 外部ウィンドウへのコピー操作の場合のみ削除処理を通知
-		// "copy"は外部アプリケーションへのドラッグを意味する
-		if (e.dataTransfer.dropEffect === "copy") {
-			console.log("外部へのドラッグ&ドロップを検知:", url);
+	const handleDragEnd = (e: React.DragEvent<HTMLButtonElement>) => {
+		// リスナーをクリーンアップ
+		document.removeEventListener("mouseleave", handleMouseLeave);
 
-			// 少し遅延を入れて、ドロップ後の処理を通知
-			setTimeout(() => {
-				chrome.runtime.sendMessage(
-					{
-						action: "urlDropped",
-						url: url,
-						groupId: groupId,
-						fromExternal: true, // 外部操作フラグを追加
-					},
-					(response) => {
-						console.log("ドラッグ&ドロップ後の応答:", response);
-					},
-				);
-			}, 500);
-		} else {
-			// 内部ドラッグか操作キャンセル（"none"）の場合
-			console.log(
-				"内部操作またはキャンセル - 削除しません:",
-				e.dataTransfer.dropEffect,
-			);
+		// タイムアウトをクリア
+		if (dragTimeoutRef.current) {
+			clearTimeout(dragTimeoutRef.current);
+			dragTimeoutRef.current = null;
 		}
+
+		setIsDragging(false);
+		console.log("ドラッグ終了:", e.dataTransfer.dropEffect);
+
+		// 内部で完了した場合は、leftWindowフラグをリセット
+		setLeftWindow(false);
 	};
+
+	// マウスリーブハンドラをメモ化
+	const handleMouseLeave = useCallback(() => {
+		// マウスがウィンドウを出たことを記録
+		setLeftWindow(true);
+		console.log("マウスがウィンドウから出ました");
+
+		// windowに戻ってこなければ、タイムアウト後に外部ウィンドウへのドロップと判定
+		if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
+		dragTimeoutRef.current = window.setTimeout(() => {
+			if (isDragging && leftWindow) {
+				console.log("外部ウィンドウへのドラッグを検出:", url);
+				handleExternalDrop();
+			}
+		}, 1000) as unknown as number;
+	}, [isDragging, leftWindow, url, handleExternalDrop]);
+
+	// コンポーネントのアンマウント時にクリーンアップ
+	useEffect(() => {
+		return () => {
+			document.removeEventListener("mouseleave", handleMouseLeave);
+			if (dragTimeoutRef.current) {
+				clearTimeout(dragTimeoutRef.current);
+			}
+		};
+	}, [handleMouseLeave]);
 
 	const handleSubCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		const category = e.target.value === "none" ? "" : e.target.value;
@@ -445,7 +639,7 @@ const SortableUrlItem = ({
 			<button
 				type="button"
 				draggable="true"
-				onDragStart={handleDragStart}
+				onDragStart={(e) => handleDragStart(e, url as string)}
 				onDragEnd={handleDragEnd}
 				onClick={() => handleOpenTab(url)}
 				className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate text-left w-full bg-transparent border-0"
@@ -552,20 +746,25 @@ const UrlList = ({
 					>
 						すべて ({urls.length})
 					</button>
-					{subCategories.map((category) => (
-						<button
-							type="button"
-							key={category}
-							onClick={() => setActiveSubCategory(category)}
-							className={`px-2 py-1 text-xs rounded ${
-								activeSubCategory === category
-									? "bg-blue-500 text-white"
-									: "bg-gray-100 hover:bg-gray-200"
-							}`}
-						>
-							{category} ({subCategoryCounts[category] || 0})
-						</button>
-					))}
+					{[...subCategories]
+						.sort(
+							(a, b) =>
+								(subCategoryCounts[b] || 0) - (subCategoryCounts[a] || 0),
+						)
+						.map((category) => (
+							<button
+								type="button"
+								key={category}
+								onClick={() => setActiveSubCategory(category)}
+								className={`px-2 py-1 text-xs rounded ${
+									activeSubCategory === category
+										? "bg-blue-500 text-white"
+										: "bg-gray-100 hover:bg-gray-200"
+								}`}
+							>
+								{category} ({subCategoryCounts[category] || 0})
+							</button>
+						))}
 					{uncategorizedCount > 0 && (
 						<button
 							type="button"
@@ -619,6 +818,7 @@ interface CategoryKeywordModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onSave: (groupId: string, categoryName: string, keywords: string[]) => void;
+	onDeleteCategory: (groupId: string, categoryName: string) => void;
 }
 
 const CategoryKeywordModal = ({
@@ -626,6 +826,7 @@ const CategoryKeywordModal = ({
 	isOpen,
 	onClose,
 	onSave,
+	onDeleteCategory,
 }: CategoryKeywordModalProps) => {
 	const [activeCategory, setActiveCategory] = useState<string>(
 		group.subCategories && group.subCategories.length > 0
@@ -634,6 +835,8 @@ const CategoryKeywordModal = ({
 	);
 	const [keywords, setKeywords] = useState<string[]>([]);
 	const [newKeyword, setNewKeyword] = useState("");
+	const [newSubCategory, setNewSubCategory] = useState(""); // 子カテゴリ追加用の状態
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // 削除確認状態
 
 	useEffect(() => {
 		if (isOpen && activeCategory) {
@@ -645,40 +848,180 @@ const CategoryKeywordModal = ({
 		}
 	}, [isOpen, activeCategory, group]);
 
+	// キーワードを追加した時に重複チェックを追加
 	const handleAddKeyword = () => {
 		if (newKeyword.trim()) {
-			setKeywords([...keywords, newKeyword.trim()]);
+			// 重複チェックを追加
+			if (
+				keywords.some(
+					(keyword) =>
+						keyword.toLowerCase() === newKeyword.trim().toLowerCase(),
+				)
+			) {
+				alert("このキーワードは既に追加されています");
+				return;
+			}
+
+			const updatedKeywords = [...keywords, newKeyword.trim()];
+			setKeywords(updatedKeywords);
 			setNewKeyword("");
+
+			// 即座に保存
+			onSave(group.id, activeCategory, updatedKeywords);
 		}
 	};
 
+	// キーワードを削除した時に自動保存するよう変更
 	const handleRemoveKeyword = (keywordToRemove: string) => {
-		setKeywords(keywords.filter((k) => k !== keywordToRemove));
+		const updatedKeywords = keywords.filter((k) => k !== keywordToRemove);
+		setKeywords(updatedKeywords);
+
+		// 即座に保存
+		onSave(group.id, activeCategory, updatedKeywords);
 	};
 
-	const handleSave = () => {
-		onSave(group.id, activeCategory, keywords);
+	// モーダルを閉じる前に確認
+	const handleClose = () => {
 		onClose();
 	};
+
+	// 子カテゴリ追加機能 - フォーカスが外れた時に実行
+	const handleAddSubCategory = async () => {
+		if (newSubCategory.trim()) {
+			try {
+				await addSubCategoryToGroup(group.id, newSubCategory.trim());
+				// カテゴリを追加したら、それをアクティブにする
+				setActiveCategory(newSubCategory.trim());
+				setNewSubCategory("");
+
+				// カテゴリが追加されたので、groupを更新する必要がある
+				// この更新はストレージの変更リスナーにより自動的に行われる
+			} catch (error) {
+				console.error("子カテゴリ追加エラー:", error);
+			}
+		}
+	};
+
+	// カテゴリを削除する関数
+	const handleDeleteCategory = async () => {
+		if (!activeCategory) return;
+
+		try {
+			await onDeleteCategory(group.id, activeCategory);
+
+			// 削除後は別のカテゴリを選択
+			if (group.subCategories && group.subCategories.length > 1) {
+				// 削除したカテゴリ以外のカテゴリを選択
+				const nextCategory = group.subCategories.find(
+					(cat) => cat !== activeCategory,
+				);
+				if (nextCategory) {
+					setActiveCategory(nextCategory);
+				}
+			} else {
+				// カテゴリがなくなった場合
+				setActiveCategory("");
+			}
+
+			// 削除確認モーダルを閉じる
+			setShowDeleteConfirm(false);
+		} catch (error) {
+			console.error("カテゴリ削除エラー:", error);
+		}
+	};
+
+	// カテゴリ選択時に削除確認モーダルをリセット
+	useEffect(() => {
+		setShowDeleteConfirm(false);
+	}, []); // activeCategory は不要
 
 	if (!isOpen) return null;
 
 	return (
 		<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
 			<div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
-				<h3 className="text-lg font-semibold mb-4">
-					「{group.domain}」のカテゴリキーワード設定
-				</h3>
+				<div className="flex justify-between items-center mb-4">
+					<h3 className="text-lg font-semibold">
+						「{group.domain}」のカテゴリ管理
+					</h3>
+					{/* モーダル閉じるボタン */}
+					<button
+						type="button"
+						onClick={handleClose}
+						className="text-gray-500 hover:text-gray-700"
+						aria-label="閉じる"
+					>
+						×
+					</button>
+				</div>
+
+				{/* 子カテゴリ追加セクション - ボタンを削除しblurイベントを追加 */}
+				<div className="mb-4 border-b pb-4">
+					<h4 className="text-md font-medium mb-2">新しい子カテゴリを追加</h4>
+					<div className="flex">
+						<input
+							type="text"
+							value={newSubCategory}
+							onChange={(e) => setNewSubCategory(e.target.value)}
+							placeholder="新しいカテゴリ名を入力してEnterキーまたはフォーカスを外す"
+							className="flex-grow p-2 border rounded"
+							onKeyPress={(e) => e.key === "Enter" && handleAddSubCategory()}
+							onBlur={handleAddSubCategory}
+						/>
+					</div>
+				</div>
 
 				{group.subCategories && group.subCategories.length > 0 ? (
 					<>
 						<div className="mb-4">
-							<label
-								htmlFor="category-select"
-								className="block text-sm text-gray-600 mb-2"
-							>
-								カテゴリ選択
-							</label>
+							<div className="flex justify-between items-center mb-2">
+								<label
+									htmlFor="category-select"
+									className="block text-sm text-gray-600"
+								>
+									キーワード設定を行うカテゴリを選択
+								</label>
+
+								{/* カテゴリの削除ボタン */}
+								<button
+									type="button"
+									onClick={() => setShowDeleteConfirm(true)}
+									className="text-sm bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded"
+									disabled={!activeCategory}
+								>
+									現在のカテゴリを削除
+								</button>
+							</div>
+
+							{/* 削除確認UI */}
+							{showDeleteConfirm && (
+								<div className="mt-2 p-3 border border-red-300 bg-red-50 rounded mb-3">
+									<p className="text-red-700 mb-2">
+										「{activeCategory}」カテゴリを削除しますか？
+										<br />
+										<span className="text-xs">
+											このカテゴリに属するすべてのタブは未分類になります
+										</span>
+									</p>
+									<div className="flex justify-end gap-2">
+										<button
+											type="button"
+											onClick={() => setShowDeleteConfirm(false)}
+											className="text-sm bg-gray-300 hover:bg-gray-400 px-2 py-1 rounded"
+										>
+											キャンセル
+										</button>
+										<button
+											type="button"
+											onClick={handleDeleteCategory}
+											className="text-sm bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded"
+										>
+											削除する
+										</button>
+									</div>
+								</div>
+							)}
+
 							<select
 								id="category-select"
 								value={activeCategory}
@@ -704,22 +1047,18 @@ const CategoryKeywordModal = ({
 								</span>
 							</label>
 
-							<div className="flex mb-2">
+							{/* キーワード入力 - ボタンを削除しblurイベントを追加 */}
+							<div className="mb-2">
 								<input
 									id="keyword-input"
 									type="text"
 									value={newKeyword}
 									onChange={(e) => setNewKeyword(e.target.value)}
-									placeholder="新しいキーワードを入力"
-									className="flex-grow p-2 border rounded-l"
+									placeholder="新しいキーワードを入力してEnterキーまたはフォーカスを外す"
+									className="w-full p-2 border rounded"
+									onKeyPress={(e) => e.key === "Enter" && handleAddKeyword()}
+									onBlur={handleAddKeyword}
 								/>
-								<button
-									type="button"
-									onClick={handleAddKeyword}
-									className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-r"
-								>
-									追加
-								</button>
 							</div>
 
 							<div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border rounded bg-gray-50">
@@ -747,27 +1086,18 @@ const CategoryKeywordModal = ({
 					</>
 				) : (
 					<p className="text-yellow-600 mb-4">
-						このドメインには子カテゴリがありません。まず子カテゴリを追加してください。
+						このドメインには子カテゴリがありません。上記のフォームから子カテゴリを追加してください。
 					</p>
 				)}
 
-				<div className="flex justify-end gap-2">
+				<div className="flex justify-end">
 					<button
 						type="button"
-						onClick={onClose}
-						className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+						onClick={handleClose}
+						className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded"
 					>
-						キャンセル
+						完了
 					</button>
-					{group.subCategories && group.subCategories.length > 0 && (
-						<button
-							type="button"
-							onClick={handleSave}
-							className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-						>
-							保存
-						</button>
-					)}
 				</div>
 			</div>
 		</div>
@@ -794,9 +1124,20 @@ const SavedTabs = () => {
 		}
 	}, [showSubCategoryModal]);
 
+	// ページ読み込み時にマイグレーションを実行
 	useEffect(() => {
 		const loadSavedTabs = async () => {
 			try {
+				console.log("ページ読み込み時の親カテゴリ移行処理を開始...");
+
+				// まずマイグレーションを実行
+				try {
+					await migrateParentCategoriesToDomainNames();
+				} catch (error) {
+					console.error("親カテゴリ移行エラー:", error);
+				}
+
+				// データ読み込み
 				const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
 				console.log("読み込まれたタブ:", savedTabs);
 				setTabGroups(savedTabs);
@@ -807,7 +1148,21 @@ const SavedTabs = () => {
 
 				// カテゴリを読み込み
 				const parentCategories = await getParentCategories();
-				setCategories(parentCategories);
+				console.log("読み込まれた親カテゴリ:", parentCategories);
+
+				// カテゴリが空の場合、または無効なカテゴリがある場合
+				const hasInvalidCategory = parentCategories.some(
+					(cat) => !cat.domainNames || !Array.isArray(cat.domainNames),
+				);
+
+				if (hasInvalidCategory || parentCategories.length === 0) {
+					console.log("無効なカテゴリを検出、再マイグレーションを実行");
+					await migrateParentCategoriesToDomainNames();
+					const updatedCategories = await getParentCategories();
+					setCategories(updatedCategories);
+				} else {
+					setCategories(parentCategories);
+				}
 			} catch (error) {
 				console.error("保存されたタブの読み込みエラー:", error);
 			} finally {
@@ -851,50 +1206,87 @@ const SavedTabs = () => {
 		}
 	};
 
+	// handleOpenAllTabs関数も同様に修正
 	const handleOpenAllTabs = async (urls: { url: string; title: string }[]) => {
 		for (const { url } of urls) {
 			window.open(url, "_blank");
-		}
+			// 設定に基づいて、開いたタブグループを削除するかどうかを決定
+			if (settings.removeTabAfterOpen) {
+				// 開いたすべてのタブを含むグループを削除する処理
+				const urlSet = new Set(urls.map((item) => item.url));
 
-		// 設定に基づいて、開いたタブグループを削除するかどうかを決定
-		if (settings.removeTabAfterOpen) {
-			// 開いたすべてのタブを含むグループを削除する処理
-			const urlSet = new Set(urls.map((item) => item.url));
-
-			const updatedGroups = tabGroups
-				.map((group) => {
-					// このグループのURLsを確認
+				// 削除前に各グループのカテゴリ設定を保存
+				for (const group of tabGroups) {
 					const remainingUrls = group.urls.filter(
 						(item) => !urlSet.has(item.url),
 					);
 
 					if (remainingUrls.length === 0) {
-						return null; // グループを削除
+						// 子カテゴリ設定を保存
+						await updateDomainCategorySettings(
+							group.domain,
+							group.subCategories || [],
+							group.categoryKeywords || [],
+						);
+
+						// 親カテゴリマッピングは削除せず保持する
+						// 親カテゴリからドメインIDの削除は内部的に行われるので明示的に行わない
 					}
+				}
 
-					return {
-						...group,
-						urls: remainingUrls,
-					};
-				})
-				.filter(Boolean) as TabGroup[];
+				// 従来通りの処理を続行
+				const updatedGroups = tabGroups
+					.map((group) => {
+						// このグループのURLsを確認
+						const remainingUrls = group.urls.filter(
+							(item) => !urlSet.has(item.url),
+						);
 
-			setTabGroups(updatedGroups);
-			await chrome.storage.local.set({ savedTabs: updatedGroups });
+						if (remainingUrls.length === 0) {
+							return null; // グループを削除
+						}
+
+						return {
+							...group,
+							urls: remainingUrls,
+						};
+					})
+					.filter(Boolean) as TabGroup[];
+
+				setTabGroups(updatedGroups);
+				await chrome.storage.local.set({ savedTabs: updatedGroups });
+			}
 		}
 	};
 
+	// handleDeleteGroup関数を修正
 	const handleDeleteGroup = async (id: string) => {
-		const updatedGroups = tabGroups.filter((group) => group.id !== id);
-		setTabGroups(updatedGroups);
-		await chrome.storage.local.set({ savedTabs: updatedGroups });
+		try {
+			// 削除前にカテゴリ設定と親カテゴリ情報を保存
+			const groupToDelete = tabGroups.find((group) => group.id === id);
+			if (groupToDelete) {
+				console.log(`グループを削除: ${groupToDelete.domain}`);
 
-		// 親カテゴリからも削除
-		const updatedCategories = categories.map((category) => ({
-			...category,
-			domains: category.domains.filter((domainId) => domainId !== id),
-		}));
-		await saveParentCategories(updatedCategories);
+				// 専用の削除前処理関数を呼び出し
+				await handleTabGroupRemoval(id);
+
+				// 以降は従来通りの処理
+				const updatedGroups = tabGroups.filter((group) => group.id !== id);
+				setTabGroups(updatedGroups);
+				await chrome.storage.local.set({ savedTabs: updatedGroups });
+
+				// 親カテゴリからはドメインIDのみを削除（ドメイン名は保持）
+				const updatedCategories = categories.map((category) => ({
+					...category,
+					domains: category.domains.filter((domainId) => domainId !== id),
+				}));
+
+				await saveParentCategories(updatedCategories);
+				console.log("グループ削除処理が完了しました");
+			}
+		} catch (error) {
+			console.error("グループ削除エラー:", error);
+		}
 	};
 
 	const handleDeleteUrl = async (groupId: string, url: string) => {
@@ -993,12 +1385,73 @@ const SavedTabs = () => {
 		}
 	};
 
-	// タブグループをカテゴリごとに整理
+	// 親カテゴリの順序変更ハンドラを追加
+	const handleCategoryDragEnd = async (event: DragEndEvent) => {
+		const { active, over } = event;
+
+		if (over && active.id !== over.id) {
+			const oldIndex = categories.findIndex((cat) => cat.id === active.id);
+			const newIndex = categories.findIndex((cat) => cat.id === over.id);
+
+			if (oldIndex !== -1 && newIndex !== -1) {
+				const updatedCategories = arrayMove(categories, oldIndex, newIndex);
+				setCategories(updatedCategories);
+				await saveParentCategories(updatedCategories);
+			}
+		}
+	};
+
+	// カテゴリ内のドメイン順序更新関数を改善
+	const handleUpdateDomainsOrder = async (
+		categoryId: string,
+		updatedDomains: TabGroup[],
+	) => {
+		try {
+			console.log("カテゴリ内のドメイン順序を更新:", categoryId);
+			console.log(
+				"更新後のドメイン順序:",
+				updatedDomains.map((d) => d.domain),
+			);
+
+			// 更新するカテゴリを探す
+			const targetCategory = categories.find((cat) => cat.id === categoryId);
+			if (!targetCategory) {
+				console.error("更新対象のカテゴリが見つかりません:", categoryId);
+				return;
+			}
+
+			// 更新するドメインIDの配列を作成
+			const updatedDomainIds = updatedDomains.map((domain) => domain.id);
+
+			// カテゴリ内のドメイン順序を更新
+			const updatedCategories = categories.map((category) => {
+				if (category.id === categoryId) {
+					return {
+						...category,
+						domains: updatedDomainIds,
+					};
+				}
+				return category;
+			});
+
+			// ストレージに保存
+			await saveParentCategories(updatedCategories);
+			setCategories(updatedCategories);
+
+			console.log("カテゴリ内のドメイン順序を更新しました:", categoryId);
+		} catch (error) {
+			console.error("カテゴリ内ドメイン順序更新エラー:", error);
+		}
+	};
+
+	// タブグループをカテゴリごとに整理する関数を強化
 	const organizeTabGroups = () => {
 		if (!settings.enableCategories) {
-			// カテゴリ機能が無効の場合は通常表示
 			return { categorized: {}, uncategorized: tabGroups };
 		}
+
+		console.log("親カテゴリ一覧:", categories);
+		console.log("タブグループ:", tabGroups);
 
 		// カテゴリに属するドメインとカテゴリに属さないドメインに分ける
 		const categorizedGroups: Record<string, TabGroup[]> = {};
@@ -1008,6 +1461,7 @@ const SavedTabs = () => {
 			// このグループが属するカテゴリを探す
 			let found = false;
 
+			// まずIDベースでカテゴリを検索
 			for (const category of categories) {
 				if (category.domains.includes(group.id)) {
 					if (!categorizedGroups[category.id]) {
@@ -1015,12 +1469,78 @@ const SavedTabs = () => {
 					}
 					categorizedGroups[category.id].push(group);
 					found = true;
+					console.log(
+						`ドメイン ${group.domain} はIDベースで ${category.name} に分類されました`,
+					);
 					break;
+				}
+			}
+
+			// IDで見つからなかった場合は、ドメイン名で検索
+			if (!found) {
+				for (const category of categories) {
+					if (
+						category.domainNames &&
+						Array.isArray(category.domainNames) &&
+						category.domainNames.includes(group.domain)
+					) {
+						if (!categorizedGroups[category.id]) {
+							categorizedGroups[category.id] = [];
+						}
+						categorizedGroups[category.id].push(group);
+
+						console.log(
+							`ドメイン ${group.domain} はドメイン名ベースで ${category.name} に分類されました`,
+						);
+
+						// 見つかった場合、ドメインIDも更新して同期させる
+						(async () => {
+							try {
+								const updatedCategory = {
+									...category,
+									domains: [...category.domains, group.id],
+								};
+
+								await saveParentCategories(
+									categories.map((c) =>
+										c.id === category.id ? updatedCategory : c,
+									),
+								);
+								console.log(
+									`ドメイン ${group.domain} のIDを親カテゴリに同期しました`,
+								);
+							} catch (err) {
+								console.error("カテゴリ同期エラー:", err);
+							}
+						})();
+
+						found = true;
+						break;
+					}
 				}
 			}
 
 			if (!found) {
 				uncategorizedGroups.push(group);
+				console.log(`ドメイン ${group.domain} は未分類です`);
+			}
+		}
+
+		// カテゴリ内のドメイン順序を維持するための処理を追加
+		for (const categoryId of Object.keys(categorizedGroups)) {
+			const category = categories.find((c) => c.id === categoryId);
+			const domains = category?.domains;
+			if (domains && domains.length > 0) {
+				// ドメインIDの順序に従ってドメインをソート
+				const domainArray = [...domains]; // 配列として扱うことを保証
+				categorizedGroups[categoryId].sort((a, b) => {
+					const indexA = domainArray.indexOf(a.id);
+					const indexB = domainArray.indexOf(b.id);
+					// 見つからない場合は最後に配置
+					if (indexA === -1) return 1;
+					if (indexB === -1) return -1;
+					return indexA - indexB;
+				});
 			}
 		}
 
@@ -1031,6 +1551,81 @@ const SavedTabs = () => {
 	};
 
 	const { categorized, uncategorized } = organizeTabGroups();
+
+	// ドメインを別のカテゴリに移動する関数
+	const handleMoveDomainToCategory = async (
+		domainId: string,
+		fromCategoryId: string | null,
+		toCategoryId: string,
+	) => {
+		try {
+			// 移動するドメイングループを取得
+			const domainGroup = tabGroups.find((group) => group.id === domainId);
+			if (!domainGroup) return;
+
+			// 更新するカテゴリのリストを準備
+			let updatedCategories = [...categories];
+
+			// 元のカテゴリからドメインIDを削除
+			if (fromCategoryId) {
+				updatedCategories = updatedCategories.map((cat) => {
+					if (cat.id === fromCategoryId) {
+						return {
+							...cat,
+							domains: cat.domains.filter((d) => d !== domainId),
+							domainNames: cat.domainNames
+								? cat.domainNames.filter((d) => d !== domainGroup.domain)
+								: [],
+						};
+					}
+					return cat;
+				});
+			}
+
+			// 新しいカテゴリにドメインIDとドメイン名を追加
+			updatedCategories = updatedCategories.map((cat) => {
+				if (cat.id === toCategoryId) {
+					// 既に含まれていなければ追加
+					const containsDomain = cat.domains.includes(domainId);
+					const containsDomainName = cat.domainNames
+						? cat.domainNames.includes(domainGroup.domain)
+						: false;
+
+					return {
+						...cat,
+						domains: containsDomain ? cat.domains : [...cat.domains, domainId],
+						domainNames: cat.domainNames
+							? containsDomainName
+								? cat.domainNames
+								: [...cat.domainNames, domainGroup.domain]
+							: [domainGroup.domain],
+					};
+				}
+				return cat;
+			});
+
+			// 保存
+			await saveParentCategories(updatedCategories);
+			setCategories(updatedCategories);
+
+			console.log(
+				`ドメイン ${domainGroup.domain} を ${fromCategoryId || "未分類"} から ${toCategoryId} に移動しました`,
+			);
+		} catch (error) {
+			console.error("カテゴリ間ドメイン移動エラー:", error);
+		}
+	};
+
+	// ドメインカードのドラッグスタート処理を追加
+	const handleDomainDragStart = (
+		e: React.DragEvent,
+		domainId: string,
+		categoryId: string,
+	) => {
+		e.dataTransfer.setData("domain-id", domainId);
+		e.dataTransfer.setData("from-category-id", categoryId);
+		e.dataTransfer.effectAllowed = "move";
+	};
 
 	return (
 		<div className="container mx-auto px-4 py-8">
@@ -1082,23 +1677,36 @@ const SavedTabs = () => {
 				<>
 					{settings.enableCategories && Object.keys(categorized).length > 0 && (
 						<>
-							{categories.map((category) => {
-								const domainGroups = categorized[category.id] || [];
-								if (domainGroups.length === 0) return null;
+							<DndContext
+								sensors={sensors}
+								collisionDetection={closestCenter}
+								onDragEnd={handleCategoryDragEnd}
+							>
+								<SortableContext
+									items={categories.map((category) => category.id)}
+									strategy={verticalListSortingStrategy}
+								>
+									{categories.map((category) => {
+										const domainGroups = categorized[category.id] || [];
+										if (domainGroups.length === 0) return null;
 
-								return (
-									<CategoryGroup
-										key={category.id}
-										category={category}
-										domains={domainGroups}
-										handleOpenAllTabs={handleOpenAllTabs}
-										handleDeleteGroup={handleDeleteGroup}
-										handleDeleteUrl={handleDeleteUrl}
-										handleOpenTab={handleOpenTab}
-										handleUpdateUrls={handleUpdateUrls}
-									/>
-								);
-							})}
+										return (
+											<CategoryGroup
+												key={category.id}
+												category={category}
+												domains={domainGroups}
+												handleOpenAllTabs={handleOpenAllTabs}
+												handleDeleteGroup={handleDeleteGroup}
+												handleDeleteUrl={handleDeleteUrl}
+												handleOpenTab={handleOpenTab}
+												handleUpdateUrls={handleUpdateUrls}
+												handleUpdateDomainsOrder={handleUpdateDomainsOrder}
+												handleMoveDomainToCategory={handleMoveDomainToCategory}
+											/>
+										);
+									})}
+								</SortableContext>
+							</DndContext>
 
 							{uncategorized.length > 0 && (
 								<div className="mt-8 mb-4">
@@ -1173,6 +1781,27 @@ const SavedTabs = () => {
 			)}
 		</div>
 	);
+};
+
+// タブグループ削除前の処理関数 (存在しないため追加)
+const handleTabGroupRemoval = async (groupId: string) => {
+	try {
+		const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+		const groupToDelete = savedTabs.find(
+			(group: TabGroup) => group.id === groupId,
+		);
+
+		if (groupToDelete) {
+			// 子カテゴリ設定を保存
+			await updateDomainCategorySettings(
+				groupToDelete.domain,
+				groupToDelete.subCategories || [],
+				groupToDelete.categoryKeywords || [],
+			);
+		}
+	} catch (error) {
+		console.error("タブグループ削除前処理エラー:", error);
+	}
 };
 
 // Reactコンポーネントをレンダリング
