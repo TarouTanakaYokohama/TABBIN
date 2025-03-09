@@ -34,6 +34,18 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+// lucide-reactからのアイコンインポートを追加
+import {
+	ChevronDown,
+	ChevronRight,
+	GripVertical,
+	ExternalLink,
+	Trash,
+	Settings,
+	X,
+	Plus,
+	Save,
+} from "lucide-react";
 
 // カテゴリグループコンポーネント
 interface CategoryGroupProps {
@@ -214,8 +226,13 @@ const CategoryGroup = ({
 						type="button"
 						onClick={() => setIsCollapsed(!isCollapsed)}
 						className="text-gray-300"
+						aria-label={isCollapsed ? "展開する" : "折りたたむ"}
 					>
-						{isCollapsed ? "▶" : "▼"}
+						{isCollapsed ? (
+							<ChevronRight size={20} />
+						) : (
+							<ChevronDown size={20} />
+						)}
 					</button>
 
 					<div
@@ -224,16 +241,7 @@ const CategoryGroup = ({
 						{...listeners}
 					>
 						<span className="text-gray-400 ml-1">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="16"
-								height="16"
-								fill="currentColor"
-								viewBox="0 0 16 16"
-							>
-								<title>ドラッグして並び替え</title>
-								<path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
-							</svg>
+							<GripVertical size={16} aria-hidden="true" />
 						</span>
 						<h2 className="text-xl font-bold text-gray-200">{category.name}</h2>
 						<span className="text-gray-400">
@@ -245,9 +253,12 @@ const CategoryGroup = ({
 					<button
 						type="button"
 						onClick={() => handleOpenAllTabs(allUrls)}
-						className="text-sm bg-zinc-600 text-white px-3 py-1 rounded mr-2 hover:bg-zinc-500"
+						className="text-sm bg-zinc-600 text-white px-3 py-1 rounded mr-2 hover:bg-zinc-500 flex items-center gap-1"
+						title="すべてのタブを開く"
+						aria-label="すべてのタブを開く"
 					>
-						すべて開く
+						<ExternalLink size={14} />
+						<span className="md:inline hidden">すべて開く</span>
 					</button>
 				</div>
 			</div>
@@ -674,16 +685,7 @@ const SortableDomainCard = ({
 					{...listeners}
 				>
 					<div className="text-gray-400 mr-2">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							fill="currentColor"
-							viewBox="0 0 16 16"
-						>
-							<title>ドラッグして並び替え</title>
-							<path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
-						</svg>
+						<GripVertical size={16} aria-hidden="true" />
 					</div>
 					<h2 className="text-lg font-semibold text-gray-200 break-all">
 						{group.domain}
@@ -703,26 +705,32 @@ const SortableDomainCard = ({
 					<button
 						type="button"
 						onClick={() => setShowKeywordModal(true)}
-						className="text-sm bg-zinc-700 text-white px-3 py-1 rounded mr-2 hover:bg-zinc-600 flex items-center"
+						className="text-sm bg-zinc-700 text-white px-3 py-1 rounded mr-2 hover:bg-zinc-600 flex items-center gap-1"
 						title="カテゴリ管理"
 					>
-						<span className="mr-1">⚙</span>
-						カテゴリ管理
+						<Settings size={14} />
+						<span className="md:inline hidden">カテゴリ管理</span>
 					</button>
 
 					<button
 						type="button"
 						onClick={() => handleOpenAllTabs(group.urls)}
-						className="text-sm bg-zinc-700 text-white px-3 py-1 rounded mr-2 hover:bg-zinc-600"
+						className="text-sm bg-zinc-700 text-white px-3 py-1 rounded mr-2 hover:bg-zinc-600 flex items-center gap-1"
+						title="すべてのタブを開く"
+						aria-label="すべてのタブを開く"
 					>
-						すべて開く
+						<ExternalLink size={14} />
+						<span className="md:inline hidden">すべて開く</span>
 					</button>
 					<button
 						type="button"
 						onClick={() => handleDeleteGroup(group.id)}
-						className="text-sm bg-zinc-700 text-white px-3 py-1 rounded hover:bg-zinc-600"
+						className="text-sm bg-zinc-700 text-white px-3 py-1 rounded hover:bg-zinc-600 flex items-center gap-1"
+						title="グループを削除"
+						aria-label="グループを削除"
 					>
-						削除
+						<Trash size={14} />
+						<span className="md:inline hidden">削除</span>
 					</button>
 					{showKeywordModal && (
 						<CategoryKeywordModal
@@ -817,33 +825,25 @@ const SortableCategorySection = ({
 						{...attributes}
 						{...listeners}
 					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							fill="currentColor"
-							viewBox="0 0 16 16"
-						>
-							<title>ドラッグして並び替え</title>
-							<path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0-3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 6a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm6-6a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm6-6a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z" />
-						</svg>
-						<h3 className="font-medium text-gray-300">
-							{props.categoryName === "__uncategorized"
-								? "未分類"
-								: props.categoryName}{" "}
-							({props.urls.length})
-						</h3>
+						<GripVertical size={16} aria-hidden="true" />
 					</div>
+					<h3 className="font-medium text-gray-300">
+						{props.categoryName === "__uncategorized"
+							? "未分類"
+							: props.categoryName}{" "}
+						({props.urls.length})
+					</h3>
 				</div>
 
 				{/* 追加: カテゴリごとの「すべて開く」ボタン */}
 				<button
 					type="button"
 					onClick={() => handleOpenAllTabs(props.urls)}
-					className="text-xs bg-zinc-700 text-white px-2 py-1 rounded hover:bg-zinc-600"
+					className="text-xs bg-zinc-700 text-white px-2 py-1 rounded hover:bg-zinc-600 flex items-center gap-1"
 					title={`${props.categoryName === "__uncategorized" ? "未分類" : props.categoryName}のタブをすべて開く`}
 				>
-					すべて開く
+					<ExternalLink size={14} />
+					<span className="md:inline hidden">すべて開く</span>
 				</button>
 			</div>
 
@@ -993,7 +993,10 @@ const SortableUrlItem = ({
 
 	const [isDragging, setIsDragging] = useState(false);
 	const [leftWindow, setLeftWindow] = useState(false);
+	const [isHovered, setIsHovered] = useState(false);
 	const dragTimeoutRef = useRef<number | null>(null);
+	const [isDeleteButtonVisible, setIsDeleteButtonVisible] = useState(false);
+	const buttonTimeoutRef = useRef<number | null>(null);
 
 	// ドラッグが開始されたとき
 	const handleDragStart = (
@@ -1084,6 +1087,50 @@ const SortableUrlItem = ({
 		};
 	}, [handleMouseLeave]);
 
+	// マウスイベントの処理を改善
+	const handleMouseEnter = () => {
+		setIsHovered(true);
+		setIsDeleteButtonVisible(true);
+		// タイマーをクリア
+		if (buttonTimeoutRef.current) {
+			clearTimeout(buttonTimeoutRef.current);
+			buttonTimeoutRef.current = null;
+		}
+	};
+
+	const handleUIMouseLeave = () => {
+		setIsHovered(false);
+		// ボタンの非表示を少し遅らせて、ボタンへのマウス移動を可能にする
+		buttonTimeoutRef.current = window.setTimeout(() => {
+			setIsDeleteButtonVisible(false);
+		}, 300) as unknown as number;
+	};
+
+	// コンポーネントのアンマウント時にクリーンアップ
+	useEffect(() => {
+		return () => {
+			if (buttonTimeoutRef.current) {
+				clearTimeout(buttonTimeoutRef.current);
+			}
+		};
+	}, []);
+
+	// 削除ボタンのマウスイベント処理
+	const handleDeleteButtonMouseEnter = () => {
+		// タイマーをクリアして非表示にならないようにする
+		if (buttonTimeoutRef.current) {
+			clearTimeout(buttonTimeoutRef.current);
+			buttonTimeoutRef.current = null;
+		}
+		setIsDeleteButtonVisible(true);
+	};
+
+	const handleDeleteButtonClick = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		e.preventDefault();
+		handleDeleteUrl(groupId, url);
+	};
+
 	const style = {
 		transform: CSS.Transform.toString(transform),
 		transition,
@@ -1093,7 +1140,7 @@ const SortableUrlItem = ({
 		<li
 			ref={setNodeRef}
 			style={style}
-			className="border-b border-zinc-800 pb-2 last:border-0 last:pb-0 flex items-center"
+			className="border-b border-zinc-800 pb-2 last:border-0 last:pb-0 flex items-center relative"
 			data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
 		>
 			<div
@@ -1101,35 +1148,33 @@ const SortableUrlItem = ({
 				{...attributes}
 				{...listeners}
 			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="16"
-					height="16"
-					fill="currentColor"
-					viewBox="0 0 16 16"
-				>
-					<title>ドラッグして並び替え</title>
-					<path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0-3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 6a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm6-6a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm6-6a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z" />
-				</svg>
+				<GripVertical size={16} aria-hidden="true" />
 			</div>
-			<button
-				type="button"
-				onClick={() => handleDeleteUrl(groupId, url)}
-				className="text-sm bg-zinc-700 text-white px-2 py-1 rounded mr-2 hover:bg-zinc-600"
-			>
-				X
-			</button>
 			<button
 				type="button"
 				draggable="true"
 				onDragStart={(e) => handleDragStart(e, url as string)}
 				onDragEnd={handleDragEnd}
 				onClick={() => handleOpenTab(url)}
-				className="text-gray-300 hover:text-white hover:underline cursor-pointer truncate text-left w-full bg-transparent border-0"
+				onMouseEnter={handleMouseEnter}
+				onMouseLeave={handleUIMouseLeave}
+				className="text-gray-300 hover:text-white hover:underline cursor-pointer truncate text-left w-full bg-transparent border-0 flex items-center gap-1 justify-between"
 				title={title}
 			>
-				{title || url}
+				<span>{title || url}</span>
 			</button>
+			{isDeleteButtonVisible && (
+				<button
+					type="button"
+					onClick={handleDeleteButtonClick}
+					onMouseEnter={handleDeleteButtonMouseEnter}
+					className="text-sm bg-zinc-700 text-white px-2 rounded mr-2 hover:bg-zinc-600 flex items-center"
+					title="URLを削除"
+					aria-label="URLを削除"
+				>
+					<X size={14} />
+				</button>
+			)}
 		</li>
 	);
 };
@@ -1351,6 +1396,7 @@ const CategoryKeywordModal = ({
 	const [newSubCategory, setNewSubCategory] = useState(""); // 子カテゴリ追加用の状態
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // 削除確認状態
 	const [isProcessing, setIsProcessing] = useState(false); // 処理中フラグを追加
+	const modalContentRef = useRef<HTMLDivElement>(null); // モーダルコンテンツへの参照を追加
 
 	useEffect(() => {
 		if (isOpen && activeCategory) {
@@ -1410,6 +1456,22 @@ const CategoryKeywordModal = ({
 	// モーダルを閉じる前に確認
 	const handleClose = () => {
 		onClose();
+	};
+
+	// モーダル外クリックの処理
+	const handleOverlayClick = (e: React.MouseEvent) => {
+		// モーダルコンテンツ以外がクリックされた場合のみ閉じる
+		if (
+			modalContentRef.current &&
+			!modalContentRef.current.contains(e.target as Node)
+		) {
+			onClose();
+		}
+	};
+
+	// モーダルコンテンツのクリックイベントの伝播を停止
+	const handleContentClick = (e: React.MouseEvent) => {
+		e.stopPropagation();
 	};
 
 	// 子カテゴリ追加機能 - 修正版: 重複チェックと処理中フラグを追加
@@ -1497,9 +1559,6 @@ const CategoryKeywordModal = ({
 
 			// 削除確認モーダルを閉じる
 			setShowDeleteConfirm(false);
-
-			// モーダル自体は閉じない - この行を削除
-			// onClose(); - 削除
 		} catch (error) {
 			console.error("カテゴリ削除エラー:", error);
 		}
@@ -1513,8 +1572,27 @@ const CategoryKeywordModal = ({
 	if (!isOpen) return null;
 
 	return (
-		<div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-			<div className="bg-zinc-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+		<div
+			className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+			onClick={(e: React.MouseEvent) => handleOverlayClick(e)}
+			onKeyDown={(e: React.KeyboardEvent) => {
+				if (e.key === "Escape") {
+					e.preventDefault();
+					onClose();
+				}
+			}}
+		>
+			<div
+				ref={modalContentRef}
+				className="bg-zinc-800 p-6 rounded-lg shadow-xl max-w-md w-full m-auto"
+				onClick={(e: React.MouseEvent) => e.stopPropagation()}
+				onKeyDown={(e: React.KeyboardEvent) => {
+					if (e.key === "Enter" || e.key === "Space") {
+						e.preventDefault();
+						e.stopPropagation();
+					}
+				}}
+			>
 				<div className="flex justify-between items-center mb-4">
 					<h3 className="text-lg font-semibold text-gray-200">
 						「{group.domain}」のカテゴリ管理
@@ -1524,9 +1602,10 @@ const CategoryKeywordModal = ({
 						type="button"
 						onClick={handleClose}
 						className="text-gray-400 hover:text-gray-200"
+						title="閉じる"
 						aria-label="閉じる"
 					>
-						×
+						<X size={16} />
 					</button>
 				</div>
 
@@ -1548,19 +1627,12 @@ const CategoryKeywordModal = ({
 									handleAddSubCategory();
 								}
 							}}
+							onBlur={() => {
+								if (newSubCategory.trim()) {
+									handleAddSubCategory();
+								}
+							}}
 						/>
-						<button
-							type="button"
-							onClick={handleAddSubCategory}
-							disabled={isProcessing || !newSubCategory.trim()}
-							className={`ml-2 px-3 py-1 rounded ${
-								isProcessing || !newSubCategory.trim()
-									? "bg-zinc-600 text-gray-400 cursor-not-allowed"
-									: "bg-zinc-600 text-white hover:bg-zinc-500"
-							}`}
-						>
-							追加
-						</button>
 					</div>
 				</div>
 
@@ -1582,10 +1654,12 @@ const CategoryKeywordModal = ({
 										console.log("削除ボタンがクリックされました");
 										setShowDeleteConfirm(true);
 									}}
-									className="text-sm bg-zinc-700 hover:bg-zinc-600 text-white px-2 py-1 rounded"
+									className="text-sm bg-zinc-700 hover:bg-zinc-600 text-white px-2 py-1 rounded flex items-center gap-1"
+									title="現在のカテゴリを削除"
 									disabled={!activeCategory}
 								>
-									現在のカテゴリを削除
+									<Trash size={14} />
+									<span className="md:inline hidden">現在のカテゴリを削除</span>
 								</button>
 							</div>
 
@@ -1604,15 +1678,18 @@ const CategoryKeywordModal = ({
 											type="button"
 											onClick={() => setShowDeleteConfirm(false)}
 											className="text-sm bg-zinc-600 hover:bg-zinc-500 px-2 py-1 rounded text-white"
+											title="キャンセル"
 										>
 											キャンセル
 										</button>
 										<button
 											type="button"
 											onClick={handleDeleteCategory}
-											className="text-sm bg-zinc-800 hover:bg-zinc-700 text-white px-2 py-1 rounded"
+											className="text-sm bg-zinc-800 hover:bg-zinc-700 text-white px-2 py-1 rounded flex items-center gap-1"
+											title="削除する"
 										>
-											削除する
+											<Trash size={14} />
+											<span className="md:inline hidden">削除する</span>
 										</button>
 									</div>
 								</div>
@@ -1653,19 +1730,12 @@ const CategoryKeywordModal = ({
 									placeholder="新しいキーワードを入力"
 									className="flex-grow p-2 border rounded bg-zinc-700 border-zinc-600 text-gray-200"
 									onKeyPress={(e) => e.key === "Enter" && handleAddKeyword()}
+									onBlur={() => {
+										if (newKeyword.trim()) {
+											handleAddKeyword();
+										}
+									}}
 								/>
-								<button
-									type="button"
-									onClick={handleAddKeyword}
-									disabled={!newKeyword.trim()}
-									className={`ml-2 px-3 py-1 rounded ${
-										!newKeyword.trim()
-											? "bg-zinc-600 text-gray-400 cursor-not-allowed"
-											: "bg-zinc-600 text-white hover:bg-zinc-500"
-									}`}
-								>
-									追加
-								</button>
 							</div>
 
 							<div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border rounded bg-zinc-900 border-zinc-700">
@@ -1682,8 +1752,9 @@ const CategoryKeywordModal = ({
 												type="button"
 												onClick={() => handleRemoveKeyword(keyword)}
 												className="ml-1 text-gray-400 hover:text-gray-200"
+												aria-label="キーワードを削除"
 											>
-												×
+												<X size={14} />
 											</button>
 										</div>
 									))
@@ -1696,16 +1767,6 @@ const CategoryKeywordModal = ({
 						このドメインには子カテゴリがありません。上記のフォームから子カテゴリを追加してください。
 					</p>
 				)}
-
-				<div className="flex justify-end">
-					<button
-						type="button"
-						onClick={handleClose}
-						className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded"
-					>
-						完了
-					</button>
-				</div>
 			</div>
 		</div>
 	);
@@ -2318,18 +2379,10 @@ const SavedTabs = () => {
 						type="button"
 						onClick={() => chrome.runtime.openOptionsPage()}
 						className="text-sm bg-zinc-800 hover:bg-zinc-700 text-gray-200 px-3 py-1 rounded flex items-center gap-2"
+						title="設定"
 					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							fill="currentColor"
-							viewBox="0 0 16 16"
-						>
-							<title>設定アイコン</title>
-							<path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0zM9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z" />
-						</svg>
-						設定
+						<Settings size={16} />
+						<span className="md:inline hidden">設定</span>
 					</button>
 					<div className="text-sm text-gray-400 space-x-4">
 						<span>
@@ -2399,7 +2452,7 @@ const SavedTabs = () => {
 
 							{uncategorized.length > 0 && (
 								<div className="mt-8 mb-4">
-									<h2 className="text-xl font-bold text-gray-800 mb-4">
+									<h2 className="text-xl font-bold text-gray-100 mb-4">
 										未分類のドメイン
 									</h2>
 								</div>
@@ -2455,15 +2508,18 @@ const SavedTabs = () => {
 								type="button"
 								onClick={() => setShowSubCategoryModal(false)}
 								className="px-4 py-2 bg-zinc-700 rounded hover:bg-zinc-600 text-gray-200"
+								title="キャンセル"
 							>
 								キャンセル
 							</button>
 							<button
 								type="button"
 								onClick={handleAddSubCategory}
-								className="px-4 py-2 bg-zinc-600 text-white rounded hover:bg-zinc-500"
+								className="px-4 py-2 bg-zinc-600 text-white rounded hover:bg-zinc-500 flex items-center gap-1"
+								title="追加"
 							>
-								追加
+								<Plus size={14} />
+								<span className="md:inline hidden">追加</span>
 							</button>
 						</div>
 					</div>
