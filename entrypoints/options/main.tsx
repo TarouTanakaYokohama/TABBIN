@@ -14,6 +14,17 @@ import {
 	createParentCategory,
 	setCategoryKeywords,
 } from "../../utils/storage";
+// lucide-reactからアイコンをインポート
+import {
+	Settings,
+	X,
+	Plus,
+	Trash,
+	Save,
+	Edit,
+	ExternalLink,
+	Check,
+} from "lucide-react";
 
 const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 	const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -280,8 +291,9 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 							onClick={() => handleRemoveSubCategory(category)}
 							className="bg-zinc-800 text-white px-2 py-1 text-sm rounded-r hover:bg-zinc-700"
 							title="カテゴリを削除"
+							aria-label={`カテゴリ ${category} を削除`}
 						>
-							×
+							<X size={14} />
 						</button>
 					</div>
 				))}
@@ -296,22 +308,36 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 						>
 							「{activeCategory}」カテゴリのキーワード
 						</label>
-						{/* キーワード追加フォーム（ボタン削除） */}
-						<input
-							id={`keyword-input-${activeCategory}`}
-							type="text"
-							value={newKeyword}
-							onChange={(e) => setNewKeyword(e.target.value)}
-							placeholder="新しいキーワードを入力（入力後にフォーカスを外すと保存）"
-							className="w-full p-2 border border-zinc-700 bg-zinc-800 text-gray-200 rounded focus:ring-2 focus:ring-gray-500"
-							onBlur={handleAddKeyword}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									e.preventDefault();
-									handleAddKeyword();
-								}
-							}}
-						/>
+						{/* キーワード追加フォーム */}
+						<div className="flex">
+							<input
+								id={`keyword-input-${activeCategory}`}
+								type="text"
+								value={newKeyword}
+								onChange={(e) => setNewKeyword(e.target.value)}
+								placeholder="新しいキーワードを入力"
+								className="flex-grow p-2 border border-zinc-700 bg-zinc-800 text-gray-200 rounded-l focus:ring-2 focus:ring-gray-500"
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										e.preventDefault();
+										handleAddKeyword();
+									}
+								}}
+							/>
+							<button
+								type="button"
+								onClick={handleAddKeyword}
+								disabled={!newKeyword.trim()}
+								className={`px-3 py-1 rounded-r flex items-center ${
+									!newKeyword.trim()
+										? "bg-zinc-600 text-gray-400 cursor-not-allowed"
+										: "bg-zinc-600 text-white hover:bg-zinc-500"
+								}`}
+								aria-label="キーワードを追加"
+							>
+								<Plus size={18} />
+							</button>
+						</div>
 					</div>
 
 					<div className="flex flex-wrap gap-2 mt-2">
@@ -328,8 +354,9 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 										type="button"
 										onClick={() => handleRemoveKeyword(keyword)}
 										className="ml-1 text-gray-400 hover:text-gray-200"
+										aria-label={`キーワード ${keyword} を削除`}
 									>
-										×
+										<X size={14} />
 									</button>
 								</div>
 							))
@@ -562,9 +589,11 @@ const OptionsPage = () => {
 			// 保存成功通知
 			setIsSaved(true);
 			setTimeout(() => setIsSaved(false), 2000);
+
+			return true;
 		} catch (error) {
 			console.error("カテゴリ削除エラー:", error);
-			alert("カテゴリの削除に失敗しました。");
+			return false;
 		}
 	};
 
@@ -868,7 +897,7 @@ const OptionsPage = () => {
 														onClick={() => startEditingCategory(category)}
 														className="text-gray-300 hover:text-gray-100 mr-3"
 													>
-														編集
+														<Edit size={16} />
 													</button>
 												)}
 												{/* 削除ボタン */}
@@ -882,7 +911,7 @@ const OptionsPage = () => {
 													}}
 													className="text-white bg-zinc-600 hover:bg-zinc-500 px-3 py-1 rounded"
 												>
-													削除
+													<Trash size={16} />
 												</button>
 											</div>
 										</li>
