@@ -814,75 +814,77 @@ const OptionsPage = () => {
 							<p className="text-gray-500 italic">カテゴリがまだありません。</p>
 						) : (
 							<ul className="space-y-2 mb-4">
-								{parentCategories.map((category) => (
-									<li
-										key={category.id}
-										className="border p-3 rounded flex justify-between items-center"
-									>
-										{editingCategoryId === category.id ? (
-											<div className="flex flex-1">
-												<input
-													type="text"
-													ref={editInputRef}
-													value={editingCategoryName}
-													onChange={(e) =>
-														setEditingCategoryName(e.target.value)
-													}
-													onBlur={saveEditingCategory}
-													onKeyDown={(e) => {
-														if (e.key === "Enter") {
-															e.preventDefault();
-															saveEditingCategory();
-														} else if (e.key === "Escape") {
-															setEditingCategoryId(null);
+								{[...parentCategories]
+									.sort((a, b) => b.domains.length - a.domains.length)
+									.map((category) => (
+										<li
+											key={category.id}
+											className="border p-3 rounded flex justify-between items-center"
+										>
+											{editingCategoryId === category.id ? (
+												<div className="flex flex-1">
+													<input
+														type="text"
+														ref={editInputRef}
+														value={editingCategoryName}
+														onChange={(e) =>
+															setEditingCategoryName(e.target.value)
 														}
-													}}
-													className="flex-grow p-1 border rounded w-full"
-												/>
-											</div>
-										) : (
-											<button
-												type="button"
-												className="font-medium cursor-pointer hover:text-blue-600 hover:underline flex-1 text-left bg-transparent border-none p-0"
-												onClick={() => startEditingCategory(category)}
-												onKeyDown={(e) => {
-													if (e.key === "Enter" || e.key === "Space") {
-														e.preventDefault();
-														startEditingCategory(category);
-													}
-												}}
-												title="クリックして編集"
-												aria-label={`${category.name}を編集 (${category.domains.length}ドメイン)`}
-											>
-												{category.name} ({category.domains.length}ドメイン)
-											</button>
-										)}
-										<div>
-											{editingCategoryId !== category.id && (
+														onBlur={saveEditingCategory}
+														onKeyDown={(e) => {
+															if (e.key === "Enter") {
+																e.preventDefault();
+																saveEditingCategory();
+															} else if (e.key === "Escape") {
+																setEditingCategoryId(null);
+															}
+														}}
+														className="flex-grow p-1 border rounded w-full"
+													/>
+												</div>
+											) : (
 												<button
 													type="button"
+													className="font-medium cursor-pointer hover:text-blue-600 hover:underline flex-1 text-left bg-transparent border-none p-0"
 													onClick={() => startEditingCategory(category)}
-													className="text-blue-500 hover:text-blue-700 mr-3"
+													onKeyDown={(e) => {
+														if (e.key === "Enter" || e.key === "Space") {
+															e.preventDefault();
+															startEditingCategory(category);
+														}
+													}}
+													title="クリックして編集"
+													aria-label={`${category.name}を編集 (${category.domains.length}ドメイン)`}
 												>
-													編集
+													{category.name} ({category.domains.length}ドメイン)
 												</button>
 											)}
-											{/* 削除ボタン - 直接deleteCategory関数を呼び出す */}
-											<button
-												type="button"
-												onClick={(e) => {
-													e.preventDefault();
-													e.stopPropagation();
-													console.log("削除ボタンがクリックされました");
-													forceDeleteCategory(category.id);
-												}}
-												className="text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded"
-											>
-												強制削除
-											</button>
-										</div>
-									</li>
-								))}
+											<div>
+												{editingCategoryId !== category.id && (
+													<button
+														type="button"
+														onClick={() => startEditingCategory(category)}
+														className="text-blue-500 hover:text-blue-700 mr-3"
+													>
+														編集
+													</button>
+												)}
+												{/* 削除ボタン - 直接deleteCategory関数を呼び出す */}
+												<button
+													type="button"
+													onClick={(e) => {
+														e.preventDefault();
+														e.stopPropagation();
+														console.log("削除ボタンがクリックされました");
+														forceDeleteCategory(category.id);
+													}}
+													className="text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded"
+												>
+													削除
+												</button>
+											</div>
+										</li>
+									))}
 							</ul>
 						)}
 					</div>
