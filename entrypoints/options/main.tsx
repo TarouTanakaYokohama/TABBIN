@@ -197,16 +197,15 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 	};
 
 	if (!tabGroup.subCategories || tabGroup.subCategories.length === 0) {
-		// 子カテゴリがない場合も追加フォームを表示（ボタン削除）
 		return (
-			<div className="mt-4 border-t pt-4">
-				<p className="text-gray-500 mb-3">
+			<div className="mt-4 border-t border-zinc-700 pt-4">
+				<p className="text-gray-400 mb-3">
 					このドメインには子カテゴリがありません。
 				</p>
 				<div className="mb-4">
 					<label
 						htmlFor="new-subcategory"
-						className="block text-sm font-medium text-gray-700 mb-1"
+						className="block text-sm font-medium text-gray-300 mb-1"
 					>
 						新しい子カテゴリを追加
 					</label>
@@ -217,7 +216,7 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 						onChange={(e) => setNewSubCategory(e.target.value)}
 						onBlur={handleAddSubCategory}
 						placeholder="子カテゴリ名（入力後にフォーカスを外すと保存）"
-						className="w-full p-2 border rounded"
+						className="w-full p-2 border border-zinc-700 bg-zinc-800 text-gray-200 rounded focus:ring-2 focus:ring-gray-500"
 						onKeyDown={(e) => {
 							if (e.key === "Enter") {
 								e.preventDefault();
@@ -231,14 +230,16 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 	}
 
 	return (
-		<div className="mt-4 border-t pt-4">
-			<h4 className="text-md font-medium mb-2">子カテゴリキーワード管理</h4>
+		<div className="mt-4 border-t border-zinc-700 pt-4">
+			<h4 className="text-md font-medium mb-2 text-gray-300">
+				子カテゴリキーワード管理
+			</h4>
 
-			{/* 新しい子カテゴリの追加フォーム（ボタン削除） */}
+			{/* 新しい子カテゴリの追加フォーム */}
 			<div className="mb-4">
 				<label
 					htmlFor="new-subcategory"
-					className="block text-sm font-medium text-gray-700 mb-1"
+					className="block text-sm font-medium text-gray-300 mb-1"
 				>
 					新しい子カテゴリを追加
 				</label>
@@ -249,7 +250,7 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 					onChange={(e) => setNewSubCategory(e.target.value)}
 					onBlur={handleAddSubCategory}
 					placeholder="子カテゴリ名（入力後にフォーカスを外すと保存）"
-					className="w-full p-2 border rounded"
+					className="w-full p-2 border border-zinc-700 bg-zinc-800 text-gray-200 rounded focus:ring-2 focus:ring-gray-500"
 					onKeyDown={(e) => {
 						if (e.key === "Enter") {
 							e.preventDefault();
@@ -259,7 +260,7 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 				/>
 			</div>
 
-			{/* 子カテゴリボタン一覧 - 削除ボタンのクリックイベントを確実に設定 */}
+			{/* 子カテゴリボタン一覧 */}
 			<div className="flex flex-wrap gap-2 mb-3">
 				{tabGroup.subCategories.map((category) => (
 					<div key={category} className="flex items-center">
@@ -268,17 +269,16 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 							onClick={() => handleCategorySelect(category)}
 							className={`px-2 py-1 text-sm rounded-l ${
 								activeCategory === category
-									? "bg-blue-500 text-white"
-									: "bg-gray-100 hover:bg-gray-200"
+									? "bg-zinc-600 text-white"
+									: "bg-zinc-700 hover:bg-zinc-600 text-gray-200"
 							}`}
 						>
 							{category}
 						</button>
-						{/* 削除ボタンの onClick イベントを修正 */}
 						<button
 							type="button"
 							onClick={() => handleRemoveSubCategory(category)}
-							className="bg-red-500 text-white px-2 py-1 text-sm rounded-r hover:bg-red-600"
+							className="bg-zinc-800 text-white px-2 py-1 text-sm rounded-r hover:bg-zinc-700"
 							title="カテゴリを削除"
 						>
 							×
@@ -292,7 +292,7 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 					<div className="mb-2">
 						<label
 							htmlFor={`keyword-input-${activeCategory}`}
-							className="block text-sm text-gray-600 mb-1"
+							className="block text-sm text-gray-300 mb-1"
 						>
 							「{activeCategory}」カテゴリのキーワード
 						</label>
@@ -303,7 +303,7 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 							value={newKeyword}
 							onChange={(e) => setNewKeyword(e.target.value)}
 							placeholder="新しいキーワードを入力（入力後にフォーカスを外すと保存）"
-							className="w-full p-2 border rounded"
+							className="w-full p-2 border border-zinc-700 bg-zinc-800 text-gray-200 rounded focus:ring-2 focus:ring-gray-500"
 							onBlur={handleAddKeyword}
 							onKeyDown={(e) => {
 								if (e.key === "Enter") {
@@ -316,18 +316,18 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 
 					<div className="flex flex-wrap gap-2 mt-2">
 						{keywords.length === 0 ? (
-							<p className="text-gray-500 text-sm">キーワードがありません</p>
+							<p className="text-gray-400 text-sm">キーワードがありません</p>
 						) : (
 							keywords.map((keyword) => (
 								<div
 									key={keyword}
-									className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm flex items-center"
+									className="bg-zinc-700 text-gray-200 px-2 py-1 rounded text-sm flex items-center"
 								>
 									{keyword}
 									<button
 										type="button"
 										onClick={() => handleRemoveKeyword(keyword)}
-										className="ml-1 text-blue-600 hover:text-blue-800"
+										className="ml-1 text-gray-400 hover:text-gray-200"
 									>
 										×
 									</button>
@@ -713,19 +713,19 @@ const OptionsPage = () => {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center min-h-[300px]">
-				<div className="text-xl text-gray-600">読み込み中...</div>
+				<div className="text-xl text-gray-300">読み込み中...</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="container mx-auto px-4 py-8 max-w-3xl">
-			<h1 className="text-3xl font-bold text-gray-800 mb-8">
+		<div className="container mx-auto px-4 py-8 max-w-3xl bg-zinc-900 min-h-screen">
+			<h1 className="text-3xl font-bold text-gray-100 mb-8">
 				Tab Managerオプション
 			</h1>
 
-			<div className="bg-white rounded-lg shadow-md p-6 mb-8">
-				<h2 className="text-xl font-semibold text-gray-700 mb-4">
+			<div className="bg-zinc-800 rounded-lg shadow-md p-6 mb-8">
+				<h2 className="text-xl font-semibold text-gray-200 mb-4">
 					タブの挙動設定
 				</h2>
 
@@ -735,13 +735,13 @@ const OptionsPage = () => {
 							type="checkbox"
 							checked={settings.removeTabAfterOpen}
 							onChange={handleToggleRemoveAfterOpen}
-							className="form-checkbox h-5 w-5 text-blue-500"
+							className="form-checkbox h-5 w-5 text-zinc-500 bg-zinc-700 border-zinc-600"
 						/>
-						<span className="text-gray-700">
+						<span className="text-gray-300">
 							保存したタブを開いた後、リストから自動的に削除する
 						</span>
 					</label>
-					<p className="text-sm text-gray-500 mt-1 ml-7">
+					<p className="text-sm text-gray-400 mt-1 ml-7">
 						オンにすると、保存したタブを開いた後、そのタブは保存リストから自動的に削除されます。
 						オフにすると、保存したタブを開いても、リストからは削除されません。
 					</p>
@@ -753,20 +753,20 @@ const OptionsPage = () => {
 							type="checkbox"
 							checked={settings.enableCategories}
 							onChange={handleToggleEnableCategories}
-							className="form-checkbox h-5 w-5 text-blue-500"
+							className="form-checkbox h-5 w-5 text-zinc-500 bg-zinc-700 border-zinc-600"
 						/>
-						<span className="text-gray-700">カテゴリ機能を有効にする</span>
+						<span className="text-gray-300">カテゴリ機能を有効にする</span>
 					</label>
-					<p className="text-sm text-gray-500 mt-1 ml-7">
+					<p className="text-sm text-gray-400 mt-1 ml-7">
 						オンにすると、ドメインを親カテゴリでグループ化し、URLを子カテゴリで分類できます。
 					</p>
 				</div>
 			</div>
 
-			<div className="bg-white rounded-lg shadow-md p-6 mb-8">
-				<h2 className="text-xl font-semibold text-gray-700 mb-4">除外設定</h2>
+			<div className="bg-zinc-800 rounded-lg shadow-md p-6 mb-8">
+				<h2 className="text-xl font-semibold text-gray-200 mb-4">除外設定</h2>
 				<div className="mb-4">
-					<label htmlFor="excludePatterns" className="block text-gray-700 mb-2">
+					<label htmlFor="excludePatterns" className="block text-gray-300 mb-2">
 						保存・閉じない URL パターン（1行に1つ）
 					</label>
 					<textarea
@@ -775,24 +775,24 @@ const OptionsPage = () => {
 						onChange={handleExcludePatternsChange}
 						onBlur={handleExcludePatternsBlur}
 						onKeyDown={handleKeyDown}
-						className="w-full h-32 p-2 border rounded focus:ring-2 focus:ring-blue-500"
+						className="w-full h-32 p-2 border border-zinc-700 bg-zinc-800 text-gray-200 rounded focus:ring-2 focus:ring-gray-500"
 						placeholder="例：&#10;chrome-extension://&#10;chrome://"
 					/>
-					<p className="text-sm text-gray-500 mt-1">
+					<p className="text-sm text-gray-400 mt-1">
 						これらのパターンに一致するURLは保存されず、タブも閉じられません。
 					</p>
 				</div>
 			</div>
 
 			{settings.enableCategories && (
-				<div className="bg-white rounded-lg shadow-md p-6 mb-8">
-					<h2 className="text-xl font-semibold text-gray-700 mb-4">
+				<div className="bg-zinc-800 rounded-lg shadow-md p-6 mb-8">
+					<h2 className="text-xl font-semibold text-gray-200 mb-4">
 						カテゴリ管理
 					</h2>
 
 					{/* 親カテゴリ管理 */}
 					<div className="mb-6">
-						<h3 className="text-lg font-medium text-gray-700 mb-3">
+						<h3 className="text-lg font-medium text-gray-200 mb-3">
 							親カテゴリ
 						</h3>
 						<div className="mb-4">
@@ -803,15 +803,17 @@ const OptionsPage = () => {
 								onBlur={handleAddCategory}
 								onKeyDown={handleKeyDown}
 								placeholder="新しいカテゴリ名"
-								className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+								className="w-full p-2 border border-zinc-700 bg-zinc-800 text-gray-200 rounded focus:ring-2 focus:ring-gray-500"
 							/>
 						</div>
 						{categoryError && (
-							<p className="text-red-500 text-sm mb-3">{categoryError}</p>
+							<p className="text-gray-300 text-sm mb-3 bg-zinc-700 p-2 rounded">
+								{categoryError}
+							</p>
 						)}
 
 						{parentCategories.length === 0 ? (
-							<p className="text-gray-500 italic">カテゴリがまだありません。</p>
+							<p className="text-gray-400 italic">カテゴリがまだありません。</p>
 						) : (
 							<ul className="space-y-2 mb-4">
 								{[...parentCategories]
@@ -819,7 +821,7 @@ const OptionsPage = () => {
 									.map((category) => (
 										<li
 											key={category.id}
-											className="border p-3 rounded flex justify-between items-center"
+											className="border border-zinc-700 p-3 rounded-md bg-zinc-700 flex justify-between items-center"
 										>
 											{editingCategoryId === category.id ? (
 												<div className="flex flex-1">
@@ -839,13 +841,13 @@ const OptionsPage = () => {
 																setEditingCategoryId(null);
 															}
 														}}
-														className="flex-grow p-1 border rounded w-full"
+														className="flex-grow p-1 bg-zinc-800 text-gray-200 border border-zinc-600 rounded w-full"
 													/>
 												</div>
 											) : (
 												<button
 													type="button"
-													className="font-medium cursor-pointer hover:text-blue-600 hover:underline flex-1 text-left bg-transparent border-none p-0"
+													className="font-medium cursor-pointer hover:text-gray-100 hover:underline flex-1 text-left bg-transparent border-none p-0 text-gray-200"
 													onClick={() => startEditingCategory(category)}
 													onKeyDown={(e) => {
 														if (e.key === "Enter" || e.key === "Space") {
@@ -864,12 +866,12 @@ const OptionsPage = () => {
 													<button
 														type="button"
 														onClick={() => startEditingCategory(category)}
-														className="text-blue-500 hover:text-blue-700 mr-3"
+														className="text-gray-300 hover:text-gray-100 mr-3"
 													>
 														編集
 													</button>
 												)}
-												{/* 削除ボタン - 直接deleteCategory関数を呼び出す */}
+												{/* 削除ボタン */}
 												<button
 													type="button"
 													onClick={(e) => {
@@ -878,7 +880,7 @@ const OptionsPage = () => {
 														console.log("削除ボタンがクリックされました");
 														forceDeleteCategory(category.id);
 													}}
-													className="text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded"
+													className="text-white bg-zinc-600 hover:bg-zinc-500 px-3 py-1 rounded"
 												>
 													削除
 												</button>
@@ -892,16 +894,16 @@ const OptionsPage = () => {
 					{/* ドメイン割り当て */}
 					{savedTabs.length > 0 && (
 						<div>
-							<h3 className="text-lg font-medium text-gray-700 mb-3">
+							<h3 className="text-lg font-medium text-gray-200 mb-3">
 								ドメイン管理
 							</h3>
 							<div className="overflow-auto max-h-96">
 								<table className="w-full text-left mb-4">
-									<thead className="bg-gray-50">
+									<thead className="bg-zinc-700">
 										<tr>
-											<th className="p-2">ドメイン</th>
-											<th className="p-2">カテゴリ</th>
-											<th className="p-2">アクション</th>
+											<th className="p-2 text-gray-300">ドメイン</th>
+											<th className="p-2 text-gray-300">カテゴリ</th>
+											<th className="p-2 text-gray-300">アクション</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -911,8 +913,8 @@ const OptionsPage = () => {
 											);
 
 											return (
-												<tr key={tab.id} className="border-b">
-													<td className="p-2 max-w-[200px] truncate">
+												<tr key={tab.id} className="border-b border-zinc-700">
+													<td className="p-2 max-w-[200px] truncate text-gray-300">
 														{tab.domain}
 													</td>
 													<td className="p-2">
@@ -921,7 +923,7 @@ const OptionsPage = () => {
 															onChange={(e) =>
 																assignDomainToCategory(tab.id, e.target.value)
 															}
-															className="w-full p-1 border rounded"
+															className="w-full p-1 bg-zinc-800 text-gray-200 border border-zinc-700 rounded"
 														>
 															<option value="none">未分類</option>
 															{parentCategories.map((category) => (
@@ -939,7 +941,7 @@ const OptionsPage = () => {
 																	activeTabId === tab.id ? null : tab.id,
 																)
 															}
-															className="text-sm bg-blue-500 text-white px-2 py-1 rounded"
+															className="text-sm bg-zinc-700 hover:bg-zinc-600 text-white px-2 py-1 rounded"
 														>
 															{activeTabId === tab.id
 																? "閉じる"
@@ -953,8 +955,8 @@ const OptionsPage = () => {
 								</table>
 
 								{activeTabId && (
-									<div className="bg-gray-50 p-4 rounded mb-4">
-										<h4 className="text-md font-semibold mb-2">
+									<div className="bg-zinc-700 p-4 rounded mb-4">
+										<h4 className="text-md font-semibold mb-2 text-gray-200">
 											{savedTabs.find((tab) => tab.id === activeTabId)?.domain}{" "}
 											の詳細設定
 										</h4>
@@ -981,7 +983,7 @@ const OptionsPage = () => {
 
 			{isSaved && (
 				<div className="text-center mb-4">
-					<span className="text-green-500 font-medium">
+					<span className="text-gray-300 bg-zinc-700 px-3 py-1 rounded font-medium">
 						設定が保存されました！
 					</span>
 				</div>
