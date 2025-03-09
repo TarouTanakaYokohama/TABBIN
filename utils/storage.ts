@@ -5,6 +5,7 @@ export interface ParentCategory {
 	id: string;
 	name: string;
 	domains: string[]; // このカテゴリに属するドメインIDのリスト
+	domainNames: string[]; // このカテゴリに属するドメイン名のリスト (新規追加)
 }
 
 // 子カテゴリのキーワード設定のインターフェース
@@ -36,7 +37,7 @@ export interface UserSettings {
 export const defaultSettings: UserSettings = {
 	removeTabAfterOpen: true,
 	excludePatterns: ["chrome-extension://", "chrome://"],
-	enableCategories: false, // デフォルトは無効
+	enableCategories: true, // デフォルトは無効
 };
 
 // 設定を取得する関数
@@ -73,10 +74,22 @@ export async function createParentCategory(
 		id: uuidv4(),
 		name,
 		domains: [],
+		domainNames: [], // 空の配列で初期化
 	};
 
 	await saveParentCategories([...categories, newCategory]);
 	return newCategory;
+}
+
+// ドメイン名でカテゴリを検索する関数を追加
+export async function findCategoryByDomainName(
+	domainName: string,
+): Promise<ParentCategory | null> {
+	const categories = await getParentCategories();
+	return (
+		categories.find((category) => category.domainNames.includes(domainName)) ||
+		null
+	);
 }
 
 // ドメインを親カテゴリに割り当てる関数
@@ -85,6 +98,19 @@ export async function assignDomainToCategory(
 	categoryId: string,
 ): Promise<void> {
 	const categories = await getParentCategories();
+	const tabGroup = await getTabGroupById(domainId);
+
+	// ドメイン-カテゴリのマッピングも更新
+	if (tabGroup) {
+		// カテゴリが"none"でなければマッピングを更新
+		if (categoryId !== "none") {
+			await updateDomainCategoryMapping(tabGroup.domain, categoryId);
+		} else {
+			// "none"の場合はマッピングを削除
+			await updateDomainCategoryMapping(tabGroup.domain, null);
+		}
+	}
+
 	const updatedCategories = categories.map((category: ParentCategory) => {
 		if (category.id === categoryId) {
 			// すでに含まれていなければ追加
@@ -92,6 +118,9 @@ export async function assignDomainToCategory(
 				return {
 					...category,
 					domains: [...category.domains, domainId],
+					domainNames: category.domainNames?.includes(tabGroup?.domain ?? "")
+						? category.domainNames
+						: [...(category.domainNames || []), tabGroup?.domain ?? ""],
 				};
 			}
 		} else {
@@ -99,6 +128,9 @@ export async function assignDomainToCategory(
 			return {
 				...category,
 				domains: category.domains.filter((id) => id !== domainId),
+				domainNames: (category.domainNames || []).filter((domain) =>
+					tabGroup ? domain !== tabGroup.domain : true,
+				),
 			};
 		}
 		return category;
@@ -107,16 +139,73 @@ export async function assignDomainToCategory(
 	await saveParentCategories(updatedCategories);
 }
 
-// 子カテゴリを追加する関数
+// ドメイン別のカテゴリ設定を保存するためのインターフェース
+export interface DomainCategorySettings {
+	domain: string; // ドメイン
+	subCategories: string[]; // このドメインで設定された子カテゴリリスト
+	categoryKeywords: SubCategoryKeyword[]; // カテゴリキーワード設定
+}
+
+// ドメインのカテゴリ設定を取得する関数
+export async function getDomainCategorySettings(): Promise<
+	DomainCategorySettings[]
+> {
+	const { domainCategorySettings = [] } = await chrome.storage.local.get(
+		"domainCategorySettings",
+	);
+	return domainCategorySettings;
+}
+
+// ドメインのカテゴリ設定を保存する関数
+export async function saveDomainCategorySettings(
+	settings: DomainCategorySettings[],
+): Promise<void> {
+	await chrome.storage.local.set({ domainCategorySettings: settings });
+}
+
+// ドメインのカテゴリ設定を更新する関数
+export async function updateDomainCategorySettings(
+	domain: string,
+	subCategories: string[],
+	categoryKeywords: SubCategoryKeyword[],
+): Promise<void> {
+	const settings = await getDomainCategorySettings();
+
+	// 既存の設定を探す
+	const existingIndex = settings.findIndex((s) => s.domain === domain);
+
+	if (existingIndex >= 0) {
+		// 既存の設定を更新
+		settings[existingIndex] = {
+			domain,
+			subCategories,
+			categoryKeywords,
+		};
+	} else {
+		// 新しい設定を追加
+		settings.push({
+			domain,
+			subCategories,
+			categoryKeywords,
+		});
+	}
+
+	await saveDomainCategorySettings(settings);
+}
+
+// 子カテゴリを追加する関数（永続設定にも保存）
 export async function addSubCategoryToGroup(
 	groupId: string,
 	subCategoryName: string,
 ): Promise<void> {
 	const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
 
-	const updatedGroups = savedTabs.map((group: TabGroup) => {
-		if (group.id === groupId) {
-			const subCategories = group.subCategories || [];
+	const group = savedTabs.find((g: TabGroup) => g.id === groupId);
+	if (!group) return;
+
+	const updatedGroups = savedTabs.map((existingGroup: TabGroup) => {
+		if (existingGroup.id === groupId) {
+			const subCategories = existingGroup.subCategories || [];
 			if (!subCategories.includes(subCategoryName)) {
 				return {
 					...group,
@@ -127,7 +216,30 @@ export async function addSubCategoryToGroup(
 		return group;
 	});
 
+	// タブグループの更新
 	await chrome.storage.local.set({ savedTabs: updatedGroups });
+
+	// ドメイン別設定にも保存して永続化
+	if (group) {
+		const settings = await getDomainCategorySettings();
+		const existingSetting = settings.find((s) => s.domain === group.domain);
+
+		if (existingSetting) {
+			// 既存の設定がある場合は更新
+			if (!existingSetting.subCategories.includes(subCategoryName)) {
+				existingSetting.subCategories.push(subCategoryName);
+				await saveDomainCategorySettings(settings);
+			}
+		} else {
+			// 新しい設定を作成
+			settings.push({
+				domain: group.domain,
+				subCategories: [subCategoryName],
+				categoryKeywords: [],
+			});
+			await saveDomainCategorySettings(settings);
+		}
+	}
 }
 
 // URLに子カテゴリを設定する関数
@@ -161,7 +273,7 @@ export async function setUrlSubCategory(
 	await chrome.storage.local.set({ savedTabs: updatedGroups });
 }
 
-// 子カテゴリにキーワードを設定する関数
+// 子カテゴリにキーワードを設定する関数（永続設定にも保存）
 export async function setCategoryKeywords(
 	groupId: string,
 	categoryName: string,
@@ -169,14 +281,17 @@ export async function setCategoryKeywords(
 ): Promise<void> {
 	const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
 
-	const updatedGroups = savedTabs.map((group: TabGroup) => {
-		if (group.id === groupId) {
+	const group = savedTabs.find((g: TabGroup) => g.id === groupId);
+	if (!group) return;
+
+	const updatedGroups = savedTabs.map((currentGroup: TabGroup) => {
+		if (currentGroup.id === groupId) {
 			// 既存のカテゴリキーワード設定を取得
-			const categoryKeywords = group.categoryKeywords || [];
+			const categoryKeywords = currentGroup.categoryKeywords || [];
 
 			// 対象カテゴリのインデックスを探す
 			const categoryIndex = categoryKeywords.findIndex(
-				(ck) => ck.categoryName === categoryName,
+				(ck: SubCategoryKeyword) => ck.categoryName === categoryName,
 			);
 
 			if (categoryIndex >= 0) {
@@ -198,7 +313,42 @@ export async function setCategoryKeywords(
 		return group;
 	});
 
+	// タブグループの更新
 	await chrome.storage.local.set({ savedTabs: updatedGroups });
+
+	// ドメイン別設定にも保存して永続化
+	if (group) {
+		const settings = await getDomainCategorySettings();
+		const existingSetting = settings.find((s) => s.domain === group.domain);
+
+		if (existingSetting) {
+			// 既存の設定がある場合は更新
+			const keywordIndex = existingSetting.categoryKeywords.findIndex(
+				(ck) => ck.categoryName === categoryName,
+			);
+
+			if (keywordIndex >= 0) {
+				// 既存のキーワード設定を更新
+				existingSetting.categoryKeywords[keywordIndex].keywords = keywords;
+			} else {
+				// 新しいキーワード設定を追加
+				existingSetting.categoryKeywords.push({
+					categoryName,
+					keywords,
+				});
+			}
+
+			await saveDomainCategorySettings(settings);
+		} else {
+			// 新しい設定を作成
+			settings.push({
+				domain: group.domain,
+				subCategories: group.subCategories || [],
+				categoryKeywords: [{ categoryName, keywords }],
+			});
+			await saveDomainCategorySettings(settings);
+		}
+	}
 }
 
 // キーワードに基づいて自動的にURLを分類する
@@ -267,20 +417,125 @@ export async function addSubCategoryWithKeywords(
 	}
 }
 
+// 既存の設定を新しいタブグループに復元する関数
+export async function restoreCategorySettings(
+	tabGroup: TabGroup,
+): Promise<TabGroup> {
+	const settings = await getDomainCategorySettings();
+	const domainSettings = settings.find((s) => s.domain === tabGroup.domain);
+
+	if (domainSettings) {
+		return {
+			...tabGroup,
+			subCategories: domainSettings.subCategories,
+			categoryKeywords: domainSettings.categoryKeywords,
+		};
+	}
+
+	return tabGroup;
+}
+
+// ドメインと親カテゴリのマッピングを保存するインターフェース
+export interface DomainParentCategoryMapping {
+	domain: string; // ドメイン（URL）
+	categoryId: string; // 親カテゴリID
+}
+
+// ドメイン-親カテゴリのマッピングを取得する関数
+export async function getDomainCategoryMappings(): Promise<
+	DomainParentCategoryMapping[]
+> {
+	const { domainCategoryMappings = [] } = await chrome.storage.local.get(
+		"domainCategoryMappings",
+	);
+	return domainCategoryMappings;
+}
+
+// ドメイン-親カテゴリのマッピングを保存する関数
+export async function saveDomainCategoryMappings(
+	mappings: DomainParentCategoryMapping[],
+): Promise<void> {
+	await chrome.storage.local.set({ domainCategoryMappings: mappings });
+}
+
+// ドメインと親カテゴリのマッピングを更新する関数
+export async function updateDomainCategoryMapping(
+	domain: string,
+	categoryId: string | null,
+): Promise<void> {
+	const mappings = await getDomainCategoryMappings();
+
+	// 既存のマッピングを探す
+	const existingIndex = mappings.findIndex((m) => m.domain === domain);
+
+	if (categoryId === null) {
+		// カテゴリIDがnullの場合は、マッピングを削除
+		if (existingIndex >= 0) {
+			mappings.splice(existingIndex, 1);
+			await saveDomainCategoryMappings(mappings);
+		}
+		return;
+	}
+
+	if (existingIndex >= 0) {
+		// 既存のマッピングを更新
+		mappings[existingIndex].categoryId = categoryId;
+	} else {
+		// 新しいマッピングを追加
+		mappings.push({ domain, categoryId });
+	}
+
+	await saveDomainCategoryMappings(mappings);
+}
+
+// TabGroup IDからグループを取得する関数
+async function getTabGroupById(groupId: string): Promise<TabGroup | null> {
+	const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+	return savedTabs.find((group: TabGroup) => group.id === groupId) || null;
+}
+
+// saveTabs関数の実装（1つだけ残す）
 export async function saveTabs(tabs: chrome.tabs.Tab[]) {
-	const groupedTabs = new Map<string, TabGroup>();
+	console.log("タブを保存します:", tabs.length);
 
 	// 既存のタブグループを取得
+	const groupedTabs = new Map<string, TabGroup>();
 	const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
 	for (const group of savedTabs) {
 		groupedTabs.set(group.domain, group);
 	}
 
+	// ドメインカテゴリマッピングを取得
+	const domainCategoryMappings = await getDomainCategoryMappings();
+	console.log("ドメインマッピング:", domainCategoryMappings);
+
+	// 親カテゴリを取得
+	const parentCategories = await getParentCategories();
+	console.log("親カテゴリ一覧:", parentCategories);
+
+	// デバッグ用にカテゴリのdomainNamesを出力
+	for (const category of parentCategories) {
+		console.log(
+			`カテゴリ「${category.name}」のドメイン名一覧:`,
+			category.domainNames || [],
+		);
+	}
+
+	// domainNames配列が空のカテゴリがあれば緊急マイグレーション実行
+	const hasEmptyDomainNames = parentCategories.some(
+		(cat) => !cat.domainNames || cat.domainNames.length === 0,
+	);
+	if (hasEmptyDomainNames) {
+		console.log("空のdomainNames配列を検出、緊急マイグレーションを実行");
+		await migrateParentCategoriesToDomainNames();
+		// 更新された親カテゴリを再取得
+		const updatedCategories = await getParentCategories();
+		console.log("マイグレーション後の親カテゴリ:", updatedCategories);
+	}
+
 	// 新しいタブを適切なグループに振り分け
 	for (const tab of tabs) {
 		if (!tab.url) continue;
-
-		// 拡張機能のURLは除外
 		if (tab.url.startsWith("chrome-extension://")) continue;
 
 		try {
@@ -288,14 +543,110 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 			const domain = `${url.protocol}//${url.hostname}`;
 
 			if (!groupedTabs.has(domain)) {
-				groupedTabs.set(domain, {
+				console.log(`新しいドメインを処理: ${domain}`);
+
+				// 新しいグループを作成
+				const newGroup: TabGroup = {
 					id: uuidv4(),
 					domain,
 					urls: [],
-					subCategories: [], // 空の子カテゴリリストを初期化
-				});
+					subCategories: [],
+				};
+
+				// 既存の子カテゴリ設定を復元
+				const restoredGroup = await restoreCategorySettings(newGroup);
+
+				// このドメインが所属する親カテゴリを探す
+				let foundCategory = null;
+				let categoryFoundMethod = "";
+
+				// マッピングでまず検索（最も優先度が高い）
+				const domainMapping = domainCategoryMappings.find(
+					(m) => m.domain === domain,
+				);
+				if (domainMapping) {
+					foundCategory = parentCategories.find(
+						(c) => c.id === domainMapping.categoryId,
+					);
+					if (foundCategory) {
+						console.log(
+							`ドメイン ${domain} は親カテゴリ「${foundCategory.name}」のマッピングに見つかりました`,
+						);
+						categoryFoundMethod = "mapping";
+					}
+				}
+
+				// マッピングで見つからない場合、domainNamesで検索
+				if (!foundCategory) {
+					for (const category of parentCategories) {
+						// nullチェックとArrayチェックを追加
+						if (!category.domainNames || !Array.isArray(category.domainNames)) {
+							console.log(
+								`カテゴリ「${category.name}」のdomainNamesが不正です`,
+							);
+							continue;
+						}
+
+						console.log(`カテゴリ「${category.name}」のdomainNamesで検索:`, {
+							domainNames: category.domainNames,
+							searchDomain: domain,
+						});
+
+						// 厳密な比較で検索する
+						if (category.domainNames.some((d) => d === domain)) {
+							console.log(
+								`ドメイン ${domain} は親カテゴリ「${category.name}」のdomainNamesに見つかりました`,
+							);
+							foundCategory = category;
+							categoryFoundMethod = "domainNames";
+							break;
+						}
+					}
+				}
+
+				// 親カテゴリが見つかった場合、グループに割り当てて更新
+				if (foundCategory) {
+					console.log(
+						`ドメイン ${domain} を親カテゴリ「${foundCategory.name}」に割り当てます (検出方法: ${categoryFoundMethod})`,
+					);
+
+					restoredGroup.parentCategoryId = foundCategory.id;
+
+					// 親カテゴリにこの新しいグループを追加
+					const updatedCategory = {
+						...foundCategory,
+						domains: [...foundCategory.domains, restoredGroup.id],
+					};
+
+					// domainNamesにドメインを確実に追加
+					if (!updatedCategory.domainNames) {
+						updatedCategory.domainNames = [domain];
+					} else if (!updatedCategory.domainNames.includes(domain)) {
+						updatedCategory.domainNames = [
+							...updatedCategory.domainNames,
+							domain,
+						];
+					}
+
+					// 親カテゴリを更新
+					await updateCategoryDomains(updatedCategory);
+					console.log(`親カテゴリ「${foundCategory.name}」を更新しました`);
+
+					// ドメインカテゴリのマッピングも更新
+					await updateDomainCategoryMapping(domain, foundCategory.id);
+					console.log(
+						`ドメイン ${domain} と親カテゴリのマッピングを更新しました`,
+					);
+				} else {
+					console.log(
+						`ドメイン ${domain} の親カテゴリが見つからないため未分類です`,
+					);
+				}
+
+				groupedTabs.set(domain, restoredGroup);
 			}
 
+			// グループにURLを追加
 			const group = groupedTabs.get(domain);
 			if (!group) continue;
 
@@ -307,7 +658,7 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 				group.urls.push({
 					url: tab.url,
 					title: tab.title || "",
-					subCategory: undefined, // 初期値は未分類
+					subCategory: undefined,
 				});
 			}
 		} catch (error) {
@@ -316,9 +667,190 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 	}
 
 	// ストレージに保存
-	await chrome.storage.local.set({
-		savedTabs: Array.from(groupedTabs.values()),
-	});
+	const groupArray = Array.from(groupedTabs.values());
+	await chrome.storage.local.set({ savedTabs: groupArray });
+	console.log("保存されたタブグループ:", groupArray);
+
+	// 保存したすべてのグループに自動カテゴライズを適用
+	for (const group of groupArray) {
+		if (group.categoryKeywords && group.categoryKeywords.length > 0) {
+			await autoCategorizeTabs(group.id);
+		}
+	}
+}
+
+// 既存のデータを更新し、domainNamesプロパティを追加する移行関数
+export async function migrateParentCategoriesToDomainNames(): Promise<void> {
+	try {
+		console.log("親カテゴリのdomainNames移行を緊急実行します");
+		const categories = await getParentCategories();
+		const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+		const { domainCategoryMappings = [] } = await chrome.storage.local.get(
+			"domainCategoryMappings",
+		);
+
+		console.log("現在の親カテゴリ:", categories);
+		console.log("現在のタブグループ数:", savedTabs.length);
+		console.log("現在のドメインマッピング数:", domainCategoryMappings.length);
+
+		// 各カテゴリの状態をログ出力
+		for (const category of categories) {
+			console.log(`カテゴリ「${category.name}」の状態:`, {
+				id: category.id,
+				domains: category.domains,
+				domainNames: category.domainNames || [],
+			});
+
+			// マッピングから検索
+			const mappingsForCategory = domainCategoryMappings.filter(
+				(m: DomainParentCategoryMapping) => m.categoryId === category.id,
+			);
+			console.log(
+				`  マッピングから見つかったドメイン: ${mappingsForCategory
+					.map((m: DomainParentCategoryMapping) => m.domain)
+					.join(", ")}`,
+			);
+
+			// savedTabsからドメイン名を検索
+			const domainsFromTabs = [];
+			for (const domainId of category.domains) {
+				const tab = savedTabs.find((t: TabGroup) => t.id === domainId);
+				if (tab) {
+					domainsFromTabs.push(tab.domain);
+				}
+			}
+			console.log(
+				`  タブから見つかったドメイン: ${domainsFromTabs.join(", ")}`,
+			);
+		}
+
+		// マイグレーション実行
+		const updatedCategories = categories.map((category) => {
+			// ドメインIDに対応するドメイン名を取得
+			const domainNames = category.domains
+				.map((domainId) => {
+					const group = savedTabs.find((tab: TabGroup) => tab.id === domainId);
+					return group?.domain;
+				})
+				.filter(Boolean) as string[];
+
+			// マッピングからもドメイン名を取得
+			const mappingDomains = domainCategoryMappings
+				.filter(
+					(mapping: DomainParentCategoryMapping) =>
+						mapping.categoryId === category.id,
+				)
+				.map((mapping: DomainParentCategoryMapping) => mapping.domain);
+
+			// 既存のdomainNamesと結合して重複排除
+			const allDomains = Array.from(
+				new Set([
+					...(category.domainNames || []),
+					...domainNames,
+					...mappingDomains,
+				]),
+			);
+
+			console.log(
+				`カテゴリ「${category.name}」の更新後domainNames:`,
+				allDomains,
+			);
+
+			// 強制的にdomainNamesを上書き
+			return {
+				...category,
+				domainNames: allDomains,
+			};
+		});
+
+		console.log("更新後の親カテゴリ:", updatedCategories);
+
+		// ストレージに保存
+		await chrome.storage.local.set({ parentCategories: updatedCategories });
+		console.log("親カテゴリのdomainNames移行が完了しました");
+
+		// 確認のため保存後のデータも取得
+		const savedCategories = await getParentCategories();
+		console.log("保存後の親カテゴリ:", savedCategories);
+
+		return;
+	} catch (error) {
+		console.error("親カテゴリ移行エラー:", error);
+		throw error;
+	}
+}
+
+// タブを開いた後のグループ削除処理を修正
+export async function handleTabGroupRemoval(id: string): Promise<void> {
+	try {
+		// 削除前にドメイン情報を保存
+		const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+		const groupToRemove = savedTabs.find((group: TabGroup) => group.id === id);
+
+		if (groupToRemove?.domain) {
+			console.log(`グループ削除前の処理: ${groupToRemove.domain}`);
+
+			// カテゴリ設定を永続化
+			await updateDomainCategorySettings(
+				groupToRemove.domain,
+				groupToRemove.subCategories || [],
+				groupToRemove.categoryKeywords || [],
+			);
+
+			// 親カテゴリにドメイン名を確実に保持させる
+			if (groupToRemove.parentCategoryId) {
+				const parentCategories = await getParentCategories();
+				const parentCategory = parentCategories.find(
+					(cat) => cat.id === groupToRemove.parentCategoryId,
+				);
+
+				if (parentCategory) {
+					// domainNamesが存在し、このドメイン名を含んでいるか確認
+					const hasDomainName = parentCategory.domainNames?.includes(
+						groupToRemove.domain,
+					);
+
+					if (!hasDomainName) {
+						// ドメイン名を追加
+						const updatedCategory = {
+							...parentCategory,
+							domainNames: [
+								...(parentCategory.domainNames || []),
+								groupToRemove.domain,
+							],
+						};
+
+						// 親カテゴリを更新
+						await saveParentCategories(
+							parentCategories.map((cat) =>
+								cat.id === groupToRemove.parentCategoryId
+									? updatedCategory
+									: cat,
+							),
+						);
+						console.log(
+							`ドメイン ${groupToRemove.domain} を親カテゴリのdomainNamesに追加しました`,
+						);
+					}
+				}
+			}
+
+			// ドメイン-カテゴリマッピングも保持
+			if (groupToRemove.parentCategoryId) {
+				await updateDomainCategoryMapping(
+					groupToRemove.domain,
+					groupToRemove.parentCategoryId,
+				);
+				console.log(
+					`ドメイン ${groupToRemove.domain} のマッピングを更新しました`,
+				);
+			}
+		}
+
+		return;
+	} catch (error) {
+		console.error("タブグループの削除処理中にエラーが発生:", error);
+	}
 }
 
 // タブ保存時に自動分類も行うようにsaveTabsを拡張
@@ -347,4 +879,13 @@ export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
 			await autoCategorizeTabs(group.id);
 		}
 	}
+}
+
+// 親カテゴリの domains と domainNames を更新する関数
+async function updateCategoryDomains(category: ParentCategory): Promise<void> {
+	const categories = await getParentCategories();
+	const updatedCategories = categories.map((c) =>
+		c.id === category.id ? category : c,
+	);
+	await saveParentCategories(updatedCategories);
 }
