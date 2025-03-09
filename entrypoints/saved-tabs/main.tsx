@@ -53,6 +53,7 @@ interface CategoryGroupProps {
 		fromCategoryId: string | null,
 		toCategoryId: string,
 	) => void;
+	handleDeleteCategory?: (groupId: string, categoryName: string) => void;
 }
 
 const CategoryGroup = ({
@@ -65,6 +66,7 @@ const CategoryGroup = ({
 	handleUpdateUrls,
 	handleUpdateDomainsOrder,
 	handleMoveDomainToCategory,
+	handleDeleteCategory,
 }: CategoryGroupProps) => {
 	const [isCollapsed, setIsCollapsed] = useState(false);
 	const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -152,6 +154,49 @@ const CategoryGroup = ({
 		}
 	};
 
+	// カード内のタブをサブカテゴリごとに整理
+	const organizeUrlsByCategory = () => {
+		type UrlType = { url: string; title: string; subCategory?: string };
+		// サブカテゴリでタブをグループ化
+		const categorizedUrls: Record<string, UrlType[]> = {
+			__uncategorized: [], // 未分類カテゴリを最初に初期化
+		};
+
+		// 初期化 - サブカテゴリの初期化
+		if (domains[0]?.subCategories) {
+			for (const cat of domains[0].subCategories) {
+				categorizedUrls[cat] = [];
+			}
+		}
+
+		// URLを適切なカテゴリに振り分け
+		for (const domain of domains) {
+			for (const url of domain.urls) {
+				if (
+					url.subCategory &&
+					domain.subCategories?.includes(url.subCategory)
+				) {
+					categorizedUrls[url.subCategory].push(url);
+				} else {
+					categorizedUrls.__uncategorized.push(url);
+				}
+			}
+		}
+
+		return categorizedUrls;
+	};
+
+	const categorizedUrls = organizeUrlsByCategory();
+	const subCategories = [...(domains[0].subCategories || [])];
+
+	// 空でないカテゴリのみを表示
+	const activeCategories = Object.keys(categorizedUrls).filter(
+		(cat) => cat !== "__uncategorized" && categorizedUrls[cat]?.length > 0,
+	);
+
+	// 未分類のタブがあれば、それも表示
+	const hasUncategorized = categorizedUrls.__uncategorized.length > 0;
+
 	return (
 		<div
 			ref={setNodeRef}
@@ -226,6 +271,7 @@ const CategoryGroup = ({
 									handleDeleteUrl={handleDeleteUrl}
 									handleOpenTab={handleOpenTab}
 									handleUpdateUrls={handleUpdateUrls}
+									handleDeleteCategory={handleDeleteCategory}
 									categoryId={category.id} // 親カテゴリIDを渡す
 									isDraggingOver={false}
 								/>
@@ -246,6 +292,7 @@ interface SortableDomainCardProps {
 	handleDeleteUrl: (groupId: string, url: string) => void;
 	handleOpenTab: (url: string) => void;
 	handleUpdateUrls: (groupId: string, updatedUrls: TabGroup["urls"]) => void;
+	handleDeleteCategory?: (groupId: string, categoryName: string) => void;
 	categoryId?: string; // 親カテゴリIDを追加
 	isDraggingOver?: boolean; // ドラッグオーバー状態を追加
 }
@@ -257,91 +304,261 @@ const SortableDomainCard = ({
 	handleDeleteUrl,
 	handleOpenTab,
 	handleUpdateUrls,
+	handleDeleteCategory,
 	categoryId, // 親カテゴリIDを受け取る
 	isDraggingOver,
 }: SortableDomainCardProps) => {
 	const { attributes, listeners, setNodeRef, transform, transition } =
 		useSortable({ id: group.id });
 	const [showKeywordModal, setShowKeywordModal] = useState(false);
+	// カテゴリの順序を管理する状態を追加
+	const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
+	// 未分類も含めたすべてのカテゴリを管理する状態を追加
+	const [allCategoryIds, setAllCategoryIds] = useState<string[]>([]);
 
-	const handleSetSubCategory = async (
-		groupId: string,
-		url: string,
-		category: string,
-	) => {
-		try {
-			await setUrlSubCategory(groupId, url, category);
-		} catch (error) {
-			console.error("子カテゴリ設定エラー:", error);
+	// カード内のタブをサブカテゴリごとに整理
+	const organizeUrlsByCategory = () => {
+		type UrlType = { url: string; title: string; subCategory?: string };
+		// サブカテゴリでタブをグループ化
+		const categorizedUrls: Record<string, UrlType[]> = {
+			__uncategorized: [], // 未分類カテゴリを最初に初期化
+		};
+
+		// 初期化 - サブカテゴリの初期化
+		if (group.subCategories) {
+			for (const cat of group.subCategories) {
+				categorizedUrls[cat] = [];
+			}
 		}
+
+		// URLを適切なカテゴリに振り分け
+		for (const url of group.urls) {
+			if (url.subCategory && group.subCategories?.includes(url.subCategory)) {
+				categorizedUrls[url.subCategory].push(url);
+			} else {
+				categorizedUrls.__uncategorized.push(url);
+			}
+		}
+
+		return categorizedUrls;
 	};
 
-	const handleSaveKeywords = async (
-		groupId: string,
-		categoryName: string,
-		keywords: string[],
-	) => {
-		try {
-			await setCategoryKeywords(groupId, categoryName, keywords);
-			// 即時に自動カテゴライズを実行
-			await autoCategorizeTabs(groupId);
-		} catch (error) {
-			console.error("キーワード設定エラー:", error);
-		}
-	};
+	const categorizedUrls = organizeUrlsByCategory();
 
-	// 子カテゴリを削除する関数
-	const handleDeleteCategory = async (
-		groupId: string,
-		categoryName: string,
+	// 空でないカテゴリのみを表示に含める
+	const getActiveCategoryIds = useCallback(() => {
+		// 通常のカテゴリで内容のあるもの
+		const regularCategories = (group.subCategories || []).filter(
+			(cat) => categorizedUrls[cat] && categorizedUrls[cat].length > 0,
+		);
+
+		// 未分類カテゴリに内容がある場合
+		const hasUncategorized =
+			categorizedUrls.__uncategorized &&
+			categorizedUrls.__uncategorized.length > 0;
+
+		// すでに保存された順序がある場合は、それを使用（使用可能なカテゴリのみフィルタリング）
+		if (
+			group.subCategoryOrderWithUncategorized &&
+			group.subCategoryOrderWithUncategorized.length > 0
+		) {
+			return group.subCategoryOrderWithUncategorized.filter((id) => {
+				if (id === "__uncategorized") return hasUncategorized;
+				return regularCategories.includes(id);
+			});
+		}
+
+		// すでに順序が決まっている場合
+		if (allCategoryIds.length > 0) {
+			// 既存の順序を尊重しつつ、空でないカテゴリのみをフィルタ
+			return allCategoryIds.filter((id) => {
+				if (id === "__uncategorized") return hasUncategorized;
+				return regularCategories.includes(id);
+			});
+		}
+
+		// 初回表示時: カテゴリ順序を考慮しつつ初期順序を作成
+		const initialOrder = [];
+
+		// まず登録済みの順序に従って追加
+		if (categoryOrder.length > 0) {
+			for (const catId of categoryOrder) {
+				if (regularCategories.includes(catId)) {
+					initialOrder.push(catId);
+				}
+			}
+		}
+		// まだ順序がなければ、単純に内容のあるカテゴリを追加
+		else {
+			initialOrder.push(...regularCategories);
+		}
+
+		// 未分類カテゴリを末尾に追加（内容があれば）
+		if (hasUncategorized) {
+			initialOrder.push("__uncategorized");
+		}
+
+		return initialOrder;
+	}, [
+		categorizedUrls,
+		group.subCategories,
+		allCategoryIds,
+		categoryOrder,
+		group.subCategoryOrderWithUncategorized,
+	]);
+
+	// アクティブカテゴリの更新とallCategoryIdsの初期化
+	useEffect(() => {
+		const activeIds = getActiveCategoryIds();
+
+		// カテゴリIDの更新が必要な場合
+		if (
+			allCategoryIds.length === 0 ||
+			!arraysEqual(activeIds, allCategoryIds)
+		) {
+			console.log("カテゴリID更新:", activeIds);
+			setAllCategoryIds(activeIds);
+		}
+	}, [getActiveCategoryIds, allCategoryIds]);
+
+	// 配列が等しいかチェックするヘルパー関数
+	function arraysEqual(a: string[], b: string[]) {
+		if (a.length !== b.length) return false;
+		for (let i = 0; i < a.length; i++) {
+			if (a[i] !== b[i]) return false;
+		}
+		return true;
+	}
+
+	// カテゴリ順序の初期化と更新
+	useEffect(() => {
+		if (group.subCategories) {
+			// subCategoryOrder がある場合はそれを使用、なければ subCategories をそのまま使用
+			const initialOrder = group.subCategoryOrder || [...group.subCategories];
+			setCategoryOrder(initialOrder);
+		}
+
+		// subCategoryOrderWithUncategorizedがあればそれを使用
+		if (group.subCategoryOrderWithUncategorized) {
+			const savedOrder = [...group.subCategoryOrderWithUncategorized];
+			if (savedOrder.length > 0) {
+				console.log("保存済みの順序を読み込み:", savedOrder);
+				setAllCategoryIds(savedOrder);
+			}
+		}
+	}, [
+		group.subCategories,
+		group.subCategoryOrder,
+		group.subCategoryOrderWithUncategorized,
+	]);
+
+	// アクティブカテゴリの更新とallCategoryIdsの初期化
+	useEffect(() => {
+		const updateCategoryOrder = (activeIds: string[]) => {
+			if (
+				!group.subCategoryOrderWithUncategorized &&
+				activeIds.includes("__uncategorized")
+			) {
+				const regularOrder = activeIds.filter((id) => id !== "__uncategorized");
+				handleUpdateCategoryOrder(regularOrder, activeIds);
+			}
+		};
+
+		// すでに読み込んでいる場合はスキップ
+		if (allCategoryIds.length > 0) {
+			return;
+		}
+
+		const activeIds = getActiveCategoryIds();
+
+		// allCategoryIdsが空の場合は初期化
+		if (activeIds.length > 0) {
+			console.log("初期カテゴリ順序の設定:", activeIds);
+			setAllCategoryIds(activeIds);
+			// 新たに生成した順序を永続化するため保存
+			updateCategoryOrder(activeIds);
+		}
+	}, [group, getActiveCategoryIds, allCategoryIds.length]);
+
+	// カテゴリ順序の更新を保存する関数
+	const handleUpdateCategoryOrder = async (
+		updatedOrder: string[],
+		updatedAllOrder?: string[],
 	) => {
 		try {
-			// グループのタブ情報を取得
+			// ローカル状態を更新
+			setCategoryOrder(updatedOrder);
+
+			// 全カテゴリ順序も指定がある場合は更新
+			if (updatedAllOrder) {
+				setAllCategoryIds(updatedAllOrder);
+			}
+
+			// 保存処理
 			const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
-			const groupToUpdate = savedTabs.find((g: TabGroup) => g.id === groupId);
-
-			if (!groupToUpdate) return;
-
-			// 選択されたカテゴリに属するURLの子カテゴリをリセット
-			const updatedUrls = groupToUpdate.urls.map(
-				(url: { subCategory: string }) => {
-					if (url.subCategory === categoryName) {
-						return { ...url, subCategory: undefined };
-					}
-					return url;
-				},
-			);
-
-			// 子カテゴリリストと関連キーワードからカテゴリを削除
-			const updatedSubCategories = (groupToUpdate.subCategories || []).filter(
-				(cat: string) => cat !== categoryName,
-			);
-
-			const updatedCategoryKeywords = (
-				groupToUpdate.categoryKeywords || []
-			).filter(
-				(ck: { categoryName: string }) => ck.categoryName !== categoryName,
-			);
-
-			// グループを更新
-			const updatedGroup = {
-				...groupToUpdate,
-				urls: updatedUrls,
-				subCategories: updatedSubCategories,
-				categoryKeywords: updatedCategoryKeywords,
-			};
-
-			// 保存
-			const updatedTabs = savedTabs.map((g: TabGroup) =>
-				g.id === groupId ? updatedGroup : g,
-			);
+			const updatedTabs = savedTabs.map((tab: TabGroup) => {
+				if (tab.id === group.id) {
+					const updatedTab = {
+						...tab,
+						subCategoryOrder: updatedOrder,
+						// 未分類を含む順序も保存
+						subCategoryOrderWithUncategorized:
+							updatedAllOrder || allCategoryIds,
+					};
+					console.log(
+						"保存するカテゴリ順序:",
+						updatedTab.subCategoryOrderWithUncategorized,
+					);
+					return updatedTab;
+				}
+				return tab;
+			});
 
 			await chrome.storage.local.set({ savedTabs: updatedTabs });
-			console.log(`カテゴリ "${categoryName}" を削除しました`);
+			console.log("カテゴリ順序を更新しました:", updatedOrder);
+			console.log("未分類含む順序も更新:", updatedAllOrder || allCategoryIds);
 		} catch (error) {
-			console.error("カテゴリ削除エラー:", error);
+			console.error("カテゴリ順序の更新に失敗しました:", error);
 		}
 	};
+
+	// カテゴリのドラッグ&ドロップハンドラ
+	const handleCategoryDragEnd = (event: DragEndEvent) => {
+		const { active, over } = event;
+
+		if (over && active.id !== over.id) {
+			// カテゴリの順序を更新
+			const oldIndex = allCategoryIds.indexOf(active.id as string);
+			const newIndex = allCategoryIds.indexOf(over.id as string);
+
+			if (oldIndex !== -1 && newIndex !== -1) {
+				// 新しい並び順を作成
+				const updatedAllCategoryIds = arrayMove(
+					allCategoryIds,
+					oldIndex,
+					newIndex,
+				);
+
+				console.log("新しいカテゴリ順序:", updatedAllCategoryIds);
+
+				// 通常のカテゴリのみの順序を抽出（__uncategorizedを除く）
+				const updatedCategoryOrder = updatedAllCategoryIds.filter(
+					(id) => id !== "__uncategorized" && group.subCategories?.includes(id),
+				);
+
+				// 保存用の順序を更新（未分類を含む順序も保存）
+				handleUpdateCategoryOrder(updatedCategoryOrder, updatedAllCategoryIds);
+			}
+		}
+	};
+
+	// DnDのセンサー設定
+	const sensors = useSensors(
+		useSensor(PointerSensor),
+		useSensor(KeyboardSensor, {
+			coordinateGetter: sortableKeyboardCoordinates,
+		}),
+	);
 
 	const style = {
 		transform: CSS.Transform.toString(transform),
@@ -423,19 +640,221 @@ const SortableDomainCard = ({
 					isOpen={showKeywordModal}
 					onClose={() => setShowKeywordModal(false)}
 					onSave={handleSaveKeywords}
-					onDeleteCategory={handleDeleteCategory}
+					onDeleteCategory={(categoryName) =>
+						handleDeleteCategory?.(group.id, categoryName)
+					}
 				/>
 			)}
 
-			<UrlList
-				items={group.urls}
-				groupId={group.id}
-				subCategories={group.subCategories}
-				handleDeleteUrl={handleDeleteUrl}
-				handleOpenTab={handleOpenTab}
-				handleUpdateUrls={handleUpdateUrls}
-				handleSetSubCategory={handleSetSubCategory}
-			/>
+			{/* カテゴリごとにまとめてタブを表示 */}
+			<div className="space-y-4">
+				{allCategoryIds.length > 0 && (
+					<DndContext
+						sensors={sensors}
+						collisionDetection={closestCenter}
+						onDragEnd={handleCategoryDragEnd}
+					>
+						<SortableContext
+							items={allCategoryIds}
+							strategy={verticalListSortingStrategy}
+						>
+							{/* カテゴリ順序に従ってカテゴリセクションを表示（未分類を含む） */}
+							{allCategoryIds.map((categoryName) => (
+								<SortableCategorySection
+									key={categoryName}
+									id={categoryName}
+									categoryName={categoryName}
+									urls={categorizedUrls[categoryName] || []}
+									groupId={group.id}
+									handleDeleteUrl={handleDeleteUrl}
+									handleOpenTab={handleOpenTab}
+									handleUpdateUrls={handleUpdateUrls}
+									handleOpenAllTabs={handleOpenAllTabs} // カテゴリごとのすべて開く機能を渡す
+								/>
+							))}
+						</SortableContext>
+					</DndContext>
+				)}
+				{allCategoryIds.length === 0 && group.urls.length > 0 && (
+					<div className="text-center py-4 text-gray-500">
+						カテゴリを追加するにはカテゴリ管理から行ってください
+					</div>
+				)}
+			</div>
+		</div>
+	);
+};
+
+// 並び替え可能なカテゴリセクションコンポーネント
+interface SortableCategorySectionProps extends CategorySectionProps {
+	id: string; // ソート用の一意のID
+	handleOpenAllTabs: (urls: { url: string; title: string }[]) => void; // 追加: すべて開く処理
+}
+
+const SortableCategorySection = ({
+	id,
+	handleOpenAllTabs, // 追加: すべて開く処理
+	...props
+}: SortableCategorySectionProps) => {
+	const {
+		attributes,
+		listeners,
+		setNodeRef,
+		transform,
+		transition,
+		isDragging,
+	} = useSortable({
+		id,
+		data: {
+			type: "category-section",
+		},
+	});
+
+	const style: React.CSSProperties = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+		zIndex: isDragging ? 100 : "auto",
+		position: isDragging ? "relative" : "static",
+		opacity: isDragging ? 0.8 : 1,
+	};
+
+	return (
+		<div ref={setNodeRef} style={style} className="category-section mb-4">
+			<div className="category-header mb-2 pb-1 border-b border-gray-200 flex items-center justify-between">
+				<div className="flex items-center">
+					<div
+						className="cursor-move mr-2 text-gray-500"
+						{...attributes}
+						{...listeners}
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="16"
+							height="16"
+							fill="currentColor"
+							viewBox="0 0 16 16"
+						>
+							<title>ドラッグして並び替え</title>
+							<path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0-3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 6a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm6-6a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm6-6a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm0 3a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z" />
+						</svg>
+						<h3 className="font-medium text-gray-700">
+							{props.categoryName === "__uncategorized"
+								? "未分類"
+								: props.categoryName}{" "}
+							({props.urls.length})
+						</h3>
+					</div>
+				</div>
+
+				{/* 追加: カテゴリごとの「すべて開く」ボタン */}
+				<button
+					type="button"
+					onClick={() => handleOpenAllTabs(props.urls)}
+					className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+					title={`${props.categoryName === "__uncategorized" ? "未分類" : props.categoryName}のタブをすべて開く`}
+				>
+					すべて開く
+				</button>
+			</div>
+
+			<CategorySection {...props} />
+		</div>
+	);
+};
+
+// 新しく追加: カテゴリセクションコンポーネント
+interface CategorySectionProps {
+	categoryName: string;
+	urls: TabGroup["urls"];
+	groupId: string;
+	handleDeleteUrl: (groupId: string, url: string) => void;
+	handleOpenTab: (url: string) => void;
+	handleUpdateUrls: (groupId: string, updatedUrls: TabGroup["urls"]) => void;
+	handleOpenAllTabs?: (urls: { url: string; title: string }[]) => void; // 追加: すべて開く処理
+}
+
+const CategorySection = ({
+	categoryName,
+	urls,
+	groupId,
+	handleDeleteUrl,
+	handleOpenTab,
+	handleUpdateUrls,
+	handleOpenAllTabs, // 追加: すべて開く処理
+}: CategorySectionProps) => {
+	// DnDのセンサー設定
+	const sensors = useSensors(
+		useSensor(PointerSensor),
+		useSensor(KeyboardSensor, {
+			coordinateGetter: sortableKeyboardCoordinates,
+		}),
+	);
+
+	// カテゴリ内でのドラッグ&ドロップハンドラ
+	const handleDragEnd = async (event: DragEndEvent) => {
+		const { active, over } = event;
+
+		if (over && active.id !== over.id) {
+			// このカテゴリ内のURLsを取得
+			const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+			const currentGroup = savedTabs.find(
+				(group: TabGroup) => group.id === groupId,
+			);
+
+			if (!currentGroup) return;
+
+			// 現在のグループのすべてのURLを取得
+			const allUrls = [...currentGroup.urls];
+
+			// ドラッグ元とドラッグ先のインデックスを特定
+			const oldIndex = allUrls.findIndex((item) => item.url === active.id);
+			const newIndex = allUrls.findIndex((item) => item.url === over.id);
+
+			if (oldIndex !== -1 && newIndex !== -1) {
+				// 並び替えた新しい配列を作成
+				const newUrls = arrayMove(allUrls, oldIndex, newIndex);
+
+				// 親コンポーネント経由でストレージに保存
+				handleUpdateUrls(groupId, newUrls);
+			}
+		}
+	};
+
+	// 表示名を設定
+	const displayName =
+		categoryName === "__uncategorized" ? "未分類" : categoryName;
+
+	return (
+		<div className="category-section mb-4">
+			<DndContext
+				sensors={sensors}
+				collisionDetection={closestCenter}
+				onDragEnd={handleDragEnd}
+				// 同一カテゴリ内でのみドラッグを許可する識別子を追加
+				id={`category-${categoryName}-${groupId}`}
+			>
+				<SortableContext
+					items={urls.map((item) => item.url)}
+					strategy={verticalListSortingStrategy}
+				>
+					<ul className="space-y-2">
+						{urls.map((item) => (
+							<SortableUrlItem
+								key={item.url}
+								id={item.url}
+								url={item.url}
+								title={item.title}
+								groupId={groupId}
+								subCategory={item.subCategory}
+								handleDeleteUrl={handleDeleteUrl}
+								handleOpenTab={handleOpenTab}
+								handleUpdateUrls={handleUpdateUrls}
+								categoryContext={`category-${categoryName}-${groupId}`}
+							/>
+						))}
+					</ul>
+				</SortableContext>
+			</DndContext>
 		</div>
 	);
 };
@@ -455,6 +874,11 @@ interface SortableUrlItemProps {
 		url: string,
 		subCategory: string,
 	) => void;
+	handleUpdateUrls: (
+		groupId: string,
+		updatedUrls: { url: string; title: string; subCategory?: string }[],
+	) => void;
+	categoryContext?: string; // 所属するカテゴリのコンテキスト
 }
 
 const SortableUrlItem = ({
@@ -467,11 +891,16 @@ const SortableUrlItem = ({
 	handleDeleteUrl,
 	handleOpenTab,
 	handleSetSubCategory,
+	categoryContext,
 }: SortableUrlItemProps) => {
 	const { attributes, listeners, setNodeRef, transform, transition } =
-		useSortable({ id });
+		useSortable({
+			id,
+			data: {
+				categoryContext, // カテゴリコンテキストをデータに追加
+			},
+		});
 
-	const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
 	const [leftWindow, setLeftWindow] = useState(false);
 	const dragTimeoutRef = useRef<number | null>(null);
@@ -565,13 +994,6 @@ const SortableUrlItem = ({
 		};
 	}, [handleMouseLeave]);
 
-	const handleSubCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		const category = e.target.value === "none" ? "" : e.target.value;
-		if (handleSetSubCategory) {
-			handleSetSubCategory(groupId, url, category);
-		}
-	};
-
 	const style = {
 		transform: CSS.Transform.toString(transform),
 		transition,
@@ -582,6 +1004,7 @@ const SortableUrlItem = ({
 			ref={setNodeRef}
 			style={style}
 			className="border-b border-gray-100 pb-2 last:border-0 last:pb-0 flex items-center"
+			data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
 		>
 			<div
 				className="text-gray-400 cursor-move mr-2"
@@ -606,36 +1029,6 @@ const SortableUrlItem = ({
 			>
 				X
 			</button>
-			{availableSubCategories.length > 0 && handleSetSubCategory && (
-				<div className="relative mr-2">
-					<button
-						type="button"
-						onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-						className={`text-xs px-2 py-1 rounded ${subCategory ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}`}
-						title="カテゴリを設定"
-					>
-						{subCategory || "カテゴリ"}
-					</button>
-					{showCategoryDropdown && (
-						<div className="absolute top-full left-0 z-10 mt-1 bg-white border rounded shadow-lg p-1 min-w-[150px]">
-							<select
-								value={subCategory || "none"}
-								onChange={handleSubCategoryChange}
-								className="w-full p-1 border rounded text-sm"
-								ref={(select) => select?.focus()}
-								onBlur={() => setShowCategoryDropdown(false)}
-							>
-								<option value="none">未分類</option>
-								{availableSubCategories.map((cat) => (
-									<option key={cat} value={cat}>
-										{cat}
-									</option>
-								))}
-							</select>
-						</div>
-					)}
-				</div>
-			)}
 			<button
 				type="button"
 				draggable="true"
@@ -781,6 +1174,17 @@ const UrlList = ({
 				</div>
 			)}
 
+			{/* カテゴリラベルを追加 */}
+			<div className="mb-3 pb-2 border-b border-gray-200">
+				<h3 className="font-medium text-gray-700">
+					{activeSubCategory === null
+						? "すべてのタブ"
+						: activeSubCategory === "__uncategorized"
+							? "未分類のタブ"
+							: `カテゴリ: ${activeSubCategory}`}
+				</h3>
+			</div>
+
 			<DndContext
 				sensors={sensors}
 				collisionDetection={closestCenter}
@@ -803,6 +1207,7 @@ const UrlList = ({
 								handleDeleteUrl={handleDeleteUrl}
 								handleOpenTab={handleOpenTab}
 								handleSetSubCategory={handleSetSubCategory}
+								handleUpdateUrls={handleUpdateUrls}
 							/>
 						))}
 					</ul>
@@ -810,6 +1215,24 @@ const UrlList = ({
 			</DndContext>
 		</>
 	);
+};
+
+// キーワードの保存を処理する関数
+const handleSaveKeywords = async (
+	groupId: string,
+	categoryName: string,
+	keywords: string[],
+) => {
+	try {
+		await setCategoryKeywords(groupId, categoryName, keywords);
+		console.log("カテゴリキーワードを保存しました:", {
+			groupId,
+			categoryName,
+			keywords,
+		});
+	} catch (error) {
+		console.error("カテゴリキーワード保存エラー:", error);
+	}
 };
 
 // カテゴリキーワード管理モーダルコンポーネント
@@ -1117,6 +1540,7 @@ const SavedTabs = () => {
 	const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
 	const [showSubCategoryModal, setShowSubCategoryModal] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
 
 	useEffect(() => {
 		if (showSubCategoryModal && inputRef.current) {
@@ -1186,6 +1610,12 @@ const SavedTabs = () => {
 			}
 		});
 	}, []);
+
+	useEffect(() => {
+		if (categories.length > 0) {
+			setCategoryOrder(categories.map((cat) => cat.id));
+		}
+	}, [categories]);
 
 	const handleOpenTab = async (url: string) => {
 		window.open(url, "_blank");
@@ -1385,18 +1815,63 @@ const SavedTabs = () => {
 		}
 	};
 
+	// カテゴリの削除を処理する関数
+	const handleDeleteCategory = async (
+		groupId: string,
+		categoryName: string,
+	) => {
+		try {
+			const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+			const updatedGroups = savedTabs.map((group: TabGroup) => {
+				if (group.id === groupId) {
+					return {
+						...group,
+						subCategories:
+							group.subCategories?.filter((cat) => cat !== categoryName) || [],
+						categoryKeywords:
+							group.categoryKeywords?.filter(
+								(ck) => ck.categoryName !== categoryName,
+							) || [],
+						urls: group.urls.map((url) =>
+							url.subCategory === categoryName
+								? { ...url, subCategory: undefined }
+								: url,
+						),
+					};
+				}
+				return group;
+			});
+
+			await chrome.storage.local.set({ savedTabs: updatedGroups });
+			setTabGroups(updatedGroups);
+			console.log(`カテゴリ ${categoryName} を削除しました`);
+		} catch (error) {
+			console.error("カテゴリ削除エラー:", error);
+		}
+	};
+
 	// 親カテゴリの順序変更ハンドラを追加
 	const handleCategoryDragEnd = async (event: DragEndEvent) => {
 		const { active, over } = event;
 
 		if (over && active.id !== over.id) {
+			// カテゴリの順序を更新
 			const oldIndex = categories.findIndex((cat) => cat.id === active.id);
 			const newIndex = categories.findIndex((cat) => cat.id === over.id);
 
 			if (oldIndex !== -1 && newIndex !== -1) {
-				const updatedCategories = arrayMove(categories, oldIndex, newIndex);
-				setCategories(updatedCategories);
-				await saveParentCategories(updatedCategories);
+				// 新しい順序を作成
+				const newOrder = arrayMove(categoryOrder, oldIndex, newIndex);
+				setCategoryOrder(newOrder);
+
+				// 新しい順序に基づいてカテゴリを並び替え
+				const orderedCategories = [...categories].sort(
+					(a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id),
+				);
+
+				// ストレージに保存
+				await saveParentCategories(orderedCategories);
+				setCategories(orderedCategories);
 			}
 		}
 	};
@@ -1683,28 +2158,36 @@ const SavedTabs = () => {
 								onDragEnd={handleCategoryDragEnd}
 							>
 								<SortableContext
-									items={categories.map((category) => category.id)}
+									items={categoryOrder}
 									strategy={verticalListSortingStrategy}
 								>
-									{categories.map((category) => {
-										const domainGroups = categorized[category.id] || [];
-										if (domainGroups.length === 0) return null;
+									{/* カテゴリ順序に基づいて表示 */}
+									{categoryOrder
+										.map((catId) => categories.find((cat) => cat.id === catId))
+										.filter(Boolean)
+										.map((category) => {
+											if (!category) return null;
+											const domainGroups = categorized[category.id] || [];
+											if (domainGroups.length === 0) return null;
 
-										return (
-											<CategoryGroup
-												key={category.id}
-												category={category}
-												domains={domainGroups}
-												handleOpenAllTabs={handleOpenAllTabs}
-												handleDeleteGroup={handleDeleteGroup}
-												handleDeleteUrl={handleDeleteUrl}
-												handleOpenTab={handleOpenTab}
-												handleUpdateUrls={handleUpdateUrls}
-												handleUpdateDomainsOrder={handleUpdateDomainsOrder}
-												handleMoveDomainToCategory={handleMoveDomainToCategory}
-											/>
-										);
-									})}
+											return (
+												<CategoryGroup
+													key={category.id}
+													category={category}
+													domains={domainGroups}
+													handleOpenAllTabs={handleOpenAllTabs}
+													handleDeleteGroup={handleDeleteGroup}
+													handleDeleteUrl={handleDeleteUrl}
+													handleOpenTab={handleOpenTab}
+													handleUpdateUrls={handleUpdateUrls}
+													handleUpdateDomainsOrder={handleUpdateDomainsOrder}
+													handleMoveDomainToCategory={
+														handleMoveDomainToCategory
+													}
+													handleDeleteCategory={handleDeleteCategory}
+												/>
+											);
+										})}
 								</SortableContext>
 							</DndContext>
 
@@ -1737,6 +2220,7 @@ const SavedTabs = () => {
 										handleDeleteUrl={handleDeleteUrl}
 										handleOpenTab={handleOpenTab}
 										handleUpdateUrls={handleUpdateUrls}
+										handleDeleteCategory={handleDeleteCategory}
 									/>
 								))}
 							</div>

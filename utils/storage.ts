@@ -25,6 +25,8 @@ export interface TabGroup {
 	}[];
 	subCategories?: string[]; // このドメインで利用可能な子カテゴリのリスト
 	categoryKeywords?: SubCategoryKeyword[]; // 子カテゴリのキーワード設定
+	subCategoryOrder?: string[]; // 子カテゴリの表示順序
+	subCategoryOrderWithUncategorized?: string[]; // 未分類カテゴリを含む全カテゴリの表示順序
 }
 
 export interface UserSettings {
@@ -284,6 +286,7 @@ export async function setCategoryKeywords(
 	const group = savedTabs.find((g: TabGroup) => g.id === groupId);
 	if (!group) return;
 
+	// 更新するグループを見つける
 	const updatedGroups = savedTabs.map((currentGroup: TabGroup) => {
 		if (currentGroup.id === groupId) {
 			// 既存のカテゴリキーワード設定を取得
@@ -294,23 +297,26 @@ export async function setCategoryKeywords(
 				(ck: SubCategoryKeyword) => ck.categoryName === categoryName,
 			);
 
+			const updatedCategoryKeywords = [...categoryKeywords];
+
 			if (categoryIndex >= 0) {
 				// 既存カテゴリの更新
-				categoryKeywords[categoryIndex] = {
-					...categoryKeywords[categoryIndex],
+				updatedCategoryKeywords[categoryIndex] = {
+					...updatedCategoryKeywords[categoryIndex],
 					keywords,
 				};
 			} else {
 				// 新規カテゴリの追加
-				categoryKeywords.push({ categoryName, keywords });
+				updatedCategoryKeywords.push({ categoryName, keywords });
 			}
 
+			// グループを更新（URLsはそのまま保持）
 			return {
-				...group,
-				categoryKeywords,
+				...currentGroup,
+				categoryKeywords: updatedCategoryKeywords,
 			};
 		}
-		return group;
+		return currentGroup; // 対象外のグループはそのまま返す
 	});
 
 	// タブグループの更新
@@ -349,29 +355,58 @@ export async function setCategoryKeywords(
 			await saveDomainCategorySettings(settings);
 		}
 	}
+
+	// キーワードが更新されたら、既存の全タブに対して自動的に再カテゴライズを実行
+	await autoCategorizeTabs(groupId);
 }
 
 // キーワードに基づいて自動的にURLを分類する
 export async function autoCategorizeTabs(groupId: string): Promise<void> {
 	const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
 
-	const targetGroup = savedTabs.find((group: TabGroup) => group.id === groupId);
+	// 重複チェックを追加
+	const uniqueIds = new Set<string>();
+	const uniqueGroups: TabGroup[] = [];
+
+	for (const group of savedTabs) {
+		if (!uniqueIds.has(group.id)) {
+			uniqueIds.add(group.id);
+			uniqueGroups.push(group);
+		} else {
+			console.warn(
+				`自動カテゴリ実行前に重複検出: ${group.id} (${group.domain})`,
+			);
+		}
+	}
+
+	// 重複があれば修正
+	if (uniqueGroups.length < savedTabs.length) {
+		console.log(
+			`カテゴリ処理前に重複を修正: ${savedTabs.length} → ${uniqueGroups.length}`,
+		);
+	}
+
+	const targetGroup = uniqueGroups.find(
+		(group: TabGroup) => group.id === groupId,
+	);
 	if (
 		!targetGroup ||
 		!targetGroup.categoryKeywords ||
 		targetGroup.categoryKeywords.length === 0
 	) {
+		console.log("カテゴリキーワードがないか、グループが見つかりません");
 		return; // カテゴリキーワードがない場合は何もしない
 	}
 
-	const updatedUrls = targetGroup.urls.map((item: TabGroup["urls"][number]) => {
-		// すでにカテゴリが設定されている場合はスキップ
-		if (item.subCategory) return item;
+	// この時点でtargetGroup.categoryKeywordsは必ず存在する
+	const categoryKeywords = targetGroup.categoryKeywords;
 
+	// 各URLに適切なカテゴリを割り当て
+	const updatedUrls = targetGroup.urls.map((item: TabGroup["urls"][number]) => {
 		// タイトルをもとに適切なカテゴリを探す
 		const title = item.title.toLowerCase();
 
-		for (const catKeyword of targetGroup.categoryKeywords) {
+		for (const catKeyword of categoryKeywords) {
 			// いずれかのキーワードがタイトルに含まれているか確認
 			const matchesKeyword = catKeyword.keywords.some((keyword: string) =>
 				title.includes(keyword.toLowerCase()),
@@ -389,7 +424,7 @@ export async function autoCategorizeTabs(groupId: string): Promise<void> {
 	});
 
 	// 更新されたURLを保存
-	const updatedGroups = savedTabs.map((group: TabGroup) => {
+	const updatedGroups = uniqueGroups.map((group: TabGroup) => {
 		if (group.id === groupId) {
 			return {
 				...group,
@@ -501,9 +536,15 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 	// 既存のタブグループを取得
 	const groupedTabs = new Map<string, TabGroup>();
 	const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+
+	// 既存のタブグループをIDではなくドメインをキーにしてMapに保存
 	for (const group of savedTabs) {
 		groupedTabs.set(group.domain, group);
 	}
+
+	// 重複チェックのためのデバッグログ
+	console.log("既存タブグループ数:", savedTabs.length);
+	console.log("重複除外済みタブグループ数:", groupedTabs.size);
 
 	// ドメインカテゴリマッピングを取得
 	const domainCategoryMappings = await getDomainCategoryMappings();
@@ -542,7 +583,10 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 			const url = new URL(tab.url);
 			const domain = `${url.protocol}//${url.hostname}`;
 
-			if (!groupedTabs.has(domain)) {
+			// 重複のチェックとログ出力を追加
+			if (groupedTabs.has(domain)) {
+				console.log(`既存のドメインに追加: ${domain}`);
+			} else {
 				console.log(`新しいドメインを処理: ${domain}`);
 
 				// 新しいグループを作成
@@ -666,13 +710,26 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 		}
 	}
 
-	// ストレージに保存
+	// ストレージに保存（重複がないことを確認）
 	const groupArray = Array.from(groupedTabs.values());
-	await chrome.storage.local.set({ savedTabs: groupArray });
-	console.log("保存されたタブグループ:", groupArray);
+	console.log("保存前の重複チェック:", groupArray.length);
+
+	// 重複IDがないかチェック
+	const idSet = new Set<string>();
+	const uniqueGroups = groupArray.filter((group) => {
+		if (idSet.has(group.id)) {
+			console.warn(`重複ID検出: ${group.id} (${group.domain})`);
+			return false;
+		}
+		idSet.add(group.id);
+		return true;
+	});
+
+	console.log("重複除去後のタブグループ数:", uniqueGroups.length);
+	await chrome.storage.local.set({ savedTabs: uniqueGroups });
 
 	// 保存したすべてのグループに自動カテゴライズを適用
-	for (const group of groupArray) {
+	for (const group of uniqueGroups) {
 		if (group.categoryKeywords && group.categoryKeywords.length > 0) {
 			await autoCategorizeTabs(group.id);
 		}
@@ -859,6 +916,26 @@ export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
 
 	// 保存したタブグループのIDを取得
 	const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+
+	// 重複チェックを追加
+	const uniqueIds = new Set<string>();
+	const uniqueGroups: TabGroup[] = [];
+
+	for (const group of savedTabs) {
+		if (!uniqueIds.has(group.id)) {
+			uniqueIds.add(group.id);
+			uniqueGroups.push(group);
+		} else {
+			console.warn(`重複グループを検出: ${group.id} (${group.domain})`);
+		}
+	}
+
+	// 重複があれば修正して保存
+	if (uniqueGroups.length < savedTabs.length) {
+		console.log(`重複を修正: ${savedTabs.length} → ${uniqueGroups.length}`);
+		await chrome.storage.local.set({ savedTabs: uniqueGroups });
+	}
+
 	const uniqueDomains = new Set(
 		tabs
 			.map((tab) => {
@@ -874,8 +951,8 @@ export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
 
 	// 各ドメインで自動カテゴライズを実行
 	for (const domain of uniqueDomains) {
-		const group = savedTabs.find((g: TabGroup) => g.domain === domain);
-		if (group?.categoryKeywords?.length > 0) {
+		const group = uniqueGroups.find((g: TabGroup) => g.domain === domain);
+		if (group?.categoryKeywords?.length && group) {
 			await autoCategorizeTabs(group.id);
 		}
 	}
