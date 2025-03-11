@@ -26,11 +26,36 @@ import {
 	Check,
 } from "lucide-react";
 
+// UIコンポーネントのインポート
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox"; // Switchの代わりにCheckboxをインポート
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import {
+	Tooltip,
+	TooltipTrigger,
+	TooltipContent,
+} from "@/components/ui/tooltip";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+
 const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 	const [activeCategory, setActiveCategory] = useState<string | null>(null);
 	const [keywords, setKeywords] = useState<string[]>([]);
 	const [newKeyword, setNewKeyword] = useState("");
 	const [newSubCategory, setNewSubCategory] = useState("");
+
+	// リネームモード用の状態を追加
+	const [isRenamingSubCategory, setIsRenamingSubCategory] = useState(false);
+	const [newCategoryName, setNewCategoryName] = useState("");
+	const renameInputRef = useRef<HTMLInputElement>(null);
 
 	// タブグループを更新するヘルパー関数
 	const updateTabGroup = async (updatedTabGroup: TabGroup) => {
@@ -48,6 +73,10 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 	};
 
 	const handleCategorySelect = (categoryName: string) => {
+		// リネームモード中なら終了
+		if (isRenamingSubCategory) {
+			setIsRenamingSubCategory(false);
+		}
 		setActiveCategory(categoryName);
 		const categoryKeywords = tabGroup.categoryKeywords?.find(
 			(ck) => ck.categoryName === categoryName,
@@ -207,6 +236,122 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 		}
 	};
 
+	// リネームモードを開始する関数
+	const startRenameMode = () => {
+		if (!activeCategory) return;
+
+		setIsRenamingSubCategory(true);
+		setNewCategoryName(activeCategory);
+
+		// 入力フィールドにフォーカスを当てる（遅延実行）
+		setTimeout(() => {
+			if (renameInputRef.current) {
+				renameInputRef.current.focus();
+				renameInputRef.current.select();
+			}
+		}, 50);
+	};
+
+	// リネームを完了する関数
+	const completeRename = async () => {
+		if (!isRenamingSubCategory || !activeCategory || !newCategoryName.trim()) {
+			setIsRenamingSubCategory(false);
+			return;
+		}
+
+		// 名前が変わっていない場合は何もしない
+		if (newCategoryName.trim() === activeCategory) {
+			setIsRenamingSubCategory(false);
+			return;
+		}
+
+		// 既存のカテゴリ名と重複していないか確認
+		if (tabGroup.subCategories?.includes(newCategoryName.trim())) {
+			alert("このカテゴリ名は既に存在しています");
+			setNewCategoryName(activeCategory); // 元の名前に戻す
+			return;
+		}
+
+		try {
+			await handleRenameCategory(activeCategory, newCategoryName.trim());
+
+			// リネームが成功したら、アクティブカテゴリを新しい名前に更新
+			setActiveCategory(newCategoryName.trim());
+			setIsRenamingSubCategory(false);
+		} catch (error) {
+			console.error("カテゴリ名変更エラー:", error);
+			alert("カテゴリ名の変更に失敗しました");
+		}
+	};
+
+	// カテゴリ名変更の処理関数
+	const handleRenameCategory = async (oldName: string, newName: string) => {
+		if (!oldName || !newName || oldName === newName) return;
+
+		console.log(`カテゴリ名を変更: ${oldName} → ${newName}`);
+
+		// ストレージからタブグループを取得
+		const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+
+		const updatedTabs = savedTabs.map((tab: TabGroup) => {
+			if (tab.id === tabGroup.id) {
+				// 1. subCategories配列を更新
+				const updatedSubCategories =
+					tab.subCategories?.map((cat) => (cat === oldName ? newName : cat)) ||
+					[];
+
+				// 2. categoryKeywords内の該当カテゴリを更新
+				const updatedCategoryKeywords =
+					tab.categoryKeywords?.map((ck) => {
+						if (ck.categoryName === oldName) {
+							return { ...ck, categoryName: newName };
+						}
+						return ck;
+					}) || [];
+
+				// 3. 各URLのサブカテゴリ参照を更新
+				const updatedUrls = tab.urls.map((url) => {
+					if (url.subCategory === oldName) {
+						return { ...url, subCategory: newName };
+					}
+					return url;
+				});
+
+				// 4. カテゴリ順序配列があれば更新
+				const updatedSubCategoryOrder =
+					tab.subCategoryOrder?.map((cat) =>
+						cat === oldName ? newName : cat,
+					) || [];
+
+				const updatedSubCategoryOrderWithUncategorized =
+					tab.subCategoryOrderWithUncategorized?.map((cat) =>
+						cat === oldName ? newName : cat,
+					) || [];
+
+				return {
+					...tab,
+					subCategories: updatedSubCategories,
+					categoryKeywords: updatedCategoryKeywords,
+					urls: updatedUrls,
+					subCategoryOrder: updatedSubCategoryOrder,
+					subCategoryOrderWithUncategorized:
+						updatedSubCategoryOrderWithUncategorized,
+				};
+			}
+			return tab;
+		});
+
+		// 更新したタブをストレージに保存
+		await chrome.storage.local.set({ savedTabs: updatedTabs });
+		console.log(`カテゴリ名の変更を完了: ${oldName} → ${newName}`);
+	};
+
+	// キャンセル時の処理
+	const cancelRename = () => {
+		setIsRenamingSubCategory(false);
+		setNewCategoryName(activeCategory || "");
+	};
+
 	if (!tabGroup.subCategories || tabGroup.subCategories.length === 0) {
 		return (
 			<div className="mt-4 border-t border-zinc-700 pt-4">
@@ -214,13 +359,13 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 					このドメインには子カテゴリがありません。
 				</p>
 				<div className="mb-4">
-					<label
+					<Label
 						htmlFor="new-subcategory"
 						className="block text-sm font-medium text-gray-300 mb-1"
 					>
 						新しい子カテゴリを追加
-					</label>
-					<input
+					</Label>
+					<Input
 						id="new-subcategory"
 						type="text"
 						value={newSubCategory}
@@ -248,13 +393,13 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 
 			{/* 新しい子カテゴリの追加フォーム */}
 			<div className="mb-4">
-				<label
+				<Label
 					htmlFor="new-subcategory"
 					className="block text-sm font-medium text-gray-300 mb-1"
 				>
 					新しい子カテゴリを追加
-				</label>
-				<input
+				</Label>
+				<Input
 					id="new-subcategory"
 					type="text"
 					value={newSubCategory}
@@ -275,42 +420,123 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 			<div className="flex flex-wrap gap-2 mb-3">
 				{tabGroup.subCategories.map((category) => (
 					<div key={category} className="flex items-center">
-						<button
+						<Button
 							type="button"
 							onClick={() => handleCategorySelect(category)}
-							className={`px-2 py-1 text-sm rounded-l ${
+							variant={activeCategory === category ? "secondary" : "outline"}
+							size="sm"
+							className={`rounded-r-none ${
 								activeCategory === category
 									? "bg-zinc-600 text-white"
 									: "bg-zinc-700 hover:bg-zinc-600 text-gray-200"
 							}`}
 						>
 							{category}
-						</button>
-						<button
+						</Button>
+						<Button
 							type="button"
 							onClick={() => handleRemoveSubCategory(category)}
-							className="bg-zinc-800 text-white px-2 py-1 text-sm rounded-r hover:bg-zinc-700"
+							variant="outline"
+							size="sm"
+							className="bg-zinc-800 text-white rounded-l-none hover:bg-zinc-700"
 							title="カテゴリを削除"
 							aria-label={`カテゴリ ${category} を削除`}
 						>
 							<X size={14} />
-						</button>
+						</Button>
 					</div>
 				))}
 			</div>
 
 			{activeCategory && (
 				<div className="mt-2">
+					{/* カテゴリリネーム機能 */}
+					{isRenamingSubCategory ? (
+						<div className="mb-4 relative">
+							<Label
+								htmlFor="rename-category"
+								className="block text-sm text-gray-300 mb-1"
+							>
+								カテゴリ名を変更
+							</Label>
+							<div className="flex">
+								<Input
+									id="rename-category"
+									ref={renameInputRef}
+									type="text"
+									value={newCategoryName}
+									onChange={(e) => setNewCategoryName(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") {
+											e.preventDefault();
+											completeRename();
+										} else if (e.key === "Escape") {
+											e.preventDefault();
+											cancelRename();
+										}
+									}}
+									className="flex-grow p-2 border rounded-l bg-zinc-700 border-zinc-600 text-gray-200"
+								/>
+								<div className="flex">
+									<Button
+										type="button"
+										onClick={completeRename}
+										variant="secondary"
+										size="icon"
+										className="bg-zinc-600 hover:bg-zinc-500 text-white rounded-none"
+										title="変更を保存"
+									>
+										<Check size={16} />
+									</Button>
+									<Button
+										type="button"
+										onClick={cancelRename}
+										variant="outline"
+										size="icon"
+										className="bg-zinc-700 hover:bg-zinc-600 text-white rounded-l-none"
+										title="キャンセル"
+									>
+										<X size={16} />
+									</Button>
+								</div>
+							</div>
+							<div className="text-xs text-gray-400 mt-1">
+								Enter で確定、Escape でキャンセル
+							</div>
+						</div>
+					) : (
+						<div className="flex items-center justify-between mb-3">
+							<div className="flex items-center gap-2">
+								<h4 className="font-medium text-gray-300">
+									「{activeCategory}」カテゴリのキーワード
+								</h4>
+								<Button
+									type="button"
+									onClick={startRenameMode}
+									variant="outline"
+									size="sm"
+									className="text-xs bg-zinc-700 hover:bg-zinc-600 text-gray-200"
+									title="カテゴリ名を変更"
+								>
+									リネーム
+								</Button>
+							</div>
+						</div>
+					)}
+
 					<div className="mb-2">
-						<label
+						<Label
 							htmlFor={`keyword-input-${activeCategory}`}
 							className="block text-sm text-gray-300 mb-1"
 						>
-							「{activeCategory}」カテゴリのキーワード
-						</label>
+							キーワード
+							<span className="text-xs text-gray-400 ml-2">
+								（タイトルにこれらの単語が含まれていると自動的にこのカテゴリに分類されます）
+							</span>
+						</Label>
 						{/* キーワード追加フォーム */}
 						<div className="flex">
-							<input
+							<Input
 								id={`keyword-input-${activeCategory}`}
 								type="text"
 								value={newKeyword}
@@ -324,11 +550,12 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 									}
 								}}
 							/>
-							<button
+							<Button
 								type="button"
 								onClick={handleAddKeyword}
 								disabled={!newKeyword.trim()}
-								className={`px-3 py-1 rounded-r flex items-center ${
+								variant="secondary"
+								className={`rounded-l-none ${
 									!newKeyword.trim()
 										? "bg-zinc-600 text-gray-400 cursor-not-allowed"
 										: "bg-zinc-600 text-white hover:bg-zinc-500"
@@ -336,7 +563,7 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 								aria-label="キーワードを追加"
 							>
 								<Plus size={18} />
-							</button>
+							</Button>
 						</div>
 					</div>
 
@@ -350,14 +577,16 @@ const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 									className="bg-zinc-700 text-gray-200 px-2 py-1 rounded text-sm flex items-center"
 								>
 									{keyword}
-									<button
+									<Button
 										type="button"
 										onClick={() => handleRemoveKeyword(keyword)}
-										className="ml-1 text-gray-400 hover:text-gray-200"
+										variant="ghost"
+										size="sm"
+										className="ml-1 p-0 text-gray-400 hover:text-gray-200 hover:bg-transparent"
 										aria-label={`キーワード ${keyword} を削除`}
 									>
 										<X size={14} />
-									</button>
+									</Button>
 								</div>
 							))
 						)}
@@ -434,26 +663,58 @@ const OptionsPage = () => {
 		}
 	};
 
-	const handleToggleRemoveAfterOpen = (
-		e: React.ChangeEvent<HTMLInputElement>,
-	) => {
-		setSettings((prev) => ({
-			...prev,
-			removeTabAfterOpen: e.target.checked,
-		}));
-		// 変更後に自動保存
-		setTimeout(handleSaveSettings, 0);
+	// Checkbox用にハンドラを修正 - 非同期関数に変更
+	const handleToggleRemoveAfterOpen = async (checked: boolean) => {
+		try {
+			// 新しい設定を作成
+			const newSettings = {
+				...settings,
+				removeTabAfterOpen: checked,
+			};
+
+			// 状態を更新
+			setSettings(newSettings);
+
+			// 空の行を除外して保存
+			const cleanSettings = {
+				...newSettings,
+				excludePatterns: newSettings.excludePatterns.filter((p) => p.trim()),
+			};
+
+			// 直接保存
+			await saveUserSettings(cleanSettings);
+			setIsSaved(true);
+			setTimeout(() => setIsSaved(false), 2000);
+		} catch (error) {
+			console.error("設定の保存エラー:", error);
+		}
 	};
 
-	const handleToggleEnableCategories = (
-		e: React.ChangeEvent<HTMLInputElement>,
-	) => {
-		setSettings((prev) => ({
-			...prev,
-			enableCategories: e.target.checked,
-		}));
-		// 変更後に自動保存
-		setTimeout(handleSaveSettings, 0);
+	// Checkbox用にハンドラを修正 - 非同期関数に変更
+	const handleToggleEnableCategories = async (checked: boolean) => {
+		try {
+			// 新しい設定を作成
+			const newSettings = {
+				...settings,
+				enableCategories: checked,
+			};
+
+			// 状態を更新
+			setSettings(newSettings);
+
+			// 空の行を除外して保存
+			const cleanSettings = {
+				...newSettings,
+				excludePatterns: newSettings.excludePatterns.filter((p) => p.trim()),
+			};
+
+			// 直接保存
+			await saveUserSettings(cleanSettings);
+			setIsSaved(true);
+			setTimeout(() => setIsSaved(false), 2000);
+		} catch (error) {
+			console.error("設定の保存エラー:", error);
+		}
 	};
 
 	const handleExcludePatternsChange = (
@@ -753,52 +1014,50 @@ const OptionsPage = () => {
 				Tab Managerオプション
 			</h1>
 
-			<div className="bg-zinc-800 rounded-lg shadow-md p-6 mb-8">
+			<div className="bg-zinc-600 rounded-lg shadow-md p-6 mb-8">
 				<h2 className="text-xl font-semibold text-gray-200 mb-4">
 					タブの挙動設定
 				</h2>
 
-				<div className="mb-4">
-					<label className="flex items-center space-x-2 cursor-pointer">
-						<input
-							type="checkbox"
-							checked={settings.removeTabAfterOpen}
-							onChange={handleToggleRemoveAfterOpen}
-							className="form-checkbox h-5 w-5 text-zinc-500 bg-zinc-700 border-zinc-600"
-						/>
-						<span className="text-gray-300">
-							保存したタブを開いた後、リストから自動的に削除する
-						</span>
-					</label>
-					<p className="text-sm text-gray-400 mt-1 ml-7">
-						オンにすると、保存したタブを開いた後、そのタブは保存リストから自動的に削除されます。
-						オフにすると、保存したタブを開いても、リストからは削除されません。
-					</p>
+				<div className="mb-4 flex items-center space-x-2">
+					<Checkbox
+						id="remove-after-open"
+						checked={settings.removeTabAfterOpen}
+						onCheckedChange={handleToggleRemoveAfterOpen}
+						className="border-zinc-500 data-[state=checked]:bg-zinc-900 data-[state=checked]:border-zinc-900"
+					/>
+					<Label htmlFor="remove-after-open" className="text-gray-300">
+						保存したタブを開いた後、リストから自動的に削除する
+					</Label>
 				</div>
+				<p className="text-sm text-gray-400 mt-1 ml-7">
+					オンにすると、保存したタブを開いた後、そのタブは保存リストから自動的に削除されます。
+					オフにすると、保存したタブを開いても、リストからは削除されません。
+				</p>
 
-				<div className="mb-4">
-					<label className="flex items-center space-x-2 cursor-pointer">
-						<input
-							type="checkbox"
-							checked={settings.enableCategories}
-							onChange={handleToggleEnableCategories}
-							className="form-checkbox h-5 w-5 text-zinc-500 bg-zinc-700 border-zinc-600"
-						/>
-						<span className="text-gray-300">カテゴリ機能を有効にする</span>
-					</label>
-					<p className="text-sm text-gray-400 mt-1 ml-7">
-						オンにすると、ドメインを親カテゴリでグループ化し、URLを子カテゴリで分類できます。
-					</p>
+				<div className="mb-4 flex items-center space-x-2 mt-4">
+					<Checkbox
+						id="enable-categories"
+						checked={settings.enableCategories}
+						onCheckedChange={handleToggleEnableCategories}
+						className="border-zinc-500 data-[state=checked]:bg-zinc-900 data-[state=checked]:border-zinc-900"
+					/>
+					<Label htmlFor="enable-categories" className="text-gray-300">
+						カテゴリ機能を有効にする
+					</Label>
 				</div>
+				<p className="text-sm text-gray-400 mt-1 ml-7">
+					オンにすると、ドメインを親カテゴリでグループ化し、URLを子カテゴリで分類できます。
+				</p>
 			</div>
 
 			<div className="bg-zinc-800 rounded-lg shadow-md p-6 mb-8">
 				<h2 className="text-xl font-semibold text-gray-200 mb-4">除外設定</h2>
 				<div className="mb-4">
-					<label htmlFor="excludePatterns" className="block text-gray-300 mb-2">
+					<Label htmlFor="excludePatterns" className="block text-gray-300 mb-2">
 						保存・閉じない URL パターン（1行に1つ）
-					</label>
-					<textarea
+					</Label>
+					<Textarea
 						id="excludePatterns"
 						value={settings.excludePatterns.join("\n")}
 						onChange={handleExcludePatternsChange}
@@ -825,7 +1084,7 @@ const OptionsPage = () => {
 							親カテゴリ
 						</h3>
 						<div className="mb-4">
-							<input
+							<Input
 								type="text"
 								value={newCategoryName}
 								onChange={(e) => setNewCategoryName(e.target.value)}
@@ -854,7 +1113,7 @@ const OptionsPage = () => {
 										>
 											{editingCategoryId === category.id ? (
 												<div className="flex flex-1">
-													<input
+													<Input
 														type="text"
 														ref={editInputRef}
 														value={editingCategoryName}
@@ -874,9 +1133,10 @@ const OptionsPage = () => {
 													/>
 												</div>
 											) : (
-												<button
+												<Button
 													type="button"
-													className="font-medium cursor-pointer hover:text-gray-100 hover:underline flex-1 text-left bg-transparent border-none p-0 text-gray-200"
+													variant="ghost"
+													className="font-medium cursor-pointer hover:text-gray-100 hover:underline text-left bg-transparent border-none p-0 text-gray-200"
 													onClick={() => startEditingCategory(category)}
 													onKeyDown={(e) => {
 														if (e.key === "Enter" || e.key === "Space") {
@@ -888,31 +1148,45 @@ const OptionsPage = () => {
 													aria-label={`${category.name}を編集 (${category.domains.length}ドメイン)`}
 												>
 													{category.name} ({category.domains.length}ドメイン)
-												</button>
+												</Button>
 											)}
 											<div>
 												{editingCategoryId !== category.id && (
-													<button
-														type="button"
-														onClick={() => startEditingCategory(category)}
-														className="text-gray-300 hover:text-gray-100 mr-3"
-													>
-														<Edit size={16} />
-													</button>
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<Button
+																type="button"
+																onClick={() => startEditingCategory(category)}
+																variant="ghost"
+																size="sm"
+																className="text-gray-300 hover:text-gray-100 mr-3"
+															>
+																<Edit size={16} />
+															</Button>
+														</TooltipTrigger>
+														<TooltipContent>カテゴリ名を編集</TooltipContent>
+													</Tooltip>
 												)}
 												{/* 削除ボタン */}
-												<button
-													type="button"
-													onClick={(e) => {
-														e.preventDefault();
-														e.stopPropagation();
-														console.log("削除ボタンがクリックされました");
-														forceDeleteCategory(category.id);
-													}}
-													className="text-white bg-zinc-600 hover:bg-zinc-500 px-3 py-1 rounded"
-												>
-													<Trash size={16} />
-												</button>
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<Button
+															type="button"
+															onClick={(e) => {
+																e.preventDefault();
+																e.stopPropagation();
+																console.log("削除ボタンがクリックされました");
+																forceDeleteCategory(category.id);
+															}}
+															variant="destructive"
+															size="sm"
+															className="text-white"
+														>
+															<Trash size={16} />
+														</Button>
+													</TooltipTrigger>
+													<TooltipContent>カテゴリを削除</TooltipContent>
+												</Tooltip>
 											</div>
 										</li>
 									))}
@@ -947,35 +1221,44 @@ const OptionsPage = () => {
 														{tab.domain}
 													</td>
 													<td className="p-2">
-														<select
+														<Select
 															value={currentCategory?.id || "none"}
-															onChange={(e) =>
-																assignDomainToCategory(tab.id, e.target.value)
+															onValueChange={(value) =>
+																assignDomainToCategory(tab.id, value)
 															}
-															className="w-full p-1 bg-zinc-800 text-gray-200 border border-zinc-700 rounded"
 														>
-															<option value="none">未分類</option>
-															{parentCategories.map((category) => (
-																<option key={category.id} value={category.id}>
-																	{category.name}
-																</option>
-															))}
-														</select>
+															<SelectTrigger className="w-full bg-zinc-800 text-gray-200 border-zinc-700">
+																<SelectValue placeholder="カテゴリを選択" />
+															</SelectTrigger>
+															<SelectContent>
+																<SelectItem value="none">未分類</SelectItem>
+																{parentCategories.map((category) => (
+																	<SelectItem
+																		key={category.id}
+																		value={category.id}
+																	>
+																		{category.name}
+																	</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
 													</td>
 													<td className="p-2">
-														<button
+														<Button
 															type="button"
 															onClick={() =>
 																setActiveTabId(
 																	activeTabId === tab.id ? null : tab.id,
 																)
 															}
-															className="text-sm bg-zinc-700 hover:bg-zinc-600 text-white px-2 py-1 rounded"
+															variant="outline"
+															size="sm"
+															className="text-sm bg-zinc-700 hover:bg-zinc-600 text-white"
 														>
 															{activeTabId === tab.id
 																? "閉じる"
 																: "キーワード設定"}
-														</button>
+														</Button>
 													</td>
 												</tr>
 											);
@@ -1007,8 +1290,6 @@ const OptionsPage = () => {
 					)}
 				</div>
 			)}
-
-			{/* 保存ボタンは削除し、保存完了メッセージのみ表示 */}
 
 			{isSaved && (
 				<div className="text-center mb-4">
