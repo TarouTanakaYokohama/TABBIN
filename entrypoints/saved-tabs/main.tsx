@@ -1,4 +1,4 @@
-import "@/assets/tailwind.css";
+import "@/assets/global.css"; // tailwind.cssの代わりにglobals.cssをインポート
 import { useEffect, useState, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import type {
@@ -35,8 +35,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 // lucide-reactからのアイコンインポート
 import {
-	ChevronDown,
-	ChevronRight,
 	GripVertical,
 	ExternalLink,
 	Trash,
@@ -49,13 +47,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-	Card,
-	CardHeader,
-	CardContent,
-	CardTitle,
-	CardFooter,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -71,7 +63,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
@@ -80,6 +71,8 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme-provider";
+import { ModeToggle } from "@/components/mode-toggle";
 
 // カテゴリグループコンポーネント
 interface CategoryGroupProps {
@@ -247,67 +240,48 @@ const CategoryGroup = ({
 		<Card
 			ref={setNodeRef}
 			style={style}
-			className={`mb-6 bg-zinc-800 ${isDraggingOver ? "border-primary" : "border-zinc-700"}`}
+			className={`${isDraggingOver ? "border-primary" : "border-border"}`}
 			onDragOver={handleDragOver}
 			onDragLeave={handleDragLeave}
 			onDrop={handleDrop}
 		>
-			<CardHeader className="flex-row justify-between items-center mb-3 p-4 pb-0">
-				<div className="flex items-center gap-2">
-					<Button
-						variant="secondary"
-						size="sm"
-						onClick={() => setIsCollapsed(!isCollapsed)}
-						className="bg-zinc-700 hover:bg-zinc-600 text-primary-foreground cursor-pointer"
-						aria-label={isCollapsed ? "展開する" : "折りたたむ"}
-					>
-						{isCollapsed ? (
-							<ChevronRight size={20} />
-						) : (
-							<ChevronDown size={20} />
-						)}
-					</Button>
-
-					<div
-						className="flex items-center cursor-grab hover:cursor-grab active:cursor-grabbing"
-						{...attributes}
-						{...listeners}
-					>
-						<span className="text-gray-400 ml-1">
-							<GripVertical size={16} aria-hidden="true" />
-						</span>
-						<h2 className="text-xl font-bold text-gray-200">{category.name}</h2>
-						<span className="text-gray-400">
-							({domains.length}ドメイン / {allUrls.length}タブ)
-						</span>
-					</div>
+			<CardHeader className="flex-row justify-between items-center mb-2">
+				<div
+					className="flex items-center gap-3 flex-grow cursor-grab hover:cursor-grab active:cursor-grabbing"
+					{...attributes}
+					{...listeners}
+				>
+					<span className="text-foreground">
+						<GripVertical size={16} aria-hidden="true" />
+					</span>
+					<h2 className="text-xl font-bold text-foreground">{category.name}</h2>
+					<span className="text-muted-foreground">
+						({domains.length}ドメイン / {allUrls.length}タブ)
+					</span>
 				</div>
-				<div>
+				<div className="flex-shrink-0 ml-2 pointer-events-auto">
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
 								variant="secondary"
 								size="sm"
 								onClick={() => handleOpenAllTabs(allUrls)}
-								className="bg-zinc-700 hover:bg-zinc-600 text-primary-foreground flex items-center gap-1 cursor-pointer"
+								className="flex items-center gap-1 cursor-pointer"
 								title="すべてのタブを開く"
 								aria-label="すべてのタブを開く"
 							>
 								<ExternalLink size={14} />
-								<span className="md:inline hidden">すべて開く</span>
+								<span className="lg:inline hidden">すべて開く</span>
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent
-							side="top"
-							className="bg-zinc-800 text-white border-zinc-700"
-						>
+						<TooltipContent side="top" className="lg:hidden block">
 							すべてのタブを開く
 						</TooltipContent>
 					</Tooltip>
 				</div>
 			</CardHeader>
 			{!isCollapsed && (
-				<CardContent className="space-y-4 p-4 pt-2">
+				<CardContent>
 					<DndContext
 						sensors={sensors}
 						collisionDetection={closestCenter}
@@ -717,42 +691,51 @@ const SortableDomainCard = ({
 		<Card
 			ref={setNodeRef}
 			style={style}
-			className={`bg-zinc-800 rounded-lg shadow-md ${
-				isDraggingOver ? "border-blue-500 border-2" : "border-zinc-700"
+			className={`rounded-lg shadow-md ${
+				isDraggingOver ? "border-blue-500 border-2" : "border-border"
 			}`}
 			data-category-id={categoryId} // データ属性として親カテゴリIDを設定
 		>
-			<CardHeader className="p-4 pb-0 w-full">
+			<CardHeader className="p-2 pb-0 w-full">
 				<div className="flex items-center justify-between w-full">
 					{/* 左側: ドメイン情報 */}
 					<div
-						className="flex items-center gap-3 cursor-grab overflow-hidden flex-grow hover:cursor-grab active:cursor-grabbing"
+						className={
+							"flex items-center gap-3 cursor-grab overflow-hidden flex-grow hover:cursor-grab active:cursor-grabbing"
+						}
 						{...attributes}
 						{...listeners}
 					>
-						<div className="text-gray-400 flex-shrink-0">
+						<div className="text-muted-foreground/80 flex-shrink-0">
 							<GripVertical size={16} aria-hidden="true" />
 						</div>
-						<h2 className="text-lg font-semibold text-gray-200 truncate">
+						<h2 className="text-lg font-semibold text-foreground truncate">
 							{group.domain}
 						</h2>
-						<span className="text-sm text-gray-400 flex-shrink-0">
+						<span className="text-sm text-muted-foreground flex-shrink-0">
 							({group.urls.length})
 						</span>
 					</div>
 
 					{/* 右側: 操作ボタン類 */}
 					<div className="flex items-center gap-2 flex-shrink-0 ml-2">
-						<Button
-							variant="secondary"
-							size="sm"
-							onClick={() => setShowKeywordModal(true)}
-							className="bg-zinc-700 hover:bg-zinc-600 text-primary-foreground flex items-center gap-1 cursor-pointer"
-							title="カテゴリ管理"
-						>
-							<Settings size={14} />
-							<span className="md:inline hidden">カテゴリ管理</span>
-						</Button>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="secondary"
+									size="sm"
+									onClick={() => setShowKeywordModal(true)}
+									className="text-secondary-foreground flex items-center gap-1 cursor-pointer"
+									title="カテゴリ管理"
+								>
+									<Settings size={14} />
+									<span className="lg:inline hidden">カテゴリ管理</span>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent side="top" className="lg:hidden block">
+								カテゴリ管理
+							</TooltipContent>
+						</Tooltip>
 
 						<Tooltip>
 							<TooltipTrigger asChild>
@@ -760,32 +743,37 @@ const SortableDomainCard = ({
 									variant="secondary"
 									size="sm"
 									onClick={() => handleOpenAllTabs(group.urls)}
-									className="bg-zinc-700 hover:bg-zinc-600 text-primary-foreground flex items-center gap-1 cursor-pointer"
+									className="flex items-center gap-1 cursor-pointer"
 									title="すべてのタブを開く"
 									aria-label="すべてのタブを開く"
 								>
 									<ExternalLink size={14} />
-									<span className="md:inline hidden">すべて開く</span>
+									<span className="lg:inline hidden">すべて開く</span>
 								</Button>
 							</TooltipTrigger>
-							<TooltipContent
-								side="top"
-								className="bg-zinc-800 text-white border-zinc-700"
-							>
+							<TooltipContent side="top" className="lg:hidden block">
 								すべてのタブを開く
 							</TooltipContent>
 						</Tooltip>
-						<Button
-							variant="destructive"
-							size="sm"
-							onClick={() => handleDeleteGroup(group.id)}
-							className="flex items-center gap-1 cursor-pointer"
-							title="グループを削除"
-							aria-label="グループを削除"
-						>
-							<Trash size={14} />
-							<span className="md:inline hidden">削除</span>
-						</Button>
+
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="secondary"
+									size="sm"
+									onClick={() => handleDeleteGroup(group.id)}
+									className="flex items-center gap-1 cursor-pointer"
+									title="グループを削除"
+									aria-label="グループを削除"
+								>
+									<Trash size={14} />
+									<span className="lg:inline hidden">削除</span>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent side="top" className="lg:hidden block">
+								グループを削除
+							</TooltipContent>
+						</Tooltip>
 					</div>
 				</div>
 
@@ -802,7 +790,7 @@ const SortableDomainCard = ({
 			</CardHeader>
 
 			{/* カテゴリごとにまとめてタブを表示 */}
-			<CardContent className="space-y-4">
+			<CardContent className="space-y-1 p-2">
 				{allCategoryIds.length > 0 && (
 					<DndContext
 						sensors={sensors}
@@ -879,21 +867,21 @@ const SortableCategorySection = ({
 			style={style}
 			className={
 				isDragging
-					? "category-section mb-4 bg-zinc-700 rounded-md shadow-lg"
-					: "category-section mb-4"
+					? "category-section mb-1 bg-muted rounded-md shadow-lg"
+					: "category-section mb-1"
 			}
 		>
-			<div className="category-header mb-2 pb-1 border-b border-zinc-700 flex items-center justify-between">
+			<div className="category-header mb-0.5 pb-0.5 border-b border-border flex items-center justify-between">
 				{/* ドラッグハンドル部分 */}
 				<div
-					className={`flex items-center ${isDragging ? "cursor-grabbing" : "cursor-grab hover:cursor-grab active:cursor-grabbing"}`}
+					className={`flex items-center flex-grow ${isDragging ? "cursor-grabbing" : "cursor-grab hover:cursor-grab active:cursor-grabbing"}`}
 					{...attributes}
 					{...listeners}
 				>
-					<div className="mr-2 text-gray-400">
+					<div className="mr-2 text-muted-foreground/60">
 						<GripVertical size={16} aria-hidden="true" />
 					</div>
-					<h3 className="font-medium text-gray-300">
+					<h3 className="font-medium text-foreground">
 						{props.categoryName === "__uncategorized"
 							? "未分類"
 							: props.categoryName}{" "}
@@ -911,18 +899,15 @@ const SortableCategorySection = ({
 								e.stopPropagation(); // ドラッグイベントの伝播を防止
 								handleOpenAllTabs(props.urls);
 							}}
-							className="bg-zinc-700 hover:bg-zinc-600 text-primary-foreground flex items-center gap-1 z-20 pointer-events-auto cursor-pointer"
+							className="flex items-center gap-1 z-20 pointer-events-auto cursor-pointer"
 							title={`${props.categoryName === "__uncategorized" ? "未分類" : props.categoryName}のタブをすべて開く`}
 							style={{ position: "relative" }} // ボタンを確実に上に表示
 						>
 							<ExternalLink size={14} />
-							<span className="md:inline hidden">すべて開く</span>
+							<span className="lg:inline hidden">すべて開く</span>
 						</Button>
 					</TooltipTrigger>
-					<TooltipContent
-						side="top"
-						className="bg-zinc-800 text-white border-zinc-700"
-					>
+					<TooltipContent side="top" className="lg:hidden block">
 						すべてのタブを開く
 					</TooltipContent>
 				</Tooltip>
@@ -996,7 +981,7 @@ const CategorySection = ({
 		categoryName === "__uncategorized" ? "未分類" : categoryName;
 
 	return (
-		<div className="category-section mb-4">
+		<div className="category-section mb-1">
 			<DndContext
 				sensors={sensors}
 				collisionDetection={closestCenter}
@@ -1007,7 +992,7 @@ const CategorySection = ({
 					items={urls.map((item) => item.url)}
 					strategy={verticalListSortingStrategy}
 				>
-					<ul className="space-y-2">
+					<ul className="space-y-0.5">
 						{urls.map((item) => (
 							<SortableUrlItem
 								key={item.url}
@@ -1220,11 +1205,11 @@ const SortableUrlItem = ({
 		<li
 			ref={setNodeRef}
 			style={style}
-			className="border-b border-zinc-800 pb-2 last:border-0 last:pb-0 flex items-center relative overflow-hidden"
+			className="border-b border-border pb-1 last:border-0 last:pb-0 flex items-center relative overflow-hidden"
 			data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
 		>
 			<div
-				className="text-gray-500 cursor-grab hover:cursor-grab active:cursor-grabbing mr-2 z-10 flex-shrink-0"
+				className="text-muted-foreground/40 cursor-grab hover:cursor-grab active:cursor-grabbing mr-2 z-10 flex-shrink-0"
 				{...attributes}
 				{...listeners}
 			>
@@ -1240,18 +1225,18 @@ const SortableUrlItem = ({
 					onClick={() => handleOpenTab(url)}
 					onMouseEnter={handleMouseEnter}
 					onMouseLeave={handleUIMouseLeave}
-					className="text-gray-300 hover:text-white hover:underline cursor-pointer text-left w-full bg-transparent border-0 flex items-center gap-1 h-full justify-start px-0 pr-8 overflow-hidden"
+					className="text-foreground hover:text-foreground hover:underline cursor-pointer text-left w-full bg-transparent border-0 flex items-center gap-1 h-full justify-start px-0 pr-8 overflow-hidden"
 					title={title}
 				>
 					<span className="truncate">{title || url}</span>
 				</Button>
 				{isDeleteButtonVisible && (
 					<Button
-						variant="destructive"
+						variant="outline"
 						size="icon"
 						onClick={handleDeleteButtonClick}
 						onMouseEnter={handleDeleteButtonMouseEnter}
-						className="absolute right-0 top-0 bottom-0 my-auto flex-shrink-0 cursor-pointer hover:bg-red-700"
+						className="absolute right-0 top-0 bottom-0 my-auto flex-shrink-0 cursor-pointer"
 						title="URLを削除"
 						aria-label="URLを削除"
 					>
@@ -1392,7 +1377,7 @@ const UrlList = ({
 
 			{/* カテゴリラベルを追加 */}
 			<div className="mb-3 pb-2 border-b border-gray-700">
-				<h3 className="font-medium text-gray-300">
+				<h3 className="font-medium text-foreground">
 					{activeSubCategory === null
 						? "すべてのタブ"
 						: activeSubCategory === "__uncategorized"
@@ -1410,7 +1395,7 @@ const UrlList = ({
 					items={filteredUrls.map((item) => item.url)}
 					strategy={verticalListSortingStrategy}
 				>
-					<ul className="space-y-2">
+					<ul className="space-y-1">
 						{filteredUrls.map((item) => (
 							<SortableUrlItem
 								key={item.url}
@@ -1829,7 +1814,7 @@ const CategoryKeywordModal = ({
 								value={newSubCategory}
 								onChange={(e) => setNewSubCategory(e.target.value)}
 								placeholder="新しいカテゴリ名を入力"
-								className="flex-grow p-2 border rounded bg-zinc-800 border-zinc-600 text-gray-200"
+								className="flex-grow p-2 border rounded"
 								onKeyDown={(e) => {
 									if (e.key === "Enter") {
 										e.preventDefault();
@@ -1856,38 +1841,52 @@ const CategoryKeywordModal = ({
 
 									<div className="flex gap-2">
 										{!isRenaming && (
-											<Button
-												variant="secondary"
-												size="sm"
-												onClick={handleStartRenaming}
-												className="bg-zinc-700 hover:bg-zinc-600 text-primary-foreground px-2 py-1 rounded flex items-center gap-1 cursor-pointer"
-												title="カテゴリ名を変更"
-												disabled={!activeCategory}
-											>
-												<Settings size={14} />
-												<span className="md:inline hidden">名前を変更</span>
-											</Button>
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<Button
+														variant="secondary"
+														size="sm"
+														onClick={handleStartRenaming}
+														className="px-2 py-1 rounded flex items-center gap-1 cursor-pointer"
+														title="カテゴリ名を変更"
+														disabled={!activeCategory}
+													>
+														<Settings size={14} />
+														<span className="lg:inline hidden">名前を変更</span>
+													</Button>
+												</TooltipTrigger>
+												<TooltipContent side="top" className="lg:hidden block">
+													カテゴリ名を変更
+												</TooltipContent>
+											</Tooltip>
 										)}
 
-										<Button
-											variant="destructive"
-											size="sm"
-											onClick={() => setShowDeleteConfirm(true)}
-											className="bg-zinc-700 hover:bg-zinc-600 text-primary-foreground px-2 py-1 rounded flex items-center gap-1 cursor-pointer"
-											title="現在のカテゴリを削除"
-											disabled={!activeCategory}
-										>
-											<Trash size={14} />
-											<span className="md:inline hidden">
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Button
+													variant="secondary"
+													size="sm"
+													onClick={() => setShowDeleteConfirm(true)}
+													className="px-2 py-1 rounded flex items-center gap-1 cursor-pointer"
+													title="現在のカテゴリを削除"
+													disabled={!activeCategory}
+												>
+													<Trash size={14} />
+													<span className="lg:inline hidden">
+														現在のカテゴリを削除
+													</span>
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent side="top" className="lg:hidden block">
 												現在のカテゴリを削除
-											</span>
-										</Button>
+											</TooltipContent>
+										</Tooltip>
 									</div>
 								</div>
 
 								{/* リネームフォーム */}
 								{isRenaming && (
-									<div className="mt-2 p-3 border border-zinc-600 bg-zinc-700 bg-opacity-50 rounded mb-3">
+									<div className="mt-2 p-3 border rounded mb-3">
 										<div className="text-gray-300 mb-2 text-sm">
 											「{activeCategory}」の新しい名前を入力してください
 											<br />
@@ -1899,7 +1898,7 @@ const CategoryKeywordModal = ({
 											value={newCategoryName}
 											onChange={(e) => setNewCategoryName(e.target.value)}
 											placeholder="新しいカテゴリ名"
-											className="w-full p-2 border rounded bg-zinc-800 border-zinc-600 text-gray-200"
+											className="w-full p-2 border rounded"
 											autoFocus
 											data-rename-input="true"
 											onBlur={handleSaveRenaming}
@@ -1918,7 +1917,7 @@ const CategoryKeywordModal = ({
 
 								{/* 削除確認UI */}
 								{showDeleteConfirm && (
-									<div className="mt-2 p-3 border border-zinc-600 bg-zinc-700 bg-opacity-50 rounded mb-3">
+									<div className="mt-2 p-3 border rounded mb-3">
 										<p className="text-gray-300 mb-2">
 											「{activeCategory}」カテゴリを削除しますか？
 											<br />
@@ -1931,7 +1930,7 @@ const CategoryKeywordModal = ({
 												variant="secondary"
 												size="sm"
 												onClick={() => setShowDeleteConfirm(false)}
-												className="bg-zinc-600 hover:bg-zinc-500 text-primary-foreground px-2 py-1 rounded cursor-pointer"
+												className="text-primary-foreground px-2 py-1 rounded cursor-pointer"
 											>
 												キャンセル
 											</Button>
@@ -1942,7 +1941,7 @@ const CategoryKeywordModal = ({
 												className="flex items-center gap-1 cursor-pointer"
 											>
 												<Trash size={14} />
-												<span className="md:inline hidden">削除する</span>
+												<span className="lg:inline hidden">削除する</span>
 											</Button>
 										</div>
 									</div>
@@ -1953,15 +1952,15 @@ const CategoryKeywordModal = ({
 									onValueChange={setActiveCategory}
 									disabled={isRenaming}
 								>
-									<SelectTrigger className="w-full p-2 border rounded bg-zinc-800 border-zinc-600 text-gray-200 cursor-pointer">
+									<SelectTrigger className="w-full p-2 border rounded cursor-pointer">
 										<SelectValue placeholder="カテゴリを選択" />
 									</SelectTrigger>
-									<SelectContent className="bg-zinc-800 border-zinc-600">
+									<SelectContent>
 										{group.subCategories.map((cat) => (
 											<SelectItem
 												key={cat}
 												value={cat}
-												className="text-gray-200 hover:bg-zinc-700 focus:bg-zinc-700 cursor-pointer"
+												className="cursor-pointer"
 											>
 												{cat}
 											</SelectItem>
@@ -1988,7 +1987,7 @@ const CategoryKeywordModal = ({
 										value={newKeyword}
 										onChange={(e) => setNewKeyword(e.target.value)}
 										placeholder="新しいキーワードを入力"
-										className="flex-grow p-2 border rounded bg-zinc-800 border-zinc-600 text-gray-200"
+										className="flex-grow p-2 border rounded"
 										onKeyDown={(e) => {
 											if (e.key === "Enter") {
 												e.preventDefault();
@@ -2004,14 +2003,15 @@ const CategoryKeywordModal = ({
 									/>
 								</div>
 
-								<div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border rounded bg-zinc-900 border-zinc-700">
+								<div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border rounded">
 									{keywords.length === 0 ? (
 										<p className="text-gray-500">キーワードがありません</p>
 									) : (
 										keywords.map((keyword) => (
 											<Badge
 												key={keyword}
-												className="bg-zinc-700 hover:bg-zinc-600 text-primary-foreground px-2 py-1 rounded flex items-center gap-1"
+												variant="outline"
+												className="px-2 py-1 rounded flex items-center gap-1"
 											>
 												{keyword}
 												<Button
@@ -2642,21 +2642,29 @@ const SavedTabs = () => {
 	return (
 		<>
 			<Toaster />
-			<div className="container mx-auto px-4 py-8 bg-black min-h-screen">
-				<div className="flex justify-between items-center mb-8">
-					<h1 className="text-3xl font-bold text-gray-100">Tab Manager</h1>
+			<div className="container mx-auto px-4 py-2 min-h-screen">
+				<div className="flex justify-between items-center mb-4">
+					<h1 className="text-3xl font-bold text-foreground">Tab Manager</h1>
 					<div className="flex items-center gap-4">
-						<Button
-							variant="secondary"
-							size="sm"
-							onClick={() => chrome.runtime.openOptionsPage()}
-							className="bg-zinc-700 hover:bg-zinc-600 text-primary-foreground flex items-center gap-2 cursor-pointer"
-							title="設定"
-						>
-							<Settings size={16} />
-							<span className="md:inline hidden">設定</span>
-						</Button>
-						<div className="text-sm text-gray-400 space-x-4">
+						<ModeToggle />
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => chrome.runtime.openOptionsPage()}
+									className="flex items-center gap-2 cursor-pointer"
+									title="設定"
+								>
+									<Settings size={16} />
+									<span className="lg:inline hidden">設定</span>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent side="top" className="lg:hidden block">
+								設定
+							</TooltipContent>
+						</Tooltip>
+						<div className="text-sm text-muted-foreground space-x-4">
 							<p>
 								タブ:
 								{tabGroups.reduce((sum, group) => sum + group.urls.length, 0)}
@@ -2667,15 +2675,15 @@ const SavedTabs = () => {
 				</div>
 
 				{isLoading ? (
-					<div className="flex items-center justify-center min-h-[300px]">
-						<div className="text-xl text-gray-300">読み込み中...</div>
+					<div className="flex items-center justify-center min-h-[200px]">
+						<div className="text-xl text-foreground">読み込み中...</div>
 					</div>
 				) : tabGroups.length === 0 ? (
-					<div className="flex flex-col items-center justify-center min-h-[300px] gap-4">
-						<div className="text-2xl text-gray-300">
+					<div className="flex flex-col items-center justify-center min-h-[200px] gap-4">
+						<div className="text-2xl text-foreground">
 							保存されたタブはありません
 						</div>
-						<div className="text-gray-400">
+						<div className="text-muted-foreground">
 							タブを右クリックして保存するか、拡張機能のアイコンをクリックしてください
 						</div>
 					</div>
@@ -2693,43 +2701,45 @@ const SavedTabs = () => {
 											items={categoryOrder}
 											strategy={verticalListSortingStrategy}
 										>
-											{/* カテゴリ順序に基づいて表示 */}
-											{categoryOrder.map((categoryId) => {
-												if (!categoryId) return null;
-												const category = categories.find(
-													(c) => c.id === categoryId,
-												);
-												if (!category) return null;
-												const domainGroups = categorized[categoryId] || [];
-												if (domainGroups.length === 0) return null;
+											<div className="flex flex-col gap-1">
+												{/* カテゴリ順序に基づいて表示 */}
+												{categoryOrder.map((categoryId) => {
+													if (!categoryId) return null;
+													const category = categories.find(
+														(c) => c.id === categoryId,
+													);
+													if (!category) return null;
+													const domainGroups = categorized[categoryId] || [];
+													if (domainGroups.length === 0) return null;
 
-												return (
-													<CategoryGroup
-														key={categoryId}
-														category={category}
-														domains={domainGroups}
-														handleOpenAllTabs={handleOpenAllTabs}
-														handleDeleteGroup={handleDeleteGroup}
-														handleDeleteUrl={handleDeleteUrl}
-														handleOpenTab={handleOpenTab}
-														handleUpdateUrls={handleUpdateUrls}
-														handleUpdateDomainsOrder={handleUpdateDomainsOrder}
-														handleMoveDomainToCategory={
-															handleMoveDomainToCategory
-														}
-														handleDeleteCategory={handleDeleteCategory}
-													/>
-												);
-											})}
+													return (
+														<CategoryGroup
+															key={categoryId}
+															category={category}
+															domains={domainGroups}
+															handleOpenAllTabs={handleOpenAllTabs}
+															handleDeleteGroup={handleDeleteGroup}
+															handleDeleteUrl={handleDeleteUrl}
+															handleOpenTab={handleOpenTab}
+															handleUpdateUrls={handleUpdateUrls}
+															handleUpdateDomainsOrder={
+																handleUpdateDomainsOrder
+															}
+															handleMoveDomainToCategory={
+																handleMoveDomainToCategory
+															}
+															handleDeleteCategory={handleDeleteCategory}
+														/>
+													);
+												})}
+											</div>
 										</SortableContext>
 									</DndContext>
 
 									{uncategorized.length > 0 && (
-										<div className="mt-8 mb-4">
-											<h2 className="text-xl font-bold text-gray-100 mb-4">
-												未分類のドメイン
-											</h2>
-										</div>
+										<h2 className="text-xl font-bold text-foreground mt-2 mb-1">
+											未分類のドメイン
+										</h2>
 									)}
 								</>
 							)}
@@ -2743,7 +2753,7 @@ const SavedTabs = () => {
 								items={uncategorized.map((group) => group.id)}
 								strategy={verticalListSortingStrategy}
 							>
-								<div className="flex flex-col gap-6">
+								<div className="flex flex-col gap-1">
 									{uncategorized.map((group) => (
 										<SortableDomainCard
 											key={group.id}
@@ -2776,29 +2786,44 @@ const SavedTabs = () => {
 								value={newSubCategory}
 								onChange={(e) => setNewSubCategory(e.target.value)}
 								placeholder="カテゴリ名を入力"
-								className="w-full p-2 border rounded mb-4 bg-zinc-800 border-zinc-600 text-gray-200"
+								className="w-full p-2 border rounded mb-4 text-foreground"
 								ref={inputRef}
 							/>
 							<DialogFooter>
-								<Button
-									variant="secondary"
-									size="sm"
-									onClick={() => setShowSubCategoryModal(false)}
-									className="bg-zinc-600 hover:bg-zinc-500 text-primary-foreground px-2 py-1 rounded cursor-pointer"
-									title="キャンセル"
-								>
-									キャンセル
-								</Button>
-								<Button
-									variant="secondary"
-									size="sm"
-									onClick={handleAddSubCategory}
-									className="text-primary-foreground rounded hover:bg-zinc-500 flex items-center gap-1 cursor-pointer"
-									title="追加"
-								>
-									<Plus size={14} />
-									<span className="md:inline hidden">追加</span>
-								</Button>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="secondary"
+											size="sm"
+											onClick={() => setShowSubCategoryModal(false)}
+											className="text-secondary-foreground px-2 py-1 rounded cursor-pointer"
+											title="キャンセル"
+										>
+											キャンセル
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent side="top" className="lg:hidden block">
+										キャンセル
+									</TooltipContent>
+								</Tooltip>
+
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="default"
+											size="sm"
+											onClick={handleAddSubCategory}
+											className="text-primary-foreground rounded flex items-center gap-1 cursor-pointer"
+											title="追加"
+										>
+											<Plus size={14} />
+											<span className="lg:inline hidden">追加</span>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent side="top" className="lg:hidden block">
+										追加
+									</TooltipContent>
+								</Tooltip>
 							</DialogFooter>
 						</DialogContent>
 					</Dialog>
@@ -2835,5 +2860,9 @@ document.addEventListener("DOMContentLoaded", () => {
 	if (!appContainer) throw new Error("Failed to find the app container");
 
 	const root = createRoot(appContainer);
-	root.render(<SavedTabs />);
+	root.render(
+		<ThemeProvider defaultTheme="system" storageKey="tab-manager-theme">
+			<SavedTabs />
+		</ThemeProvider>,
+	);
 });
