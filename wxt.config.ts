@@ -1,4 +1,7 @@
+import path from "path";
 import { defineConfig } from "wxt";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
@@ -15,4 +18,7 @@ export default defineConfig({
 			open_in_tab: true,
 		},
 	},
+	vite: () => ({
+		plugins: [react(), tailwindcss()],
+	}),
 });
