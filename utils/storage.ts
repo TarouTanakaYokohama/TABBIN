@@ -22,17 +22,21 @@ export interface TabGroup {
 		url: string;
 		title: string;
 		subCategory?: string; // 子カテゴリ名
+		savedAt?: number; // 個別のURL保存時刻を追加
 	}[];
 	subCategories?: string[]; // このドメインで利用可能な子カテゴリのリスト
 	categoryKeywords?: SubCategoryKeyword[]; // 子カテゴリのキーワード設定
 	subCategoryOrder?: string[]; // 子カテゴリの表示順序
 	subCategoryOrderWithUncategorized?: string[]; // 未分類カテゴリを含む全カテゴリの表示順序
+	savedAt?: number; // グループ全体の保存時刻を追加
 }
 
 export interface UserSettings {
 	removeTabAfterOpen: boolean;
 	excludePatterns: string[];
 	enableCategories: boolean; // カテゴリ機能の有効/無効
+	autoDeletePeriod?: string; // never, 1hour, 1day, 7days, 14days, 30days, 180days, 365days
+	showSavedTime: boolean; // 保存日時を表示するかどうか
 }
 
 // デフォルト設定
@@ -40,17 +44,41 @@ export const defaultSettings: UserSettings = {
 	removeTabAfterOpen: true,
 	excludePatterns: ["chrome-extension://", "chrome://"],
 	enableCategories: true, // デフォルトは無効
+	autoDeletePeriod: "never", // デフォルトでは自動削除しない
+	showSavedTime: false, // デフォルトでは表示しない
 };
 
 // 設定を取得する関数
 export async function getUserSettings(): Promise<UserSettings> {
-	const { userSettings } = await chrome.storage.local.get("userSettings");
-	return { ...defaultSettings, ...(userSettings || {}) };
+	try {
+		console.log("ユーザー設定を取得中...");
+		const data = await chrome.storage.local.get(["userSettings"]);
+		console.log("取得した設定データ:", data);
+
+		if (data.userSettings) {
+			console.log("保存された設定を使用:", data.userSettings);
+			// デフォルト値とマージして返す
+			return { ...defaultSettings, ...data.userSettings };
+		} else {
+			console.log("設定が見つからないためデフォルト値を使用");
+			return { ...defaultSettings };
+		}
+	} catch (error) {
+		console.error("設定取得エラー:", error);
+		return { ...defaultSettings };
+	}
 }
 
 // 設定を保存する関数
 export async function saveUserSettings(settings: UserSettings): Promise<void> {
-	await chrome.storage.local.set({ userSettings: settings });
+	try {
+		console.log("ユーザー設定を保存:", settings);
+		await chrome.storage.local.set({ userSettings: settings });
+		console.log("設定を保存しました");
+	} catch (error) {
+		console.error("設定保存エラー:", error);
+		throw error;
+	}
 }
 
 // 親カテゴリを取得する関数
@@ -493,7 +521,7 @@ export async function saveDomainCategoryMappings(
 	await chrome.storage.local.set({ domainCategoryMappings: mappings });
 }
 
-// ドメインと親カテゴリのマッピングを更新する関数
+// ドメイン-親カテゴリのマッピングを更新する関数
 export async function updateDomainCategoryMapping(
 	domain: string,
 	categoryId: string | null,
@@ -595,6 +623,7 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 					domain,
 					urls: [],
 					subCategories: [],
+					savedAt: Date.now(), // グループ全体の保存時刻を追加
 				};
 
 				// 既存の子カテゴリ設定を復元
@@ -703,6 +732,7 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 					url: tab.url,
 					title: tab.title || "",
 					subCategory: undefined,
+					savedAt: Date.now(), // 個別のURL保存時刻を追加
 				});
 			}
 		} catch (error) {
@@ -912,6 +942,7 @@ export async function handleTabGroupRemoval(id: string): Promise<void> {
 
 // タブ保存時に自動分類も行うようにsaveTabsを拡張
 export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
+	const currentTime = Date.now(); // 現在時刻をミリ秒で取得
 	await saveTabs(tabs);
 
 	// 保存したタブグループのIDを取得

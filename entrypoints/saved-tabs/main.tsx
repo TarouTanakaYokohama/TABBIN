@@ -72,7 +72,6 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ModeToggle } from "@/components/mode-toggle";
 
 // カテゴリグループコンポーネント
 interface CategoryGroupProps {
@@ -93,6 +92,7 @@ interface CategoryGroupProps {
 		toCategoryId: string,
 	) => void;
 	handleDeleteCategory?: (groupId: string, categoryName: string) => void;
+	settings: UserSettings; // 追加: settingsプロパティ
 }
 
 const CategoryGroup = ({
@@ -106,6 +106,7 @@ const CategoryGroup = ({
 	handleUpdateDomainsOrder,
 	handleMoveDomainToCategory,
 	handleDeleteCategory,
+	settings,
 }: CategoryGroupProps) => {
 	const [isCollapsed, setIsCollapsed] = useState(false);
 	const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -303,6 +304,7 @@ const CategoryGroup = ({
 									handleDeleteCategory={handleDeleteCategory}
 									categoryId={category.id} // 親カテゴリIDを渡す
 									isDraggingOver={false}
+									settings={settings} // settingsを渡す
 								/>
 							))}
 						</SortableContext>
@@ -313,7 +315,7 @@ const CategoryGroup = ({
 	);
 };
 
-// ドメインカード用のソータブルコンポーネント
+// ドメインカード用のソータブルコンポーネントの型を修正
 interface SortableDomainCardProps {
 	group: TabGroup;
 	handleOpenAllTabs: (urls: { url: string; title: string }[]) => void;
@@ -324,8 +326,10 @@ interface SortableDomainCardProps {
 	handleDeleteCategory?: (groupId: string, categoryName: string) => void;
 	categoryId?: string; // 親カテゴリIDを追加
 	isDraggingOver?: boolean; // ドラッグオーバー状態を追加
+	settings?: UserSettings; // settingsプロパティを追加
 }
 
+// SortableDomainCardコンポーネントを修正
 const SortableDomainCard = ({
 	group,
 	handleOpenAllTabs,
@@ -336,7 +340,8 @@ const SortableDomainCard = ({
 	handleDeleteCategory,
 	categoryId, // 親カテゴリIDを受け取る
 	isDraggingOver,
-}: SortableDomainCardProps) => {
+	settings, // 追加: settingsを受け取る
+}: SortableDomainCardProps & { settings: UserSettings }) => {
 	const { attributes, listeners, setNodeRef, transform, transition } =
 		useSortable({ id: group.id });
 	const [showKeywordModal, setShowKeywordModal] = useState(false);
@@ -711,10 +716,11 @@ const SortableDomainCard = ({
 						</div>
 						<h2 className="text-lg font-semibold text-foreground truncate">
 							{group.domain}
+							<span className="text-sm text-muted-foreground">
+								{" "}
+								({group.urls.length})
+							</span>
 						</h2>
-						<span className="text-sm text-muted-foreground flex-shrink-0">
-							({group.urls.length})
-						</span>
 					</div>
 
 					{/* 右側: 操作ボタン類 */}
@@ -813,6 +819,7 @@ const SortableDomainCard = ({
 									handleOpenTab={handleOpenTab}
 									handleUpdateUrls={handleUpdateUrls}
 									handleOpenAllTabs={handleOpenAllTabs} // カテゴリごとのすべて開く機能を渡す
+									settings={settings} // 設定を渡す
 								/>
 							))}
 						</SortableContext>
@@ -833,12 +840,12 @@ interface SortableCategorySectionProps extends CategorySectionProps {
 	id: string; // ソート用の一意のID
 	handleOpenAllTabs: (urls: { url: string; title: string }[]) => void; // 追加: すべて開く処理
 }
-
 const SortableCategorySection = ({
 	id,
-	handleOpenAllTabs, // 追加: すべて開く処理
+	handleOpenAllTabs,
+	settings,
 	...props
-}: SortableCategorySectionProps) => {
+}: SortableCategorySectionProps & { settings: UserSettings }) => {
 	const {
 		attributes,
 		listeners,
@@ -885,7 +892,9 @@ const SortableCategorySection = ({
 						{props.categoryName === "__uncategorized"
 							? "未分類"
 							: props.categoryName}{" "}
-						({props.urls.length})
+						<span className="text-sm text-muted-foreground">
+							({props.urls.length})
+						</span>
 					</h3>
 				</div>
 
@@ -913,7 +922,7 @@ const SortableCategorySection = ({
 				</Tooltip>
 			</div>
 
-			<CategorySection {...props} />
+			<CategorySection {...props} settings={settings} />
 		</div>
 	);
 };
@@ -926,7 +935,8 @@ interface CategorySectionProps {
 	handleDeleteUrl: (groupId: string, url: string) => void;
 	handleOpenTab: (url: string) => void;
 	handleUpdateUrls: (groupId: string, updatedUrls: TabGroup["urls"]) => void;
-	handleOpenAllTabs?: (urls: { url: string; title: string }[]) => void; // 追加: すべて開く処理
+	handleOpenAllTabs?: (urls: { url: string; title: string }[]) => void;
+	settings: UserSettings; // settings を必須プロパティに変更
 }
 
 const CategorySection = ({
@@ -937,6 +947,7 @@ const CategorySection = ({
 	handleOpenTab,
 	handleUpdateUrls,
 	handleOpenAllTabs, // 追加: すべて開く処理
+	settings, // 追加: 設定を受け取る
 }: CategorySectionProps) => {
 	// DnDのセンサー設定
 	const sensors = useSensors(
@@ -996,15 +1007,18 @@ const CategorySection = ({
 						{urls.map((item) => (
 							<SortableUrlItem
 								key={item.url}
-								id={item.url}
 								url={item.url}
 								title={item.title}
+								id={item.url}
 								groupId={groupId}
 								subCategory={item.subCategory}
+								savedAt={item.savedAt}
+								autoDeletePeriod={settings.autoDeletePeriod}
 								handleDeleteUrl={handleDeleteUrl}
 								handleOpenTab={handleOpenTab}
 								handleUpdateUrls={handleUpdateUrls}
 								categoryContext={`category-${categoryName}-${groupId}`}
+								settings={settings}
 							/>
 						))}
 					</ul>
@@ -1014,13 +1028,15 @@ const CategorySection = ({
 	);
 };
 
-// URL項目用のソータブルコンポーネント
+// URL項目用のソータブルコンポーネント - 型定義を修正
 interface SortableUrlItemProps {
 	url: string;
 	title: string;
 	id: string;
 	groupId: string;
 	subCategory?: string;
+	savedAt?: number;
+	autoDeletePeriod?: string;
 	availableSubCategories?: string[];
 	handleDeleteUrl: (groupId: string, url: string) => void;
 	handleOpenTab: (url: string) => void;
@@ -1033,7 +1049,8 @@ interface SortableUrlItemProps {
 		groupId: string,
 		updatedUrls: { url: string; title: string; subCategory?: string }[],
 	) => void;
-	categoryContext?: string; // 所属するカテゴリのコンテキスト
+	categoryContext?: string;
+	settings: UserSettings;
 }
 
 const SortableUrlItem = ({
@@ -1042,11 +1059,14 @@ const SortableUrlItem = ({
 	id,
 	groupId,
 	subCategory,
+	savedAt, // 個別プロパティとして受け取る
+	autoDeletePeriod, // 個別プロパティとして受け取る
 	availableSubCategories = [],
 	handleDeleteUrl,
 	handleOpenTab,
 	handleSetSubCategory,
 	categoryContext,
+	settings,
 }: SortableUrlItemProps) => {
 	const { attributes, listeners, setNodeRef, transform, transition } =
 		useSortable({
@@ -1228,7 +1248,25 @@ const SortableUrlItem = ({
 					className="text-foreground hover:text-foreground hover:underline cursor-pointer text-left w-full bg-transparent border-0 flex items-center gap-1 h-full justify-start px-0 pr-8 overflow-hidden"
 					title={title}
 				>
-					<span className="truncate">{title || url}</span>
+					<div className="flex flex-col truncate w-full">
+						<span className="truncate">{title}</span>
+						{/* 保存日時と残り時間を表示 - settings.showSavedTime に基づき条件分岐 */}
+						{savedAt && (
+							<div className="flex gap-2 items-center text-xs">
+								{settings.showSavedTime && (
+									<span className="text-muted-foreground">
+										{formatDatetime(savedAt)}
+									</span>
+								)}
+								{autoDeletePeriod && autoDeletePeriod !== "never" && (
+									<TimeRemaining
+										savedAt={savedAt}
+										autoDeletePeriod={autoDeletePeriod}
+									/>
+								)}
+							</div>
+						)}
+					</div>
 				</Button>
 				{isDeleteButtonVisible && (
 					<Button
@@ -1261,8 +1299,8 @@ interface UrlListProps {
 		url: string,
 		subCategory: string,
 	) => void;
+	settings: UserSettings;
 }
-
 const UrlList = ({
 	items,
 	groupId,
@@ -1271,6 +1309,7 @@ const UrlList = ({
 	handleOpenTab,
 	handleUpdateUrls,
 	handleSetSubCategory,
+	settings,
 }: UrlListProps) => {
 	const [urls, setUrls] = useState(items);
 	const [activeSubCategory, setActiveSubCategory] = useState<string | null>(
@@ -1404,11 +1443,14 @@ const UrlList = ({
 								title={item.title}
 								groupId={groupId}
 								subCategory={item.subCategory}
+								savedAt={item.savedAt}
+								autoDeletePeriod={settings.autoDeletePeriod}
 								availableSubCategories={subCategories}
 								handleDeleteUrl={handleDeleteUrl}
 								handleOpenTab={handleOpenTab}
 								handleSetSubCategory={handleSetSubCategory}
 								handleUpdateUrls={handleUpdateUrls}
+								settings={settings}
 							/>
 						))}
 					</ul>
@@ -2048,6 +2090,7 @@ const SavedTabs = () => {
 		removeTabAfterOpen: false,
 		excludePatterns: [],
 		enableCategories: false,
+		showSavedTime: false,
 	});
 	const [categories, setCategories] = useState<ParentCategory[]>([]);
 	const [newSubCategory, setNewSubCategory] = useState("");
@@ -2646,7 +2689,6 @@ const SavedTabs = () => {
 				<div className="flex justify-between items-center mb-4">
 					<h1 className="text-3xl font-bold text-foreground">Tab Manager</h1>
 					<div className="flex items-center gap-4">
-						<ModeToggle />
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button
@@ -2729,6 +2771,7 @@ const SavedTabs = () => {
 																handleMoveDomainToCategory
 															}
 															handleDeleteCategory={handleDeleteCategory}
+															settings={settings}
 														/>
 													);
 												})}
@@ -2764,6 +2807,7 @@ const SavedTabs = () => {
 											handleOpenTab={handleOpenTab}
 											handleUpdateUrls={handleUpdateUrls}
 											handleDeleteCategory={handleDeleteCategory}
+											settings={settings} // settingsを渡す
 										/>
 									))}
 								</div>
@@ -2852,6 +2896,125 @@ const handleTabGroupRemoval = async (groupId: string) => {
 	} catch (error) {
 		console.error("タブグループ削除前処理エラー:", error);
 	}
+};
+
+// 日付をフォーマットする関数を追加
+function formatDatetime(timestamp?: number): string {
+	if (!timestamp) return "-";
+
+	const date = new Date(timestamp);
+
+	// 年月日と時分秒を取得
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	const hours = String(date.getHours()).padStart(2, "0");
+	const minutes = String(date.getMinutes()).padStart(2, "0");
+	const seconds = String(date.getSeconds()).padStart(2, "0");
+
+	// 「YYYY/MM/DD HH:MM:SS」形式で返す
+	return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+}
+
+// TimeRemaining コンポーネントを追加
+const TimeRemaining = ({
+	savedAt,
+	autoDeletePeriod,
+}: {
+	savedAt?: number;
+	autoDeletePeriod?: string;
+}) => {
+	const [timeLeft, setTimeLeft] = useState<string>("");
+	const [colorClass, setColorClass] = useState<string>("");
+
+	useEffect(() => {
+		// 自動削除が無効な場合や保存時刻がない場合は何も表示しない
+		if (!autoDeletePeriod || autoDeletePeriod === "never" || !savedAt) {
+			setTimeLeft("");
+			return;
+		}
+
+		// 残り時間を計算する関数
+		const calculateTimeLeft = () => {
+			// バックグラウンドスクリプトに残り時間計算をリクエスト
+			chrome.runtime.sendMessage(
+				{
+					action: "calculateTimeRemaining",
+					savedAt,
+					autoDeletePeriod,
+				},
+				(response) => {
+					if (response.error) {
+						console.error("残り時間計算エラー:", response.error);
+						setTimeLeft("");
+						return;
+					}
+
+					if (!response.timeRemaining) {
+						setTimeLeft("");
+						return;
+					}
+
+					const remainingMs = response.timeRemaining;
+
+					// 期限切れの場合
+					if (remainingMs <= 0) {
+						setColorClass("text-red-500");
+						setTimeLeft("間もなく削除");
+						return;
+					}
+
+					// 残り時間を日時分に変換
+					const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24));
+					const hours = Math.floor(
+						(remainingMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+					);
+					const minutes = Math.floor(
+						(remainingMs % (1000 * 60 * 60)) / (1000 * 60),
+					);
+
+					// 色分け
+					if (remainingMs < 1000 * 60 * 60) {
+						// 1時間未満は赤
+						setColorClass("text-red-500 font-medium");
+					} else if (remainingMs < 1000 * 60 * 60 * 24) {
+						// 24時間未満はオレンジ
+						setColorClass("text-amber-500 font-medium");
+					} else if (remainingMs < 1000 * 60 * 60 * 24 * 3) {
+						// 3日未満は黄色
+						setColorClass("text-yellow-500");
+					} else {
+						// それ以上は緑
+						setColorClass("text-emerald-500");
+					}
+
+					// 表示形式を整形
+					let result = "あと ";
+					if (days > 0) result += `${days}日 `;
+					if (hours > 0 || days > 0) result += `${hours}時間 `;
+					result += `${minutes}分`;
+
+					setTimeLeft(result);
+				},
+			);
+		};
+
+		// 初回計算
+		calculateTimeLeft();
+
+		// 1分ごとに更新
+		const timer = setInterval(calculateTimeLeft, 60000);
+
+		return () => clearInterval(timer);
+	}, [savedAt, autoDeletePeriod]);
+
+	if (!timeLeft) return null;
+
+	return (
+		<span className={`text-xs ${colorClass}`} title="自動削除までの残り時間">
+			{timeLeft}
+		</span>
+	);
 };
 
 // Reactコンポーネントをレンダリング

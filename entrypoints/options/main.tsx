@@ -14,8 +14,8 @@ import {
 	createParentCategory,
 	setCategoryKeywords,
 } from "../../utils/storage";
-// lucide-reactからアイコンをインポート
-import { X, Plus, Trash, Edit, Check } from "lucide-react";
+// lucide-reactからアイコンをインポート - AlertTriangleを追加
+import { X, Plus, Trash, Edit, Check, AlertTriangle } from "lucide-react";
 
 // UIコンポーネントのインポート
 import { Button } from "@/components/ui/button";
@@ -35,9 +35,124 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area"; // ScrollAreaを追加
 
 // テーマ関連のimport
 import { useTheme } from "@/components/theme-provider";
+
+// 残り時間を計算して表示するコンポーネント
+const TimeRemaining = ({
+	savedAt,
+	autoDeletePeriod,
+}: {
+	savedAt?: number;
+	autoDeletePeriod?: string;
+}) => {
+	const [timeLeft, setTimeLeft] = useState<string>("");
+	const [colorClass, setColorClass] = useState<string>("");
+
+	useEffect(() => {
+		// 自動削除が無効な場合や保存時刻がない場合は何も表示しない
+		if (!autoDeletePeriod || autoDeletePeriod === "never" || !savedAt) {
+			setTimeLeft("");
+			return;
+		}
+
+		// 残り時間を計算する関数
+		const calculateTimeLeft = () => {
+			const expirationMs = getExpirationPeriodMs(autoDeletePeriod);
+			if (!expirationMs) {
+				return "";
+			}
+
+			const now = Date.now();
+			const expirationTime = savedAt + expirationMs;
+			const remainingMs = expirationTime - now;
+
+			// 期限切れの場合
+			if (remainingMs <= 0) {
+				setColorClass("text-red-500");
+				return "間もなく削除";
+			}
+
+			// 残り時間を日時分に変換
+			const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24));
+			const hours = Math.floor(
+				(remainingMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+			);
+			const minutes = Math.floor(
+				(remainingMs % (1000 * 60 * 60)) / (1000 * 60),
+			);
+
+			// 色分け
+			if (remainingMs < 1000 * 60 * 60) {
+				// 1時間未満は赤
+				setColorClass("text-red-500 font-medium");
+			} else if (remainingMs < 1000 * 60 * 60 * 24) {
+				// 24時間未満はオレンジ
+				setColorClass("text-amber-500 font-medium");
+			} else if (remainingMs < 1000 * 60 * 60 * 24 * 3) {
+				// 3日未満は黄色
+				setColorClass("text-yellow-500");
+			} else {
+				// それ以上は緑
+				setColorClass("text-emerald-500");
+			}
+
+			// 表示形式を整形
+			let result = "あと ";
+			if (days > 0) result += `${days}日 `;
+			if (hours > 0 || days > 0) result += `${hours}時間 `;
+			result += `${minutes}分`;
+
+			return result;
+		};
+
+		// 初回計算
+		setTimeLeft(calculateTimeLeft());
+
+		// 1分ごとに更新
+		const timer = setInterval(() => {
+			setTimeLeft(calculateTimeLeft());
+		}, 60000);
+
+		return () => clearInterval(timer);
+	}, [savedAt, autoDeletePeriod]);
+
+	if (!timeLeft) return null;
+
+	return (
+		<span className={`text-xs ${colorClass}`} title="自動削除までの残り時間">
+			{timeLeft}
+		</span>
+	);
+};
+
+// 期限の文字列を対応するミリ秒に変換
+function getExpirationPeriodMs(period: string): number | null {
+	const minute = 60 * 1000;
+	const hour = 60 * minute;
+	const day = 24 * hour;
+
+	switch (period) {
+		case "1hour":
+			return hour;
+		case "1day":
+			return day;
+		case "7days":
+			return 7 * day;
+		case "14days":
+			return 14 * day;
+		case "30days":
+			return 30 * day;
+		case "180days":
+			return 180 * day; // 約6ヶ月
+		case "365days":
+			return 365 * day; // 1年
+		default:
+			return null; // "never" または無効な値
+	}
+}
 
 const SubCategoryKeywordManager = ({ tabGroup }: { tabGroup: TabGroup }) => {
 	const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -614,6 +729,23 @@ const OptionsPage = () => {
 	const [editingCategoryName, setEditingCategoryName] = useState("");
 	const [activeTabId, setActiveTabId] = useState<string | null>(null);
 	const editInputRef = useRef<HTMLInputElement>(null);
+	// 保留中の自動削除期間設定用の状態変数を修正 - 初期値をnullからundefinedに変更
+	const [pendingAutoDeletePeriod, setPendingAutoDeletePeriod] = useState<
+		string | undefined
+	>(undefined);
+
+	// 確認ステップの状態を追加
+	const [confirmationState, setConfirmationState] = useState<{
+		isVisible: boolean;
+		message: string;
+		onConfirm: () => void;
+		pendingAction: string;
+	}>({
+		isVisible: false,
+		message: "",
+		onConfirm: () => {},
+		pendingAction: "",
+	});
 
 	// テーマ関連のステート
 	const { theme, setTheme } = useTheme();
@@ -713,11 +845,32 @@ const OptionsPage = () => {
 			};
 
 			// 直接保存
-			await saveUserSettings(cleanSettings);
+			await saveUserSettings(newSettings);
 			setIsSaved(true);
 			setTimeout(() => setIsSaved(false), 2000);
 		} catch (error) {
 			console.error("設定の保存エラー:", error);
+		}
+	};
+
+	// 保存日時表示設定の切り替えハンドラを追加
+	const handleToggleShowSavedTime = async (checked: boolean) => {
+		try {
+			// 新しい設定を作成
+			const newSettings = {
+				...settings,
+				showSavedTime: checked,
+			};
+
+			// 状態を更新
+			setSettings(newSettings);
+
+			// 保存
+			await saveUserSettings(newSettings);
+			setIsSaved(true);
+			setTimeout(() => setIsSaved(false), 2000);
+		} catch (error) {
+			console.error("保存日時表示設定の保存エラー:", error);
 		}
 	};
 
@@ -836,7 +989,7 @@ const OptionsPage = () => {
 			console.log("削除するカテゴリID:", categoryId);
 			console.log("フィルタリング後のカテゴリ:", filteredCategories);
 
-			// ストレージに保存
+			// ストレージに直接保存
 			await chrome.storage.local.set({ parentCategories: filteredCategories });
 
 			// 関連するタブも更新
@@ -1023,6 +1176,172 @@ const OptionsPage = () => {
 		}
 	};
 
+	// 自動削除期間の説明テキスト
+	const autoDeleteOptions = [
+		{ value: "never", label: "自動削除しない" },
+		{ value: "1hour", label: "1時間" },
+		{ value: "1day", label: "1日" },
+		{ value: "7days", label: "7日" },
+		{ value: "14days", label: "14日" },
+		{ value: "30days", label: "30日" },
+		{ value: "180days", label: "6ヶ月" },
+		{ value: "365days", label: "1年" },
+	];
+
+	// 自動削除期間選択時の処理
+	const handleAutoDeletePeriodChange = (value: string) => {
+		console.log(`自動削除期間を選択: ${value}`);
+		// 選択した値を一時保存
+		setPendingAutoDeletePeriod(value);
+
+		// 確認表示を非表示にする
+		hideConfirmation();
+	};
+
+	// 確認表示を隠す
+	const hideConfirmation = () => {
+		setConfirmationState((prev) => ({
+			...prev,
+			isVisible: false,
+		}));
+	};
+
+	// 確認表示を表示する
+	const showConfirmation = (
+		message: string,
+		onConfirm: () => void,
+		pendingAction: string,
+	) => {
+		setConfirmationState({
+			isVisible: true,
+			message,
+			onConfirm,
+			pendingAction,
+		});
+	};
+
+	// 自動削除期間を確定して保存する処理の前に確認を表示
+	const prepareAutoDeletePeriod = () => {
+		console.log("自動削除期間設定ボタンが押されました");
+
+		// 保留中の設定がなければ、現在の設定値を使用
+		const periodToApply = pendingAutoDeletePeriod ?? settings.autoDeletePeriod;
+
+		if (!periodToApply) return;
+
+		// 選択した期間のラベルを取得
+		const selectedOption = autoDeleteOptions.find(
+			(opt) => opt.value === periodToApply,
+		);
+		const periodLabel = selectedOption ? selectedOption.label : periodToApply;
+
+		// 警告メッセージを作成
+		const currentPeriod = settings.autoDeletePeriod || "never";
+		const isShortening = isPeriodShortening(currentPeriod, periodToApply);
+		const warningMessage = isShortening
+			? "⚠️ 警告: 現在よりも短い期間に設定するため、一部のタブがすぐに削除される可能性があります！"
+			: "注意: 設定した期間より古いタブはすぐに削除される可能性があります。";
+
+		// 確認メッセージを表示
+		const message = `自動削除期間を「${periodLabel}」に設定します。\n\n${warningMessage}\n\n続行しますか？`;
+
+		// 確認を表示
+		showConfirmation(message, applyAutoDeletePeriod, periodToApply);
+	};
+
+	// 実際の適用処理（確認後に実行）
+	const applyAutoDeletePeriod = () => {
+		const periodToApply = pendingAutoDeletePeriod ?? settings.autoDeletePeriod;
+
+		if (!periodToApply) return;
+
+		try {
+			console.log(`自動削除期間を設定: ${periodToApply}`);
+
+			const newSettings = {
+				...settings,
+				autoDeletePeriod: periodToApply,
+			};
+
+			// ストレージに直接保存
+			chrome.storage.local.set({ userSettings: newSettings }, () => {
+				console.log("設定を保存しました:", newSettings);
+
+				// UI状態を更新
+				setSettings(newSettings);
+				setIsSaved(true);
+				setTimeout(() => setIsSaved(false), 2000);
+
+				// バックグラウンドに通知
+				const needsTimestampUpdate =
+					periodToApply === "30sec" || periodToApply === "1min";
+				chrome.runtime.sendMessage(
+					{
+						action: "checkExpiredTabs",
+						updateTimestamps: needsTimestampUpdate,
+						period: periodToApply,
+						forceReload: true,
+					},
+					(response) => console.log("応答:", response),
+				);
+			});
+
+			// 確認を非表示
+			hideConfirmation();
+
+			// 保留中の設定をクリア
+			setPendingAutoDeletePeriod(undefined);
+		} catch (error) {
+			console.error("自動削除期間の保存エラー:", error);
+		}
+	};
+
+	// 30秒テスト用の確認処理
+	const prepareQuick30Seconds = () => {
+		console.log("30秒テストボタンが押されました");
+
+		const message =
+			"自動削除期間を「30秒（テスト用）」に設定します。\n\n⚠️ 警告: これはテスト用の短い設定です。\nほとんどのタブがすぐに削除される可能性があります！\n\n続行しますか？";
+
+		showConfirmation(message, applyQuick30Seconds, "30sec");
+	};
+
+	// 30秒テスト適用処理
+	const applyQuick30Seconds = () => {
+		try {
+			const newSettings = {
+				...settings,
+				autoDeletePeriod: "30sec",
+			};
+
+			// ストレージに直接保存
+			chrome.storage.local.set({ userSettings: newSettings }, () => {
+				console.log("30秒設定を保存しました");
+				setSettings(newSettings);
+				setIsSaved(true);
+				setTimeout(() => setIsSaved(false), 2000);
+
+				setTimeout(() => {
+					chrome.runtime.sendMessage(
+						{
+							action: "checkExpiredTabs",
+							updateTimestamps: true,
+							period: "30sec",
+							forceReload: true,
+						},
+						(response) => console.log("30秒設定の応答:", response),
+					);
+				}, 500);
+			});
+
+			// 碧人を非表示
+			hideConfirmation();
+		} catch (error) {
+			console.error("30秒テスト設定エラー:", error);
+			alert(`設定エラー: ${error}`);
+		}
+	};
+
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center min-h-[300px]">
@@ -1033,12 +1352,13 @@ const OptionsPage = () => {
 
 	return (
 		<div className="mx-auto pt-10 bg-background min-h-screen">
-			<header className="flex justify-between items-center mb-8">
+			<header className="flex justify-between items-center mb-8 px-6">
 				<h1 className="text-3xl font-bold text-foreground">オプション</h1>
 
-				{/* テーマ切り替えボタン */}
-
-				<ModeToggle />
+				{/* テスト用の30秒設定ボタン - 確認表示するように変更 */}
+				<div className="flex gap-2 items-center">
+					<ModeToggle />
+				</div>
 			</header>
 
 			<div className="bg-card rounded-lg shadow-md p-6 mb-8 border border-border">
@@ -1065,23 +1385,106 @@ const OptionsPage = () => {
 					オフにすると、保存したタブを開いても、リストからは削除されません。
 				</p>
 
-				<div className="mb-4 flex items-center space-x-2 mt-4">
+				{/* 保存日時表示設定を追加 */}
+				<div className="mb-4 mt-6 flex items-center space-x-2">
 					<Checkbox
-						id="enable-categories"
-						checked={settings.enableCategories}
-						onCheckedChange={handleToggleEnableCategories}
+						id="show-saved-time"
+						checked={settings.showSavedTime}
+						onCheckedChange={handleToggleShowSavedTime}
 						className="cursor-pointer"
 					/>
 					<Label
-						htmlFor="enable-categories"
+						htmlFor="show-saved-time"
 						className="text-foreground cursor-pointer"
 					>
-						カテゴリ機能を有効にする
+						保存日時を表示する
 					</Label>
 				</div>
 				<p className="text-sm text-muted-foreground mt-1 ml-7">
-					オンにすると、ドメインを親カテゴリでグループ化し、URLを子カテゴリで分類できます。
+					オンにすると、保存タブ一覧に保存された日時が表示されます。
 				</p>
+
+				{/* 自動削除期間設定を修正 */}
+				<div className="mt-6 mb-4">
+					<Label
+						htmlFor="auto-delete-period"
+						className="block text-foreground font-medium mb-2"
+					>
+						タブの自動削除期間
+					</Label>
+					<div className="flex items-center gap-2 flex-wrap">
+						<Select
+							value={
+								pendingAutoDeletePeriod ?? settings.autoDeletePeriod ?? "never"
+							}
+							onValueChange={handleAutoDeletePeriodChange}
+						>
+							<SelectTrigger id="auto-delete-period" className="w-[180px]">
+								<SelectValue placeholder="自動削除しない" />
+							</SelectTrigger>
+							<SelectContent
+								onPointerDownOutside={(e) => {
+									e.preventDefault();
+								}}
+								className="p-0"
+							>
+								<ScrollArea className="h-[120px]">
+									<div className="p-1">
+										{autoDeleteOptions.map((option) => (
+											<SelectItem key={option.value} value={option.value}>
+												{option.label}
+											</SelectItem>
+										))}
+									</div>
+								</ScrollArea>
+							</SelectContent>
+						</Select>
+
+						{/* 確認表示を追加 */}
+						<Button
+							type="button"
+							variant="outline"
+							onClick={prepareAutoDeletePeriod}
+						>
+							設定する
+						</Button>
+					</div>
+
+					{/* 確認表示 */}
+					{confirmationState.isVisible && (
+						<div className="mt-3 p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-md">
+							<div className="flex flex-col gap-3">
+								<div className="flex items-start">
+									<div className="flex-shrink-0 text-yellow-500">
+										<AlertTriangle size={24} />{" "}
+										{/* lucide-reactのアイコンに置き換え */}
+									</div>
+									<p className="ml-3 text-sm text-foreground whitespace-pre-line">
+										{confirmationState.message}
+									</p>
+								</div>
+
+								<div className="flex justify-end gap-2">
+									<Button
+										type="button"
+										variant="ghost"
+										onClick={hideConfirmation}
+									>
+										キャンセル
+									</Button>
+									<Button type="button" onClick={confirmationState.onConfirm}>
+										確定
+									</Button>
+								</div>
+							</div>
+						</div>
+					)}
+
+					<p className="text-sm text-muted-foreground mt-2">
+						保存されたタブが指定した期間を超えると自動的に削除されます。
+						設定を適用すると、その時点で期限切れのタブは削除されますのでご注意ください。
+					</p>
+				</div>
 			</div>
 
 			<div className="bg-card rounded-lg shadow-md p-6 mb-8 border border-border">
@@ -1248,9 +1651,11 @@ const OptionsPage = () => {
 								<table className="w-full text-left mb-4 table-fixed">
 									<thead className="bg-muted">
 										<tr>
-											<th className="p-2 text-foreground w-2/5">ドメイン</th>
-											<th className="p-2 text-foreground w-2/5">カテゴリ</th>
-											<th className="p-2 text-foreground w-1/5">アクション</th>
+											<th className="p-2 text-foreground w-1/6">ドメイン</th>
+											<th className="p-2 text-foreground w-1/6">カテゴリ</th>
+											<th className="p-2 text-foreground w-1/6">自動削除</th>
+											<th className="p-2 text-foreground w-1/6">保存日時</th>
+											<th className="p-2 text-foreground w-1/6">アクション</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -1282,28 +1687,58 @@ const OptionsPage = () => {
 																onPointerDownOutside={(e) => {
 																	e.preventDefault();
 																}}
-																className="max-h-[300px] overflow-y-auto"
+																className="p-0" // パディングを削除して内部のScrollAreaが機能するスペースを確保
 															>
-																<SelectItem
-																	value="none"
-																	onPointerDown={(e) => e.stopPropagation()}
-																	className="cursor-pointer"
-																>
-																	未分類
-																</SelectItem>
-																{parentCategories.map((category) => (
-																	<SelectItem
-																		key={category.id}
-																		value={category.id}
-																		onPointerDown={(e) => e.stopPropagation()}
-																		className="truncate cursor-pointer"
-																		title={category.name}
-																	>
-																		{category.name}
-																	</SelectItem>
-																))}
+																<ScrollArea className="h-[120px]">
+																	{" "}
+																	{/* 高さを小さくして確実にスクロールさせる */}
+																	<div className="p-1">
+																		{" "}
+																		{/* パディングをここに移動 */}
+																		<SelectItem
+																			value="none"
+																			onPointerDown={(e) => e.stopPropagation()}
+																			className="cursor-pointer"
+																		>
+																			未分類
+																		</SelectItem>
+																		{parentCategories.map((category) => (
+																			<SelectItem
+																				key={category.id}
+																				value={category.id}
+																				onPointerDown={(e) =>
+																					e.stopPropagation()
+																				}
+																				className="truncate cursor-pointer"
+																				title={category.name}
+																			>
+																				{category.name}
+																			</SelectItem>
+																		))}
+																	</div>
+																</ScrollArea>
 															</SelectContent>
 														</Select>
+													</td>
+													<td className="p-2 text-sm">
+														{/* 残り時間表示 */}
+														{tab.savedAt ? (
+															<TimeRemaining
+																savedAt={tab.savedAt}
+																autoDeletePeriod={settings.autoDeletePeriod}
+															/>
+														) : (
+															<span className="text-xs text-muted-foreground">
+																未設定
+															</span>
+														)}
+													</td>
+													{/* 保存日時表示カラムを追加 */}
+													<td
+														className="p-2 text-xs text-muted-foreground"
+														title="タブを保存した日時"
+													>
+														{formatDatetime(tab.savedAt)}
 													</td>
 													<td className="p-2">
 														<Button
@@ -1377,3 +1812,58 @@ document.addEventListener("DOMContentLoaded", () => {
 		</ThemeProvider>,
 	);
 });
+
+// 期間が短くなるかどうかを判定するヘルパー関数を追加
+function isPeriodShortening(currentPeriod: string, newPeriod: string): boolean {
+	// 「never」からの変更は常に短くなる
+	if (currentPeriod === "never") return true;
+
+	// 「never」への変更は短くならない
+	if (newPeriod === "never") return false;
+
+	// 期間を秒数に変換して比較
+	const getPeriodSeconds = (period: string): number => {
+		switch (period) {
+			case "30sec":
+				return 30;
+			case "1min":
+				return 60;
+			case "1hour":
+				return 3600;
+			case "1day":
+				return 86400;
+			case "7days":
+				return 604800;
+			case "14days":
+				return 1209600;
+			case "30days":
+				return 2592000;
+			case "180days":
+				return 15552000;
+			case "365days":
+				return 31536000;
+			default:
+				return Number.POSITIVE_INFINITY;
+		}
+	};
+
+	return getPeriodSeconds(newPeriod) < getPeriodSeconds(currentPeriod);
+}
+
+// フォーマット関数を追加
+function formatDatetime(timestamp?: number): string {
+	if (!timestamp) return "-";
+
+	const date = new Date(timestamp);
+
+	// 年月日と時分秒を取得
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	const hours = String(date.getHours()).padStart(2, "0");
+	const minutes = String(date.getMinutes()).padStart(2, "0");
+	const seconds = String(date.getSeconds()).padStart(2, "0");
+
+	// 「YYYY/MM/DD HH:MM:SS」形式で返す
+	return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+}
