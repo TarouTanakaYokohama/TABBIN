@@ -1,4 +1,3 @@
-import path from "path";
 import { defineConfig } from "wxt";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -9,7 +8,7 @@ export default defineConfig({
 		name: "Tab Manager",
 		description: "Save, organize and restore tabs by domain and category",
 		version: "1.0.0",
-		permissions: ["tabs", "storage", "contextMenus", "notifications"],
+		permissions: ["alarms", "tabs", "storage", "contextMenus", "notifications"],
 		action: {
 			default_title: "Tab Manager",
 		},
