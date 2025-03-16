@@ -1,4 +1,4 @@
-import "@/assets/global.css"; // tailwind.cssの代わりにglobals.cssをインポート
+import "@/assets/global.css";
 import { useEffect, useState, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import type {
@@ -33,10 +33,7 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 // lucide-reactからのアイコンインポート
-import {
-	Settings,
-	Plus,
-} from "lucide-react";
+import { Settings, Plus } from "lucide-react";
 
 // UIコンポーネントのインポート
 import { Button } from "@/components/ui/button";
@@ -53,7 +50,7 @@ import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
-	TooltipProvider
+	TooltipProvider,
 } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SortableDomainCard } from "@/features/saved-tabs/components/SortableDomainCard";
@@ -302,7 +299,6 @@ const SavedTabs = () => {
 			}
 		}
 	};
-
 
 	const sensors = useSensors(
 		useSensor(PointerSensor),
