@@ -4,7 +4,6 @@ import { useSortable } from "@dnd-kit/sortable";
 import { GripVertical, X } from "lucide-react";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { CSS } from "@dnd-kit/utilities";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // URL項目用のソータブルコンポーネント - 型定義を修正
 export const SortableUrlItem = ({
