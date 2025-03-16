@@ -495,7 +495,7 @@ export const SubCategoryKeywordManager = ({
 						>
 							キーワード
 							<span className="text-xs text-muted-foreground ml-2">
-								（タイトルにこれらの単語が含まれていると自動的にこのカテゴリに分類されます）
+								（タイトルにキーワードが含まれていると自動的にこのカテゴリに分類されます）
 							</span>
 						</Label>
 						{/* キーワード追加フォーム */}

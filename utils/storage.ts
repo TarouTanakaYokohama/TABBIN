@@ -59,10 +59,10 @@ export async function getUserSettings(): Promise<UserSettings> {
 			console.log("保存された設定を使用:", data.userSettings);
 			// デフォルト値とマージして返す
 			return { ...defaultSettings, ...data.userSettings };
-		} else {
-			console.log("設定が見つからないためデフォルト値を使用");
-			return { ...defaultSettings };
 		}
+
+		console.log("設定が見つからないためデフォルト値を使用");
+		return { ...defaultSettings };
 	} catch (error) {
 		console.error("設定取得エラー:", error);
 		return { ...defaultSettings };

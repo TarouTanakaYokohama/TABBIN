@@ -633,14 +633,14 @@ const OptionsPage = () => {
 					>
 						タブの自動削除期間
 					</Label>
-					<div className="flex items-center gap-2 flex-wrap">
+					<div className="flex items-center gap-2">
 						<Select
 							value={
 								pendingAutoDeletePeriod ?? settings.autoDeletePeriod ?? "never"
 							}
 							onValueChange={handleAutoDeletePeriodChange}
 						>
-							<SelectTrigger id="auto-delete-period" className="w-[180px]">
+							<SelectTrigger id="auto-delete-period" className="w-full">
 								<SelectValue placeholder="自動削除しない" />
 							</SelectTrigger>
 							<SelectContent

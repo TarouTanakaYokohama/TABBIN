@@ -392,6 +392,34 @@ export const SortableDomainCard = ({
 		}
 	};
 
+	// カテゴリ内の全タブを削除する関数を追加
+	const handleDeleteAllTabsInCategory = async (
+		categoryName: string,
+		urlsToDelete: Array<{ url: string }>,
+	) => {
+		try {
+			// 削除するURLのリストを作成
+			const urlsToRemove = urlsToDelete.map((item) => item.url);
+
+			// 削除対象のURL以外の全URLを取得
+			const remainingUrls = group.urls.filter(
+				(urlItem) => !urlsToRemove.includes(urlItem.url),
+			);
+
+			// グループの更新
+			await handleUpdateUrls(group.id, remainingUrls);
+
+			console.log(
+				`「${categoryName === "__uncategorized" ? "未分類" : categoryName}」カテゴリから${urlsToRemove.length}件のタブを削除しました`,
+			);
+
+			// 表示を更新
+			setCategoryUpdateTrigger((prev) => prev + 1);
+		} catch (error) {
+			console.error("カテゴリ内のタブ削除に失敗しました:", error);
+		}
+	};
+
 	return (
 		<Card
 			ref={setNodeRef}
@@ -519,6 +547,9 @@ export const SortableDomainCard = ({
 									handleOpenTab={handleOpenTab}
 									handleUpdateUrls={handleUpdateUrls}
 									handleOpenAllTabs={handleOpenAllTabs} // カテゴリごとのすべて開く機能を渡す
+									handleDeleteAllTabs={(urls) =>
+										handleDeleteAllTabsInCategory(categoryName, urls)
+									} // 削除機能を渡す
 									settings={settings} // 設定を渡す
 								/>
 							))}

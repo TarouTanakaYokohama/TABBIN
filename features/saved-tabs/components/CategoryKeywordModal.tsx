@@ -16,7 +16,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Settings, Trash, X } from "lucide-react";
+import { Edit, Settings, Trash, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -354,7 +354,7 @@ export const CategoryKeywordModal = ({
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
 			<DialogContent className="max-h-[80vh] overflow-y-auto">
-				<DialogHeader>
+				<DialogHeader className="text-left">
 					<DialogTitle>「{group.domain}」のカテゴリ管理</DialogTitle>
 					<DialogDescription>
 						カテゴリの追加、削除、リネーム、キーワード設定を行います。
@@ -419,7 +419,7 @@ export const CategoryKeywordModal = ({
 														title="カテゴリ名を変更"
 														disabled={!activeCategory}
 													>
-														<Settings size={14} />
+														<Edit size={14} />
 														<span className="lg:inline hidden">名前を変更</span>
 													</Button>
 												</TooltipTrigger>
@@ -545,7 +545,7 @@ export const CategoryKeywordModal = ({
 								>
 									「{activeCategory}」カテゴリのキーワード
 									<span className="text-xs text-gray-500 ml-2">
-										（タイトルにこれらの単語が含まれていると自動的にこのカテゴリに分類されます）
+										（タイトルにキーワードが含まれていると自動的にこのカテゴリに分類されます）
 									</span>
 								</Label>
 
