@@ -43,6 +43,17 @@ import {
 	Plus,
 } from "lucide-react";
 
+// タイプのインポート
+import type {
+	CategoryGroupProps,
+	SortableDomainCardProps,
+	SortableCategorySectionProps,
+	CategorySectionProps,
+	SortableUrlItemProps,
+	UrlListProps,
+	CategoryKeywordModalProps
+} from "../../types/saved-tabs";
+
 // UIコンポーネントのインポート
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,27 +85,6 @@ import {
 import { ThemeProvider } from "@/components/theme-provider";
 
 // カテゴリグループコンポーネント
-interface CategoryGroupProps {
-	category: ParentCategory;
-	domains: TabGroup[];
-	handleOpenAllTabs: (urls: { url: string; title: string }[]) => void;
-	handleDeleteGroup: (id: string) => void;
-	handleDeleteUrl: (groupId: string, url: string) => void;
-	handleOpenTab: (url: string) => void;
-	handleUpdateUrls: (groupId: string, updatedUrls: TabGroup["urls"]) => void;
-	handleUpdateDomainsOrder?: (
-		categoryId: string,
-		updatedDomains: TabGroup[],
-	) => void;
-	handleMoveDomainToCategory?: (
-		domainId: string,
-		fromCategoryId: string | null,
-		toCategoryId: string,
-	) => void;
-	handleDeleteCategory?: (groupId: string, categoryName: string) => void;
-	settings: UserSettings; // 追加: settingsプロパティ
-}
-
 const CategoryGroup = ({
 	category,
 	domains,
@@ -314,20 +304,6 @@ const CategoryGroup = ({
 		</Card>
 	);
 };
-
-// ドメインカード用のソータブルコンポーネントの型を修正
-interface SortableDomainCardProps {
-	group: TabGroup;
-	handleOpenAllTabs: (urls: { url: string; title: string }[]) => void;
-	handleDeleteGroup: (id: string) => void;
-	handleDeleteUrl: (groupId: string, url: string) => void;
-	handleOpenTab: (url: string) => void;
-	handleUpdateUrls: (groupId: string, updatedUrls: TabGroup["urls"]) => void;
-	handleDeleteCategory?: (groupId: string, categoryName: string) => void;
-	categoryId?: string; // 親カテゴリIDを追加
-	isDraggingOver?: boolean; // ドラッグオーバー状態を追加
-	settings?: UserSettings; // settingsプロパティを追加
-}
 
 // SortableDomainCardコンポーネントを修正
 const SortableDomainCard = ({
@@ -836,10 +812,6 @@ const SortableDomainCard = ({
 };
 
 // 並び替え可能なカテゴリセクションコンポーネント
-interface SortableCategorySectionProps extends CategorySectionProps {
-	id: string; // ソート用の一意のID
-	handleOpenAllTabs: (urls: { url: string; title: string }[]) => void; // 追加: すべて開く処理
-}
 const SortableCategorySection = ({
 	id,
 	handleOpenAllTabs,
@@ -928,17 +900,6 @@ const SortableCategorySection = ({
 };
 
 // 新しく追加: カテゴリセクションコンポーネント
-interface CategorySectionProps {
-	categoryName: string;
-	urls: TabGroup["urls"];
-	groupId: string;
-	handleDeleteUrl: (groupId: string, url: string) => void;
-	handleOpenTab: (url: string) => void;
-	handleUpdateUrls: (groupId: string, updatedUrls: TabGroup["urls"]) => void;
-	handleOpenAllTabs?: (urls: { url: string; title: string }[]) => void;
-	settings: UserSettings; // settings を必須プロパティに変更
-}
-
 const CategorySection = ({
 	categoryName,
 	urls,
@@ -1029,30 +990,6 @@ const CategorySection = ({
 };
 
 // URL項目用のソータブルコンポーネント - 型定義を修正
-interface SortableUrlItemProps {
-	url: string;
-	title: string;
-	id: string;
-	groupId: string;
-	subCategory?: string;
-	savedAt?: number;
-	autoDeletePeriod?: string;
-	availableSubCategories?: string[];
-	handleDeleteUrl: (groupId: string, url: string) => void;
-	handleOpenTab: (url: string) => void;
-	handleSetSubCategory?: (
-		groupId: string,
-		url: string,
-		subCategory: string,
-	) => void;
-	handleUpdateUrls: (
-		groupId: string,
-		updatedUrls: { url: string; title: string; subCategory?: string }[],
-	) => void;
-	categoryContext?: string;
-	settings: UserSettings;
-}
-
 const SortableUrlItem = ({
 	url,
 	title,
@@ -1287,20 +1224,6 @@ const SortableUrlItem = ({
 };
 
 // カード内のURL一覧
-interface UrlListProps {
-	items: TabGroup["urls"];
-	groupId: string;
-	subCategories?: string[];
-	handleDeleteUrl: (groupId: string, url: string) => void;
-	handleOpenTab: (url: string) => void;
-	handleUpdateUrls: (groupId: string, updatedUrls: TabGroup["urls"]) => void;
-	handleSetSubCategory?: (
-		groupId: string,
-		url: string,
-		subCategory: string,
-	) => void;
-	settings: UserSettings;
-}
 const UrlList = ({
 	items,
 	groupId,
@@ -1479,14 +1402,6 @@ const handleSaveKeywords = async (
 };
 
 // カテゴリキーワード管理モーダルコンポーネント
-interface CategoryKeywordModalProps {
-	group: TabGroup;
-	isOpen: boolean;
-	onClose: () => void;
-	onSave: (groupId: string, categoryName: string, keywords: string[]) => void;
-	onDeleteCategory: (groupId: string, categoryName: string) => void;
-}
-
 const CategoryKeywordModal = ({
 	group,
 	isOpen,
