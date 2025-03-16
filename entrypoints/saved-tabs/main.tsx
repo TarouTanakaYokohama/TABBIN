@@ -87,6 +87,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { handleSaveKeywords } from "@/utils/handleSaveKeywords";
 
 // カテゴリグループコンポーネント
 const CategoryGroup = ({
@@ -671,9 +672,8 @@ const SortableDomainCard = ({
 		<Card
 			ref={setNodeRef}
 			style={style}
-			className={`rounded-lg shadow-md ${
-				isDraggingOver ? "border-blue-500 border-2" : "border-border"
-			}`}
+			className={`rounded-lg shadow-md ${isDraggingOver ? "border-blue-500 border-2" : "border-border"
+				}`}
 			data-category-id={categoryId} // データ属性として親カテゴリIDを設定
 		>
 			<CardHeader className="p-2 pb-0 w-full">
@@ -1220,24 +1220,6 @@ const SortableUrlItem = ({
 			</div>
 		</li>
 	);
-};
-
-// キーワードの保存を処理する関数
-const handleSaveKeywords = async (
-	groupId: string,
-	categoryName: string,
-	keywords: string[],
-) => {
-	try {
-		await setCategoryKeywords(groupId, categoryName, keywords);
-		console.log("カテゴリキーワードを保存しました:", {
-			groupId,
-			categoryName,
-			keywords,
-		});
-	} catch (error) {
-		console.error("カテゴリキーワード保存エラー:", error);
-	}
 };
 
 // カテゴリキーワード管理モーダルコンポーネント
