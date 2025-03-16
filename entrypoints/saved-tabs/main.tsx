@@ -219,11 +219,6 @@ const CategoryGroup = ({
 	const categorizedUrls = organizeUrlsByCategory();
 	const subCategories = [...(domains[0].subCategories || [])];
 
-	// 空でないカテゴリのみを表示
-	const activeCategories = Object.keys(categorizedUrls).filter(
-		(cat) => cat !== "__uncategorized" && categorizedUrls[cat]?.length > 0,
-	);
-
 	// 未分類のタブがあれば、それも表示
 	const hasUncategorized = categorizedUrls.__uncategorized.length > 0;
 
@@ -1223,166 +1218,6 @@ const SortableUrlItem = ({
 	);
 };
 
-// カード内のURL一覧
-const UrlList = ({
-	items,
-	groupId,
-	subCategories = [],
-	handleDeleteUrl,
-	handleOpenTab,
-	handleUpdateUrls,
-	handleSetSubCategory,
-	settings,
-}: UrlListProps) => {
-	const [urls, setUrls] = useState(items);
-	const [activeSubCategory, setActiveSubCategory] = useState<string | null>(
-		null,
-	);
-
-	useEffect(() => {
-		setUrls(items);
-	}, [items]);
-
-	const sensors = useSensors(
-		useSensor(PointerSensor),
-		useSensor(KeyboardSensor, {
-			coordinateGetter: sortableKeyboardCoordinates,
-		}),
-	);
-
-	const handleDragEnd = (event: DragEndEvent) => {
-		const { active, over } = event;
-
-		if (over && active.id !== over.id) {
-			setUrls((items) => {
-				const oldIndex = items.findIndex((item) => item.url === active.id);
-				const newIndex = items.findIndex((item) => item.url === over.id);
-
-				const newUrls = arrayMove(items, oldIndex, newIndex);
-
-				// 親コンポーネント経由でストレージに保存
-				handleUpdateUrls(groupId, newUrls);
-
-				return newUrls;
-			});
-		}
-	};
-
-	// 表示するURLをフィルタリング
-	let filteredUrls = urls;
-	if (activeSubCategory === "__uncategorized") {
-		filteredUrls = urls.filter((url) => !url.subCategory);
-	} else if (activeSubCategory) {
-		filteredUrls = urls.filter((url) => url.subCategory === activeSubCategory);
-	}
-
-	// サブカテゴリをカウント
-	const subCategoryCounts = urls.reduce(
-		(acc, url) => {
-			if (url.subCategory) {
-				acc[url.subCategory] = (acc[url.subCategory] || 0) + 1;
-			}
-			return acc;
-		},
-		{} as Record<string, number>,
-	);
-
-	// 未分類のアイテム数
-	const uncategorizedCount = urls.filter((url) => !url.subCategory).length;
-
-	return (
-		<>
-			{subCategories.length > 0 && (
-				<div className="flex flex-wrap gap-2 mb-3">
-					<Button
-						variant="secondary"
-						size="sm"
-						onClick={() => setActiveSubCategory(null)}
-						className={`text-primary-foreground ${
-							activeSubCategory === null ? "bg-primary" : ""
-						}`}
-					>
-						すべて ({urls.length})
-					</Button>
-					{[...subCategories]
-						.sort(
-							(a, b) =>
-								(subCategoryCounts[b] || 0) - (subCategoryCounts[a] || 0),
-						)
-						.map((category) => (
-							<Button
-								variant="secondary"
-								size="sm"
-								key={category}
-								onClick={() => setActiveSubCategory(category)}
-								className={`text-primary-foreground ${
-									activeSubCategory === category ? "bg-primary" : ""
-								}`}
-							>
-								{category} ({subCategoryCounts[category] || 0})
-							</Button>
-						))}
-					{uncategorizedCount > 0 && (
-						<Button
-							variant="secondary"
-							size="sm"
-							onClick={() => setActiveSubCategory("__uncategorized")}
-							className={`text-primary-foreground ${
-								activeSubCategory === "__uncategorized" ? "bg-primary" : ""
-							}`}
-						>
-							未分類 ({uncategorizedCount})
-						</Button>
-					)}
-				</div>
-			)}
-
-			{/* カテゴリラベルを追加 */}
-			<div className="mb-3 pb-2 border-b border-gray-700">
-				<h3 className="font-medium text-foreground">
-					{activeSubCategory === null
-						? "すべてのタブ"
-						: activeSubCategory === "__uncategorized"
-							? "未分類のタブ"
-							: `カテゴリ: ${activeSubCategory}`}
-				</h3>
-			</div>
-
-			<DndContext
-				sensors={sensors}
-				collisionDetection={closestCenter}
-				onDragEnd={handleDragEnd}
-			>
-				<SortableContext
-					items={filteredUrls.map((item) => item.url)}
-					strategy={verticalListSortingStrategy}
-				>
-					<ul className="space-y-1">
-						{filteredUrls.map((item) => (
-							<SortableUrlItem
-								key={item.url}
-								id={item.url}
-								url={item.url}
-								title={item.title}
-								groupId={groupId}
-								subCategory={item.subCategory}
-								savedAt={item.savedAt}
-								autoDeletePeriod={settings.autoDeletePeriod}
-								availableSubCategories={subCategories}
-								handleDeleteUrl={handleDeleteUrl}
-								handleOpenTab={handleOpenTab}
-								handleSetSubCategory={handleSetSubCategory}
-								handleUpdateUrls={handleUpdateUrls}
-								settings={settings}
-							/>
-						))}
-					</ul>
-				</SortableContext>
-			</DndContext>
-		</>
-	);
-};
-
 // キーワードの保存を処理する関数
 const handleSaveKeywords = async (
 	groupId: string,
@@ -1493,22 +1328,6 @@ const CategoryKeywordModal = ({
 
 		// 即座に保存
 		onSave(group.id, activeCategory, updatedKeywords);
-	};
-
-	// モーダルを閉じる前に確認
-	const handleClose = () => {
-		onClose();
-	};
-
-	// モーダル外クリックの処理
-	const handleOverlayClick = (e: React.MouseEvent) => {
-		// モーダルコンテンツ以外がクリックされた場合のみ閉じる
-		if (
-			modalContentRef.current &&
-			!modalContentRef.current.contains(e.target as Node)
-		) {
-			onClose();
-		}
 	};
 
 	// モーダルコンテンツのクリックイベントの伝播を停止
@@ -2229,13 +2048,6 @@ const SavedTabs = () => {
 		await chrome.storage.local.set({ savedTabs: updatedGroups });
 	};
 
-	// 子カテゴリを追加するモーダルを表示
-	const showAddSubCategoryModal = (groupId: string) => {
-		setActiveGroupId(groupId);
-		setNewSubCategory("");
-		setShowSubCategoryModal(true);
-	};
-
 	// 子カテゴリを追加
 	const handleAddSubCategory = async () => {
 		if (activeGroupId && newSubCategory.trim()) {
@@ -2249,18 +2061,6 @@ const SavedTabs = () => {
 		}
 	};
 
-	// URLの子カテゴリを設定
-	const handleSetSubCategory = async (
-		groupId: string,
-		url: string,
-		subCategory: string,
-	) => {
-		try {
-			await setUrlSubCategory(groupId, url, subCategory);
-		} catch (error) {
-			console.error("子カテゴリ設定エラー:", error);
-		}
-	};
 
 	const sensors = useSensors(
 		useSensor(PointerSensor),
@@ -2584,17 +2384,6 @@ const SavedTabs = () => {
 		} catch (error) {
 			console.error("カテゴリ間ドメイン移動エラー:", error);
 		}
-	};
-
-	// ドメインカードのドラッグスタート処理を追加
-	const handleDomainDragStart = (
-		e: React.DragEvent,
-		domainId: string,
-		categoryId: string,
-	) => {
-		e.dataTransfer.setData("domain-id", domainId);
-		e.dataTransfer.setData("from-category-id", categoryId);
-		e.dataTransfer.effectAllowed = "move";
 	};
 
 	return (
