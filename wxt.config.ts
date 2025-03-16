@@ -2,15 +2,15 @@ import { defineConfig } from "wxt";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-// See https://wxt.dev/api/config.html
 export default defineConfig({
 	manifest: {
-		name: "Tab Manager",
-		description: "Save, organize and restore tabs by domain and category",
+		name: "TABBIN",
+		description:
+			"TABBIN(タビン)はブラウザのタブを整理・分類する拡張機能です。散らかりがちなタブをスマートに管理し、快適なブラウジング体験を実現します。",
 		version: "1.0.0",
 		permissions: ["alarms", "tabs", "storage", "contextMenus", "notifications"],
 		action: {
-			default_title: "Tab Manager",
+			default_title: "TABBIN",
 		},
 		options_ui: {
 			page: "options.html",
