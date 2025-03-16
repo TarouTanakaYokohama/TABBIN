@@ -40,6 +40,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"; // ScrollAreaを追加
 
 // テーマ関連のimport
 import { useTheme } from "@/components/theme-provider";
+import { isPeriodShortening } from "@/utils/isPeriodShortening";
 
 // Zodによるカテゴリ名のバリデーションスキーマを定義
 const categoryNameSchema = z
@@ -1380,7 +1381,7 @@ const OptionsPage = () => {
 												<Button
 													type="button"
 													variant="ghost"
-													className="font-medium cursor-pointer hover:text-foreground hover:underline text-left bg-transparent border-none p-0 text-foreground flex items-center space-x-2 max-w-full"
+													className="font-medium cursor-pointer hover:text-foreground hover:underline text-left bg-transparent border-none p-0 text-foreground flex items-center max-w-full"
 													onClick={() => startEditingCategory(category)}
 													onKeyDown={(e) => {
 														if (e.key === "Enter" || e.key === "Space") {
@@ -1391,7 +1392,7 @@ const OptionsPage = () => {
 													title={`${category.name} (${category.domains.length}ドメイン)`}
 													aria-label={`${category.name}を編集 (${category.domains.length}ドメイン)`}
 												>
-													<span className="truncate w-[180px]">
+													<span className="truncate w-[210px]">
 														{category.name}
 													</span>
 													<span className="flex-shrink-0 text-muted-foreground">
@@ -1571,40 +1572,3 @@ document.addEventListener("DOMContentLoaded", () => {
 		</ThemeProvider>,
 	);
 });
-
-// 期間が短くなるかどうかを判定するヘルパー関数を追加
-function isPeriodShortening(currentPeriod: string, newPeriod: string): boolean {
-	// 「never」からの変更は常に短くなる
-	if (currentPeriod === "never") return true;
-
-	// 「never」への変更は短くならない
-	if (newPeriod === "never") return false;
-
-	// 期間を秒数に変換して比較
-	const getPeriodSeconds = (period: string): number => {
-		switch (period) {
-			case "30sec":
-				return 30;
-			case "1min":
-				return 60;
-			case "1hour":
-				return 3600;
-			case "1day":
-				return 86400;
-			case "7days":
-				return 604800;
-			case "14days":
-				return 1209600;
-			case "30days":
-				return 2592000;
-			case "180days":
-				return 15552000;
-			case "365days":
-				return 31536000;
-			default:
-				return Number.POSITIVE_INFINITY;
-		}
-	};
-
-	return getPeriodSeconds(newPeriod) < getPeriodSeconds(currentPeriod);
-}
