@@ -39,6 +39,439 @@ export default defineBackground(() => {
 		processed: boolean; // 処理済みフラグを追加
 	} | null = null;
 
+	// タブ作成を制御するためのフラグ (新規追加)
+	let isCreatingSavedTabsPage = false;
+	let savedTabsPageId: number | null = null;
+
+	// コンテキストメニューの作成と初期化（バックグラウンド開始時に実行）
+	createContextMenus();
+
+	// コンテキストメニューを作成する関数を改善
+	function createContextMenus() {
+		console.log("コンテキストメニュー作成開始");
+
+		// 既存のメニューをすべて削除
+		if (chrome.contextMenus) {
+			try {
+				chrome.contextMenus.removeAll(() => {
+					if (chrome.runtime.lastError) {
+						console.error("メニュー削除エラー:", chrome.runtime.lastError);
+					}
+
+					console.log("既存のコンテキストメニューを削除しました");
+
+					// メニュー項目を作成
+					try {
+						// 現在のタブを保存メニュー
+						chrome.contextMenus.create({
+							id: "saveCurrentTab",
+							title: "現在のタブを保存",
+							contexts: ["page"],
+						});
+
+						// すべてのタブを保存メニュー
+						chrome.contextMenus.create({
+							id: "saveAllTabs",
+							title: "ウィンドウをすべてのタブを保存",
+							contexts: ["page"],
+						});
+
+						// 現在開いているドメインのタブをすべて保存するメニュー
+						chrome.contextMenus.create({
+							id: "saveSameDomainTabs",
+							title: "現在開いているドメインのタブをすべて保存",
+							contexts: ["page"],
+						});
+
+						// 他のウィンドウを含めすべてのタブを保存するメニュー
+						chrome.contextMenus.create({
+							id: "saveAllWindowsTabs",
+							title: "他のウィンドウを含めすべてのタブを保存",
+							contexts: ["page"],
+						});
+
+						console.log("コンテキストメニューを作成しました");
+
+						// コンテキストメニュークリックイベントを設定（この位置に移動）
+						chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+							console.log(
+								`コンテキストメニューがクリックされました: ${info.menuItemId}`,
+							);
+
+							try {
+								if (info.menuItemId === "saveCurrentTab" && tab && tab.id) {
+									console.log(`タブを保存: ${tab.url}`);
+
+									// デバッグ情報を追加
+									const tabInfo = await chrome.tabs.get(tab.id);
+									console.log("保存するタブの詳細:", tabInfo);
+
+									// 単一タブを保存
+									await saveTabsWithAutoCategory([tabInfo]);
+									console.log("タブの保存が完了しました");
+
+									// 通知を表示（エラーハンドリング改善）
+									try {
+										// 正しいアイコンパスを設定
+										const iconUrl = chrome.runtime.getURL(
+											"assets/icon-128.png",
+										);
+										console.log("通知アイコンURL:", iconUrl);
+
+										await chrome.notifications.create({
+											type: "basic",
+											iconUrl: iconUrl,
+											title: "タブ保存",
+											message: "現在のタブを保存しました",
+										});
+									} catch (notificationError) {
+										// 通知エラーをキャッチしても処理を続行
+										console.error("通知表示エラー:", notificationError);
+									}
+
+									// saved-tabs.htmlページを開く処理を追加
+									const savedTabsTabId = await openSavedTabsPage();
+
+									// タブを閉じる処理を追加
+									try {
+										if (tab.id) {
+											console.log(`保存したタブ ${tab.id} を閉じます`);
+											await chrome.tabs.remove(tab.id);
+											console.log(`タブ ${tab.id} を閉じました`);
+										}
+									} catch (closeError) {
+										console.error(
+											"タブを閉じる際にエラーが発生しました:",
+											closeError,
+										);
+									}
+								} else if (info.menuItemId === "saveAllTabs") {
+									console.log("すべてのタブを保存します");
+
+									// 現在のウィンドウのタブをすべて取得
+									const tabs = await chrome.tabs.query({ currentWindow: true });
+									console.log(`取得したタブ数: ${tabs.length}`);
+
+									// ユーザー設定を取得
+									const settings = await getUserSettings();
+
+									// 先にタブを保存してから、保存完了後にsaved-tabsページを開く
+									await saveTabsWithAutoCategory(tabs);
+									console.log("すべてのタブの保存が完了しました");
+
+									// 通知を表示（エラーハンドリング改善）
+									try {
+										// 正しいアイコンパスを設定
+										const iconUrl = chrome.runtime.getURL(
+											"assets/icon-128.png",
+										);
+										console.log("通知アイコンURL:", iconUrl);
+
+										await chrome.notifications.create({
+											type: "basic",
+											iconUrl: iconUrl,
+											title: "タブ保存",
+											message: `${tabs.length}個のタブを保存しました`,
+										});
+									} catch (notificationError) {
+										// 通知エラーをキャッチしても処理を続行
+										console.error("通知表示エラー:", notificationError);
+									}
+
+									// 保存処理の完了を確実に待ってからsaved-tabsページを開く
+									console.log("saved-tabsページを開きます...");
+									const savedTabsTabId = await openSavedTabsPage();
+									console.log(`saved-tabsページID: ${savedTabsTabId}`);
+
+									// 少し待機してから重複タブをチェック (安全対策)
+									setTimeout(async () => {
+										try {
+											const checkTabs = await chrome.tabs.query({});
+											const savedTabsPages = checkTabs.filter(
+												(tab) =>
+													tab.url?.includes("saved-tabs.html") ||
+													tab.pendingUrl?.includes("saved-tabs.html"),
+											);
+
+											// メインのタブ以外は閉じる
+											if (savedTabsPages.length > 1) {
+												console.log(
+													`追加チェック: ${savedTabsPages.length - 1}個の重複タブを閉じます`,
+												);
+												for (const tab of savedTabsPages) {
+													if (tab.id !== savedTabsTabId && tab.id) {
+														try {
+															await chrome.tabs.remove(tab.id);
+															console.log(`重複タブ ${tab.id} を閉じました`);
+														} catch (e) {
+															console.error("重複タブを閉じる際にエラー:", e);
+														}
+													}
+												}
+											}
+										} catch (e) {
+											console.error("追加タブチェック中にエラー:", e);
+										}
+									}, 500);
+								} else if (
+									info.menuItemId === "saveSameDomainTabs" &&
+									tab &&
+									tab.url
+								) {
+									console.log(`現在のドメインのタブを保存: ${tab.url}`);
+
+									// 現在のタブからドメインを取得
+									const url = new URL(tab.url);
+									const currentDomain = url.hostname;
+									console.log(`現在のドメイン: ${currentDomain}`);
+
+									// 現在のウィンドウの同じドメインのタブをすべて取得
+									const tabs = await chrome.tabs.query({ currentWindow: true });
+									const sameDomainTabs = tabs.filter((t) => {
+										if (!t.url) return false;
+										try {
+											const tabUrl = new URL(t.url);
+											return tabUrl.hostname === currentDomain;
+										} catch (e) {
+											return false;
+										}
+									});
+
+									console.log(`同じドメインのタブ数: ${sameDomainTabs.length}`);
+
+									// タブを保存
+									await saveTabsWithAutoCategory(sameDomainTabs);
+									console.log("同じドメインのタブの保存が完了しました");
+
+									// 通知を表示
+									try {
+										const iconUrl = chrome.runtime.getURL(
+											"assets/icon-128.png",
+										);
+										await chrome.notifications.create({
+											type: "basic",
+											iconUrl: iconUrl,
+											title: "タブ保存",
+											message: `${currentDomain}の${sameDomainTabs.length}個のタブを保存しました`,
+										});
+									} catch (notificationError) {
+										console.error("通知表示エラー:", notificationError);
+									}
+
+									// saved-tabs.htmlページを開く
+									const savedTabsTabId = await openSavedTabsPage();
+
+									// 保存したタブを閉じる
+									for (const domainTab of sameDomainTabs) {
+										if (domainTab.id) {
+											try {
+												await chrome.tabs.remove(domainTab.id);
+												console.log(`タブ ${domainTab.id} を閉じました`);
+											} catch (closeError) {
+												console.error("タブを閉じる際にエラー:", closeError);
+											}
+										}
+									}
+								} else if (info.menuItemId === "saveAllWindowsTabs") {
+									console.log("すべてのウィンドウのタブを保存します");
+
+									// すべてのウィンドウのタブを取得
+									const allTabs = await chrome.tabs.query({});
+									console.log(`取得したすべてのタブ数: ${allTabs.length}`);
+
+									// タブを保存
+									await saveTabsWithAutoCategory(allTabs);
+									console.log("すべてのウィンドウのタブの保存が完了しました");
+
+									// 通知を表示
+									try {
+										const iconUrl = chrome.runtime.getURL(
+											"assets/icon-128.png",
+										);
+										await chrome.notifications.create({
+											type: "basic",
+											iconUrl: iconUrl,
+											title: "タブ保存",
+											message: `すべてのウィンドウから${allTabs.length}個のタブを保存しました`,
+										});
+									} catch (notificationError) {
+										console.error("通知表示エラー:", notificationError);
+									}
+
+									// saved-tabs.htmlページを開く
+									const savedTabsTabId = await openSavedTabsPage();
+
+									// タブを閉じる
+									const savedTabsUrls = [
+										"saved-tabs.html",
+										"chrome-extension://",
+									];
+									for (const tab of allTabs) {
+										if (
+											tab.id &&
+											tab.url &&
+											!savedTabsUrls.some((url) => tab.url?.includes(url))
+										) {
+											try {
+												await chrome.tabs.remove(tab.id);
+												console.log(`タブ ${tab.id} を閉じました`);
+											} catch (closeError) {
+												console.error("タブを閉じる際にエラー:", closeError);
+											}
+										}
+									}
+								}
+							} catch (error) {
+								console.error("コンテキストメニュー処理エラー:", error);
+							}
+						});
+
+						console.log("コンテキストメニュークリックハンドラーを設定しました");
+					} catch (e) {
+						console.error("メニュー作成エラー:", e);
+					}
+				});
+			} catch (e) {
+				console.error("メニュー削除中のエラー:", e);
+			}
+		} else {
+			console.error(
+				"chrome.contextMenus APIが利用できません。manifest.jsonのパーミッションを確認してください。",
+			);
+		}
+	}
+
+	// 保存されたタブを表示する共通関数を改善
+	async function openSavedTabsPage() {
+		// 既に作成中の場合は待機
+		if (isCreatingSavedTabsPage) {
+			console.log("既にsaved-tabsページの作成処理が実行中です。待機します...");
+			// 既存のタブIDを返す
+			if (savedTabsPageId) {
+				console.log(`既存のsaved-tabsページのIDを返します: ${savedTabsPageId}`);
+				return savedTabsPageId;
+			}
+
+			// 処理中なのでダミーの値を返す（後で正しいIDに置き換えられる）
+			return -1;
+		}
+
+		// 作成中フラグをセット
+		isCreatingSavedTabsPage = true;
+
+		try {
+			// 保存されたタブを表示するページのURLを構築
+			const savedTabsUrl = chrome.runtime.getURL("saved-tabs.html");
+			console.log("開くURL:", savedTabsUrl);
+
+			// 既存のタブIDが保存されていれば再利用
+			if (savedTabsPageId) {
+				try {
+					// タブが実際に存在するか確認
+					const tab = await chrome.tabs.get(savedTabsPageId);
+					if (tab) {
+						console.log(
+							`保存されていたタブID ${savedTabsPageId} を再利用します`,
+						);
+						await chrome.tabs.update(savedTabsPageId, { active: true });
+						return savedTabsPageId;
+					}
+				} catch (e) {
+					// タブが見つからない場合は続行して新しく作成
+					console.log(
+						"保存されていたタブIDは存在しませんでした。新規作成します。",
+					);
+					savedTabsPageId = null;
+				}
+			}
+
+			// まず既存のすべてのタブを取得
+			const allTabs = await chrome.tabs.query({});
+			console.log(`全タブ数: ${allTabs.length}`);
+
+			// saved-tabs.htmlを含むタブを検索（より広範な検索条件）
+			const savedTabsPages = allTabs.filter((tab) => {
+				return (
+					tab.url?.includes("saved-tabs.html") ||
+					tab.pendingUrl?.includes("saved-tabs.html")
+				);
+			});
+
+			console.log(`既存のsaved-tabsページ数: ${savedTabsPages.length}`);
+
+			// 既存のタブがある場合
+			if (savedTabsPages.length > 0) {
+				// 最初のタブを使用
+				const mainTab = savedTabsPages[0];
+				savedTabsPageId = mainTab.id || null;
+
+				console.log(`既存のタブを使用します: ${savedTabsPageId}`);
+
+				if (savedTabsPageId) {
+					await chrome.tabs.update(savedTabsPageId, { active: true });
+
+					// 重複タブを閉じる（最初のタブ以外）
+					if (savedTabsPages.length > 1) {
+						console.log(`${savedTabsPages.length - 1}個の重複タブを閉じます`);
+						for (let i = 1; i < savedTabsPages.length; i++) {
+							const tabId = savedTabsPages[i].id;
+							if (typeof tabId === "number") {
+								try {
+									await chrome.tabs.remove(tabId);
+									console.log(`重複タブ ${tabId} を閉じました`);
+								} catch (e) {
+									console.error("重複タブを閉じる際にエラー:", e);
+								}
+							}
+						}
+					}
+				}
+
+				return savedTabsPageId;
+			}
+
+			// 新しいタブを作成
+			console.log("新しいタブを作成します");
+
+			// タブを同期的に作成してIDを保存
+			const newTab = await chrome.tabs.create({ url: savedTabsUrl });
+			savedTabsPageId = newTab.id || null;
+
+			console.log(
+				`新しいsaved-tabsページを作成しました。ID: ${savedTabsPageId}`,
+			);
+
+			if (savedTabsPageId) {
+				try {
+					await chrome.tabs.update(savedTabsPageId, { pinned: true });
+					console.log(`タブ ${savedTabsPageId} をピン留めしました`);
+				} catch (e) {
+					console.error("ピン留め設定中にエラー:", e);
+				}
+			}
+
+			return savedTabsPageId;
+		} catch (error) {
+			console.error("saved-tabsページを開く際にエラーが発生しました:", error);
+			return null;
+		} finally {
+			// 処理完了後にフラグをリセット
+			isCreatingSavedTabsPage = false;
+		}
+	}
+
+	// 初期化時にコンテキストメニューとハンドラーを設定
+	try {
+		// コンテキストメニューを作成
+		createContextMenus();
+
+		// クリックハンドラー設定関数を削除（createContextMenus内に統合）
+
+		console.log("コンテキストメニューの初期化が完了しました");
+	} catch (error) {
+		console.error("コンテキストメニュー初期化エラー:", error);
+	}
+
 	// バックグラウンド初期化時に一度だけマイグレーションを実行
 	(async () => {
 		try {
@@ -262,19 +695,18 @@ export default defineBackground(() => {
 	}
 
 	// インストール時に実行する処理
-	chrome.runtime.onInstalled.addListener(async () => {
-		// コンテキストメニューを作成
-		chrome.contextMenus?.create({
-			id: "saveCurrentTab",
-			title: "現在のタブを保存",
-			contexts: ["page"],
-		});
+	chrome.runtime.onInstalled.addListener(async (details) => {
+		console.log(
+			`拡張機能がインストールまたは更新されました: ${details.reason}`,
+		);
 
-		chrome.contextMenus?.create({
-			id: "saveAllTabs",
-			title: "すべてのタブを保存",
-			contexts: ["page"],
-		});
+		// コンテキストメニューを再作成
+		try {
+			createContextMenus();
+			console.log("インストール時にコンテキストメニューを再作成しました");
+		} catch (error) {
+			console.error("インストール時のメニュー作成エラー:", error);
+		}
 
 		// データ構造の移行を実行
 		try {
@@ -293,98 +725,255 @@ export default defineBackground(() => {
 		console.log("拡張機能アイコンがクリックされました");
 
 		try {
+			// ユーザー設定を取得
 			const settings = await getUserSettings();
-			// 現在のウィンドウのタブをすべて取得
-			const allTabs = await chrome.tabs.query({ currentWindow: true });
-			console.log(`取得したタブ: ${allTabs.length}個`);
 
-			// 拡張機能のタブを除外
-			const regularTabs = allTabs.filter((tab) => {
-				if (!tab.url) return false;
-				return !settings.excludePatterns.some((pattern) =>
-					tab.url?.includes(pattern),
-				);
-			});
-			console.log(`保存対象タブ: ${regularTabs.length}個`);
+			// クリック挙動を取得（デフォルトはウィンドウのタブ保存）
+			const clickBehavior = settings.clickBehavior || "saveWindowTabs";
+			console.log(`選択されたクリック挙動: ${clickBehavior}`);
 
-			// タブを保存して自動カテゴライズする
-			await saveTabsWithAutoCategory(regularTabs);
-			console.log("タブの保存と自動カテゴライズが完了しました");
+			// 選択された挙動に基づいて処理を実行
+			switch (clickBehavior) {
+				case "saveCurrentTab": {
+					// 現在アクティブなタブのみを保存
+					const activeTabs = await chrome.tabs.query({
+						active: true,
+						currentWindow: true,
+					});
+					if (activeTabs.length > 0) {
+						const activeTab = activeTabs[0];
+						console.log(`現在のタブを保存: ${activeTab.url}`);
 
-			// 保存完了通知を表示
-			chrome.notifications?.create({
-				type: "basic",
-				iconUrl: "/assets/react.svg",
-				title: "タブ保存",
-				message: `${regularTabs.length}個のタブが保存されました。タブを閉じます。`,
-			});
+						// タブを保存
+						await saveTabsWithAutoCategory([activeTab]);
 
-			// 保存されたタブを表示するページを開く
-			const savedTabsUrl = chrome.runtime.getURL("saved-tabs.html");
-			console.log("開くURL:", savedTabsUrl);
+						// 通知表示
+						try {
+							const iconUrl = chrome.runtime.getURL("assets/icon-128.png");
+							await chrome.notifications.create({
+								type: "basic",
+								iconUrl: iconUrl,
+								title: "タブ保存",
+								message: "現在のタブを保存しました",
+							});
+						} catch (error) {
+							console.error("通知表示エラー:", error);
+						}
 
-			// 既存のsaved-tabsページを探す
-			const existingTabs = await chrome.tabs.query({ url: savedTabsUrl });
-			let savedTabsTabId: number | undefined;
+						// saved-tabsページを開く
+						const savedTabsTabId = await openSavedTabsPage();
 
-			if (existingTabs.length > 0) {
-				console.log("既存のタブを表示します:", existingTabs[0].id);
-				savedTabsTabId = existingTabs[0].id;
-				if (savedTabsTabId)
-					await chrome.tabs.update(savedTabsTabId, { active: true });
-			} else {
-				console.log("新しいタブを作成します");
-				const newTab = await chrome.tabs.create({ url: savedTabsUrl });
-				savedTabsTabId = newTab.id;
-				if (savedTabsTabId) {
-					console.log("新しいタブをピン留めします:", savedTabsTabId);
-					await chrome.tabs.update(savedTabsTabId, { pinned: true });
-				}
-			}
-
-			// 閉じるタブを収集 (chrome-extension:// と saved-tabs.html を除く)
-			const tabIdsToClose: number[] = [];
-
-			for (const tab of allTabs) {
-				// 次の条件を満たすタブのみ閉じる:
-				// 1. タブIDが存在する
-				// 2. saved-tabsページではない
-				// 3. chrome-extensionではない
-				if (
-					tab.id &&
-					tab.id !== savedTabsTabId &&
-					tab.url &&
-					!settings.excludePatterns.some((pattern) =>
-						tab.url?.includes(pattern),
-					)
-				) {
-					tabIdsToClose.push(tab.id);
-				}
-			}
-
-			// タブを閉じる
-			if (tabIdsToClose.length > 0) {
-				console.log(
-					`${tabIdsToClose.length}個のタブを閉じます:`,
-					tabIdsToClose,
-				);
-
-				// タブを一つずつ閉じるためのループ（エラーハンドリングのため）
-				for (const tabId of tabIdsToClose) {
-					try {
-						await chrome.tabs.remove(tabId);
-						console.log(`タブID ${tabId} を閉じました`);
-					} catch (error: unknown) {
-						console.error(
-							`タブID ${tabId} を閉じる際にエラーが発生しました:`,
-							error instanceof Error ? error.message : error,
-						);
+						// タブを閉じる
+						if (activeTab.id) {
+							try {
+								await chrome.tabs.remove(activeTab.id);
+								console.log(`タブ ${activeTab.id} を閉じました`);
+							} catch (error) {
+								console.error("タブを閉じる際にエラー:", error);
+							}
+						}
 					}
+					break;
 				}
 
-				console.log("すべてのタブを閉じました");
-			} else {
-				console.log("閉じるべきタブはありません");
+				case "saveSameDomainTabs": {
+					// 現在のドメインのタブをすべて保存
+					const currentTabs = await chrome.tabs.query({
+						active: true,
+						currentWindow: true,
+					});
+					if (currentTabs.length > 0 && currentTabs[0].url) {
+						try {
+							// 現在のタブからドメインを取得
+							const url = new URL(currentTabs[0].url);
+							const currentDomain = url.hostname;
+							console.log(`現在のドメイン: ${currentDomain}`);
+
+							// 現在のウィンドウの同じドメインのタブをすべて取得
+							const tabs = await chrome.tabs.query({ currentWindow: true });
+							const sameDomainTabs = tabs.filter((tab) => {
+								if (!tab.url) return false;
+								try {
+									const tabUrl = new URL(tab.url);
+									return tabUrl.hostname === currentDomain;
+								} catch (e) {
+									return false;
+								}
+							});
+
+							console.log(`同じドメインのタブ数: ${sameDomainTabs.length}`);
+
+							// タブを保存
+							await saveTabsWithAutoCategory(sameDomainTabs);
+
+							// 通知を表示
+							try {
+								const iconUrl = chrome.runtime.getURL("assets/icon-128.png");
+								await chrome.notifications.create({
+									type: "basic",
+									iconUrl: iconUrl,
+									title: "タブ保存",
+									message: `${currentDomain}の${sameDomainTabs.length}個のタブを保存しました`,
+								});
+							} catch (error) {
+								console.error("通知表示エラー:", error);
+							}
+
+							// saved-tabsページを開く
+							const savedTabsTabId = await openSavedTabsPage();
+
+							// 保存したタブを閉じる
+							for (const tab of sameDomainTabs) {
+								if (
+									tab.id &&
+									!settings.excludePatterns.some((pattern) =>
+										tab.url?.includes(pattern),
+									)
+								) {
+									try {
+										await chrome.tabs.remove(tab.id);
+										console.log(`タブ ${tab.id} を閉じました`);
+									} catch (error) {
+										console.error("タブを閉じる際にエラー:", error);
+									}
+								}
+							}
+						} catch (error) {
+							console.error("ドメインタブ保存エラー:", error);
+						}
+					}
+					break;
+				}
+
+				case "saveAllWindowsTabs": {
+					// すべてのウィンドウのタブを保存
+					try {
+						// すべてのウィンドウのタブを取得
+						const allTabs = await chrome.tabs.query({});
+						console.log(`取得したすべてのタブ数: ${allTabs.length}`);
+
+						// 拡張機能のタブを除外
+						const regularTabs = allTabs.filter((tab) => {
+							if (!tab.url) return false;
+							return !settings.excludePatterns.some((pattern) =>
+								tab.url?.includes(pattern),
+							);
+						});
+
+						console.log(`保存対象タブ数: ${regularTabs.length}`);
+
+						// タブを保存
+						await saveTabsWithAutoCategory(regularTabs);
+
+						// 通知を表示
+						try {
+							const iconUrl = chrome.runtime.getURL("assets/icon-128.png");
+							await chrome.notifications.create({
+								type: "basic",
+								iconUrl: iconUrl,
+								title: "タブ保存",
+								message: `すべてのウィンドウから${regularTabs.length}個のタブを保存しました`,
+							});
+						} catch (error) {
+							console.error("通知表示エラー:", error);
+						}
+
+						// saved-tabsページを開く
+						const savedTabsTabId = await openSavedTabsPage();
+
+						// タブを閉じる
+						for (const tab of regularTabs) {
+							if (tab.id && tab.id !== savedTabsTabId) {
+								try {
+									await chrome.tabs.remove(tab.id);
+								} catch (error) {
+									console.error(`タブ ${tab.id} を閉じる際にエラー:`, error);
+								}
+							}
+						}
+					} catch (error) {
+						console.error("すべてのタブ保存エラー:", error);
+					}
+					break;
+				}
+
+				default: {
+					// 既存の処理: 現在のウィンドウのタブをすべて保存（saveWindowTabsを含む）
+					const allTabs = await chrome.tabs.query({ currentWindow: true });
+					console.log(`取得したタブ: ${allTabs.length}個`);
+
+					// 拡張機能のタブを除外
+					const regularTabs = allTabs.filter((tab) => {
+						if (!tab.url) return false;
+						return !settings.excludePatterns.some((pattern) =>
+							tab.url?.includes(pattern),
+						);
+					});
+					console.log(`保存対象タブ: ${regularTabs.length}個`);
+
+					// タブを保存して自動カテゴライズする
+					await saveTabsWithAutoCategory(regularTabs);
+					console.log("タブの保存と自動カテゴライズが完了しました");
+
+					// 保存完了通知を表示
+					try {
+						const iconUrl = chrome.runtime.getURL("assets/icon-128.png");
+						console.log("通知アイコンURL:", iconUrl);
+
+						await chrome.notifications?.create({
+							type: "basic",
+							iconUrl: iconUrl,
+							title: "タブ保存",
+							message: `${regularTabs.length}個のタブが保存されました。タブを閉じます。`,
+						});
+					} catch (notificationError) {
+						console.error("通知表示エラー:", notificationError);
+					}
+
+					// saved-tabsページを開く
+					const savedTabsTabId = await openSavedTabsPage();
+
+					// 閉じるタブを収集
+					const tabIdsToClose: number[] = [];
+
+					for (const tab of allTabs) {
+						if (
+							tab.id &&
+							tab.id !== savedTabsTabId &&
+							tab.url &&
+							!settings.excludePatterns.some((pattern) =>
+								tab.url?.includes(pattern),
+							)
+						) {
+							tabIdsToClose.push(tab.id);
+						}
+					}
+
+					// タブを閉じる
+					if (tabIdsToClose.length > 0) {
+						console.log(
+							`${tabIdsToClose.length}個のタブを閉じます:`,
+							tabIdsToClose,
+						);
+
+						for (const tabId of tabIdsToClose) {
+							try {
+								await chrome.tabs.remove(tabId);
+								console.log(`タブID ${tabId} を閉じました`);
+							} catch (error: unknown) {
+								console.error(
+									`タブID ${tabId} を閉じる際にエラーが発生しました:`,
+									error instanceof Error ? error.message : error,
+								);
+							}
+						}
+
+						console.log("すべてのタブを閉じました");
+					} else {
+						console.log("閉じるべきタブはありません");
+					}
+					break;
+				}
 			}
 		} catch (error: unknown) {
 			console.error(
@@ -799,31 +1388,5 @@ export default defineBackground(() => {
 				error instanceof Error ? error.message : error,
 			);
 		}
-	}
-
-	// コンテキストメニューの処理
-	if (chrome.contextMenus?.onClicked) {
-		chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-			if (info.menuItemId === "saveCurrentTab" && tab) {
-				// 単一タブ保存時も自動カテゴライズ
-				await saveTabsWithAutoCategory([tab]);
-				chrome.notifications?.create({
-					type: "basic",
-					iconUrl: "/assets/react.svg",
-					title: "タブ保存",
-					message: "現在のタブが保存されました",
-				});
-			} else if (info.menuItemId === "saveAllTabs") {
-				const tabs = await chrome.tabs.query({ currentWindow: true });
-				// 複数タブ保存時も自動カテゴライズ
-				await saveTabsWithAutoCategory(tabs);
-				chrome.notifications?.create({
-					type: "basic",
-					iconUrl: "/assets/react.svg",
-					title: "タブ保存",
-					message: `${tabs.length}個のタブが保存されました`,
-				});
-			}
-		});
 	}
 });

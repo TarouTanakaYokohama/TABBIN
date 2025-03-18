@@ -37,6 +37,11 @@ export interface UserSettings {
 	enableCategories: boolean; // カテゴリ機能の有効/無効
 	autoDeletePeriod?: string; // never, 1hour, 1day, 7days, 14days, 30days, 180days, 365days
 	showSavedTime: boolean; // 保存日時を表示するかどうか
+	clickBehavior:
+		| "saveCurrentTab"
+		| "saveWindowTabs"
+		| "saveSameDomainTabs"
+		| "saveAllWindowsTabs"; // 新しいオプション: クリック時の挙動
 }
 
 // デフォルト設定
@@ -46,6 +51,7 @@ export const defaultSettings: UserSettings = {
 	enableCategories: true, // デフォルトは無効
 	autoDeletePeriod: "never", // デフォルトでは自動削除しない
 	showSavedTime: false, // デフォルトでは表示しない
+	clickBehavior: "saveWindowTabs", // デフォルトは「ウィンドウのすべてのタブを保存」
 };
 
 // 設定を取得する関数
