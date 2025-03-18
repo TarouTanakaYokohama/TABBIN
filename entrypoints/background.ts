@@ -314,7 +314,7 @@ export default defineBackground(() => {
 			// 保存完了通知を表示
 			chrome.notifications?.create({
 				type: "basic",
-				iconUrl: "/assets/react.svg",
+				iconUrl: "/assets/icon.png",
 				title: "タブ保存",
 				message: `${regularTabs.length}個のタブが保存されました。タブを閉じます。`,
 			});
@@ -809,7 +809,7 @@ export default defineBackground(() => {
 				await saveTabsWithAutoCategory([tab]);
 				chrome.notifications?.create({
 					type: "basic",
-					iconUrl: "/assets/react.svg",
+					iconUrl: "/assets/icon.png",
 					title: "タブ保存",
 					message: "現在のタブが保存されました",
 				});
@@ -819,7 +819,7 @@ export default defineBackground(() => {
 				await saveTabsWithAutoCategory(tabs);
 				chrome.notifications?.create({
 					type: "basic",
-					iconUrl: "/assets/react.svg",
+					iconUrl: "/assets/icon.png",
 					title: "タブ保存",
 					message: `${tabs.length}個のタブが保存されました`,
 				});
