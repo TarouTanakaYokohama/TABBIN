@@ -86,6 +86,40 @@ const OptionsPage = () => {
 		pendingAction: "",
 	});
 
+	// クリック挙動オプション定義
+	const clickBehaviorOptions = [
+		{ value: "saveCurrentTab", label: "現在のタブを保存" },
+		{ value: "saveWindowTabs", label: "ウィンドウのすべてのタブを保存" },
+		{
+			value: "saveSameDomainTabs",
+			label: "現在開いているドメインのタブをすべて保存",
+		},
+		{
+			value: "saveAllWindowsTabs",
+			label: "他のウィンドウを含めすべてのタブを保存",
+		},
+	];
+
+	// クリック挙動設定変更ハンドラ
+	const handleClickBehaviorChange = async (value: string) => {
+		try {
+			const newSettings = {
+				...settings,
+				clickBehavior: value as UserSettings["clickBehavior"],
+			};
+
+			// 状態を更新
+			setSettings(newSettings);
+
+			// 設定を保存
+			await saveUserSettings(newSettings);
+			setIsSaved(true);
+			setTimeout(() => setIsSaved(false), 2000);
+		} catch (error) {
+			console.error("クリック挙動設定の保存エラー:", error);
+		}
+	};
+
 	useEffect(() => {
 		const loadData = async () => {
 			try {
@@ -613,6 +647,39 @@ const OptionsPage = () => {
 				<h2 className="text-xl font-semibold text-foreground mb-4">
 					タブの挙動設定
 				</h2>
+
+				{/* クリック挙動設定を追加 */}
+				<div className="mb-6">
+					<Label
+						htmlFor="click-behavior"
+						className="block text-foreground font-medium mb-2"
+					>
+						拡張機能ボタンをクリックした時の挙動
+					</Label>
+					<div className="space-y-2">
+						<Select
+							value={settings.clickBehavior || "saveWindowTabs"}
+							onValueChange={handleClickBehaviorChange}
+						>
+							<SelectTrigger
+								id="click-behavior"
+								className="w-full bg-background"
+							>
+								<SelectValue placeholder="クリック時の挙動を選択" />
+							</SelectTrigger>
+							<SelectContent>
+								{clickBehaviorOptions.map((option) => (
+									<SelectItem key={option.value} value={option.value}>
+										{option.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+					<p className="text-sm text-muted-foreground mt-2">
+						拡張機能のアイコンをクリックした時の動作を設定します。
+					</p>
+				</div>
 
 				<div className="mb-4 flex items-center space-x-2">
 					<Checkbox
