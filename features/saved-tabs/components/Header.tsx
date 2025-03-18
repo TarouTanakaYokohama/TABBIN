@@ -27,14 +27,14 @@ export const Header = ({ tabGroups }: HeaderProps) => {
 							size="sm"
 							onClick={() => setIsModalOpen(true)}
 							className="flex items-center gap-2 cursor-pointer"
-							title="カテゴリ作成"
+							title="親カテゴリ作成"
 						>
 							<Plus size={16} />
 							<span className="lg:inline hidden">カテゴリ作成</span>
 						</Button>
 					</TooltipTrigger>
 					<TooltipContent side="top" className="lg:hidden block">
-						カテゴリ作成
+						親カテゴリ作成
 					</TooltipContent>
 				</Tooltip>
 				<Tooltip>

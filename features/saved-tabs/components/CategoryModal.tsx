@@ -464,19 +464,19 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 			<Dialog open={true} onOpenChange={() => onClose()}>
 				<DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden">
 					<DialogHeader>
-						<DialogTitle>カテゴリ管理</DialogTitle>
+						<DialogTitle>親カテゴリ管理</DialogTitle>
 					</DialogHeader>
 
 					<div className="grid gap-4 py-4 overflow-y-auto pr-1">
 						{/* 新規カテゴリ作成エリア */}
 						<div className="flex items-end gap-2">
 							<div className="flex-1">
-								<Label htmlFor="newCategory">新規カテゴリ名</Label>
+								<Label htmlFor="newCategory">新規親カテゴリ名</Label>
 								<Input
 									id="newCategory"
 									value={newCategoryName}
 									onChange={handleCategoryNameChange}
-									placeholder="新しいカテゴリ名を入力 (25文字以内)"
+									placeholder="新しい親カテゴリ名を入力 (25文字以内)"
 									className={nameError ? "border-red-500" : ""}
 								/>
 								{nameError && (
@@ -494,7 +494,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 						{/* カテゴリ選択エリア */}
 						<div>
 							<div className="flex items-center justify-between mb-2">
-								<Label htmlFor="categorySelect">カテゴリ選択</Label>
+								<Label htmlFor="categorySelect">親カテゴリ選択</Label>
 								{categories.length > 0 &&
 									selectedCategoryId &&
 									selectedCategoryId !== "uncategorized" && (
@@ -514,7 +514,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 								onValueChange={handleCategoryChange}
 							>
 								<SelectTrigger className="w-full" id="categorySelect">
-									<SelectValue placeholder="カテゴリを選択" />
+									<SelectValue placeholder="親カテゴリを選択" />
 								</SelectTrigger>
 								<SelectContent>
 									{categories.map((category) => (
