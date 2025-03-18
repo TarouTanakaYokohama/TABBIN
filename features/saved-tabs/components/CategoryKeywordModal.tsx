@@ -7,6 +7,11 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import type { CategoryKeywordModalProps } from "@/types/saved-tabs";
+import type {
+	ParentCategory,
+	TabGroup,
+	SubCategoryKeyword,
+} from "@/utils/storage";
 import { Label } from "@/components/ui/label";
 
 import {
@@ -16,6 +21,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Edit, Settings, Trash, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +41,85 @@ export const CategoryKeywordModal = ({
 	onClose,
 	onSave,
 	onDeleteCategory,
+	parentCategories: initialParentCategories = [], // デフォルト値を空配列に設定
+	onUpdateParentCategories,
+	onCreateParentCategory = async (name: string) => {
+		const { parentCategories = [] } =
+			await chrome.storage.local.get("parentCategories");
+		const existingCategories = parentCategories as ParentCategory[];
+
+		// 重複チェック
+		if (existingCategories.some((cat: ParentCategory) => cat.name === name)) {
+			toast.error("同じ名前の親カテゴリが既に存在します");
+			throw new Error("同じ名前の親カテゴリが既に存在します");
+		}
+
+		// 新しい親カテゴリを作成
+		const newCategory: ParentCategory = {
+			id: crypto.randomUUID(),
+			name,
+			domains: [],
+			domainNames: [],
+		};
+
+		// 保存
+		await chrome.storage.local.set({
+			parentCategories: [...existingCategories, newCategory],
+		});
+
+		return newCategory;
+	},
+	onAssignToParentCategory = async (groupId: string, categoryId: string) => {
+		const { parentCategories = [] } =
+			await chrome.storage.local.get("parentCategories");
+		const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+
+		const existingTabs = savedTabs as TabGroup[];
+		const existingCategories = parentCategories as ParentCategory[];
+
+		const targetGroup = existingTabs.find(
+			(tab: TabGroup) => tab.id === groupId,
+		);
+		if (!targetGroup) {
+			toast.error("タブグループが見つかりません");
+			throw new Error("タブグループが見つかりません");
+		}
+
+		// 更新されたカテゴリ一覧を作成
+		const updatedCategories = existingCategories.map((cat: ParentCategory) => {
+			// 親カテゴリの関連付けを解除
+			if (categoryId === "") {
+				return {
+					...cat,
+					domains: cat.domains.filter((id: string) => id !== groupId),
+					domainNames: cat.domainNames.filter(
+						(domain: string) => domain !== targetGroup.domain,
+					),
+				};
+			}
+
+			// 選択された親カテゴリに追加
+			if (cat.id === categoryId) {
+				return {
+					...cat,
+					domains: [...new Set([...cat.domains, groupId])],
+					domainNames: [...new Set([...cat.domainNames, targetGroup.domain])],
+				};
+			}
+
+			// 他の親カテゴリからは削除
+			return {
+				...cat,
+				domains: cat.domains.filter((id: string) => id !== groupId),
+				domainNames: cat.domainNames.filter(
+					(domain: string) => domain !== targetGroup.domain,
+				),
+			};
+		});
+
+		// 保存
+		await chrome.storage.local.set({ parentCategories: updatedCategories });
+	},
 }: CategoryKeywordModalProps) => {
 	const [activeCategory, setActiveCategory] = useState<string>(
 		group.subCategories && group.subCategories.length > 0
@@ -49,37 +134,158 @@ export const CategoryKeywordModal = ({
 	const modalContentRef = useRef<HTMLDivElement>(null);
 	const [isRenaming, setIsRenaming] = useState(false);
 	const [newCategoryName, setNewCategoryName] = useState("");
+	const [newParentCategory, setNewParentCategory] = useState("");
+	const [internalParentCategories, setInternalParentCategories] = useState<
+		ParentCategory[]
+	>(initialParentCategories);
+	const [selectedParentCategory, setSelectedParentCategory] =
+		useState<string>("none");
 
+	// 初期値の設定
+	useEffect(() => {
+		if (group.parentCategoryId) {
+			setSelectedParentCategory(group.parentCategoryId);
+			console.log("親カテゴリの初期値を設定:", group.parentCategoryId);
+		}
+	}, [group.parentCategoryId]);
+
+	const loadParentCategories = async () => {
+		if (!isOpen) return;
+
+		try {
+			console.log("親カテゴリの状態", {
+				current: {
+					count: internalParentCategories.length,
+					categories: internalParentCategories.map((c: ParentCategory) => ({
+						id: c.id,
+						name: c.name,
+					})),
+				},
+				selectedId: group.parentCategoryId,
+			});
+
+			const { parentCategories: stored = [] } =
+				await chrome.storage.local.get("parentCategories");
+			const storedCategories = stored as ParentCategory[];
+
+			console.log("ストレージのカテゴリ", {
+				count: storedCategories.length,
+				categories: storedCategories.map((c) => ({ id: c.id, name: c.name })),
+			});
+
+			// 内部状態を更新
+			setInternalParentCategories(storedCategories);
+
+			// 親カテゴリを更新
+			if (onUpdateParentCategories) {
+				// 常に最新のデータで更新
+				await onUpdateParentCategories(storedCategories);
+				console.log("親カテゴリを更新しました:", {
+					count: storedCategories.length,
+					categories: storedCategories.map((c) => ({
+						id: c.id,
+						name: c.name,
+						domainCount: c.domains.length,
+					})),
+				});
+			}
+
+			// 親コンポーネントに渡されたデータを確認
+			console.log("親カテゴリの状態確認:", {
+				propsCategories: initialParentCategories.length,
+				storedCategories: storedCategories.length,
+				selectedId: group.parentCategoryId,
+			});
+
+			// 選択状態の更新 - 親カテゴリを特定
+			let newParentId = "none";
+
+			// group.parentCategoryIdが明示的に設定されている場合はそれを使用
+			if (group.parentCategoryId) {
+				newParentId = group.parentCategoryId;
+			}
+			// そうでない場合は、ドメインが属している親カテゴリを探す
+			else {
+				// 各親カテゴリをチェックし、このドメインが含まれているかを確認
+				for (const category of storedCategories) {
+					// domainsにグループIDが含まれている、またはdomainNamesにドメイン名が含まれている場合
+					if (
+						category.domains.includes(group.id) ||
+						category.domainNames.includes(group.domain)
+					) {
+						newParentId = category.id;
+						console.log(
+							`ドメイン「${group.domain}」は親カテゴリ「${category.name}」に属しています`,
+						);
+						break;
+					}
+				}
+			}
+
+			if (selectedParentCategory !== newParentId) {
+				setSelectedParentCategory(newParentId);
+				console.log("選択状態を更新:", newParentId);
+			}
+
+			// 初期状態の確認
+			if (storedCategories.length === 0) {
+				console.log("親カテゴリが未作成");
+				toast.info("親カテゴリを作成してください");
+			}
+		} catch (error) {
+			console.error("親カテゴリの読み込みに失敗:", error);
+			toast.error("親カテゴリの読み込みに失敗しました。再度お試しください。");
+		}
+	};
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: loadParentCategoriesは変更されない
+	useEffect(() => {
+		// モーダルを開いた時に親カテゴリをロード
+		const initializeCategories = async () => {
+			if (isOpen) {
+				console.log("モーダルを開きました - 親カテゴリを初期化");
+				await loadParentCategories();
+
+				// ストレージの変更を監視
+				const handleStorageChange = (changes: {
+					[key: string]: chrome.storage.StorageChange;
+				}) => {
+					if (changes.parentCategories) {
+						console.log("親カテゴリの変更を検出");
+						loadParentCategories();
+					}
+				};
+
+				// ストレージの変更監視を開始
+				chrome.storage.onChanged.addListener(handleStorageChange);
+
+				// クリーンアップ
+				return () => {
+					chrome.storage.onChanged.removeListener(handleStorageChange);
+				};
+			}
+		};
+
+		initializeCategories();
+	}, [isOpen]); // isOpenの変更のみを監視
+
+	// アクティブカテゴリが変更されたときのキーワード読み込み
 	useEffect(() => {
 		if (isOpen && activeCategory) {
+			console.log("カテゴリ変更:", activeCategory);
 			const categoryKeywords = group.categoryKeywords?.find(
 				(ck) => ck.categoryName === activeCategory,
 			);
-			setKeywords(categoryKeywords?.keywords || []);
+			const keywords = categoryKeywords?.keywords || [];
+			console.log("読み込まれたキーワード:", keywords);
+
+			setKeywords(keywords);
 			setIsRenaming(false);
 			setNewCategoryName("");
 		}
 	}, [isOpen, activeCategory, group]);
 
 	if (!isOpen) return null;
-
-	// 重複した状態定義を削除
-
-	useEffect(() => {
-		if (isOpen && activeCategory) {
-			console.log("現在のカテゴリ:", activeCategory);
-			// 選択されたカテゴリのキーワードを読み込む
-			const categoryKeywords = group.categoryKeywords?.find(
-				(ck) => ck.categoryName === activeCategory,
-			);
-			const loadedKeywords = categoryKeywords?.keywords || [];
-			console.log("読み込まれたキーワード:", loadedKeywords);
-			setKeywords(loadedKeywords);
-			// リネームモードの初期化とカテゴリ名のリセット
-			setIsRenaming(false);
-			setNewCategoryName("");
-		}
-	}, [isOpen, activeCategory, group]);
 
 	// キーワードを追加した時に重複チェックを追加
 	const handleAddKeyword = () => {
@@ -198,7 +404,7 @@ export const CategoryKeywordModal = ({
 			if (group.subCategories && group.subCategories.length > 1) {
 				// 削除したカテゴリ以外のカテゴリを選択
 				const updatedSubCategories = group.subCategories.filter(
-					(cat) => cat !== categoryToDelete,
+					(cat: string) => cat !== categoryToDelete,
 				);
 				if (updatedSubCategories.length > 0) {
 					setActiveCategory(updatedSubCategories[0]);
@@ -353,13 +559,233 @@ export const CategoryKeywordModal = ({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent className="max-h-[80vh] overflow-y-auto">
+			<DialogContent
+				className="max-h-[80vh] overflow-y-auto"
+				// モーダル全体のクリックイベント伝播を停止
+				onClick={(e) => e.stopPropagation()}
+				onPointerDown={(e) => e.stopPropagation()}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.stopPropagation();
+					}
+				}}
+			>
 				<DialogHeader className="text-left">
 					<DialogTitle>「{group.domain}」のカテゴリ管理</DialogTitle>
 					<DialogDescription>
 						カテゴリの追加、削除、リネーム、キーワード設定を行います。
 					</DialogDescription>
 				</DialogHeader>
+
+				{/* 親カテゴリ管理セクション */}
+				<div
+					className="mb-6 border-b border-zinc-700 pb-4"
+					// 親カテゴリセクション全体のイベント伝播を停止
+					onClick={(e) => e.stopPropagation()}
+					onPointerDown={(e) => e.stopPropagation()}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.stopPropagation();
+						}
+					}}
+				>
+					<h4 className="text-md font-medium mb-2 text-gray-300">
+						親カテゴリ管理
+					</h4>
+
+					{/* 新しい親カテゴリの作成 */}
+					<div className="mb-4">
+						<Label
+							htmlFor="new-parent-category"
+							className="text-sm text-gray-400 mb-2"
+						>
+							新しい親カテゴリを作成
+						</Label>
+						<div
+							className="flex gap-2"
+							onClick={(e) => e.stopPropagation()}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.stopPropagation();
+								}
+							}}
+						>
+							<Input
+								id="new-parent-category"
+								value={newParentCategory}
+								onChange={(e) => setNewParentCategory(e.target.value)}
+								placeholder="新しい親カテゴリ名"
+								className="flex-grow"
+								onClick={(e) => e.stopPropagation()}
+								onPointerDown={(e) => e.stopPropagation()}
+							/>
+							<Button
+								onClick={async (e) => {
+									// イベント伝播を防止
+									e.stopPropagation();
+									e.preventDefault();
+
+									if (!newParentCategory.trim()) return;
+									if (!onCreateParentCategory || !onAssignToParentCategory) {
+										toast.error("親カテゴリの作成機能が利用できません");
+										return;
+									}
+									try {
+										const category = await onCreateParentCategory(
+											newParentCategory.trim(),
+										);
+										if (!category || !category.id) {
+											throw new Error("作成された親カテゴリの情報が不正です");
+										}
+										setSelectedParentCategory(category.id);
+										try {
+											await onAssignToParentCategory(group.id, category.id);
+											setNewParentCategory("");
+											toast.success(
+												"親カテゴリを作成し、ドメインを割り当てました",
+											);
+										} catch (assignError) {
+											console.error("親カテゴリの割り当てに失敗:", assignError);
+											toast.error(
+												"親カテゴリは作成されましたが、ドメインの割り当てに失敗しました",
+											);
+										}
+									} catch (error) {
+										console.error("親カテゴリの作成に失敗:", error);
+										toast.error(
+											error instanceof Error
+												? error.message
+												: "親カテゴリの作成に失敗しました",
+										);
+									}
+								}}
+								disabled={!newParentCategory.trim()}
+								variant="secondary"
+								onPointerDown={(e) => e.stopPropagation()}
+							>
+								作成
+							</Button>
+						</div>
+					</div>
+
+					{/* 親カテゴリの選択 */}
+					<div
+						className="mb-4"
+						onClick={(e) => e.stopPropagation()}
+						onPointerDown={(e) => e.stopPropagation()}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" || e.key === " ") {
+								e.stopPropagation();
+							}
+						}}
+					>
+						<Label
+							htmlFor="parent-category"
+							className="text-sm text-gray-400 mb-2"
+						>
+							ドメインの親カテゴリを選択
+						</Label>
+						<Select
+							value={selectedParentCategory}
+							onValueChange={async (value) => {
+								console.log("親カテゴリの選択:", {
+									newValue: value,
+									currentValue: selectedParentCategory,
+									availableCategories: internalParentCategories.map(
+										(c) => c.name,
+									),
+								});
+
+								setSelectedParentCategory(value);
+								if (!onAssignToParentCategory) {
+									toast.error("親カテゴリの更新機能が利用できません");
+									return;
+								}
+
+								try {
+									if (value === "none") {
+										await onAssignToParentCategory(group.id, "");
+										toast.success("親カテゴリを解除しました");
+										console.log("親カテゴリを解除完了");
+									} else {
+										await onAssignToParentCategory(group.id, value);
+										const category = internalParentCategories.find(
+											(c) => c.id === value,
+										);
+										toast.success(
+											`親カテゴリを「${category?.name}」に更新しました`,
+										);
+										console.log("親カテゴリを更新完了:", category?.name);
+									}
+								} catch (error) {
+									console.error("親カテゴリの割り当てに失敗:", error);
+									toast.error(
+										"親カテゴリの更新に失敗しました。再度お試しください。",
+									);
+								}
+							}}
+						>
+							<SelectTrigger
+								className="w-full"
+								onClick={(e) => e.stopPropagation()}
+								onPointerDown={(e) => e.stopPropagation()}
+							>
+								<SelectValue placeholder="親カテゴリを選択" />
+							</SelectTrigger>
+							<SelectContent
+								onPointerDownOutside={(e) => {
+									e.preventDefault();
+								}}
+								className="p-0"
+								onClick={(e) => e.stopPropagation()}
+								onPointerDown={(e) => e.stopPropagation()}
+							>
+								<ScrollArea
+									className="h-[120px]"
+									onClick={(e) => e.stopPropagation()}
+									onPointerDown={(e) => e.stopPropagation()}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" || e.key === " ") {
+											e.stopPropagation();
+										}
+									}}
+								>
+									<div
+										className="p-1"
+										onClick={(e) => e.stopPropagation()}
+										onPointerDown={(e) => e.stopPropagation()}
+										onKeyDown={(e) => {
+											if (e.key === "Enter" || e.key === " ") {
+												e.stopPropagation();
+											}
+										}}
+									>
+										<SelectItem
+											value="none"
+											onPointerDown={(e) => e.stopPropagation()}
+											onClick={(e) => e.stopPropagation()}
+											className="cursor-pointer"
+										>
+											未分類
+										</SelectItem>
+										{internalParentCategories.map((category) => (
+											<SelectItem
+												key={category.id}
+												value={category.id}
+												onPointerDown={(e) => e.stopPropagation()}
+												onClick={(e) => e.stopPropagation()}
+												className="cursor-pointer truncate"
+												title={category.name}
+											>
+												{category.name}
+											</SelectItem>
+										))}
+									</div>
+								</ScrollArea>
+							</SelectContent>
+						</Select>
+					</div>
+				</div>
 
 				<div
 					ref={modalContentRef}

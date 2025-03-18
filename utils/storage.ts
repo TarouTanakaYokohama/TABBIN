@@ -100,6 +100,15 @@ export async function createParentCategory(
 	name: string,
 ): Promise<ParentCategory> {
 	const categories = await getParentCategories();
+
+	// 重複チェック: 同じ名前のカテゴリが既に存在するかを確認
+	const duplicateCategory = categories.find(
+		(category) => category.name.toLowerCase() === name.toLowerCase(),
+	);
+	if (duplicateCategory) {
+		throw new Error(`DUPLICATE_CATEGORY_NAME:${name}`);
+	}
+
 	const newCategory: ParentCategory = {
 		id: uuidv4(),
 		name,
@@ -996,4 +1005,45 @@ async function updateCategoryDomains(category: ParentCategory): Promise<void> {
 		c.id === category.id ? category : c,
 	);
 	await saveParentCategories(updatedCategories);
+}
+
+// 親カテゴリを削除する関数
+export async function deleteParentCategory(categoryId: string): Promise<void> {
+	try {
+		// 現在のカテゴリリストを取得
+		const categories = await getParentCategories();
+
+		// 削除するカテゴリを見つける
+		const categoryToDelete = categories.find((cat) => cat.id === categoryId);
+		if (!categoryToDelete) {
+			throw new Error(`カテゴリID ${categoryId} が見つかりません`);
+		}
+
+		// このカテゴリに属しているドメイン名のリスト
+		const affectedDomainNames = categoryToDelete.domainNames || [];
+
+		// カテゴリを除外したリストを作成
+		const updatedCategories = categories.filter((cat) => cat.id !== categoryId);
+
+		// カテゴリリストを更新
+		await saveParentCategories(updatedCategories);
+
+		// このカテゴリに関連付けられていたすべてのドメインのマッピングを削除
+		const mappings = await getDomainCategoryMappings();
+		const updatedMappings = mappings.filter(
+			(mapping) => mapping.categoryId !== categoryId,
+		);
+
+		// マッピングを更新
+		await saveDomainCategoryMappings(updatedMappings);
+
+		console.log(
+			`親カテゴリ「${categoryToDelete.name}」を削除しました。影響を受けたドメイン: ${affectedDomainNames.join(", ")}`,
+		);
+
+		return;
+	} catch (error) {
+		console.error("親カテゴリの削除に失敗しました:", error);
+		throw error;
+	}
 }

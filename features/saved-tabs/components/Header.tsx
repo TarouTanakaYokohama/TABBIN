@@ -4,18 +4,39 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Settings } from "lucide-react";
+import { Plus, Settings } from "lucide-react";
+import { useState } from "react";
 import type { TabGroup } from "../../../utils/storage";
+import { CategoryModal } from "./CategoryModal";
 
 type HeaderProps = {
 	tabGroups: TabGroup[];
 };
 
 export const Header = ({ tabGroups }: HeaderProps) => {
+	const [isModalOpen, setIsModalOpen] = useState(false);
+
 	return (
 		<div className="flex justify-between items-center mb-4">
 			<h1 className="text-3xl font-bold text-foreground">TABBIN</h1>
 			<div className="flex items-center gap-4">
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setIsModalOpen(true)}
+							className="flex items-center gap-2 cursor-pointer"
+							title="カテゴリ作成"
+						>
+							<Plus size={16} />
+							<span className="lg:inline hidden">カテゴリ作成</span>
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent side="top" className="lg:hidden block">
+						カテゴリ作成
+					</TooltipContent>
+				</Tooltip>
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button
@@ -41,6 +62,13 @@ export const Header = ({ tabGroups }: HeaderProps) => {
 					<p>ドメイン: {tabGroups.length}</p>
 				</div>
 			</div>
+
+			{isModalOpen && (
+				<CategoryModal
+					onClose={() => setIsModalOpen(false)}
+					tabGroups={tabGroups}
+				/>
+			)}
 		</div>
 	);
 };
