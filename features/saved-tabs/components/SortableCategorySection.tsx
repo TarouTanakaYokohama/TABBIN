@@ -6,7 +6,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { GripVertical, ExternalLink } from "lucide-react";
+import { GripVertical, ExternalLink, Trash2, Trash } from "lucide-react";
 import { CSS } from "@dnd-kit/utilities";
 import { CategorySection } from "./TimeRemaining";
 
@@ -14,9 +14,13 @@ import { CategorySection } from "./TimeRemaining";
 export const SortableCategorySection = ({
 	id,
 	handleOpenAllTabs,
+	handleDeleteAllTabs, // 削除ハンドラを追加
 	settings,
 	...props
-}: SortableCategorySectionProps & { settings: UserSettings }) => {
+}: SortableCategorySectionProps & {
+	settings: UserSettings;
+	handleDeleteAllTabs?: (urls: Array<{ url: string }>) => void; // 新しいプロップの型定義
+}) => {
 	const {
 		attributes,
 		listeners,
@@ -69,28 +73,61 @@ export const SortableCategorySection = ({
 					</h3>
 				</div>
 
-				{/* すべて開くボタン - 独立した要素としてドラッグハンドラの影響を受けないようにする */}
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							variant="secondary"
-							size="sm"
-							onClick={(e) => {
-								e.stopPropagation(); // ドラッグイベントの伝播を防止
-								handleOpenAllTabs(props.urls);
-							}}
-							className="flex items-center gap-1 z-20 pointer-events-auto cursor-pointer"
-							title={`${props.categoryName === "__uncategorized" ? "未分類" : props.categoryName}のタブをすべて開く`}
-							style={{ position: "relative" }} // ボタンを確実に上に表示
-						>
-							<ExternalLink size={14} />
-							<span className="lg:inline hidden">すべて開く</span>
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent side="top" className="lg:hidden block">
-						すべてのタブを開く
-					</TooltipContent>
-				</Tooltip>
+				{/* ボタンコンテナ */}
+				<div className="flex items-center gap-2">
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="secondary"
+								size="sm"
+								onClick={(e) => {
+									e.stopPropagation(); // ドラッグイベントの伝播を防止
+									handleOpenAllTabs(props.urls);
+								}}
+								className="flex items-center gap-1 z-20 pointer-events-auto cursor-pointer"
+								title={`${props.categoryName === "__uncategorized" ? "未分類" : props.categoryName}のタブをすべて開く`}
+								style={{ position: "relative" }} // ボタンを確実に上に表示
+							>
+								<ExternalLink size={14} />
+								<span className="lg:inline hidden">すべて開く</span>
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="top" className="lg:hidden block">
+							すべてのタブを開く
+						</TooltipContent>
+					</Tooltip>
+
+					{/* 削除ボタンを追加 */}
+					{handleDeleteAllTabs && (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="secondary"
+									size="sm"
+									onClick={(e) => {
+										e.stopPropagation(); // ドラッグイベントの伝播を防止
+										if (
+											window.confirm(
+												`「${props.categoryName === "__uncategorized" ? "未分類" : props.categoryName}」のタブをすべて削除しますか？`,
+											)
+										) {
+											handleDeleteAllTabs(props.urls);
+										}
+									}}
+									className="flex items-center gap-1 z-20 pointer-events-auto cursor-pointer"
+									title={`${props.categoryName === "__uncategorized" ? "未分類" : props.categoryName}のタブをすべて削除する`}
+									style={{ position: "relative" }}
+								>
+									<Trash size={14} />
+									<span className="lg:inline hidden">すべて削除</span>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent side="top" className="lg:hidden block">
+								すべてのタブを削除
+							</TooltipContent>
+						</Tooltip>
+					)}
+				</div>
 			</div>
 
 			<CategorySection {...props} settings={settings} />

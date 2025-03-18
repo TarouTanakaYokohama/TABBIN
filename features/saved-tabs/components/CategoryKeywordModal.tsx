@@ -7,6 +7,11 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import type { CategoryKeywordModalProps } from "@/types/saved-tabs";
+import type {
+	ParentCategory,
+	TabGroup,
+	SubCategoryKeyword,
+} from "@/utils/storage";
 import { Label } from "@/components/ui/label";
 
 import {
@@ -16,7 +21,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Settings, Trash, X } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Edit, Settings, Trash, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -27,6 +33,14 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { z } from "zod";
+
+// カテゴリ名のバリデーションスキーマ
+const categoryNameSchema = z
+	.string()
+	.trim()
+	.min(1, { message: "カテゴリ名を入力してください" })
+	.max(25, { message: "カテゴリ名は25文字以下にしてください" });
 
 // カテゴリキーワード管理モーダルコンポーネント
 export const CategoryKeywordModal = ({
@@ -35,6 +49,85 @@ export const CategoryKeywordModal = ({
 	onClose,
 	onSave,
 	onDeleteCategory,
+	parentCategories: initialParentCategories = [], // デフォルト値を空配列に設定
+	onUpdateParentCategories,
+	onCreateParentCategory = async (name: string) => {
+		const { parentCategories = [] } =
+			await chrome.storage.local.get("parentCategories");
+		const existingCategories = parentCategories as ParentCategory[];
+
+		// 重複チェック
+		if (existingCategories.some((cat: ParentCategory) => cat.name === name)) {
+			toast.error("同じ名前の親カテゴリが既に存在します");
+			throw new Error("同じ名前の親カテゴリが既に存在します");
+		}
+
+		// 新しい親カテゴリを作成
+		const newCategory: ParentCategory = {
+			id: crypto.randomUUID(),
+			name,
+			domains: [],
+			domainNames: [],
+		};
+
+		// 保存
+		await chrome.storage.local.set({
+			parentCategories: [...existingCategories, newCategory],
+		});
+
+		return newCategory;
+	},
+	onAssignToParentCategory = async (groupId: string, categoryId: string) => {
+		const { parentCategories = [] } =
+			await chrome.storage.local.get("parentCategories");
+		const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
+
+		const existingTabs = savedTabs as TabGroup[];
+		const existingCategories = parentCategories as ParentCategory[];
+
+		const targetGroup = existingTabs.find(
+			(tab: TabGroup) => tab.id === groupId,
+		);
+		if (!targetGroup) {
+			toast.error("タブグループが見つかりません");
+			throw new Error("タブグループが見つかりません");
+		}
+
+		// 更新されたカテゴリ一覧を作成
+		const updatedCategories = existingCategories.map((cat: ParentCategory) => {
+			// 親カテゴリの関連付けを解除
+			if (categoryId === "") {
+				return {
+					...cat,
+					domains: cat.domains.filter((id: string) => id !== groupId),
+					domainNames: cat.domainNames.filter(
+						(domain: string) => domain !== targetGroup.domain,
+					),
+				};
+			}
+
+			// 選択された親カテゴリに追加
+			if (cat.id === categoryId) {
+				return {
+					...cat,
+					domains: [...new Set([...cat.domains, groupId])],
+					domainNames: [...new Set([...cat.domainNames, targetGroup.domain])],
+				};
+			}
+
+			// 他の親カテゴリからは削除
+			return {
+				...cat,
+				domains: cat.domains.filter((id: string) => id !== groupId),
+				domainNames: cat.domainNames.filter(
+					(domain: string) => domain !== targetGroup.domain,
+				),
+			};
+		});
+
+		// 保存
+		await chrome.storage.local.set({ parentCategories: updatedCategories });
+	},
 }: CategoryKeywordModalProps) => {
 	const [activeCategory, setActiveCategory] = useState<string>(
 		group.subCategories && group.subCategories.length > 0
@@ -49,37 +142,185 @@ export const CategoryKeywordModal = ({
 	const modalContentRef = useRef<HTMLDivElement>(null);
 	const [isRenaming, setIsRenaming] = useState(false);
 	const [newCategoryName, setNewCategoryName] = useState("");
+	const [newParentCategory, setNewParentCategory] = useState("");
+	const [internalParentCategories, setInternalParentCategories] = useState<
+		ParentCategory[]
+	>(initialParentCategories);
+	const [selectedParentCategory, setSelectedParentCategory] =
+		useState<string>("none");
 
+	// エラー状態の追加
+	const [parentCategoryNameError, setParentCategoryNameError] = useState<
+		string | null
+	>(null);
+	const [subCategoryNameError, setSubCategoryNameError] = useState<
+		string | null
+	>(null);
+	const [categoryRenameError, setCategoryRenameError] = useState<string | null>(
+		null,
+	);
+
+	// 入力値検証用の共通関数
+	const validateCategoryName = (
+		name: string,
+		setError: React.Dispatch<React.SetStateAction<string | null>>,
+	) => {
+		try {
+			categoryNameSchema.parse(name);
+			setError(null);
+			return true;
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				setError(error.errors[0]?.message || "カテゴリ名が無効です");
+			}
+			return false;
+		}
+	};
+
+	// 初期値の設定
+	useEffect(() => {
+		if (group.parentCategoryId) {
+			setSelectedParentCategory(group.parentCategoryId);
+			console.log("親カテゴリの初期値を設定:", group.parentCategoryId);
+		}
+	}, [group.parentCategoryId]);
+
+	const loadParentCategories = async () => {
+		if (!isOpen) return;
+
+		try {
+			console.log("親カテゴリの状態", {
+				current: {
+					count: internalParentCategories.length,
+					categories: internalParentCategories.map((c: ParentCategory) => ({
+						id: c.id,
+						name: c.name,
+					})),
+				},
+				selectedId: group.parentCategoryId,
+			});
+
+			const { parentCategories: stored = [] } =
+				await chrome.storage.local.get("parentCategories");
+			const storedCategories = stored as ParentCategory[];
+
+			console.log("ストレージのカテゴリ", {
+				count: storedCategories.length,
+				categories: storedCategories.map((c) => ({ id: c.id, name: c.name })),
+			});
+
+			// 内部状態を更新
+			setInternalParentCategories(storedCategories);
+
+			// 親カテゴリを更新
+			if (onUpdateParentCategories) {
+				// 常に最新のデータで更新
+				await onUpdateParentCategories(storedCategories);
+				console.log("親カテゴリを更新しました:", {
+					count: storedCategories.length,
+					categories: storedCategories.map((c) => ({
+						id: c.id,
+						name: c.name,
+						domainCount: c.domains.length,
+					})),
+				});
+			}
+
+			// 親コンポーネントに渡されたデータを確認
+			console.log("親カテゴリの状態確認:", {
+				propsCategories: initialParentCategories.length,
+				storedCategories: storedCategories.length,
+				selectedId: group.parentCategoryId,
+			});
+
+			// 選択状態の更新 - 親カテゴリを特定
+			let newParentId = "none";
+
+			// group.parentCategoryIdが明示的に設定されている場合はそれを使用
+			if (group.parentCategoryId) {
+				newParentId = group.parentCategoryId;
+			}
+			// そうでない場合は、ドメインが属している親カテゴリを探す
+			else {
+				// 各親カテゴリをチェックし、このドメインが含まれているかを確認
+				for (const category of storedCategories) {
+					// domainsにグループIDが含まれている、またはdomainNamesにドメイン名が含まれている場合
+					if (
+						category.domains.includes(group.id) ||
+						category.domainNames.includes(group.domain)
+					) {
+						newParentId = category.id;
+						console.log(
+							`ドメイン「${group.domain}」は親カテゴリ「${category.name}」に属しています`,
+						);
+						break;
+					}
+				}
+			}
+
+			if (selectedParentCategory !== newParentId) {
+				setSelectedParentCategory(newParentId);
+				console.log("選択状態を更新:", newParentId);
+			}
+
+			// 初期状態の確認
+			if (storedCategories.length === 0) {
+				console.log("親カテゴリが未作成");
+			}
+		} catch (error) {
+			console.error("親カテゴリの読み込みに失敗:", error);
+			toast.error("親カテゴリの読み込みに失敗しました。再度お試しください。");
+		}
+	};
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: loadParentCategoriesは変更されない
+	useEffect(() => {
+		// モーダルを開いた時に親カテゴリをロード
+		const initializeCategories = async () => {
+			if (isOpen) {
+				console.log("モーダルを開きました - 親カテゴリを初期化");
+				await loadParentCategories();
+
+				// ストレージの変更を監視
+				const handleStorageChange = (changes: {
+					[key: string]: chrome.storage.StorageChange;
+				}) => {
+					if (changes.parentCategories) {
+						console.log("親カテゴリの変更を検出");
+						loadParentCategories();
+					}
+				};
+
+				// ストレージの変更監視を開始
+				chrome.storage.onChanged.addListener(handleStorageChange);
+
+				// クリーンアップ
+				return () => {
+					chrome.storage.onChanged.removeListener(handleStorageChange);
+				};
+			}
+		};
+
+		initializeCategories();
+	}, [isOpen]); // isOpenの変更のみを監視
+
+	// アクティブカテゴリが変更されたときのキーワード読み込み
 	useEffect(() => {
 		if (isOpen && activeCategory) {
+			console.log("カテゴリ変更:", activeCategory);
 			const categoryKeywords = group.categoryKeywords?.find(
 				(ck) => ck.categoryName === activeCategory,
 			);
-			setKeywords(categoryKeywords?.keywords || []);
+			const keywords = categoryKeywords?.keywords || [];
+			console.log("読み込まれたキーワード:", keywords);
+
+			setKeywords(keywords);
 			setIsRenaming(false);
 			setNewCategoryName("");
 		}
 	}, [isOpen, activeCategory, group]);
 
 	if (!isOpen) return null;
-
-	// 重複した状態定義を削除
-
-	useEffect(() => {
-		if (isOpen && activeCategory) {
-			console.log("現在のカテゴリ:", activeCategory);
-			// 選択されたカテゴリのキーワードを読み込む
-			const categoryKeywords = group.categoryKeywords?.find(
-				(ck) => ck.categoryName === activeCategory,
-			);
-			const loadedKeywords = categoryKeywords?.keywords || [];
-			console.log("読み込まれたキーワード:", loadedKeywords);
-			setKeywords(loadedKeywords);
-			// リネームモードの初期化とカテゴリ名のリセット
-			setIsRenaming(false);
-			setNewCategoryName("");
-		}
-	}, [isOpen, activeCategory, group]);
 
 	// キーワードを追加した時に重複チェックを追加
 	const handleAddKeyword = () => {
@@ -127,14 +368,103 @@ export const CategoryKeywordModal = ({
 		e.stopPropagation();
 	};
 
+	// 親カテゴリ名の入力ハンドラ
+	const handleParentCategoryNameChange = (
+		e: React.ChangeEvent<HTMLInputElement>,
+	) => {
+		const value = e.target.value;
+		setNewParentCategory(value);
+		validateCategoryName(value, setParentCategoryNameError);
+	};
+
+	// 子カテゴリ名の入力ハンドラ
+	const handleSubCategoryNameChange = (
+		e: React.ChangeEvent<HTMLInputElement>,
+	) => {
+		const value = e.target.value;
+		setNewSubCategory(value);
+		validateCategoryName(value, setSubCategoryNameError);
+	};
+
+	// リネーム時の入力ハンドラ
+	const handleRenameCategoryNameChange = (
+		e: React.ChangeEvent<HTMLInputElement>,
+	) => {
+		const value = e.target.value;
+		setNewCategoryName(value);
+		validateCategoryName(value, setCategoryRenameError);
+	};
+
+	// 新しい親カテゴリの作成処理 - バリデーション追加
+	const handleCreateParentCategory = async (e: React.MouseEvent) => {
+		// イベント伝播を防止
+		e.stopPropagation();
+		e.preventDefault();
+
+		if (!newParentCategory.trim()) return;
+		if (!onCreateParentCategory || !onAssignToParentCategory) {
+			toast.error("親カテゴリの作成機能が利用できません");
+			return;
+		}
+
+		// 先にバリデーションを実行
+		if (
+			!validateCategoryName(
+				newParentCategory.trim(),
+				setParentCategoryNameError,
+			)
+		) {
+			return;
+		}
+
+		try {
+			const validName = newParentCategory.trim();
+
+			try {
+				const category = await onCreateParentCategory(validName);
+				if (!category || !category.id) {
+					throw new Error("作成された親カテゴリの情報が不正です");
+				}
+				setSelectedParentCategory(category.id);
+				try {
+					await onAssignToParentCategory(group.id, category.id);
+					setNewParentCategory("");
+					setParentCategoryNameError(null);
+					toast.success("親カテゴリを作成し、ドメインを割り当てました");
+				} catch (assignError) {
+					console.error("親カテゴリの割り当てに失敗:", assignError);
+					toast.error(
+						"親カテゴリは作成されましたが、ドメインの割り当てに失敗しました",
+					);
+				}
+			} catch (error) {
+				console.error("親カテゴリの作成に失敗:", error);
+				toast.error(
+					error instanceof Error
+						? error.message
+						: "親カテゴリの作成に失敗しました",
+				);
+			}
+		} catch (error) {
+			console.error("親カテゴリの作成処理エラー:", error);
+			toast.error("親カテゴリの作成に失敗しました");
+		}
+	};
+
 	// 子カテゴリ追加機能 - 修正版: 重複チェックと処理中フラグを追加
 	const handleAddSubCategory = async () => {
 		// 空の場合や処理中の場合は何もしない
 		if (!newSubCategory.trim() || isProcessing) return;
 
+		// 先にバリデーションを実行
+		if (!validateCategoryName(newSubCategory.trim(), setSubCategoryNameError)) {
+			return;
+		}
+
 		// 既存のカテゴリと重複していないか確認
 		if (group.subCategories?.includes(newSubCategory.trim())) {
-			alert("このカテゴリ名は既に存在しています");
+			setSubCategoryNameError("このカテゴリ名は既に存在しています");
+			toast.error("このカテゴリ名は既に存在しています");
 			return;
 		}
 
@@ -142,6 +472,8 @@ export const CategoryKeywordModal = ({
 		setIsProcessing(true);
 
 		try {
+			const validName = newSubCategory.trim();
+
 			// 直接chrome.storage.localから保存されたタブを取得
 			const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
 
@@ -151,10 +483,7 @@ export const CategoryKeywordModal = ({
 				if (tab.id === group.id) {
 					return {
 						...tab,
-						subCategories: [
-							...(tab.subCategories || []),
-							newSubCategory.trim(),
-						],
+						subCategories: [...(tab.subCategories || []), validName],
 					};
 				}
 				return tab;
@@ -164,10 +493,13 @@ export const CategoryKeywordModal = ({
 			await chrome.storage.local.set({ savedTabs: updatedTabs });
 
 			// カテゴリを追加したら、それをアクティブにする
-			setActiveCategory(newSubCategory.trim());
+			setActiveCategory(validName);
 			setNewSubCategory("");
+			setSubCategoryNameError(null);
+			toast.success(`新しいカテゴリ「${validName}」を追加しました`);
 		} catch (error) {
 			console.error("子カテゴリ追加エラー:", error);
+			toast.error("カテゴリの追加に失敗しました");
 		} finally {
 			// 処理完了後にフラグをリセット
 			setIsProcessing(false);
@@ -198,7 +530,7 @@ export const CategoryKeywordModal = ({
 			if (group.subCategories && group.subCategories.length > 1) {
 				// 削除したカテゴリ以外のカテゴリを選択
 				const updatedSubCategories = group.subCategories.filter(
-					(cat) => cat !== categoryToDelete,
+					(cat: string) => cat !== categoryToDelete,
 				);
 				if (updatedSubCategories.length > 0) {
 					setActiveCategory(updatedSubCategories[0]);
@@ -250,15 +582,29 @@ export const CategoryKeywordModal = ({
 		if (!newCategoryName.trim() || newCategoryName.trim() === activeCategory) {
 			setIsRenaming(false);
 			setNewCategoryName("");
+			setCategoryRenameError(null);
 			return;
 		}
 
 		// すでに処理中の場合は何もしない
 		if (isProcessing) return;
 
+		// 先にバリデーションを実行
+		if (!validateCategoryName(newCategoryName.trim(), setCategoryRenameError)) {
+			// 入力フィールドにフォーカスを戻す
+			setTimeout(() => {
+				const inputElement = document.querySelector(
+					"input[data-rename-input]",
+				) as HTMLInputElement;
+				if (inputElement) inputElement.focus();
+			}, 50);
+			return;
+		}
+
 		// 既存のカテゴリと重複していないか確認
 		if (group.subCategories?.includes(newCategoryName.trim())) {
-			alert("このカテゴリ名は既に存在しています");
+			setCategoryRenameError("このカテゴリ名は既に存在しています");
+			toast.error("このカテゴリ名は既に存在しています");
 			// 入力フィールドにフォーカスを戻す
 			setTimeout(() => {
 				const inputElement = document.querySelector(
@@ -272,6 +618,8 @@ export const CategoryKeywordModal = ({
 		setIsProcessing(true);
 
 		try {
+			const validName = newCategoryName.trim();
+
 			// 直接chrome.storage.localから保存されたタブを取得
 			const { savedTabs = [] } = await chrome.storage.local.get("savedTabs");
 
@@ -281,14 +629,14 @@ export const CategoryKeywordModal = ({
 					// サブカテゴリの更新
 					const updatedSubCategories =
 						tab.subCategories?.map((cat) =>
-							cat === activeCategory ? newCategoryName.trim() : cat,
+							cat === activeCategory ? validName : cat,
 						) || [];
 
 					// カテゴリキーワードの更新
 					const updatedCategoryKeywords =
 						tab.categoryKeywords?.map((ck) => {
 							if (ck.categoryName === activeCategory) {
-								return { ...ck, categoryName: newCategoryName.trim() };
+								return { ...ck, categoryName: validName };
 							}
 							return ck;
 						}) || [];
@@ -296,7 +644,7 @@ export const CategoryKeywordModal = ({
 					// URLのサブカテゴリも更新
 					const updatedUrls = tab.urls.map((url) => {
 						if (url.subCategory === activeCategory) {
-							return { ...url, subCategory: newCategoryName.trim() };
+							return { ...url, subCategory: validName };
 						}
 						return url;
 					});
@@ -305,7 +653,7 @@ export const CategoryKeywordModal = ({
 					let updatedSubCategoryOrder = tab.subCategoryOrder || [];
 					if (updatedSubCategoryOrder.includes(activeCategory)) {
 						updatedSubCategoryOrder = updatedSubCategoryOrder.map((cat) =>
-							cat === activeCategory ? newCategoryName.trim() : cat,
+							cat === activeCategory ? validName : cat,
 						);
 					}
 
@@ -313,7 +661,7 @@ export const CategoryKeywordModal = ({
 					let updatedAllOrder = tab.subCategoryOrderWithUncategorized || [];
 					if (updatedAllOrder.includes(activeCategory)) {
 						updatedAllOrder = updatedAllOrder.map((cat) =>
-							cat === activeCategory ? newCategoryName.trim() : cat,
+							cat === activeCategory ? validName : cat,
 						);
 					}
 
@@ -333,17 +681,19 @@ export const CategoryKeywordModal = ({
 			await chrome.storage.local.set({ savedTabs: updatedTabs });
 
 			// アクティブカテゴリを新しい名前に更新
-			setActiveCategory(newCategoryName.trim());
+			setActiveCategory(validName);
 
 			// リネームモードを終了
 			setIsRenaming(false);
 			setNewCategoryName("");
+			setCategoryRenameError(null);
 
-			console.log(
-				`カテゴリ名を「${activeCategory}」から「${newCategoryName}」に変更しました`,
+			toast.success(
+				`カテゴリ名を「${activeCategory}」から「${validName}」に変更しました`,
 			);
 		} catch (error) {
 			console.error("カテゴリ名の変更中にエラーが発生しました:", error);
+			toast.error("カテゴリ名の変更に失敗しました");
 		} finally {
 			setIsProcessing(false);
 		}
@@ -353,8 +703,18 @@ export const CategoryKeywordModal = ({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent className="max-h-[80vh] overflow-y-auto">
-				<DialogHeader>
+			<DialogContent
+				className="max-h-[80vh] overflow-y-auto"
+				// モーダル全体のクリックイベント伝播を停止
+				onClick={(e) => e.stopPropagation()}
+				onPointerDown={(e) => e.stopPropagation()}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.stopPropagation();
+					}
+				}}
+			>
+				<DialogHeader className="text-left">
 					<DialogTitle>「{group.domain}」のカテゴリ管理</DialogTitle>
 					<DialogDescription>
 						カテゴリの追加、削除、リネーム、キーワード設定を行います。
@@ -377,12 +737,12 @@ export const CategoryKeywordModal = ({
 						<h4 className="text-md font-medium mb-2 text-gray-300">
 							新しい子カテゴリを追加
 						</h4>
-						<div className="flex">
+						<div className="flex flex-col">
 							<Input
 								value={newSubCategory}
-								onChange={(e) => setNewSubCategory(e.target.value)}
-								placeholder="新しいカテゴリ名を入力"
-								className="flex-grow p-2 border rounded"
+								onChange={handleSubCategoryNameChange}
+								placeholder="新しいカテゴリ名を入力 (25文字以内)"
+								className={`flex-grow p-2 border rounded ${subCategoryNameError ? "border-red-500" : ""}`}
 								onKeyDown={(e) => {
 									if (e.key === "Enter") {
 										e.preventDefault();
@@ -395,6 +755,11 @@ export const CategoryKeywordModal = ({
 									}
 								}}
 							/>
+							{subCategoryNameError && (
+								<p className="text-red-500 text-xs mt-1">
+									{subCategoryNameError}
+								</p>
+							)}
 						</div>
 					</div>
 
@@ -419,7 +784,7 @@ export const CategoryKeywordModal = ({
 														title="カテゴリ名を変更"
 														disabled={!activeCategory}
 													>
-														<Settings size={14} />
+														<Edit size={14} />
 														<span className="lg:inline hidden">名前を変更</span>
 													</Button>
 												</TooltipTrigger>
@@ -464,9 +829,9 @@ export const CategoryKeywordModal = ({
 										</div>
 										<Input
 											value={newCategoryName}
-											onChange={(e) => setNewCategoryName(e.target.value)}
-											placeholder="新しいカテゴリ名"
-											className="w-full p-2 border rounded"
+											onChange={handleRenameCategoryNameChange}
+											placeholder="新しいカテゴリ名 (25文字以内)"
+											className={`w-full p-2 border rounded ${categoryRenameError ? "border-red-500" : ""}`}
 											autoFocus
 											data-rename-input="true"
 											onBlur={handleSaveRenaming}
@@ -480,6 +845,11 @@ export const CategoryKeywordModal = ({
 												}
 											}}
 										/>
+										{categoryRenameError && (
+											<p className="text-red-500 text-xs mt-1">
+												{categoryRenameError}
+											</p>
+										)}
 									</div>
 								)}
 
@@ -495,15 +865,14 @@ export const CategoryKeywordModal = ({
 										</p>
 										<div className="flex justify-end gap-2">
 											<Button
-												variant="secondary"
+												variant="ghost"
 												size="sm"
 												onClick={() => setShowDeleteConfirm(false)}
-												className="text-primary-foreground px-2 py-1 rounded cursor-pointer"
+												className="px-2 py-1 rounded cursor-pointer"
 											>
 												キャンセル
 											</Button>
 											<Button
-												variant="destructive"
 												size="sm"
 												onClick={handleDeleteCategory}
 												className="flex items-center gap-1 cursor-pointer"
@@ -545,7 +914,7 @@ export const CategoryKeywordModal = ({
 								>
 									「{activeCategory}」カテゴリのキーワード
 									<span className="text-xs text-gray-500 ml-2">
-										（タイトルにこれらの単語が含まれていると自動的にこのカテゴリに分類されます）
+										（タイトルにキーワードが含まれていると自動的にこのカテゴリに分類されます）
 									</span>
 								</Label>
 

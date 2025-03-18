@@ -55,6 +55,7 @@ import {
 import { ThemeProvider } from "@/components/theme-provider";
 import { SortableDomainCard } from "@/features/saved-tabs/components/SortableDomainCard";
 import { CategoryGroup } from "@/features/saved-tabs/components/CategoryGroup";
+import { Header } from "@/features/saved-tabs/components/Header"; // ヘッダーコンポーネントをインポート
 
 const SavedTabs = () => {
 	const [tabGroups, setTabGroups] = useState<TabGroup[]>([]);
@@ -628,36 +629,8 @@ const SavedTabs = () => {
 		<>
 			<Toaster />
 			<div className="container mx-auto px-4 py-2 min-h-screen">
-				<div className="flex justify-between items-center mb-4">
-					<h1 className="text-3xl font-bold text-foreground">Tab Manager</h1>
-					<div className="flex items-center gap-4">
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => chrome.runtime.openOptionsPage()}
-									className="flex items-center gap-2 cursor-pointer"
-									title="設定"
-								>
-									<Settings size={16} />
-									<span className="lg:inline hidden">設定</span>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="top" className="lg:hidden block">
-								設定
-							</TooltipContent>
-						</Tooltip>
-						<div className="text-sm text-muted-foreground space-x-4">
-							<p>
-								タブ:
-								{tabGroups.reduce((sum, group) => sum + group.urls.length, 0)}
-							</p>
-							<p>ドメイン: {tabGroups.length}</p>
-						</div>
-					</div>
-				</div>
-
+				<Header tabGroups={tabGroups} />{" "}
+				{/* 既存のヘッダーをコンポーネントに置き換え */}
 				{isLoading ? (
 					<div className="flex items-center justify-center min-h-[200px]">
 						<div className="text-xl text-foreground">読み込み中...</div>
@@ -757,7 +730,6 @@ const SavedTabs = () => {
 						</DndContext>
 					</>
 				)}
-
 				{/* 子カテゴリ追加モーダル */}
 				{showSubCategoryModal && (
 					<Dialog
@@ -779,7 +751,7 @@ const SavedTabs = () => {
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
-											variant="secondary"
+											variant="ghost"
 											size="sm"
 											onClick={() => setShowSubCategoryModal(false)}
 											className="text-secondary-foreground px-2 py-1 rounded cursor-pointer"
