@@ -39,6 +39,10 @@ export default defineBackground(() => {
 		processed: boolean; // 処理済みフラグを追加
 	} | null = null;
 
+	// タブ作成を制御するためのフラグ (新規追加)
+	let isCreatingSavedTabsPage = false;
+	let savedTabsPageId: number | null = null;
+
 	// コンテキストメニューの作成と初期化（バックグラウンド開始時に実行）
 	createContextMenus();
 
@@ -111,6 +115,9 @@ export default defineBackground(() => {
 										console.error("通知表示エラー:", notificationError);
 									}
 
+									// saved-tabs.htmlページを開く処理を追加
+									const savedTabsTabId = await openSavedTabsPage();
+
 									// タブを閉じる処理を追加
 									try {
 										if (tab.id) {
@@ -134,41 +141,7 @@ export default defineBackground(() => {
 									// ユーザー設定を取得
 									const settings = await getUserSettings();
 
-									// 保存されたタブを表示するページを開く
-									const savedTabsUrl = chrome.runtime.getURL("saved-tabs.html");
-									console.log("開くURL:", savedTabsUrl);
-
-									// 既存のsaved-tabsページを探す
-									const existingTabs = await chrome.tabs.query({
-										url: savedTabsUrl,
-									});
-									let savedTabsTabId: number | undefined;
-
-									if (existingTabs.length > 0) {
-										console.log("既存のタブを表示します:", existingTabs[0].id);
-										savedTabsTabId = existingTabs[0].id;
-										if (savedTabsTabId)
-											await chrome.tabs.update(savedTabsTabId, {
-												active: true,
-											});
-									} else {
-										console.log("新しいタブを作成します");
-										const newTab = await chrome.tabs.create({
-											url: savedTabsUrl,
-										});
-										savedTabsTabId = newTab.id;
-										if (savedTabsTabId) {
-											console.log(
-												"新しいタブをピン留めします:",
-												savedTabsTabId,
-											);
-											await chrome.tabs.update(savedTabsTabId, {
-												pinned: true,
-											});
-										}
-									}
-
-									// タブを保存
+									// 先にタブを保存してから、保存完了後にsaved-tabsページを開く
 									await saveTabsWithAutoCategory(tabs);
 									console.log("すべてのタブの保存が完了しました");
 
@@ -191,50 +164,41 @@ export default defineBackground(() => {
 										console.error("通知表示エラー:", notificationError);
 									}
 
-									// 閉じるタブを収集 (chrome-extension:// と saved-tabs.html を除く)
-									const tabIdsToClose: number[] = [];
+									// 保存処理の完了を確実に待ってからsaved-tabsページを開く
+									console.log("saved-tabsページを開きます...");
+									const savedTabsTabId = await openSavedTabsPage();
+									console.log(`saved-tabsページID: ${savedTabsTabId}`);
 
-									for (const tab of tabs) {
-										// 次の条件を満たすタブのみ閉じる:
-										// 1. タブIDが存在する
-										// 2. saved-tabsページではない
-										// 3. chrome-extensionではない
-										if (
-											tab.id &&
-											tab.id !== savedTabsTabId &&
-											tab.url &&
-											!settings.excludePatterns.some((pattern) =>
-												tab.url?.includes(pattern),
-											)
-										) {
-											tabIdsToClose.push(tab.id);
-										}
-									}
+									// 少し待機してから重複タブをチェック (安全対策)
+									setTimeout(async () => {
+										try {
+											const checkTabs = await chrome.tabs.query({});
+											const savedTabsPages = checkTabs.filter(
+												(tab) =>
+													tab.url?.includes("saved-tabs.html") ||
+													tab.pendingUrl?.includes("saved-tabs.html"),
+											);
 
-									// タブを閉じる
-									if (tabIdsToClose.length > 0) {
-										console.log(
-											`${tabIdsToClose.length}個のタブを閉じます:`,
-											tabIdsToClose,
-										);
-
-										// タブを一つずつ閉じるためのループ（エラーハンドリングのため）
-										for (const tabId of tabIdsToClose) {
-											try {
-												await chrome.tabs.remove(tabId);
-												console.log(`タブID ${tabId} を閉じました`);
-											} catch (error: unknown) {
-												console.error(
-													`タブID ${tabId} を閉じる際にエラーが発生しました:`,
-													error instanceof Error ? error.message : error,
+											// メインのタブ以外は閉じる
+											if (savedTabsPages.length > 1) {
+												console.log(
+													`追加チェック: ${savedTabsPages.length - 1}個の重複タブを閉じます`,
 												);
+												for (const tab of savedTabsPages) {
+													if (tab.id !== savedTabsTabId && tab.id) {
+														try {
+															await chrome.tabs.remove(tab.id);
+															console.log(`重複タブ ${tab.id} を閉じました`);
+														} catch (e) {
+															console.error("重複タブを閉じる際にエラー:", e);
+														}
+													}
+												}
 											}
+										} catch (e) {
+											console.error("追加タブチェック中にエラー:", e);
 										}
-
-										console.log("すべてのタブを閉じました");
-									} else {
-										console.log("閉じるべきタブはありません");
-									}
+									}, 500);
 								}
 							} catch (error) {
 								console.error("コンテキストメニュー処理エラー:", error);
@@ -253,6 +217,125 @@ export default defineBackground(() => {
 			console.error(
 				"chrome.contextMenus APIが利用できません。manifest.jsonのパーミッションを確認してください。",
 			);
+		}
+	}
+
+	// 保存されたタブを表示する共通関数を改善
+	async function openSavedTabsPage() {
+		// 既に作成中の場合は待機
+		if (isCreatingSavedTabsPage) {
+			console.log("既にsaved-tabsページの作成処理が実行中です。待機します...");
+			// 既存のタブIDを返す
+			if (savedTabsPageId) {
+				console.log(`既存のsaved-tabsページのIDを返します: ${savedTabsPageId}`);
+				return savedTabsPageId;
+			}
+
+			// 処理中なのでダミーの値を返す（後で正しいIDに置き換えられる）
+			return -1;
+		}
+
+		// 作成中フラグをセット
+		isCreatingSavedTabsPage = true;
+
+		try {
+			// 保存されたタブを表示するページのURLを構築
+			const savedTabsUrl = chrome.runtime.getURL("saved-tabs.html");
+			console.log("開くURL:", savedTabsUrl);
+
+			// 既存のタブIDが保存されていれば再利用
+			if (savedTabsPageId) {
+				try {
+					// タブが実際に存在するか確認
+					const tab = await chrome.tabs.get(savedTabsPageId);
+					if (tab) {
+						console.log(
+							`保存されていたタブID ${savedTabsPageId} を再利用します`,
+						);
+						await chrome.tabs.update(savedTabsPageId, { active: true });
+						return savedTabsPageId;
+					}
+				} catch (e) {
+					// タブが見つからない場合は続行して新しく作成
+					console.log(
+						"保存されていたタブIDは存在しませんでした。新規作成します。",
+					);
+					savedTabsPageId = null;
+				}
+			}
+
+			// まず既存のすべてのタブを取得
+			const allTabs = await chrome.tabs.query({});
+			console.log(`全タブ数: ${allTabs.length}`);
+
+			// saved-tabs.htmlを含むタブを検索（より広範な検索条件）
+			const savedTabsPages = allTabs.filter((tab) => {
+				return (
+					tab.url?.includes("saved-tabs.html") ||
+					tab.pendingUrl?.includes("saved-tabs.html")
+				);
+			});
+
+			console.log(`既存のsaved-tabsページ数: ${savedTabsPages.length}`);
+
+			// 既存のタブがある場合
+			if (savedTabsPages.length > 0) {
+				// 最初のタブを使用
+				const mainTab = savedTabsPages[0];
+				savedTabsPageId = mainTab.id || null;
+
+				console.log(`既存のタブを使用します: ${savedTabsPageId}`);
+
+				if (savedTabsPageId) {
+					await chrome.tabs.update(savedTabsPageId, { active: true });
+
+					// 重複タブを閉じる（最初のタブ以外）
+					if (savedTabsPages.length > 1) {
+						console.log(`${savedTabsPages.length - 1}個の重複タブを閉じます`);
+						for (let i = 1; i < savedTabsPages.length; i++) {
+							const tabId = savedTabsPages[i].id;
+							if (typeof tabId === "number") {
+								try {
+									await chrome.tabs.remove(tabId);
+									console.log(`重複タブ ${tabId} を閉じました`);
+								} catch (e) {
+									console.error("重複タブを閉じる際にエラー:", e);
+								}
+							}
+						}
+					}
+				}
+
+				return savedTabsPageId;
+			}
+
+			// 新しいタブを作成
+			console.log("新しいタブを作成します");
+
+			// タブを同期的に作成してIDを保存
+			const newTab = await chrome.tabs.create({ url: savedTabsUrl });
+			savedTabsPageId = newTab.id || null;
+
+			console.log(
+				`新しいsaved-tabsページを作成しました。ID: ${savedTabsPageId}`,
+			);
+
+			if (savedTabsPageId) {
+				try {
+					await chrome.tabs.update(savedTabsPageId, { pinned: true });
+					console.log(`タブ ${savedTabsPageId} をピン留めしました`);
+				} catch (e) {
+					console.error("ピン留め設定中にエラー:", e);
+				}
+			}
+
+			return savedTabsPageId;
+		} catch (error) {
+			console.error("saved-tabsページを開く際にエラーが発生しました:", error);
+			return null;
+		} finally {
+			// 処理完了後にフラグをリセット
+			isCreatingSavedTabsPage = false;
 		}
 	}
 
@@ -554,28 +637,8 @@ export default defineBackground(() => {
 				console.error("通知表示エラー:", notificationError);
 			}
 
-			// 保存されたタブを表示するページを開く
-			const savedTabsUrl = chrome.runtime.getURL("saved-tabs.html");
-			console.log("開くURL:", savedTabsUrl);
-
-			// 既存のsaved-tabsページを探す
-			const existingTabs = await chrome.tabs.query({ url: savedTabsUrl });
-			let savedTabsTabId: number | undefined;
-
-			if (existingTabs.length > 0) {
-				console.log("既存のタブを表示します:", existingTabs[0].id);
-				savedTabsTabId = existingTabs[0].id;
-				if (savedTabsTabId)
-					await chrome.tabs.update(savedTabsTabId, { active: true });
-			} else {
-				console.log("新しいタブを作成します");
-				const newTab = await chrome.tabs.create({ url: savedTabsUrl });
-				savedTabsTabId = newTab.id;
-				if (savedTabsTabId) {
-					console.log("新しいタブをピン留めします:", savedTabsTabId);
-					await chrome.tabs.update(savedTabsTabId, { pinned: true });
-				}
-			}
+			// 共通関数を使ってsaved-tabsページを開く
+			const savedTabsTabId = await openSavedTabsPage();
 
 			// 閉じるタブを収集 (chrome-extension:// と saved-tabs.html を除く)
 			const tabIdsToClose: number[] = [];
