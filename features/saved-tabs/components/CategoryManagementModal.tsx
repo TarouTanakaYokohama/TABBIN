@@ -24,6 +24,14 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { z } from "zod"; // zodをインポート
+
+// カテゴリ名のバリデーションスキーマ
+const categoryNameSchema = z
+	.string()
+	.trim()
+	.min(1, { message: "カテゴリ名を入力してください" })
+	.max(25, { message: "カテゴリ名は25文字以下にしてください" });
 
 // 型定義
 interface AvailableDomain {
@@ -74,6 +82,25 @@ export const CategoryManagementModal = ({
 	const [localCategoryName, setLocalCategoryName] = useState("");
 	const modalContentRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const [categoryNameError, setCategoryNameError] = useState<string | null>(
+		null,
+	); // エラー状態を追加
+
+	// 入力値バリデーション関数
+	const validateCategoryName = (name: string) => {
+		try {
+			categoryNameSchema.parse(name);
+			setCategoryNameError(null);
+			return true;
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				setCategoryNameError(
+					error.errors[0]?.message || "カテゴリ名が無効です",
+				);
+			}
+			return false;
+		}
+	};
 
 	// モーダルが開いたときの初期化
 	useEffect(() => {
@@ -82,6 +109,7 @@ export const CategoryManagementModal = ({
 			setLocalCategoryName(category.name);
 			setIsRenaming(false);
 			setIsProcessing(false);
+			setCategoryNameError(null); // エラー状態をリセット
 			loadAvailableDomains();
 		}
 	}, [isOpen, category]);
@@ -120,6 +148,7 @@ export const CategoryManagementModal = ({
 	const handleStartRenaming = () => {
 		setNewCategoryName(localCategoryName);
 		setIsRenaming(true);
+		setCategoryNameError(null); // エラー状態をリセット
 		// 入力フィールドにフォーカス
 		// 即座にフォーカスと選択を行う
 		requestAnimationFrame(() => {
@@ -134,6 +163,14 @@ export const CategoryManagementModal = ({
 	const handleCancelRenaming = () => {
 		setIsRenaming(false);
 		setNewCategoryName(localCategoryName);
+		setCategoryNameError(null); // エラー状態をリセット
+	};
+
+	// 入力変更時の処理
+	const handleCategoryNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const value = e.target.value;
+		setNewCategoryName(value);
+		validateCategoryName(value); // リアルタイムバリデーション
 	};
 
 	// カテゴリ名の変更処理
@@ -160,6 +197,12 @@ export const CategoryManagementModal = ({
 
 		if (isProcessing) {
 			console.log("Modal - 処理中のため終了");
+			return;
+		}
+
+		// バリデーション
+		if (!validateCategoryName(newCategoryName.trim())) {
+			// エラーがある場合、処理を中止
 			return;
 		}
 
@@ -478,9 +521,9 @@ export const CategoryManagementModal = ({
 								<Input
 									ref={inputRef}
 									value={newCategoryName}
-									onChange={(e) => setNewCategoryName(e.target.value)}
-									placeholder="新しいカテゴリ名"
-									className="w-full p-2 border rounded"
+									onChange={handleCategoryNameChange}
+									placeholder="新しいカテゴリ名 (25文字以内)"
+									className={`w-full p-2 border rounded ${categoryNameError ? "border-red-500" : ""}`}
 									autoFocus
 									onBlur={() => {
 										if (isProcessing) {
@@ -488,8 +531,15 @@ export const CategoryManagementModal = ({
 										}
 
 										const trimmedName = newCategoryName.trim();
-										if (trimmedName && trimmedName !== localCategoryName) {
+										if (
+											trimmedName &&
+											trimmedName !== localCategoryName &&
+											!categoryNameError
+										) {
 											handleSaveRenaming();
+										} else if (categoryNameError) {
+											// エラーがある場合はフォーカスを維持
+											inputRef.current?.focus();
 										} else {
 											handleCancelRenaming();
 										}
@@ -501,6 +551,11 @@ export const CategoryManagementModal = ({
 										}
 									}}
 								/>
+								{categoryNameError && (
+									<p className="text-red-500 text-xs mt-1">
+										{categoryNameError}
+									</p>
+								)}
 							</div>
 						) : (
 							<div className="p-2 border rounded bg-secondary/20">

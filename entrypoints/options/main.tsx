@@ -37,6 +37,9 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area"; // ScrollAreaを追加
+// トースト通知用のインポート
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 import { isPeriodShortening } from "@/utils/isPeriodShortening";
 import { SubCategoryKeywordManager } from "@/features/options/SubCategoryKeywordManager";
@@ -496,6 +499,12 @@ const OptionsPage = () => {
 
 		if (!periodToApply) return;
 
+		// 「自動削除しない」の場合は確認なしで直接適用
+		if (periodToApply === "never") {
+			applyAutoDeletePeriod();
+			return;
+		}
+
 		// 選択した期間のラベルを取得
 		const selectedOption = autoDeleteOptions.find(
 			(opt) => opt.value === periodToApply,
@@ -539,6 +548,19 @@ const OptionsPage = () => {
 				setIsSaved(true);
 				setTimeout(() => setIsSaved(false), 2000);
 
+				// トースト通知を表示
+				if (periodToApply === "never") {
+					toast.success("自動削除を無効にしました");
+				} else {
+					const selectedOption = autoDeleteOptions.find(
+						(opt) => opt.value === periodToApply,
+					);
+					const periodLabel = selectedOption
+						? selectedOption.label
+						: periodToApply;
+					toast.success(`自動削除期間を「${periodLabel}」に設定しました`);
+				}
+
 				// バックグラウンドに通知
 				const needsTimestampUpdate =
 					periodToApply === "30sec" || periodToApply === "1min";
@@ -560,6 +582,8 @@ const OptionsPage = () => {
 			setPendingAutoDeletePeriod(undefined);
 		} catch (error) {
 			console.error("自動削除期間の保存エラー:", error);
+			// エラー時のトースト通知
+			toast.error("設定の保存に失敗しました");
 		}
 	};
 
@@ -573,6 +597,9 @@ const OptionsPage = () => {
 
 	return (
 		<div className="mx-auto pt-10 bg-background min-h-screen">
+			{/* Toasterコンポーネントを追加 */}
+			<Toaster position="top-right" />
+
 			<header className="flex justify-between items-center mb-8 px-6">
 				<h1 className="text-3xl font-bold text-foreground">オプション</h1>
 

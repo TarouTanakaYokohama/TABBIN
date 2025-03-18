@@ -38,6 +38,13 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
+import { z } from "zod"; // zodをインポート
+
+// カテゴリ名のバリデーションスキーマ
+const categoryNameSchema = z
+	.string()
+	.min(1, "カテゴリ名を入力してください")
+	.max(25, "カテゴリ名は25文字以下にしてください");
 
 interface CategoryModalProps {
 	onClose: () => void;
@@ -47,6 +54,8 @@ interface CategoryModalProps {
 export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 	// 新規カテゴリ名の状態
 	const [newCategoryName, setNewCategoryName] = useState("");
+	// 入力エラー状態を追加
+	const [nameError, setNameError] = useState<string | null>(null);
 
 	// カテゴリリストの状態
 	const [categories, setCategories] = useState<ParentCategory[]>([]);
@@ -174,9 +183,19 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 
 	// 新規カテゴリ作成ハンドラ
 	const handleCreateCategory = async () => {
-		if (!newCategoryName.trim()) {
-			toast.error("カテゴリ名を入力してください");
-			return;
+		// 入力値のバリデーション
+		try {
+			categoryNameSchema.parse(newCategoryName);
+			// バリデーション成功時はエラーをリセット
+			setNameError(null);
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				// zodエラーメッセージを抽出して表示
+				const errorMessage = error.errors[0]?.message || "カテゴリ名が無効です";
+				setNameError(errorMessage);
+				toast.error(errorMessage);
+				return;
+			}
 		}
 
 		try {
@@ -203,6 +222,22 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 			}
 		} finally {
 			setIsLoading(false);
+		}
+	};
+
+	// 入力フィールドの変更ハンドラー
+	const handleCategoryNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const value = e.target.value;
+		setNewCategoryName(value);
+
+		// 入力時にリアルタイムでバリデーション
+		try {
+			categoryNameSchema.parse(value);
+			setNameError(null);
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				setNameError(error.errors[0]?.message || "カテゴリ名が無効です");
+			}
 		}
 	};
 
@@ -440,13 +475,17 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 								<Input
 									id="newCategory"
 									value={newCategoryName}
-									onChange={(e) => setNewCategoryName(e.target.value)}
-									placeholder="新しいカテゴリ名を入力"
+									onChange={handleCategoryNameChange}
+									placeholder="新しいカテゴリ名を入力 (25文字以内)"
+									className={nameError ? "border-red-500" : ""}
 								/>
+								{nameError && (
+									<p className="text-red-500 text-xs mt-1">{nameError}</p>
+								)}
 							</div>
 							<Button
 								onClick={handleCreateCategory}
-								disabled={!newCategoryName.trim() || isLoading}
+								disabled={!newCategoryName.trim() || !!nameError || isLoading}
 							>
 								作成
 							</Button>
@@ -460,7 +499,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 									selectedCategoryId &&
 									selectedCategoryId !== "uncategorized" && (
 										<Button
-											variant="destructive"
+											variant="secondary"
 											size="sm"
 											onClick={handleDeleteClick}
 											disabled={isLoading}
@@ -539,7 +578,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 															toggleDomainSelection(group.id)
 														}
 														// 未分類カテゴリでも操作可能にする（但し警告メッセージが表示される）
-														disabled={isLoading}
+														disabled={isLoading || !selectedCategoryId}
 													/>
 													<div className="flex-1">
 														<Label
@@ -548,9 +587,14 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 														>
 															{group.domain}
 														</Label>
-
 														{belongsToCategory && (
-															<div className="text-xs text-muted-foreground flex items-center mt-1">
+															<button
+																type="button"
+																className="text-xs text-muted-foreground flex items-center mt-1 cursor-pointer w-full text-left bg-transparent border-0 p-0 hover:text-foreground"
+																onClick={() => toggleDomainSelection(group.id)}
+																disabled={isLoading || !selectedCategoryId}
+																aria-label={`${selectedCategoryId === belongsToCategory.id ? "現在選択中のカテゴリ" : "所属カテゴリ"}: ${belongsToCategory.name}`}
+															>
 																<span className="inline-block w-2 h-2 rounded-full bg-primary mr-1" />
 																<span>
 																	{selectedCategoryId === belongsToCategory.id
@@ -558,14 +602,20 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 																		: "所属カテゴリ: "}
 																	{belongsToCategory.name}
 																</span>
-															</div>
+															</button>
 														)}
 
 														{!belongsToCategory && (
-															<div className="text-xs text-muted-foreground flex items-center mt-1">
+															<button
+																type="button"
+																className="text-xs text-muted-foreground flex items-center mt-1 cursor-pointer w-full text-left bg-transparent border-0 p-0 hover:text-foreground"
+																onClick={() => toggleDomainSelection(group.id)}
+																disabled={isLoading || !selectedCategoryId}
+																aria-label="未分類のドメイン"
+															>
 																<span className="inline-block w-2 h-2 rounded-full bg-muted-foreground mr-1" />
 																<span>未分類</span>
-															</div>
+															</button>
 														)}
 													</div>
 												</div>
@@ -616,7 +666,6 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 								e.preventDefault();
 								handleDeleteCategory();
 							}}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 							disabled={isLoading}
 						>
 							削除する

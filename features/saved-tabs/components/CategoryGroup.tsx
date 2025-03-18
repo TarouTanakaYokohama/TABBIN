@@ -333,7 +333,7 @@ export const CategoryGroup = ({
 				onDragLeave={handleDragLeave}
 				onDrop={handleDrop}
 			>
-				<CardHeader className="flex-row justify-between items-center mb-2">
+				<CardHeader className="flex-row justify-between items-baseline my-2">
 					<div
 						className="flex items-center gap-3 flex-grow cursor-grab hover:cursor-grab active:cursor-grabbing"
 						{...attributes}
@@ -342,18 +342,20 @@ export const CategoryGroup = ({
 						<span className="text-foreground">
 							<GripVertical size={16} aria-hidden="true" />
 						</span>
-						<h2 className="text-xl font-bold text-foreground">
-							{category.name}
-						</h2>
-						<span className="text-muted-foreground">
-							({domains.length}ドメイン / {allUrls.length}タブ)
-						</span>
+						<div className="flex gap-1 items-center">
+							<h2 className="text-xl font-bold text-foreground">
+								{category.name}
+							</h2>
+							<span className="text-muted-foreground">
+								({domains.length}ドメイン / {allUrls.length}タブ)
+							</span>
+						</div>
 					</div>
 					<div className="flex-shrink-0 ml-2 pointer-events-auto flex gap-2">
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button
-									variant="outline"
+									variant="secondary"
 									size="sm"
 									onClick={() => {
 										console.log("CategoryGroup - カテゴリ管理ボタンクリック", {

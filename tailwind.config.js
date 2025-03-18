@@ -1,12 +1,12 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-	darkMode: ["class"], // クラスベースのダークモードを有効化
+	darkMode: ["class"],
 	content: [
 		"./pages/**/*.{ts,tsx}",
 		"./components/**/*.{ts,tsx}",
 		"./app/**/*.{ts,tsx}",
 		"./src/**/*.{ts,tsx}",
-		"./entrypoints/**/*.{ts,tsx}", // entrypointsディレクトリも含める
+		"./entrypoints/**/*.{ts,tsx}",
 	],
 	theme: {
 		container: {

@@ -452,7 +452,7 @@ export const SubCategoryKeywordManager = ({
 									<Button
 										type="button"
 										onClick={cancelRename}
-										variant="outline"
+										variant="ghost"
 										size="icon"
 										className="rounded-l-none"
 										title="キャンセル"

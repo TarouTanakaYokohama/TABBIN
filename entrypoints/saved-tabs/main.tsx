@@ -751,7 +751,7 @@ const SavedTabs = () => {
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
-											variant="secondary"
+											variant="ghost"
 											size="sm"
 											onClick={() => setShowSubCategoryModal(false)}
 											className="text-secondary-foreground px-2 py-1 rounded cursor-pointer"

@@ -19,7 +19,7 @@ export const Header = ({ tabGroups }: HeaderProps) => {
 	return (
 		<div className="flex justify-between items-center mb-4">
 			<h1 className="text-3xl font-bold text-foreground">TABBIN</h1>
-			<div className="flex items-center gap-4">
+			<div className="flex items-center gap-1">
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button
