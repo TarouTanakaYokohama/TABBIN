@@ -28,6 +28,11 @@ import { ExternalLink, GripVertical, Settings, Trash } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CategoryKeywordModal } from './CategoryKeywordModal'
 import { SortableCategorySection } from './SortableCategorySection'
+import {
+  createParentCategory,
+  assignDomainToCategory,
+  getParentCategories,
+} from '@/utils/storage'
 
 // SortableDomainCardコンポーネントを修正
 export const SortableDomainCard = ({
@@ -51,6 +56,7 @@ export const SortableDomainCard = ({
   const [allCategoryIds, setAllCategoryIds] = useState<string[]>([])
   // カテゴリ更新フラグ - カテゴリ削除後のリフレッシュ用
   const [categoryUpdateTrigger, setCategoryUpdateTrigger] = useState(0)
+  const [parentCategories, setParentCategories] = useState<ParentCategory[]>([])
 
   // カード内のタブをサブカテゴリごとに整理
   const organizeUrlsByCategory = () => {
@@ -94,25 +100,25 @@ export const SortableDomainCard = ({
     }
     console.log('使用されているカテゴリ:', Array.from(usedCategories))
 
-    // 通常のカテゴリで内容のあるもの
+    // 通常のカテゴリで内容のあるもの - 空のカテゴリは表示しない
     const regularCategories = (group.subCategories || []).filter(
-      (a, b) =>
-        usedCategories.has(a) ||
-        (categorizedUrls[a] && categorizedUrls[a].length > 0),
+      categoryName =>
+        categorizedUrls[categoryName] &&
+        categorizedUrls[categoryName].length > 0,
     )
     console.log('表示すべき通常カテゴリ:', regularCategories)
 
-    // 未分類カテゴリに内容がある場合
+    // 未分類カテゴリに内容がある場合のみ表示
     const hasUncategorized =
       categorizedUrls.__uncategorized &&
       categorizedUrls.__uncategorized.length > 0
 
-    // すでに保存された順序があれば利用
+    // 順序保存ロジックは維持
     if (
       group.subCategoryOrderWithUncategorized &&
       group.subCategoryOrderWithUncategorized.length > 0
     ) {
-      // まず現在の順序をフィルタリング
+      // 保存された順序から、現在内容のあるカテゴリだけをフィルタリング
       const filteredOrder = group.subCategoryOrderWithUncategorized.filter(
         id => {
           if (id === '__uncategorized') return hasUncategorized
@@ -127,16 +133,16 @@ export const SortableDomainCard = ({
         }
       }
 
-      // 未分類があれば末尾に追加
+      // 未分類があれば追加
       if (hasUncategorized && !filteredOrder.includes('__uncategorized')) {
         filteredOrder.push('__uncategorized')
       }
 
-      console.log('保存された順序から構築:', filteredOrder)
+      console.log('保存された順序から構築（空カテゴリ除外）:', filteredOrder)
       return filteredOrder
     }
 
-    // 新規作成: カテゴリ順序を初期化
+    // 新規作成: カテゴリ順序を初期化 (空カテゴリ除外)
     const initialOrder = [...regularCategories]
     if (hasUncategorized) {
       initialOrder.push('__uncategorized')
@@ -392,33 +398,115 @@ export const SortableDomainCard = ({
     }
   }
 
-  // カテゴリ内の全タブを削除する関数を追加
-  const handleDeleteAllTabsInCategory = async (
-    categoryName: string,
-    urlsToDelete: Array<{ url: string }>,
-  ) => {
-    try {
-      // 削除するURLのリストを作成
-      const urlsToRemove = urlsToDelete.map(item => item.url)
+  // カテゴリ内の全タブを削除する関数を修正
+  const handleDeleteAllTabsInCategory = useCallback(
+    async (categoryName: string, urlsToDelete: Array<{ url: string }>) => {
+      try {
+        // 削除するURLリスト
+        const urlsToRemove = urlsToDelete.map(item => item.url)
+        console.log(
+          `「${categoryName}」から${urlsToRemove.length}件のタブを削除します`,
+        )
 
-      // 削除対象のURL以外の全URLを取得
-      const remainingUrls = group.urls.filter(
-        urlItem => !urlsToRemove.includes(urlItem.url),
-      )
+        return new Promise<void>(resolve => {
+          // ストレージから現在の状態を取得
+          chrome.storage.local.get('savedTabs', ({ savedTabs = [] }) => {
+            // 対象グループを特定
+            const targetGroup = savedTabs.find(
+              (tab: TabGroup) => tab.id === group.id,
+            )
+            if (!targetGroup) {
+              console.error('削除対象のグループが見つかりません')
+              resolve()
+              return
+            }
 
-      // グループの更新
-      await handleUpdateUrls(group.id, remainingUrls)
+            // 残りのURLを計算
+            const remainingUrls = targetGroup.urls.filter(
+              (urlItem: { url: string; title: string; subCategory?: string }) =>
+                !urlsToRemove.includes(urlItem.url),
+            )
 
-      console.log(
-        `「${categoryName === '__uncategorized' ? '未分類' : categoryName}」カテゴリから${urlsToRemove.length}件のタブを削除しました`,
-      )
+            // 更新されたグループ
+            const updatedGroups = savedTabs.map((tab: TabGroup) =>
+              tab.id === group.id ? { ...tab, urls: remainingUrls } : tab,
+            )
 
-      // 表示を更新
-      setCategoryUpdateTrigger(prev => prev + 1)
-    } catch (error) {
-      console.error('カテゴリ内のタブ削除に失敗しました:', error)
+            // ストレージに保存
+            chrome.storage.local.set({ savedTabs: updatedGroups }, () => {
+              console.log(
+                `「${categoryName}」カテゴリのタブ削除完了。残り: ${remainingUrls.length}件`,
+              )
+
+              // URL数が0になったら親コンポーネントに通知
+              if (remainingUrls.length === 0 && handleUpdateUrls) {
+                handleUpdateUrls(group.id, [])
+              }
+
+              // カテゴリ表示を更新
+              setTimeout(() => {
+                const newActiveIds = getActiveCategoryIds()
+                setAllCategoryIds(newActiveIds)
+                setCategoryUpdateTrigger(prev => prev + 1)
+                resolve()
+              }, 100)
+            })
+          })
+        })
+      } catch (error) {
+        console.error('カテゴリ内タブ削除エラー:', error)
+      }
+    },
+    [group.id, getActiveCategoryIds, handleUpdateUrls],
+  )
+
+  // 親カテゴリデータをロードする
+  useEffect(() => {
+    const loadParentCategories = async () => {
+      try {
+        const categories = await getParentCategories()
+        setParentCategories(categories)
+      } catch (error) {
+        console.error('親カテゴリの読み込みに失敗しました:', error)
+      }
     }
-  }
+
+    loadParentCategories()
+  }, [])
+
+  // 親カテゴリ作成ハンドラ
+  const handleCreateParentCategory = useCallback(async (name: string) => {
+    try {
+      const newCategory = await createParentCategory(name)
+      setParentCategories(prev => [...prev, newCategory])
+      return newCategory
+    } catch (error) {
+      console.error('親カテゴリ作成エラー:', error)
+      throw error
+    }
+  }, [])
+
+  // ドメインを親カテゴリに割り当てるハンドラ
+  const handleAssignToParentCategory = useCallback(
+    async (groupId: string, categoryId: string) => {
+      try {
+        await assignDomainToCategory(groupId, categoryId)
+        // 必要に応じてUIを更新
+      } catch (error) {
+        console.error('ドメイン割り当てエラー:', error)
+        throw error
+      }
+    },
+    [],
+  )
+
+  // 親カテゴリの更新ハンドラ
+  const handleUpdateParentCategories = useCallback(
+    (categories: ParentCategory[]) => {
+      setParentCategories(categories)
+    },
+    [],
+  )
 
   return (
     <Card
@@ -427,7 +515,8 @@ export const SortableDomainCard = ({
       className={`rounded-lg shadow-md ${
         isDraggingOver ? 'border-blue-500 border-2' : 'border-border'
       }`}
-      data-category-id={categoryId} // データ属性として親カテゴリIDを設定
+      data-category-id={categoryId}
+      data-urls-count={group.urls.length} // タブ数をdata属性に追加
     >
       <CardHeader className='p-2 pb-0 w-full'>
         <div className='flex items-center justify-between w-full'>
@@ -519,13 +608,17 @@ export const SortableDomainCard = ({
             onClose={handleCloseKeywordModal}
             onSave={handleSaveKeywords}
             onDeleteCategory={handleCategoryDelete}
+            parentCategories={parentCategories}
+            onCreateParentCategory={handleCreateParentCategory}
+            onAssignToParentCategory={handleAssignToParentCategory}
+            onUpdateParentCategories={handleUpdateParentCategories}
           />
         )}
       </CardHeader>
 
       {/* カテゴリごとにまとめてタブを表示 */}
       <CardContent className='space-y-1 p-2'>
-        {allCategoryIds.length > 0 && (
+        {allCategoryIds.length > 0 && group.urls.length > 0 ? (
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -535,30 +628,37 @@ export const SortableDomainCard = ({
               items={allCategoryIds}
               strategy={verticalListSortingStrategy}
             >
-              {/* カテゴリ順序に従ってカテゴリセクションを表示（未分類を含む） */}
-              {allCategoryIds.map(categoryName => (
-                <SortableCategorySection
-                  key={categoryName}
-                  id={categoryName}
-                  categoryName={categoryName}
-                  urls={categorizedUrls[categoryName] || []}
-                  groupId={group.id}
-                  handleDeleteUrl={handleDeleteUrl}
-                  handleOpenTab={handleOpenTab}
-                  handleUpdateUrls={handleUpdateUrls}
-                  handleOpenAllTabs={handleOpenAllTabs} // カテゴリごとのすべて開く機能を渡す
-                  handleDeleteAllTabs={urls =>
-                    handleDeleteAllTabsInCategory(categoryName, urls)
-                  } // 削除機能を渡す
-                  settings={settings} // 設定を渡す
-                />
-              ))}
+              {/* カテゴリ順序に従ってカテゴリセクションを表示（空カテゴリは表示しない） */}
+              {allCategoryIds.map(categoryName => {
+                // 空のカテゴリはスキップ - より厳密にチェック
+                const urls = categorizedUrls[categoryName] || []
+                if (urls.length === 0) return null
+
+                return (
+                  <SortableCategorySection
+                    key={categoryName}
+                    id={categoryName}
+                    categoryName={categoryName}
+                    urls={urls}
+                    groupId={group.id}
+                    handleDeleteUrl={handleDeleteUrl}
+                    handleOpenTab={handleOpenTab}
+                    handleUpdateUrls={handleUpdateUrls}
+                    handleOpenAllTabs={handleOpenAllTabs}
+                    handleDeleteAllTabs={urls =>
+                      handleDeleteAllTabsInCategory(categoryName, urls)
+                    }
+                    settings={settings}
+                  />
+                )
+              })}
             </SortableContext>
           </DndContext>
-        )}
-        {allCategoryIds.length === 0 && group.urls.length > 0 && (
+        ) : (
           <div className='text-center py-4 text-gray-400'>
-            カテゴリを追加するにはカテゴリ管理から行ってください
+            {group.urls.length === 0
+              ? 'このドメインにはタブがありません'
+              : 'カテゴリを追加するにはカテゴリ管理から行ってください'}
           </div>
         )}
       </CardContent>

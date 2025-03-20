@@ -56,31 +56,52 @@ export const SortableCategorySection = ({
       // 処理中なら何もしない
       if (isDeleting) return
 
-      // 確認ダイアログを削除し、直接削除処理を実行
-      setIsDeleting(true)
+      const categoryDisplayName =
+        props.categoryName === '__uncategorized' ? '未分類' : props.categoryName
 
-      // タイムアウトを使って処理を次のイベントループに移す
-      setTimeout(async () => {
-        try {
-          // URLのコピーを作成
-          const urlsToDelete = [...props.urls]
+      if (
+        window.confirm(`「${categoryDisplayName}」のタブをすべて削除しますか？`)
+      ) {
+        setIsDeleting(true)
 
-          // まず削除フラグを設定して安全にUIを更新
-          if (handleDeleteAllTabs) {
-            await handleDeleteAllTabs(urlsToDelete)
-          }
+        // 即時実行関数で非同期処理をカプセル化
+        ;(async () => {
+          try {
+            // URLのコピーを作成
+            const urlsToDelete = [...props.urls]
+            const urlsToRemove = urlsToDelete.map(item => item.url)
 
-          // 削除完了後は一定時間待ってからステートをリセット
-          setTimeout(() => {
+            // 親から渡された保存済み全URL
+            const { savedTabs = [] } =
+              await chrome.storage.local.get('savedTabs')
+            const currentGroup = savedTabs.find(
+              (tab: { id: string }) => tab.id === props.groupId,
+            )
+
+            if (currentGroup) {
+              // 削除対象以外のURLだけを残す
+              const remainingUrls = currentGroup.urls.filter(
+                (urlItem: { url: string }) =>
+                  !urlsToRemove.includes(urlItem.url),
+              )
+
+              // 安全に更新（非同期処理）
+              await safelyUpdateGroupUrls(props.groupId, remainingUrls, () => {
+                console.log(
+                  `カテゴリ「${categoryDisplayName}」から${urlsToRemove.length}件のURLを削除しました`,
+                )
+                // 削除処理が完了してからフラグをリセット
+                setTimeout(() => setIsDeleting(false), 500)
+              })
+            }
+          } catch (error) {
+            console.error('削除処理中にエラーが発生しました:', error)
             setIsDeleting(false)
-          }, 500)
-        } catch (error) {
-          console.error('削除処理中にエラーが発生しました:', error)
-          setIsDeleting(false)
-        }
-      }, 0)
+          }
+        })()
+      }
     },
-    [props.categoryName, props.urls, handleDeleteAllTabs, isDeleting],
+    [props.categoryName, props.urls, props.groupId, isDeleting],
   )
 
   return (
