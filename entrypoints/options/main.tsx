@@ -41,6 +41,7 @@ import {
 // トースト通知用のインポート
 import { toast } from 'sonner'
 
+import { ImportExportSettings } from '@/features/options/ImportExportSettings'
 import { SubCategoryKeywordManager } from '@/features/options/SubCategoryKeywordManager'
 import { isPeriodShortening } from '@/utils/isPeriodShortening'
 
@@ -639,6 +640,14 @@ const OptionsPage = () => {
           <ModeToggle />
         </div>
       </header>
+
+      {/* インポート/エクスポート設定セクションを追加 */}
+      <div className='bg-card rounded-lg shadow-md p-6 mb-8 border border-border'>
+        <h2 className='text-xl font-semibold text-foreground mb-4'>
+          バックアップと復元
+        </h2>
+        <ImportExportSettings />
+      </div>
 
       <div className='bg-card rounded-lg shadow-md p-6 mb-8 border border-border'>
         <h2 className='text-xl font-semibold text-foreground mb-4'>
