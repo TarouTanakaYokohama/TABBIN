@@ -8,6 +8,11 @@ import {
 import type { SortableDomainCardProps } from '@/types/saved-tabs'
 import { handleSaveKeywords } from '@/utils/handleSaveKeywords'
 import {
+  assignDomainToCategory,
+  createParentCategory,
+  getParentCategories,
+} from '@/utils/storage'
+import {
   DndContext,
   KeyboardSensor,
   PointerSensor,
@@ -28,11 +33,6 @@ import { ExternalLink, GripVertical, Settings, Trash } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CategoryKeywordModal } from './CategoryKeywordModal'
 import { SortableCategorySection } from './SortableCategorySection'
-import {
-  createParentCategory,
-  assignDomainToCategory,
-  getParentCategories,
-} from '@/utils/storage'
 
 // SortableDomainCardコンポーネントを修正
 export const SortableDomainCard = ({

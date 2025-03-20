@@ -5,12 +5,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
+import { safelyUpdateGroupUrls } from '@/utils/tab-operations'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ExternalLink, GripVertical, Trash } from 'lucide-react'
-import { CategorySection } from './TimeRemaining'
 import { useCallback, useState } from 'react'
-import { safelyUpdateGroupUrls } from '@/utils/tab-operations'
+import { CategorySection } from './TimeRemaining'
 
 // 並び替え可能なカテゴリセクションコンポーネント
 export const SortableCategorySection = ({

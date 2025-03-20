@@ -463,7 +463,6 @@ export default defineBackground(() => {
   } catch (error) {
     console.error('コンテキストメニュー初期化エラー:', error)
   }
-
   // バックグラウンド初期化時に一度だけマイグレーションを実行
   ;(async () => {
     try {
