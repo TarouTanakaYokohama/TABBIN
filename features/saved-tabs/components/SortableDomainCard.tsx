@@ -590,11 +590,11 @@ export const SortableDomainCard = ({
                   aria-label='グループを削除'
                 >
                   <Trash size={14} />
-                  <span className='lg:inline hidden'>削除</span>
+                  <span className='lg:inline hidden'>すべて削除</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side='top' className='lg:hidden block'>
-                グループを削除
+                すべてのタブ削除
               </TooltipContent>
             </Tooltip>
           </div>
