@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/tooltip'
 import type { SortableDomainCardProps } from '@/types/saved-tabs'
 import { handleSaveKeywords } from '@/utils/handleSaveKeywords'
+import type { ParentCategory } from '@/utils/storage'
 import {
   DndContext,
   KeyboardSensor,
@@ -392,7 +393,7 @@ export const SortableDomainCard = ({
     }
   }
 
-  // カテゴリ内の全タブを削除する関数を追加
+  // カテゴリ内の全タブを削除する関数を修正 - より単純化
   const handleDeleteAllTabsInCategory = async (
     categoryName: string,
     urlsToDelete: Array<{ url: string }>,
@@ -400,23 +401,30 @@ export const SortableDomainCard = ({
     try {
       // 削除するURLのリストを作成
       const urlsToRemove = urlsToDelete.map(item => item.url)
+      console.log(
+        `「${categoryName}」カテゴリから${urlsToRemove.length}件のタブを削除します`,
+      )
 
       // 削除対象のURL以外の全URLを取得
       const remainingUrls = group.urls.filter(
         urlItem => !urlsToRemove.includes(urlItem.url),
       )
 
-      // グループの更新
+      // 空になる場合は単純にグループごと削除（React更新サイクルに介入しない）
+      if (remainingUrls.length === 0) {
+        console.log(
+          'タブが0件になったため、グループを直接削除します:',
+          group.id,
+        )
+        handleDeleteGroup(group.id)
+        return
+      }
+
+      // 残りのタブがある場合は通常の更新を実行
       await handleUpdateUrls(group.id, remainingUrls)
-
-      console.log(
-        `「${categoryName === '__uncategorized' ? '未分類' : categoryName}」カテゴリから${urlsToRemove.length}件のタブを削除しました`,
-      )
-
-      // 表示を更新
-      setCategoryUpdateTrigger(prev => prev + 1)
+      console.log(`カテゴリから${urlsToRemove.length}件のタブを削除しました`)
     } catch (error) {
-      console.error('カテゴリ内のタブ削除に失敗しました:', error)
+      console.error('カテゴリ内のタブ削除中にエラーが発生:', error)
     }
   }
 
@@ -519,6 +527,62 @@ export const SortableDomainCard = ({
             onClose={handleCloseKeywordModal}
             onSave={handleSaveKeywords}
             onDeleteCategory={handleCategoryDelete}
+            parentCategories={[]}
+            onCreateParentCategory={async (name: string) => {
+              const { parentCategories = [] } =
+                await chrome.storage.local.get('parentCategories')
+              const newCategory = {
+                id: crypto.randomUUID(),
+                name,
+                domains: [],
+                domainNames: [],
+              }
+              await chrome.storage.local.set({
+                parentCategories: [...parentCategories, newCategory],
+              })
+              return newCategory
+            }}
+            onAssignToParentCategory={async (
+              groupId: string,
+              categoryId: string,
+            ) => {
+              const { parentCategories = [] } =
+                await chrome.storage.local.get('parentCategories')
+              const updatedCategories = parentCategories.map(
+                (cat: ParentCategory) => {
+                  if (categoryId === '') {
+                    return {
+                      ...cat,
+                      domains: cat.domains.filter(
+                        (id: string) => id !== groupId,
+                      ),
+                      domainNames: cat.domainNames.filter(
+                        (domain: string) => domain !== group.domain,
+                      ),
+                    }
+                  }
+                  if (cat.id === categoryId) {
+                    return {
+                      ...cat,
+                      domains: [...new Set([...cat.domains, groupId])],
+                      domainNames: [
+                        ...new Set([...cat.domainNames, group.domain]),
+                      ],
+                    }
+                  }
+                  return {
+                    ...cat,
+                    domains: cat.domains.filter((id: string) => id !== groupId),
+                    domainNames: cat.domainNames.filter(
+                      (domain: string) => domain !== group.domain,
+                    ),
+                  }
+                },
+              )
+              await chrome.storage.local.set({
+                parentCategories: updatedCategories,
+              })
+            }}
           />
         )}
       </CardHeader>

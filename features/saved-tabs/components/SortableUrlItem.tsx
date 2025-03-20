@@ -163,10 +163,29 @@ export const SortableUrlItem = ({
     setIsDeleteButtonVisible(true)
   }
 
+  // 削除ボタンのクリックハンドラを修正
   const handleDeleteButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
+
+    // まず削除
     handleDeleteUrl(groupId, url)
+
+    // 少し遅延させてから空グループチェックを実行
+    setTimeout(() => {
+      // URL削除後にグループが空になったかチェックする処理をバックグラウンドに依頼
+      chrome.runtime.sendMessage(
+        {
+          action: 'checkEmptyGroupAfterUrlDeletion',
+          groupId: groupId,
+        },
+        response => {
+          if (response?.isEmpty) {
+            console.log('タブが0件になったため、グループを自動削除:', groupId)
+          }
+        },
+      )
+    }, 100)
   }
 
   const style = {
