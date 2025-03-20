@@ -65,6 +65,7 @@ const SavedTabs = () => {
     excludePatterns: [],
     enableCategories: false,
     showSavedTime: false,
+    clickBehavior: 'saveWindowTabs', // 必須プロパティを追加
   })
   const [categories, setCategories] = useState<ParentCategory[]>([])
   const [newSubCategory, setNewSubCategory] = useState('')
@@ -623,17 +624,25 @@ const SavedTabs = () => {
     }
   }
 
+  // 空のグループを除外するフィルタリング関数
+  const hasContentTabGroups = tabGroups.filter(group => group.urls.length > 0)
+
+  // URLの合計数を計算
+  const totalUrls = tabGroups.reduce(
+    (total, group) => total + group.urls.length,
+    0,
+  )
+
   return (
     <>
       <Toaster />
       <div className='container mx-auto px-4 py-2 min-h-screen'>
-        <Header tabGroups={tabGroups} />{' '}
-        {/* 既存のヘッダーをコンポーネントに置き換え */}
+        <Header tabGroups={tabGroups} />
         {isLoading ? (
           <div className='flex items-center justify-center min-h-[200px]'>
             <div className='text-xl text-foreground'>読み込み中...</div>
           </div>
-        ) : tabGroups.length === 0 ? (
+        ) : totalUrls === 0 ? ( // 総URL数でチェック
           <div className='flex flex-col items-center justify-center min-h-[200px] gap-4'>
             <div className='text-2xl text-foreground'>
               保存されたタブはありません
@@ -700,32 +709,52 @@ const SavedTabs = () => {
                 </>
               )}
 
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={uncategorized.map(group => group.id)}
-                strategy={verticalListSortingStrategy}
+            {/* 未分類タブを表示する部分 */}
+            {uncategorized.filter(group => group.urls.length > 0).length >
+              0 && (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
               >
-                <div className='flex flex-col gap-1'>
-                  {uncategorized.map(group => (
-                    <SortableDomainCard
-                      key={group.id}
-                      group={group}
-                      handleOpenAllTabs={handleOpenAllTabs}
-                      handleDeleteGroup={handleDeleteGroup}
-                      handleDeleteUrl={handleDeleteUrl}
-                      handleOpenTab={handleOpenTab}
-                      handleUpdateUrls={handleUpdateUrls}
-                      handleDeleteCategory={handleDeleteCategory}
-                      settings={settings} // settingsを渡す
-                    />
-                  ))}
+                <SortableContext
+                  items={uncategorized
+                    .filter(group => group.urls.length > 0)
+                    .map(group => group.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className='flex flex-col gap-1'>
+                    {uncategorized
+                      .filter(group => group.urls.length > 0)
+                      .map(group => (
+                        <SortableDomainCard
+                          key={group.id}
+                          group={group}
+                          handleOpenAllTabs={handleOpenAllTabs}
+                          handleDeleteGroup={handleDeleteGroup}
+                          handleDeleteUrl={handleDeleteUrl}
+                          handleOpenTab={handleOpenTab}
+                          handleUpdateUrls={handleUpdateUrls}
+                          handleDeleteCategory={handleDeleteCategory}
+                          settings={settings} // settingsを渡す
+                        />
+                      ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
+
+            {/* すべてのカテゴリとドメインが空の場合のメッセージ */}
+            {hasContentTabGroups.length === 0 && (
+              <div className='flex flex-col items-center justify-center min-h-[200px] gap-4'>
+                <div className='text-2xl text-foreground'>
+                  保存されたタブはありません
                 </div>
-              </SortableContext>
-            </DndContext>
+                <div className='text-muted-foreground'>
+                  タブを右クリックして保存するか、拡張機能のアイコンをクリックしてください
+                </div>
+              </div>
+            )}
           </>
         )}
         {/* 子カテゴリ追加モーダル */}
