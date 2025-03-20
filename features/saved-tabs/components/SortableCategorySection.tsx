@@ -80,7 +80,7 @@ export const SortableCategorySection = ({
         }
       }, 0)
     },
-    [props.categoryName, props.urls, handleDeleteAllTabs, isDeleting],
+    [props.urls, handleDeleteAllTabs, isDeleting],
   )
 
   return (
