@@ -66,6 +66,7 @@ const SavedTabs = () => {
     enableCategories: false,
     showSavedTime: false,
     clickBehavior: 'saveWindowTabs', // 必須プロパティを追加
+    excludePinnedTabs: false, // 必須プロパティを追加
   })
   const [categories, setCategories] = useState<ParentCategory[]>([])
   const [newSubCategory, setNewSubCategory] = useState('')
