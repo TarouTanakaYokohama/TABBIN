@@ -106,8 +106,17 @@ export default defineBackground(() => {
                   const tabInfo = await chrome.tabs.get(tab.id)
                   console.log('保存するタブの詳細:', tabInfo)
 
+                  // タブをフィルタリング（固定タブを除外）
+                  const filteredTabs = await filterTabsByUserSettings([tabInfo])
+                  if (filteredTabs.length === 0) {
+                    console.log(
+                      'このタブは固定タブまたは除外パターンに一致するため保存されません',
+                    )
+                    return
+                  }
+
                   // 単一タブを保存
-                  await saveTabsWithAutoCategory([tabInfo])
+                  await saveTabsWithAutoCategory(filteredTabs)
                   console.log('タブの保存が完了しました')
 
                   // 通知を表示（エラーハンドリング改善）
@@ -150,11 +159,24 @@ export default defineBackground(() => {
                   const tabs = await chrome.tabs.query({ currentWindow: true })
                   console.log(`取得したタブ数: ${tabs.length}`)
 
+                  // タブをフィルタリング（固定タブを除外）
+                  const filteredTabs = await filterTabsByUserSettings(tabs)
+                  if (filteredTabs.length === 0) {
+                    console.log(
+                      '保存対象のタブがありません（全て固定タブか除外パターンに一致）',
+                    )
+                    return
+                  }
+
+                  console.log(
+                    `フィルタリング後のタブ数: ${filteredTabs.length}`,
+                  )
+
                   // ユーザー設定を取得
                   const settings = await getUserSettings()
 
                   // 先にタブを保存してから、保存完了後にsaved-tabsページを開く
-                  await saveTabsWithAutoCategory(tabs)
+                  await saveTabsWithAutoCategory(filteredTabs)
                   console.log('すべてのタブの保存が完了しました')
 
                   // 通知を表示（エラーハンドリング改善）
@@ -167,7 +189,7 @@ export default defineBackground(() => {
                       type: 'basic',
                       iconUrl: iconUrl,
                       title: 'タブ保存',
-                      message: `${tabs.length}個のタブを保存しました`,
+                      message: `${filteredTabs.length}個のタブを保存しました`,
                     })
                   } catch (notificationError) {
                     // 通知エラーをキャッチしても処理を続行
@@ -233,10 +255,20 @@ export default defineBackground(() => {
                     }
                   })
 
-                  console.log(`同じドメインのタブ数: ${sameDomainTabs.length}`)
+                  // タブをフィルタリング（固定タブを除外）
+                  const filteredTabs =
+                    await filterTabsByUserSettings(sameDomainTabs)
+                  if (filteredTabs.length === 0) {
+                    console.log(
+                      '保存対象のタブがありません（全て固定タブか除外パターンに一致）',
+                    )
+                    return
+                  }
+
+                  console.log(`同じドメインのタブ数: ${filteredTabs.length}`)
 
                   // タブを保存
-                  await saveTabsWithAutoCategory(sameDomainTabs)
+                  await saveTabsWithAutoCategory(filteredTabs)
                   console.log('同じドメインのタブの保存が完了しました')
 
                   // 通知を表示
@@ -246,7 +278,7 @@ export default defineBackground(() => {
                       type: 'basic',
                       iconUrl: iconUrl,
                       title: 'タブ保存',
-                      message: `${currentDomain}の${sameDomainTabs.length}個のタブを保存しました`,
+                      message: `${currentDomain}の${filteredTabs.length}個のタブを保存しました`,
                     })
                   } catch (notificationError) {
                     console.error('通知表示エラー:', notificationError)
@@ -256,7 +288,7 @@ export default defineBackground(() => {
                   const savedTabsTabId = await openSavedTabsPage()
 
                   // 保存したタブを閉じる
-                  for (const domainTab of sameDomainTabs) {
+                  for (const domainTab of filteredTabs) {
                     if (domainTab.id) {
                       try {
                         await chrome.tabs.remove(domainTab.id)
@@ -273,8 +305,21 @@ export default defineBackground(() => {
                   const allTabs = await chrome.tabs.query({})
                   console.log(`取得したすべてのタブ数: ${allTabs.length}`)
 
+                  // タブをフィルタリング（固定タブを除外）
+                  const filteredTabs = await filterTabsByUserSettings(allTabs)
+                  if (filteredTabs.length === 0) {
+                    console.log(
+                      '保存対象のタブがありません（全て固定タブか除外パターンに一致）',
+                    )
+                    return
+                  }
+
+                  console.log(
+                    `フィルタリング後のタブ数: ${filteredTabs.length}`,
+                  )
+
                   // タブを保存
-                  await saveTabsWithAutoCategory(allTabs)
+                  await saveTabsWithAutoCategory(filteredTabs)
                   console.log('すべてのウィンドウのタブの保存が完了しました')
 
                   // 通知を表示
@@ -284,7 +329,7 @@ export default defineBackground(() => {
                       type: 'basic',
                       iconUrl: iconUrl,
                       title: 'タブ保存',
-                      message: `すべてのウィンドウから${allTabs.length}個のタブを保存しました`,
+                      message: `すべてのウィンドウから${filteredTabs.length}個のタブを保存しました`,
                     })
                   } catch (notificationError) {
                     console.error('通知表示エラー:', notificationError)
@@ -298,7 +343,7 @@ export default defineBackground(() => {
                     'saved-tabs.html',
                     'chrome-extension://',
                   ]
-                  for (const tab of allTabs) {
+                  for (const tab of filteredTabs) {
                     if (
                       tab.id &&
                       tab.url &&
@@ -729,37 +774,45 @@ export default defineBackground(() => {
             active: true,
             currentWindow: true,
           })
-          if (activeTabs.length > 0) {
-            const activeTab = activeTabs[0]
-            console.log(`現在のタブを保存: ${activeTab.url}`)
 
-            // タブを保存
-            await saveTabsWithAutoCategory([activeTab])
+          // タブをフィルタリング（固定タブを除外）
+          const filteredTabs = await filterTabsByUserSettings(activeTabs)
+          if (filteredTabs.length === 0) {
+            console.log(
+              '保存対象のタブがありません（全て固定タブか除外パターンに一致）',
+            )
+            return
+          }
 
-            // 通知表示
+          const activeTab = filteredTabs[0]
+          console.log(`現在のタブを保存: ${activeTab.url}`)
+
+          // タブを保存
+          await saveTabsWithAutoCategory([activeTab])
+
+          // 通知表示
+          try {
+            const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
+            await chrome.notifications.create({
+              type: 'basic',
+              iconUrl: iconUrl,
+              title: 'タブ保存',
+              message: '現在のタブを保存しました',
+            })
+          } catch (error) {
+            console.error('通知表示エラー:', error)
+          }
+
+          // saved-tabsページを開く
+          const savedTabsTabId = await openSavedTabsPage()
+
+          // タブを閉じる
+          if (activeTab.id) {
             try {
-              const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
-              await chrome.notifications.create({
-                type: 'basic',
-                iconUrl: iconUrl,
-                title: 'タブ保存',
-                message: '現在のタブを保存しました',
-              })
+              await chrome.tabs.remove(activeTab.id)
+              console.log(`タブ ${activeTab.id} を閉じました`)
             } catch (error) {
-              console.error('通知表示エラー:', error)
-            }
-
-            // saved-tabsページを開く
-            const savedTabsTabId = await openSavedTabsPage()
-
-            // タブを閉じる
-            if (activeTab.id) {
-              try {
-                await chrome.tabs.remove(activeTab.id)
-                console.log(`タブ ${activeTab.id} を閉じました`)
-              } catch (error) {
-                console.error('タブを閉じる際にエラー:', error)
-              }
+              console.error('タブを閉じる際にエラー:', error)
             }
           }
           break
@@ -790,10 +843,20 @@ export default defineBackground(() => {
                 }
               })
 
-              console.log(`同じドメインのタブ数: ${sameDomainTabs.length}`)
+              // タブをフィルタリング（固定タブを除外）
+              const filteredTabs =
+                await filterTabsByUserSettings(sameDomainTabs)
+              if (filteredTabs.length === 0) {
+                console.log(
+                  '保存対象のタブがありません（全て固定タブか除外パターンに一致）',
+                )
+                return
+              }
+
+              console.log(`同じドメインのタブ数: ${filteredTabs.length}`)
 
               // タブを保存
-              await saveTabsWithAutoCategory(sameDomainTabs)
+              await saveTabsWithAutoCategory(filteredTabs)
 
               // 通知を表示
               try {
@@ -802,7 +865,7 @@ export default defineBackground(() => {
                   type: 'basic',
                   iconUrl: iconUrl,
                   title: 'タブ保存',
-                  message: `${currentDomain}の${sameDomainTabs.length}個のタブを保存しました`,
+                  message: `${currentDomain}の${filteredTabs.length}個のタブを保存しました`,
                 })
               } catch (error) {
                 console.error('通知表示エラー:', error)
@@ -812,7 +875,7 @@ export default defineBackground(() => {
               const savedTabsTabId = await openSavedTabsPage()
 
               // 保存したタブを閉じる
-              for (const tab of sameDomainTabs) {
+              for (const tab of filteredTabs) {
                 if (
                   tab.id &&
                   !settings.excludePatterns.some(pattern =>
@@ -841,18 +904,19 @@ export default defineBackground(() => {
             const allTabs = await chrome.tabs.query({})
             console.log(`取得したすべてのタブ数: ${allTabs.length}`)
 
-            // 拡張機能のタブを除外
-            const regularTabs = allTabs.filter(tab => {
-              if (!tab.url) return false
-              return !settings.excludePatterns.some(pattern =>
-                tab.url?.includes(pattern),
+            // タブをフィルタリング（固定タブと除外パターンを除外）
+            const filteredTabs = await filterTabsByUserSettings(allTabs)
+            if (filteredTabs.length === 0) {
+              console.log(
+                '保存対象のタブがありません（全て固定タブか除外パターンに一致）',
               )
-            })
+              return
+            }
 
-            console.log(`保存対象タブ数: ${regularTabs.length}`)
+            console.log(`保存対象タブ数: ${filteredTabs.length}`)
 
             // タブを保存
-            await saveTabsWithAutoCategory(regularTabs)
+            await saveTabsWithAutoCategory(filteredTabs)
 
             // 通知を表示
             try {
@@ -861,7 +925,7 @@ export default defineBackground(() => {
                 type: 'basic',
                 iconUrl: iconUrl,
                 title: 'タブ保存',
-                message: `すべてのウィンドウから${regularTabs.length}個のタブを保存しました`,
+                message: `すべてのウィンドウから${filteredTabs.length}個のタブを保存しました`,
               })
             } catch (error) {
               console.error('通知表示エラー:', error)
@@ -871,7 +935,7 @@ export default defineBackground(() => {
             const savedTabsTabId = await openSavedTabsPage()
 
             // タブを閉じる
-            for (const tab of regularTabs) {
+            for (const tab of filteredTabs) {
               if (tab.id && tab.id !== savedTabsTabId) {
                 try {
                   await chrome.tabs.remove(tab.id)
@@ -891,17 +955,19 @@ export default defineBackground(() => {
           const allTabs = await chrome.tabs.query({ currentWindow: true })
           console.log(`取得したタブ: ${allTabs.length}個`)
 
-          // 拡張機能のタブを除外
-          const regularTabs = allTabs.filter(tab => {
-            if (!tab.url) return false
-            return !settings.excludePatterns.some(pattern =>
-              tab.url?.includes(pattern),
+          // タブをフィルタリング（固定タブと除外パターンを除外）
+          const filteredTabs = await filterTabsByUserSettings(allTabs)
+          if (filteredTabs.length === 0) {
+            console.log(
+              '保存対象のタブがありません（全て固定タブか除外パターンに一致）',
             )
-          })
-          console.log(`保存対象タブ: ${regularTabs.length}個`)
+            return
+          }
+
+          console.log(`保存対象タブ: ${filteredTabs.length}個`)
 
           // タブを保存して自動カテゴライズする
-          await saveTabsWithAutoCategory(regularTabs)
+          await saveTabsWithAutoCategory(filteredTabs)
           console.log('タブの保存と自動カテゴライズが完了しました')
 
           // 保存完了通知を表示
@@ -913,7 +979,7 @@ export default defineBackground(() => {
               type: 'basic',
               iconUrl: iconUrl,
               title: 'タブ保存',
-              message: `${regularTabs.length}個のタブが保存されました。タブを閉じます。`,
+              message: `${filteredTabs.length}個のタブが保存されました。タブを閉じます。`,
             })
           } catch (notificationError) {
             console.error('通知表示エラー:', notificationError)
@@ -925,7 +991,7 @@ export default defineBackground(() => {
           // 閉じるタブを収集
           const tabIdsToClose: number[] = []
 
-          for (const tab of allTabs) {
+          for (const tab of filteredTabs) {
             if (
               tab.id &&
               tab.id !== savedTabsTabId &&
@@ -1376,6 +1442,44 @@ export default defineBackground(() => {
         '親カテゴリからの削除中にエラーが発生しました:',
         error instanceof Error ? error.message : error,
       )
+    }
+  }
+
+  // タブをユーザー設定に基づいてフィルタリングする共通関数を追加
+  async function filterTabsByUserSettings(
+    tabs: chrome.tabs.Tab[],
+  ): Promise<chrome.tabs.Tab[]> {
+    try {
+      // ユーザー設定を取得
+      const settings = await getUserSettings()
+
+      let filteredTabs = [...tabs]
+
+      // 固定タブを除外
+      if (settings.excludePinnedTabs) {
+        const beforeCount = filteredTabs.length
+        filteredTabs = filteredTabs.filter(tab => !tab.pinned)
+        const afterCount = filteredTabs.length
+
+        if (beforeCount !== afterCount) {
+          console.log(
+            `固定タブを ${beforeCount - afterCount} 個除外しました (${beforeCount} → ${afterCount})`,
+          )
+        }
+      }
+
+      // 除外パターンに一致するタブもフィルタリング
+      filteredTabs = filteredTabs.filter(tab => {
+        if (!tab.url) return false
+        return !settings.excludePatterns.some(pattern =>
+          tab.url?.includes(pattern),
+        )
+      })
+
+      return filteredTabs
+    } catch (error) {
+      console.error('タブフィルタリングエラー:', error)
+      return tabs // エラー時は元のタブをそのまま返す
     }
   }
 })

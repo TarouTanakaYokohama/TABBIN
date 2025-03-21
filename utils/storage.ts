@@ -42,6 +42,7 @@ export interface UserSettings {
     | 'saveWindowTabs'
     | 'saveSameDomainTabs'
     | 'saveAllWindowsTabs' // 新しいオプション: クリック時の挙動
+  excludePinnedTabs: boolean // 固定タブ（ピン留め）を除外するかどうか
 }
 
 // デフォルト設定
@@ -52,6 +53,7 @@ export const defaultSettings: UserSettings = {
   autoDeletePeriod: 'never', // デフォルトでは自動削除しない
   showSavedTime: false, // デフォルトでは表示しない
   clickBehavior: 'saveWindowTabs', // デフォルトは「ウィンドウのすべてのタブを保存」
+  excludePinnedTabs: true, // デフォルトでは固定タブを除外する
 }
 
 // 設定を取得する関数

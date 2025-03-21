@@ -119,6 +119,27 @@ const OptionsPage = () => {
     }
   }
 
+  // 固定タブ除外設定の切り替えハンドラを追加
+  const handleToggleExcludePinnedTabs = async (checked: boolean) => {
+    try {
+      // 新しい設定を作成
+      const newSettings = {
+        ...settings,
+        excludePinnedTabs: checked,
+      }
+
+      // 状態を更新
+      setSettings(newSettings)
+
+      // 保存
+      await saveUserSettings(newSettings)
+      setIsSaved(true)
+      setTimeout(() => setIsSaved(false), 2000)
+    } catch (error) {
+      console.error('固定タブ除外設定の保存エラー:', error)
+    }
+  }
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -704,6 +725,25 @@ const OptionsPage = () => {
         <p className='text-sm text-muted-foreground mt-1 ml-7'>
           オンにすると、保存したタブを開いた後、そのタブは保存リストから自動的に削除されます。
           オフにすると、保存したタブを開いても、リストからは削除されません。
+        </p>
+
+        {/* 固定タブを除外するオプションを追加 */}
+        <div className='mb-4 mt-6 flex items-center space-x-2'>
+          <Checkbox
+            id='exclude-pinned-tabs'
+            checked={settings.excludePinnedTabs}
+            onCheckedChange={handleToggleExcludePinnedTabs}
+            className='cursor-pointer'
+          />
+          <Label
+            htmlFor='exclude-pinned-tabs'
+            className='text-foreground cursor-pointer'
+          >
+            固定タブ（ピン留め）を除外する
+          </Label>
+        </div>
+        <p className='text-sm text-muted-foreground mt-1 ml-7'>
+          オンにすると、ピン留めされたタブは保存対象から除外されます。
         </p>
 
         {/* 保存日時表示設定を追加 */}
