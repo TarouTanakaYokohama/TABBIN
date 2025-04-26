@@ -237,6 +237,22 @@ const OptionsPage = () => {
     }
   }
 
+  // URLを別タブで開く設定の切り替えハンドラを追加
+  const handleToggleOpenUrlInBackground = async (checked: boolean) => {
+    try {
+      const newSettings = {
+        ...settings,
+        openUrlInBackground: checked,
+      }
+      setSettings(newSettings)
+      await saveUserSettings(newSettings)
+      setIsSaved(true)
+      setTimeout(() => setIsSaved(false), 2000)
+    } catch (error) {
+      console.error('URLを別タブで開く設定の保存エラー:', error)
+    }
+  }
+
   const handleExcludePatternsChange = (
     e: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
@@ -744,6 +760,25 @@ const OptionsPage = () => {
         </div>
         <p className='text-sm text-muted-foreground mt-1 ml-7'>
           オンにすると、ピン留めされたタブは保存対象から除外されます。
+        </p>
+
+        {/* URLを別タブで開く設定を追加 */}
+        <div className='mb-4 mt-6 flex items-center space-x-2'>
+          <Checkbox
+            id='open-url-in-blank'
+            checked={settings.openUrlInBackground}
+            onCheckedChange={handleToggleOpenUrlInBackground}
+            className='cursor-pointer'
+          />
+          <Label
+            htmlFor='open-url-in-blank'
+            className='text-foreground cursor-pointer'
+          >
+            バックグラウンドタブで開く
+          </Label>
+        </div>
+        <p className='text-sm text-muted-foreground mt-1 ml-7'>
+          オンにすると、URLをバックグラウンドで開きます。
         </p>
 
         {/* 保存日時表示設定を追加 */}
