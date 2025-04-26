@@ -1,0 +1,985 @@
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import type { CustomProject } from '@/utils/storage'
+import {
+  Edit,
+  ExternalLink,
+  FolderPlus,
+  GripVertical,
+  Trash2,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CustomProjectCategory } from './CustomProjectCategory'
+import { ProjectUrlItem } from './ProjectUrlItem'
+
+// DND関連のインポート
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import type {
+  Active,
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { toast } from 'sonner'
+
+interface CustomProjectCardProps {
+  project: CustomProject
+  handleOpenUrl: (url: string) => void
+  handleDeleteUrl: (projectId: string, url: string) => void
+  handleAddUrl: (
+    projectId: string,
+    url: string,
+    title: string,
+    category?: string,
+  ) => void
+  handleDeleteProject: (projectId: string) => void
+  handleRenameProject: (projectId: string, newName: string) => void
+  handleAddCategory: (projectId: string, categoryName: string) => void
+  handleDeleteCategory: (projectId: string, categoryName: string) => void
+  handleSetUrlCategory: (
+    projectId: string,
+    url: string,
+    category?: string,
+  ) => void
+  handleUpdateCategoryOrder: (projectId: string, newOrder: string[]) => void
+  handleReorderUrls: (projectId: string, urls: CustomProject['urls']) => void
+  handleOpenAllUrls?: (urls: { url: string; title: string }[]) => void
+  settings: { removeTabAfterOpen: boolean }
+  // 追加: ドラッグ中のアイテム情報
+  draggedItem?: { url: string; projectId: string; title: string } | null
+  // カテゴリ間のURL移動処理を追加
+  handleMoveUrlsBetweenCategories?: (
+    projectId: string,
+    sourceCategoryName: string,
+    targetCategoryName: string,
+  ) => void
+  // ドロップターゲットであるかのフラグを追加
+  isDropTarget?: boolean
+  // プロジェクト間のURL移動処理を追加
+  handleMoveUrlBetweenProjects?: (
+    sourceProjectId: string,
+    targetProjectId: string,
+    url: string,
+  ) => void
+}
+
+export const CustomProjectCard = ({
+  project,
+  handleOpenUrl,
+  handleDeleteUrl,
+  handleAddUrl,
+  handleDeleteProject,
+  handleRenameProject,
+  handleAddCategory,
+  handleDeleteCategory,
+  handleSetUrlCategory,
+  handleUpdateCategoryOrder,
+  handleReorderUrls,
+  handleOpenAllUrls,
+  settings,
+  draggedItem,
+  handleMoveUrlsBetweenCategories, // 新しいプロパティを受け取る
+  isDropTarget = false,
+  handleMoveUrlBetweenProjects,
+}: CustomProjectCardProps) => {
+  // プロジェクト全体をドラッグ可能にするためのsortable設定
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: project.id,
+    data: {
+      type: 'project',
+      projectId: project.id,
+      name: project.name,
+    },
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [newName, setNewName] = useState(project.name)
+  const [isAddingCategory, setIsAddingCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [activeId, setActiveId] = useState<Active | null>(null)
+  const [draggedOverCategory, setDraggedOverCategory] = useState<string | null>(
+    null,
+  )
+  const [isDraggingCategory, setIsDraggingCategory] = useState(false)
+  const [draggedCategoryName, setDraggedCategoryName] = useState<string | null>(
+    null,
+  )
+
+  // このプロジェクトをドロップターゲットとして設定
+  const { setNodeRef: setProjectDroppableRef, isOver: isProjectOver } =
+    useDroppable({
+      id: `project-${project.id}`,
+      data: {
+        type: 'project',
+        projectId: project.id,
+      },
+    })
+
+  // 未分類URLエリア用のドロップ領域を追加
+  const { setNodeRef: setUncategorizedDropRef, isOver: isUncategorizedOver } =
+    useDroppable({
+      id: `uncategorized-${project.id}`,
+      data: {
+        type: 'uncategorized',
+        projectId: project.id,
+        isDropArea: true,
+      },
+    })
+
+  // 両方のrefを組み合わせる
+  const setCombinedRefs = (node: HTMLElement | null) => {
+    setNodeRef(node)
+    setProjectDroppableRef(node)
+  }
+
+  // DND用のセンサー
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+
+  // 別プロジェクトからドラッグされているかを判定
+  const isExternalItemOver =
+    (isProjectOver || isDropTarget) &&
+    draggedItem &&
+    draggedItem.projectId !== project.id
+
+  const handleRenameClick = () => {
+    if (newName && newName !== project.name) {
+      handleRenameProject(project.id, newName)
+      setIsRenaming(false)
+    } else {
+      setNewName(project.name)
+      setIsRenaming(false)
+    }
+  }
+
+  const handleAddCategoryClick = () => {
+    if (newCategoryName.trim()) {
+      handleAddCategory(project.id, newCategoryName.trim())
+      setNewCategoryName('')
+      setIsAddingCategory(false)
+    }
+  }
+
+  // URLアイテムのドラッグ開始時
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active)
+    setDraggedOverCategory(null)
+
+    // ドラッグしているのがカテゴリかどうかを判定
+    const itemType = event.active.data.current?.type
+    const itemId = event.active.id
+    console.log(`ドラッグ開始: ${itemId}, タイプ: ${itemType}`)
+
+    if (itemType === 'category') {
+      setIsDraggingCategory(true)
+      setDraggedCategoryName(String(itemId))
+      console.log(`カテゴリ "${itemId}" のドラッグを開始`)
+    } else {
+      setIsDraggingCategory(false)
+      setDraggedCategoryName(null)
+    }
+  }
+
+  // URLアイテムのドラッグ中
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event
+
+    // 実際のURL（プレフィックスなし）を取得
+    const actualUrl = active.data.current?.url || String(active.id)
+    const dragSourceProjectId = active.data.current?.projectId
+
+    console.log('ドラッグ中:', {
+      activeId: active.id,
+      activeUrl: actualUrl,
+      activeType: active.data.current?.type,
+      activeProjectId: dragSourceProjectId,
+      overId: over?.id,
+      overType: over?.data?.current?.type,
+      currentProjectId: project.id,
+    })
+
+    // 未分類エリアへのドラッグを検出 - より強化した条件
+    const isOverUncategorized =
+      over?.id === `uncategorized-${project.id}` ||
+      (typeof over?.id === 'string' &&
+        String(over.id).includes('uncategorized')) ||
+      over?.data?.current?.type === 'uncategorized'
+
+    // 未分類エリアが検出されたらコンソールに詳細出力
+    if (isOverUncategorized) {
+      console.log('未分類エリアの上でドラッグ中', over?.id, over?.data?.current)
+      setDraggedOverCategory(null)
+      return
+    }
+
+    if (over?.data?.current) {
+      console.log('ドロップターゲットのデータ:', over.data.current)
+
+      // 未分類エリアへのドラッグの場合もハイライトを解除
+      if (over.data.current.type === 'uncategorized') {
+        console.log('未分類エリアの上でドラッグ中')
+        setDraggedOverCategory(null)
+        return
+      }
+
+      // カテゴリへのドラッグ判定を改善 - より多くの条件で判定
+      let isCategory = // let に変更して再代入可能にする
+        over.data.current.type === 'category' ||
+        over.data.current.isCategory === true ||
+        over.data.current.isDropArea === true ||
+        (typeof over.id === 'string' &&
+          String(over.id).startsWith('category-drop-')) ||
+        // データ属性から判定
+        (over.data.current.categoryName && !over.data.current.url) ||
+        // 親要素を確認してカテゴリかどうかを判断
+        over.data.current.parent?.type === 'category'
+
+      // カテゴリの親要素を確認 - カテゴリ内の子要素でも検出できるようにする
+      // MouseEvent にキャストして clientX と clientY にアクセス
+      const mouseEvent = event.activatorEvent as MouseEvent
+      let parentElement = document.elementFromPoint(
+        mouseEvent.clientX,
+        mouseEvent.clientY,
+      )
+      let isCategoryContainer = false
+
+      // 親要素を遡ってカテゴリコンテナを探索
+      while (parentElement && !isCategoryContainer) {
+        if (parentElement.getAttribute('data-is-category') === 'true') {
+          isCategoryContainer = true
+          const categoryName = parentElement.getAttribute('data-category-name')
+          if (categoryName) {
+            console.log(`カテゴリ "${categoryName}" の子要素上でドラッグ中`)
+            if (!isCategory) {
+              isCategory = true
+            }
+            // 直接カテゴリ名を取得して使用
+            over.data.current.categoryName = categoryName
+          }
+        }
+        parentElement = parentElement.parentElement
+      }
+
+      if (isCategory) {
+        // カテゴリ名を取得 (より確実に)
+        let categoryName = over.data.current.categoryName
+
+        if (!categoryName && typeof over.id === 'string') {
+          const parts = String(over.id).split('-')
+          if (parts.length >= 4) {
+            // 最後の部分がカテゴリ名
+            categoryName = parts.slice(3).join('-')
+          }
+        }
+
+        if (categoryName) {
+          console.log(
+            `"${categoryName}" カテゴリの上でドラッグ中 (ID: ${over.id})`,
+          )
+          setDraggedOverCategory(categoryName)
+          return
+        }
+      }
+
+      setDraggedOverCategory(null)
+    } else {
+      setDraggedOverCategory(null)
+    }
+  }
+
+  // URLアイテムのドラッグ終了時
+  const handleUrlDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    // 実際のURL（プレフィックスなし）を取得
+    const actualUrl = active.data.current?.url || String(active.id)
+    const dragSourceProjectId = active.data.current?.projectId as string
+    const dragSourceCategory = active.data.current?.category
+
+    console.log('ドラッグ終了:', {
+      activeId: active.id,
+      activeUrl: actualUrl,
+      activeType: active.data.current?.type,
+      activeProjectId: dragSourceProjectId,
+      activeCategory: dragSourceCategory,
+      overId: over?.id,
+      overType: over?.data?.current?.type, // 余分なカンマを削除
+      currentProjectId: project.id,
+      overData: over?.data?.current || 'データなし',
+    })
+
+    setActiveId(null)
+
+    if (!over) {
+      console.log('ドロップ先なし')
+      setDraggedOverCategory(null)
+      return
+    }
+
+    // **** カテゴリ解除の処理をシンプルに変更 ****
+
+    // 1. まず直接的な未分類エリア検出（by ID）
+    if (
+      over?.id === `uncategorized-${project.id}` ||
+      (typeof over?.id === 'string' && over.id.includes('uncategorized'))
+    ) {
+      console.log('未分類エリアにドロップされました（ID検出）')
+      if (dragSourceCategory) {
+        handleSetUrlCategory(project.id, actualUrl, undefined)
+        toast.success('URLを未分類に移動しました')
+        setDraggedOverCategory(null)
+        return
+      }
+    }
+
+    // 2. データ属性ベースの未分類エリア検出
+    if (over?.data?.current?.type === 'uncategorized') {
+      console.log('未分類エリアにドロップされました（データ属性検出）')
+      if (dragSourceCategory) {
+        handleSetUrlCategory(project.id, actualUrl, undefined)
+        toast.success('URLを未分類に移動しました')
+        setDraggedOverCategory(null)
+        return
+      }
+    }
+
+    // 3. DOM要素による未分類エリア検出（より確実な検出）
+    const mouseEvent = event.activatorEvent as MouseEvent
+    let isUncategorizedArea = false
+
+    // 特定の座標にある要素を取得（複数レイヤーのうち最上位のみ）
+    const targetElement = document.elementFromPoint(
+      mouseEvent.clientX,
+      mouseEvent.clientY,
+    ) as HTMLElement
+    if (targetElement) {
+      // デバッグ用に詳細情報出力
+      console.log('ドロップ位置の最上位要素:', {
+        tag: targetElement.tagName,
+        id: targetElement.id,
+        className: targetElement.className,
+        dataType: targetElement.getAttribute('data-type'),
+        dataArea: targetElement.getAttribute('data-uncategorized-area'),
+      })
+
+      // 未分類エリア検出のための最も直接的な方法
+      if (
+        targetElement.getAttribute('data-uncategorized-area') === 'true' ||
+        targetElement.getAttribute('data-type') === 'uncategorized' ||
+        targetElement.id?.includes('uncategorized') ||
+        targetElement.classList.contains('uncategorized-area')
+      ) {
+        isUncategorizedArea = true
+      }
+
+      // 未分類エリア内か判定するための親要素の走査
+      let parentElement = targetElement.parentElement
+      for (let i = 0; i < 5 && parentElement && !isUncategorizedArea; i++) {
+        if (
+          parentElement.getAttribute('data-uncategorized-area') === 'true' ||
+          parentElement.getAttribute('data-type') === 'uncategorized' ||
+          parentElement.id?.includes('uncategorized') ||
+          parentElement.classList.contains('uncategorized-area')
+        ) {
+          isUncategorizedArea = true
+          console.log('未分類エリアを親要素から検出:', parentElement)
+          break
+        }
+        parentElement = parentElement.parentElement
+      }
+    }
+
+    if (isUncategorizedArea) {
+      console.log('DOM要素による未分類エリア検出に成功')
+      if (dragSourceCategory) {
+        handleSetUrlCategory(project.id, actualUrl, undefined)
+        toast.success('URLを未分類に移動しました')
+        setDraggedOverCategory(null)
+        return
+      }
+    }
+
+    // カテゴリへのドロップを検出（未分類エリア検出後に実行）
+    // ...existing code...
+  }
+
+  // 文字列が未分類を表すかチェックするヘルパー関数
+  function isUncategorizedString(str: string): boolean {
+    return (
+      str.includes('uncategorized') ||
+      str === 'undefined' ||
+      str.includes('未分類')
+    )
+  }
+
+  // DOM要素から未分類エリアの検出を行う補助関数を改善
+  function isUncategorizedElementAtPoint(event: DragEndEvent): boolean {
+    try {
+      // MouseEvent にキャストして clientX と clientY にアクセス
+      const mouseEvent = event.activatorEvent as MouseEvent
+
+      // 複数の要素を取得 (より確実な検出のため)
+      const elementsAtPoint = getElementsAtPoint(
+        mouseEvent.clientX,
+        mouseEvent.clientY,
+      )
+      console.log('検出した要素数:', elementsAtPoint.length)
+
+      // いずれかの要素が未分類エリアである場合
+      for (const elem of elementsAtPoint) {
+        if (
+          elem.getAttribute('data-type') === 'uncategorized' ||
+          elem.id?.includes('uncategorized') ||
+          elem.getAttribute('data-uncategorized-area') === 'true'
+        ) {
+          console.log('未分類エリア要素を検出:', elem)
+          return true
+        }
+      }
+      return false
+    } catch (error) {
+      console.error('未分類エリア要素検出エラー:', error)
+      return false
+    }
+  }
+
+  // ポイント位置にある複数の要素を取得する関数
+  function getElementsAtPoint(x: number, y: number): HTMLElement[] {
+    const elements: HTMLElement[] = []
+    const element = document.elementFromPoint(x, y) as HTMLElement
+
+    if (!element) return elements
+
+    // 最初の要素を追加
+    elements.push(element)
+
+    // 要素を一時的に非表示にして、その下の要素を取得するループ
+    let currentElement = element
+    const originalVisibility: [HTMLElement, string][] = []
+
+    while (currentElement) {
+      // 元のvisibilityを保存
+      originalVisibility.push([currentElement, currentElement.style.visibility])
+
+      // 要素を一時的に非表示に
+      currentElement.style.visibility = 'hidden'
+
+      // 次の要素を取得
+      currentElement = document.elementFromPoint(x, y) as HTMLElement
+
+      // 次の要素が存在し、まだリストにない場合は追加
+      if (currentElement && !elements.includes(currentElement)) {
+        elements.push(currentElement)
+      } else {
+        break // 次の要素がない、または既に処理済みの場合はループ終了
+      }
+    }
+
+    // 元のvisibilityを復元
+    for (const [elem, visibility] of originalVisibility) {
+      elem.style.visibility = visibility
+    }
+
+    return elements
+  }
+
+  // カテゴリのドラッグ&ドロップ処理（カテゴリの順序変更のみに修正）
+  const handleCategoryDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    console.log('カテゴリドラッグ終了:', {
+      activeId: active.id,
+      activeType: active.data.current?.type,
+      overId: over?.id,
+      overType: over?.data.current?.type,
+      isDraggingCategory,
+    })
+
+    setIsDraggingCategory(false)
+    setActiveId(null)
+
+    if (!over) {
+      setDraggedCategoryName(null)
+      return
+    }
+
+    // カテゴリをドラッグしていた場合
+    if (isDraggingCategory && draggedCategoryName) {
+      const sourceCategoryName = draggedCategoryName
+
+      // 別のカテゴリ上にドロップされた場合も、単にカテゴリの順序を変更
+      if (active.id !== over.id) {
+        console.log(
+          `カテゴリの順序を変更: ${active.id} を ${over.id} の位置に移動`,
+        )
+
+        // カテゴリの順序を変更
+        const oldIndex =
+          project.categoryOrder?.indexOf(active.id as string) ??
+          project.categories.indexOf(active.id as string)
+
+        const newIndex =
+          project.categoryOrder?.indexOf(over.id as string) ??
+          project.categories.indexOf(over.id as string)
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(
+            project.categoryOrder || project.categories,
+            oldIndex,
+            newIndex,
+          )
+
+          handleUpdateCategoryOrder(project.id, newOrder)
+          toast.success('カテゴリの順序を変更しました')
+        }
+      }
+    }
+
+    setDraggedCategoryName(null)
+  }
+
+  // カテゴリに属さないURL
+  const uncategorizedUrls = project.urls.filter(url => !url.category)
+
+  // カテゴリ表示順を設定
+  const categoryOrder = project.categoryOrder || project.categories
+
+  // ページ全体にクリックイベントリスナーを追加（緊急時の手動カテゴリ解除用）
+  useEffect(() => {
+    const handleManualCategoryReset = (e: MouseEvent) => {
+      // Alt+クリックでカテゴリを強制的に解除（緊急時用）
+      if (e.altKey) {
+        // クリック位置の要素を取得
+        const targetElement = document.elementFromPoint(
+          e.clientX,
+          e.clientY,
+        ) as HTMLElement
+        if (targetElement) {
+          const urlAttr =
+            targetElement.getAttribute('data-url') ||
+            targetElement.closest('[data-url]')?.getAttribute('data-url')
+
+          if (urlAttr && project.urls.some(u => u.url === urlAttr)) {
+            console.log('Alt+クリックでカテゴリを解除:', urlAttr)
+            handleSetUrlCategory(project.id, urlAttr, undefined)
+            toast.success('URLのカテゴリを解除しました（Alt+クリック）')
+          }
+        }
+      }
+    }
+
+    document.addEventListener('click', handleManualCategoryReset)
+    return () =>
+      document.removeEventListener('click', handleManualCategoryReset)
+  }, [project.id, project.urls, handleSetUrlCategory])
+
+  return (
+    <Card
+      className={`mb-4 w-full ${
+        isExternalItemOver
+          ? 'border-primary border-2 shadow-lg bg-primary/5'
+          : ''
+      }`}
+      ref={setCombinedRefs}
+      style={style}
+    >
+      <CardHeader className='flex-row justify-between items-baseline py-3'>
+        {isRenaming ? (
+          <div className='flex items-center gap-2 w-full'>
+            <Input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              className='flex-grow'
+              autoFocus
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleRenameClick()
+                if (e.key === 'Escape') {
+                  setNewName(project.name)
+                  setIsRenaming(false)
+                }
+              }}
+            />
+            <Button size='sm' onClick={handleRenameClick}>
+              保存
+            </Button>
+            <Button
+              size='sm'
+              variant='ghost'
+              onClick={() => {
+                setNewName(project.name)
+                setIsRenaming(false)
+              }}
+            >
+              キャンセル
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className='flex items-center gap-2'>
+              {/* プロジェクトのドラッグハンドル */}
+              <div
+                {...attributes}
+                {...attributes}
+                className='cursor-grab active:cursor-grabbing p-1 hover:bg-accent hover:text-accent-foreground rounded-md'
+              >
+                <GripVertical size={20} className='text-muted-foreground' />
+              </div>
+
+              <h2 className='text-xl font-bold'>{project.name}</h2>
+              <Badge variant='outline'>{project.urls.length} URL</Badge>
+            </div>
+            <div className='flex gap-2 flex-wrap justify-end'>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => setIsRenaming(true)}
+                    >
+                      <Edit size={16} className='mr-1' />
+                      <span className='hidden md:inline'>編集</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>プロジェクト名を編集</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => setIsAddingCategory(true)}
+                    >
+                      <FolderPlus size={16} className='mr-1' />
+                      <span className='hidden md:inline'>カテゴリ追加</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>新しいカテゴリを追加</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => handleDeleteProject(project.id)}
+                    >
+                      <Trash2 size={16} className='mr-1' />
+                      <span className='hidden md:inline'>削除</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>プロジェクトを削除</TooltipContent>
+                </Tooltip>
+
+                {project.urls.length > 0 && handleOpenAllUrls && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        onClick={() => handleOpenAllUrls(project.urls)}
+                      >
+                        <ExternalLink size={16} className='mr-1' />
+                        <span className='hidden md:inline'>すべて開く</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>すべてのタブを開く</TooltipContent>
+                  </Tooltip>
+                )}
+              </TooltipProvider>
+            </div>
+          </>
+        )}
+      </CardHeader>
+      <CardContent>
+        {/* プロジェクト間ドラッグ中の表示 */}
+        {isExternalItemOver && (
+          <div className='border-2 border-dashed border-primary p-4 mb-4 rounded bg-primary/10 text-center font-medium'>
+            <span className='text-primary'>{draggedItem?.title || 'URL'}</span>{' '}
+            をここにドロップして追加
+          </div>
+        )}
+
+        {/* すべてのドラッグ&ドロップを単一のDndContextで処理 */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={
+            isDraggingCategory ? handleCategoryDragEnd : handleUrlDragEnd
+          }
+        >
+          {/* カテゴリ表示部分 - フラットな構造に変更 */}
+          {project.categories.length > 0 && (
+            <SortableContext
+              items={categoryOrder}
+              strategy={verticalListSortingStrategy}
+            >
+              {categoryOrder.map(categoryName => (
+                <div key={categoryName} className='mb-4'>
+                  <CustomProjectCategory
+                    projectId={project.id}
+                    category={categoryName}
+                    urls={project.urls}
+                    handleOpenUrl={handleOpenUrl}
+                    handleDeleteUrl={handleDeleteUrl}
+                    handleDeleteCategory={handleDeleteCategory}
+                    handleSetUrlCategory={handleSetUrlCategory}
+                    handleAddCategory={handleAddCategory}
+                    settings={settings}
+                    dragData={{ type: 'category' }}
+                    isHighlighted={draggedOverCategory === categoryName}
+                    isDraggingCategory={isDraggingCategory}
+                    draggedCategoryName={draggedCategoryName}
+                    isCategoryReorder={true}
+                  />
+                </div>
+              ))}
+            </SortableContext>
+          )}
+
+          {/* 未分類URL表示部分 */}
+          {project.urls.length > 0 && uncategorizedUrls.length > 0 && (
+            <div
+              className={`mt-4 p-4 uncategorized-area uncategorized-drop-zone ${
+                isUncategorizedOver
+                  ? 'border-2 border-primary bg-primary/10 rounded shadow-sm'
+                  : 'border border-dashed border-muted rounded'
+              }`}
+              ref={setUncategorizedDropRef}
+              id={`uncategorized-${project.id}`}
+              data-type='uncategorized'
+              data-project-id={project.id}
+              data-is-drop-area='true'
+              data-uncategorized-area='true'
+              data-uncategorized-container='true'
+              aria-label='未分類URLエリア'
+            >
+              {project.categories.length > 0 && (
+                <h3
+                  className='text-md font-semibold mb-2 px-2 uncategorized-heading'
+                  data-type='uncategorized'
+                  data-uncategorized-area='true'
+                >
+                  未分類のURL
+                  {isUncategorizedOver && (
+                    <span className='text-primary' data-type='uncategorized'>
+                      {' '}
+                      (ドロップでカテゴリ解除)
+                    </span>
+                  )}
+                </h3>
+              )}
+
+              <SortableContext
+                items={uncategorizedUrls.map(item => item.url)}
+                strategy={verticalListSortingStrategy}
+              >
+                <ul
+                  className='space-y-2 uncategorized-area uncategorized-list'
+                  data-type='uncategorized'
+                  data-parent-id={`uncategorized-${project.id}`}
+                  data-uncategorized-area='true'
+                  data-uncategorized-list='true'
+                >
+                  {uncategorizedUrls.map(item => (
+                    <ProjectUrlItem
+                      key={item.url}
+                      item={item}
+                      projectId={project.id}
+                      handleOpenUrl={handleOpenUrl}
+                      handleDeleteUrl={handleDeleteUrl}
+                      handleSetCategory={handleSetUrlCategory}
+                      isInUncategorizedArea={true}
+                      parentType='uncategorized'
+                    />
+                  ))}
+                </ul>
+              </SortableContext>
+            </div>
+          )}
+
+          {/* 空の未分類エリアも表示して、ドロップ可能にする */}
+          {project.urls.length > 0 &&
+            uncategorizedUrls.length === 0 &&
+            project.categories.length > 0 && (
+              <button
+                className={`mt-4 p-8 border-2 border-dashed rounded cursor-pointer w-full text-left uncategorized-area uncategorized-drop-zone uncategorized-empty ${
+                  isUncategorizedOver
+                    ? 'border-primary bg-primary/10 shadow-md'
+                    : 'border-muted hover:border-muted-foreground hover:bg-accent/5'
+                }`}
+                ref={setUncategorizedDropRef}
+                id={`uncategorized-${project.id}`}
+                data-type='uncategorized'
+                data-project-id={project.id}
+                data-uncategorized-area='true'
+                data-uncategorized-container='true'
+                data-empty-container='true'
+                aria-label='URLをここにドロップして未分類に移動'
+                onClick={() => {
+                  // 直接クリックでもカテゴリ解除できるようにする（万が一のフォールバック）
+                  const selectedUrl = window.getSelection()?.toString()
+                  if (
+                    selectedUrl &&
+                    project.urls.some(u => u.url === selectedUrl)
+                  ) {
+                    handleSetUrlCategory(project.id, selectedUrl, undefined)
+                    toast.success('URLを未分類に移動しました')
+                  }
+                }}
+                type='button'
+              >
+                <div className='text-center font-medium'>
+                  <span
+                    className={
+                      isUncategorizedOver
+                        ? 'text-primary'
+                        : 'text-muted-foreground'
+                    }
+                  >
+                    URLをここにドロップして<strong>未分類</strong>に移動
+                  </span>
+                </div>
+              </button>
+            )}
+
+          {/* ドラッグ中のオーバーレイ */}
+          {activeId && (
+            <DragOverlay>
+              {project.urls.find(
+                u =>
+                  u.url === activeId.id ||
+                  u.url === activeId.data?.current?.url,
+              ) && (
+                <div className='border p-2 rounded bg-secondary'>
+                  {project.urls.find(
+                    u =>
+                      u.url === activeId.id ||
+                      u.url === activeId.data?.current?.url,
+                  )?.title || 'URL'}
+                </div>
+              )}
+            </DragOverlay>
+          )}
+        </DndContext>
+
+        {/* プロジェクトが空の場合 */}
+        {project.urls.length === 0 && !isExternalItemOver && (
+          <div className='text-center text-muted-foreground py-4'>
+            このプロジェクトにはURLがありません。
+            <br />
+            拡張機能アイコンからタブを保存するか、右クリックメニューから追加できます。
+            <br />
+            他のプロジェクトからURLをドラッグ&ドロップして追加することもできます。
+          </div>
+        )}
+      </CardContent>
+
+      {/* カテゴリ追加モーダル */}
+      <Dialog open={isAddingCategory} onOpenChange={setIsAddingCategory}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新しいカテゴリを追加</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={newCategoryName}
+            onChange={e => setNewCategoryName(e.target.value)}
+            placeholder='カテゴリ名'
+            className='w-full'
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') handleAddCategoryClick()
+            }}
+          />
+          <DialogFooter>
+            <Button
+              variant='ghost'
+              onClick={() => {
+                setNewCategoryName('')
+                setIsAddingCategory(false)
+              }}
+            >
+              キャンセル
+            </Button>
+            <Button onClick={handleAddCategoryClick}>追加</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  )
+}
+
+// 要素が未分類エリア内にあるかを判定
+function isElementInUncategorizedArea(element: HTMLElement): boolean {
+  let currentElement = element
+  const maxDepth = 10 // 無限ループを避けるための最大探索深度
+
+  for (let i = 0; i < maxDepth && currentElement; i++) {
+    if (
+      currentElement.getAttribute('data-uncategorized-area') === 'true' ||
+      currentElement.getAttribute('data-type') === 'uncategorized' ||
+      currentElement.id?.includes('uncategorized') ||
+      currentElement.classList.contains('uncategorized-area')
+    ) {
+      return true
+    }
+
+    // 親要素に遡る
+    currentElement = currentElement.parentElement as HTMLElement
+    if (!currentElement) break
+  }
+
+  return false
+}
