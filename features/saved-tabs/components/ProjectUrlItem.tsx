@@ -16,6 +16,7 @@ import {
   GripVertical,
   MoreVertical,
   Trash2,
+  X,
 } from 'lucide-react'
 
 interface ProjectUrlItemProps {
@@ -161,68 +162,12 @@ export const ProjectUrlItem = ({
         <Button
           variant='ghost'
           size='sm'
-          onClick={() => handleOpenUrl(item.url)}
+          onClick={() => handleDeleteUrl(projectId, item.url)}
           className='h-8 w-8 p-0'
-          title='URLを開く'
+          title='削除'
         >
-          <ExternalLink size={16} />
+          <X size={14} />
         </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant='ghost' size='sm' className='h-8 w-8 p-0'>
-              <MoreVertical size={16} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align='end'>
-            <DropdownMenuItem
-              onClick={() => handleDeleteUrl(projectId, item.url)}
-              className='text-destructive'
-            >
-              <Trash2 size={16} className='mr-2' />
-              <span>削除</span>
-            </DropdownMenuItem>
-
-            {/* カテゴリが設定されている場合の「カテゴリ解除」オプション */}
-            {item.category && handleSetCategory && (
-              <DropdownMenuItem
-                onClick={() =>
-                  handleSetCategory(projectId, item.url, undefined)
-                }
-                className='border-l-2 border-primary text-primary'
-              >
-                <Folder size={16} className='mr-2' />
-                <span>カテゴリ解除</span>
-              </DropdownMenuItem>
-            )}
-
-            {/* カテゴリ選択メニュー */}
-            {handleSetCategory &&
-              availableCategories &&
-              availableCategories.length > 0 &&
-              availableCategories
-                .filter(cat => cat !== item.category) // 現在のカテゴリは表示しない
-                .map(category => (
-                  <DropdownMenuItem
-                    key={category}
-                    onClick={() =>
-                      // "undefined" 文字列を特別に処理してカテゴリを解除する
-                      handleSetCategory(
-                        projectId,
-                        item.url,
-                        category === 'undefined' ? undefined : category,
-                      )
-                    }
-                  >
-                    <Folder size={16} className='mr-2' />
-                    <span>
-                      {category === 'undefined'
-                        ? 'カテゴリ解除'
-                        : `「${category}」に移動`}
-                    </span>
-                  </DropdownMenuItem>
-                ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </li>
   )

@@ -6,37 +6,47 @@ import {
 } from '@/components/ui/tooltip'
 import { Plus, Settings } from 'lucide-react'
 import { useState } from 'react'
-import type { TabGroup } from '../../../utils/storage'
+import type { TabGroup, ViewMode } from '../../../utils/storage'
 import { CategoryModal } from './CategoryModal'
+import { ViewModeToggle } from './ViewModeToggle'
 
 type HeaderProps = {
   tabGroups: TabGroup[]
+  currentMode: ViewMode
+  onModeChange: (mode: ViewMode) => void
 }
 
-export const Header = ({ tabGroups }: HeaderProps) => {
+export const Header = ({
+  tabGroups,
+  currentMode,
+  onModeChange,
+}: HeaderProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   return (
     <div className='flex justify-between items-center mb-4'>
       <h1 className='text-3xl font-bold text-foreground'>TABBIN</h1>
       <div className='flex items-center gap-1'>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={() => setIsModalOpen(true)}
-              className='flex items-center gap-2 cursor-pointer'
-              title='親カテゴリ作成'
-            >
-              <Plus size={16} />
-              <span className='lg:inline hidden'>カテゴリ作成</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side='top' className='lg:hidden block'>
-            親カテゴリ作成
-          </TooltipContent>
-        </Tooltip>
+        {currentMode === 'domain' && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setIsModalOpen(true)}
+                className='flex items-center gap-2 cursor-pointer'
+                title='親カテゴリ作成'
+              >
+                <Plus size={16} />
+                <span className='lg:inline hidden'>カテゴリ作成</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side='top' className='lg:hidden block'>
+              親カテゴリ作成
+            </TooltipContent>
+          </Tooltip>
+        )}
+        <ViewModeToggle currentMode={currentMode} onChange={onModeChange} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

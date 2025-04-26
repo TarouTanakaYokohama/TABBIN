@@ -9,12 +9,17 @@ import {
 } from '@/components/ui/tooltip'
 import type { CustomProject } from '@/utils/storage'
 import { useDroppable } from '@dnd-kit/core'
-import { useSortable } from '@dnd-kit/sortable'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ArrowUpDown, ChevronDown, GripVertical, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { ProjectUrlItem } from './ProjectUrlItem'
 
-interface CustomProjectCategoryProps {
+export interface CustomProjectCategoryProps {
   projectId: string
   category: string
   urls: CustomProject['urls']
@@ -30,11 +35,14 @@ interface CustomProjectCategoryProps {
   settings: { removeTabAfterOpen: boolean }
   dragData?: { type: string }
   isHighlighted?: boolean
-  // カテゴリドラッグ関連のプロパティ
   isDraggingCategory?: boolean
   draggedCategoryName?: string | null
-  // 追加: 順序変更モード
   isCategoryReorder?: boolean
+  handleRenameCategory?: (
+    projectId: string,
+    oldCategoryName: string,
+    newCategoryName: string,
+  ) => void
 }
 
 export const CustomProjectCategory = ({
@@ -52,6 +60,7 @@ export const CustomProjectCategory = ({
   isDraggingCategory = false,
   draggedCategoryName = null,
   isCategoryReorder = false,
+  handleRenameCategory,
 }: CustomProjectCategoryProps) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -64,30 +73,22 @@ export const CustomProjectCategory = ({
       },
     })
 
-  // ドロップターゲットの識別子
   const categoryDropId = `category-drop-${projectId}-${category}`
 
-  // カテゴリをURLのドロップ先として設定
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
-    id: category, // 単純なカテゴリ名IDを使用
+    id: categoryDropId,
     data: {
       type: 'category',
       categoryName: category,
-      projectId: projectId,
+      projectId,
       isDropArea: true,
       isCategory: true,
     },
   })
 
-  // 両方のrefを組み合わせる
   const setRefs = (node: HTMLElement | null) => {
     setNodeRef(node)
     setDroppableRef(node)
-  }
-
-  // デバッグログを削減
-  if (isOver && isDraggingCategory) {
-    console.log(`カテゴリ "${category}" が順序変更のドロップ対象です`)
   }
 
   const style = {
@@ -95,23 +96,15 @@ export const CustomProjectCategory = ({
     transition,
   }
 
-  // このカテゴリに属するURLを抽出
-  const categoryUrls = urls.filter(url => url.category === category)
-
-  // ドラッグ中のハイライト状態を決定
+  const categoryUrls = urls.filter(u => u.category === category)
   const isDropTarget = isHighlighted || isOver
-
-  // ドラッグ中のカテゴリがこのカテゴリ自身であるかを判定
   const isSelfDragging = isDraggingCategory && draggedCategoryName === category
-
-  // 別のカテゴリがドラッグされており、このカテゴリがドロップ対象になっている場合
   const isReorderTarget =
     isDraggingCategory &&
     draggedCategoryName !== null &&
     draggedCategoryName !== category &&
     isDropTarget
 
-  // カテゴリ順序変更時のスタイルを指定
   const reorderStyle = isReorderTarget
     ? {
         backgroundColor: 'rgba(59, 130, 246, 0.05)',
@@ -120,26 +113,41 @@ export const CustomProjectCategory = ({
       }
     : {}
 
-  // カードのスタイル計算
   const cardStyle = {
     ...style,
     ...(isOver ? { backgroundColor: 'rgba(0, 255, 0, 0.05)' } : {}),
     ...reorderStyle,
   }
 
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState(category)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.focus()
+    }
+  }, [isEditing])
+
+  useEffect(() => {
+    setEditName(category)
+  }, [category])
+
   return (
     <Card
       ref={setRefs}
       style={cardStyle}
-      className={`mb-2 ${isDropTarget ? 'border-primary border-2 bg-primary/5' : ''}
-        ${isSelfDragging ? 'opacity-50' : ''}`}
-      id={category} // IDを明示的に設定
+      className={`mb-2 ${
+        isDropTarget ? 'border-primary border-2 bg-primary/5' : ''
+      } ${isSelfDragging ? 'opacity-50' : ''}`}
+      id={categoryDropId}
       data-category={category}
       data-is-drop-target='true'
       data-project-id={projectId}
       data-category-name={category}
       data-is-category='true'
       data-type='category'
+      data-category-drop-id={categoryDropId}
       aria-label={`カテゴリ: ${category}`}
     >
       <CardHeader className='flex-row justify-between items-center py-2 px-3'>
@@ -151,24 +159,70 @@ export const CustomProjectCategory = ({
           >
             <GripVertical size={16} className='text-muted-foreground' />
           </div>
-
           <div className='flex items-center'>
             <ChevronDown size={16} className='text-primary mr-1' />
           </div>
-
-          <h3 className='text-lg font-medium'>{category}</h3>
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              type='text'
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              onBlur={() => {
+                if (
+                  handleRenameCategory &&
+                  editName.trim() &&
+                  editName.trim() !== category
+                ) {
+                  handleRenameCategory(projectId, category, editName.trim())
+                }
+                setIsEditing(false)
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  ;(e.target as HTMLInputElement).blur()
+                }
+                if (e.key === 'Escape') {
+                  setEditName(category)
+                  setIsEditing(false)
+                }
+              }}
+              className='text-lg font-medium bg-transparent border-b border-gray-300 focus:outline-none'
+            />
+          ) : (
+            <h3 className='m-0'>
+              <button
+                type='button'
+                onClick={() => setIsEditing(true)}
+                className='text-lg font-medium cursor-text bg-transparent border-none p-0'
+              >
+                {category}
+              </button>
+            </h3>
+          )}
           <Badge variant='secondary'>{categoryUrls.length} URL</Badge>
         </div>
-
         <div className='flex items-center gap-1'>
-          {/* 順序変更中の表示 */}
           {isReorderTarget && isCategoryReorder && (
             <div className='text-blue-600 text-sm flex items-center mr-2'>
               <ArrowUpDown className='mr-1' size={14} />
               <span>順序を変更</span>
             </div>
           )}
-
+          {categoryUrls.length > 0 && (
+            <Button
+              variant='outline'
+              size='sm'
+              className='mr-1'
+              onClick={() => {
+                for (const u of categoryUrls) {
+                  window.open(u.url, '_blank', 'noopener,noreferrer')
+                }
+              }}
+            >
+              すべて開く
+            </Button>
+          )}
           {handleDeleteCategory && (
             <TooltipProvider>
               <Tooltip>
@@ -200,38 +254,36 @@ export const CustomProjectCategory = ({
         data-project-id={projectId}
         data-is-category='true'
         data-type='category'
+        data-category-drop-id={categoryDropId}
       >
         {categoryUrls.length > 0 ? (
-          <ul
-            className='space-y-1'
-            data-is-drop-area='true'
-            data-category-name={category}
-            data-project-id={projectId}
-            data-is-category='true'
-            data-type='category'
+          <SortableContext
+            items={categoryUrls.map(item => item.url)}
+            strategy={verticalListSortingStrategy}
           >
-            {categoryUrls.map(item => (
-              <ProjectUrlItem
-                key={item.url}
-                item={item}
-                projectId={projectId}
-                handleOpenUrl={handleOpenUrl}
-                handleDeleteUrl={handleDeleteUrl}
-                handleSetCategory={handleSetUrlCategory}
-                // 修正: undefined を文字列として渡す
-                availableCategories={['undefined']} // カテゴリ解除オプション（文字列として）
-              />
-            ))}
-          </ul>
+            <ul
+              className={`space-y-1 ${
+                isOver ? 'bg-primary/5 p-1 rounded' : ''
+              }`}
+            >
+              {categoryUrls.map(item => (
+                <ProjectUrlItem
+                  key={item.url}
+                  item={item}
+                  projectId={projectId}
+                  handleOpenUrl={handleOpenUrl}
+                  handleDeleteUrl={handleDeleteUrl}
+                  handleSetCategory={handleSetUrlCategory}
+                  availableCategories={['undefined']}
+                />
+              ))}
+            </ul>
+          </SortableContext>
         ) : (
           <div
-            ref={setDroppableRef}
-            className='text-center text-muted-foreground py-2 border-2 border-dashed rounded p-4'
-            data-is-drop-area='true'
-            data-category-name={category}
-            data-project-id={projectId}
-            data-is-category='true'
-            data-type='category'
+            className={`text-center text-muted-foreground py-2 border-2 border-dashed rounded p-4 ${
+              isOver ? 'bg-primary/10 border-primary' : ''
+            }`}
           >
             {isReorderTarget && isCategoryReorder
               ? 'カテゴリの順序を変更'

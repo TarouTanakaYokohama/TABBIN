@@ -1,4 +1,10 @@
-import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { ViewMode } from '@/utils/storage'
 import { Folder, Globe } from 'lucide-react'
 
@@ -12,28 +18,26 @@ export const ViewModeToggle = ({
   onChange,
 }: ViewModeToggleProps) => {
   return (
-    <div className='flex gap-2 items-center'>
-      <Button
-        variant={currentMode === 'domain' ? 'default' : 'outline'}
-        onClick={() => onChange('domain')}
-        size='sm'
-        className='flex items-center gap-2'
-      >
-        <Globe size={16} />
-        <span className='hidden md:inline'>ドメインモード</span>
-        <span className='md:hidden'>ドメイン</span>
-      </Button>
-
-      <Button
-        variant={currentMode === 'custom' ? 'default' : 'outline'}
-        onClick={() => onChange('custom')}
-        size='sm'
-        className='flex items-center gap-2'
-      >
-        <Folder size={16} />
-        <span className='hidden md:inline'>カスタムモード</span>
-        <span className='md:hidden'>PJ</span>
-      </Button>
-    </div>
+    <Select value={currentMode} onValueChange={onChange}>
+      <SelectTrigger className='flex items-center gap-2'>
+        <SelectValue placeholder='表示モード' />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value='domain'>
+          <div className='flex items-center gap-2'>
+            <Globe size={16} />
+            <span className='hidden md:inline'>ドメインモード</span>
+            <span className='md:hidden'>ドメイン</span>
+          </div>
+        </SelectItem>
+        <SelectItem value='custom'>
+          <div className='flex items-center gap-2'>
+            <Folder size={16} />
+            <span className='hidden md:inline'>カスタムモード</span>
+            <span className='md:hidden'>PJ</span>
+          </div>
+        </SelectItem>
+      </SelectContent>
+    </Select>
   )
 }

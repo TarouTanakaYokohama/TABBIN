@@ -34,12 +34,15 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCenter,
+  pointerWithin,
+  rectIntersection,
   useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import type {
   Active,
+  CollisionDetection,
   DragEndEvent,
   DragOverEvent,
   DragStartEvent,
@@ -93,6 +96,11 @@ interface CustomProjectCardProps {
     targetProjectId: string,
     url: string,
   ) => void
+  handleRenameCategory?: (
+    projectId: string,
+    oldCategoryName: string,
+    newCategoryName: string,
+  ) => void
 }
 
 export const CustomProjectCard = ({
@@ -104,13 +112,14 @@ export const CustomProjectCard = ({
   handleRenameProject,
   handleAddCategory,
   handleDeleteCategory,
+  handleRenameCategory, // カテゴリ名変更ハンドラ
   handleSetUrlCategory,
   handleUpdateCategoryOrder,
   handleReorderUrls,
   handleOpenAllUrls,
   settings,
   draggedItem,
-  handleMoveUrlsBetweenCategories, // 新しいプロパティを受け取る
+  handleMoveUrlsBetweenCategories,
   isDropTarget = false,
   handleMoveUrlBetweenProjects,
 }: CustomProjectCardProps) => {
@@ -184,6 +193,46 @@ export const CustomProjectCard = ({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   )
+
+  // Custom collision detection: prioritize uncategorized drop zone via pointerCoordinates
+  const collisionDetectionStrategy: CollisionDetection = args => {
+    console.log('collisionDetectionStrategy:', {
+      droppables: Array.from(args.droppableRects.keys()),
+      pointerCoordinates: args.pointerCoordinates,
+    })
+    const { droppableRects } = args
+    const uncategorizedId = `uncategorized-${project.id}`
+
+    // Always prioritize pointerWithin for uncategorized drop zone
+    const pointerCollisions = pointerWithin(args)
+    console.log('pointerWithin:', pointerCollisions)
+    const uncPointer = pointerCollisions.find(c => c.id === uncategorizedId)
+    if (uncPointer) {
+      console.log('collision by pointerWithin -> uncategorized')
+      return [uncPointer]
+    }
+
+    // Fallback to rectIntersection detection
+    const intersections = rectIntersection(args)
+    console.log('rectIntersection:', intersections)
+    const uncRect = intersections.find(c => c.id === uncategorizedId)
+    if (uncRect) {
+      console.log('collision by rectIntersection -> uncategorized')
+      return [uncRect]
+    }
+    if (intersections.length > 0) {
+      return intersections
+    }
+
+    // Then fallback to pointerCollisions
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions
+    }
+
+    const centerCollisions = closestCenter(args)
+    console.log('closestCenter:', centerCollisions)
+    return centerCollisions
+  }
 
   // 別プロジェクトからドラッグされているかを判定
   const isExternalItemOver =
@@ -272,42 +321,17 @@ export const CustomProjectCard = ({
       }
 
       // カテゴリへのドラッグ判定を改善 - より多くの条件で判定
-      let isCategory = // let に変更して再代入可能にする
+      const isCategory =
         over.data.current.type === 'category' ||
         over.data.current.isCategory === true ||
         over.data.current.isDropArea === true ||
         (typeof over.id === 'string' &&
-          String(over.id).startsWith('category-drop-')) ||
+          (String(over.id).startsWith('category-drop-') ||
+            String(over.id).includes('category'))) ||
         // データ属性から判定
         (over.data.current.categoryName && !over.data.current.url) ||
         // 親要素を確認してカテゴリかどうかを判断
         over.data.current.parent?.type === 'category'
-
-      // カテゴリの親要素を確認 - カテゴリ内の子要素でも検出できるようにする
-      // MouseEvent にキャストして clientX と clientY にアクセス
-      const mouseEvent = event.activatorEvent as MouseEvent
-      let parentElement = document.elementFromPoint(
-        mouseEvent.clientX,
-        mouseEvent.clientY,
-      )
-      let isCategoryContainer = false
-
-      // 親要素を遡ってカテゴリコンテナを探索
-      while (parentElement && !isCategoryContainer) {
-        if (parentElement.getAttribute('data-is-category') === 'true') {
-          isCategoryContainer = true
-          const categoryName = parentElement.getAttribute('data-category-name')
-          if (categoryName) {
-            console.log(`カテゴリ "${categoryName}" の子要素上でドラッグ中`)
-            if (!isCategory) {
-              isCategory = true
-            }
-            // 直接カテゴリ名を取得して使用
-            over.data.current.categoryName = categoryName
-          }
-        }
-        parentElement = parentElement.parentElement
-      }
 
       if (isCategory) {
         // カテゴリ名を取得 (より確実に)
@@ -340,6 +364,9 @@ export const CustomProjectCard = ({
   const handleUrlDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
 
+    // DEBUG: log uncategorizedOver and drop target
+    console.log('handleUrlDragEnd:', { overId: over?.id, isUncategorizedOver })
+
     // 実際のURL（プレフィックスなし）を取得
     const actualUrl = active.data.current?.url || String(active.id)
     const dragSourceProjectId = active.data.current?.projectId as string
@@ -352,20 +379,49 @@ export const CustomProjectCard = ({
       activeProjectId: dragSourceProjectId,
       activeCategory: dragSourceCategory,
       overId: over?.id,
-      overType: over?.data?.current?.type, // 余分なカンマを削除
+      overType: over?.data?.current?.type,
       currentProjectId: project.id,
       overData: over?.data?.current || 'データなし',
     })
 
     setActiveId(null)
 
+    // Manual detection: detect drop on uncategorized area using activatorEvent and delta
+    const activatorEvent = event.activatorEvent as MouseEvent
+    const { delta } = event
+    const dropX = activatorEvent.clientX + delta.x
+    const dropY = activatorEvent.clientY + delta.y
+    console.log('manual detection drop pos:', {
+      startX: activatorEvent.clientX,
+      startY: activatorEvent.clientY,
+      delta,
+      dropX,
+      dropY,
+    })
+    const dropEl = document.elementFromPoint(dropX, dropY) as HTMLElement | null
+    console.log('manual detection element:', dropEl)
+    if (dropEl?.closest('[data-uncategorized-area="true"]')) {
+      console.log('manual detection uncategorized area')
+      handleSetUrlCategory(project.id, actualUrl, undefined)
+      toast.success('URLを未分類に移動しました')
+      setDraggedOverCategory(null)
+      return
+    }
+
+    // 未分類エリアへのドロップ検出（empty含む）
+    if (isUncategorizedOver && dragSourceCategory) {
+      console.log('moving to uncategorized via handleUrlDragEnd')
+      handleSetUrlCategory(project.id, actualUrl, undefined)
+      toast.success('URLを未分類に移動しました')
+      setDraggedOverCategory(null)
+      return
+    }
+
     if (!over) {
       console.log('ドロップ先なし')
       setDraggedOverCategory(null)
       return
     }
-
-    // **** カテゴリ解除の処理をシンプルに変更 ****
 
     // 1. まず直接的な未分類エリア検出（by ID）
     if (
@@ -392,8 +448,13 @@ export const CustomProjectCard = ({
       }
     }
 
-    // 3. 同一プロジェクト内でURLの並び替え・カテゴリ移動
-    if (over && active.data.current?.type === 'url' && over.id !== active.id) {
+    // 3. 同一プロジェクト内でURLの並び替え
+    if (
+      over &&
+      active.data.current?.type === 'url' &&
+      over.data.current?.type === 'url' &&
+      over.id !== active.id
+    ) {
       // ドロップ先がカテゴリカードの場合はcategoryNameを、そうでなければcategoryを参照
       const overCategory =
         over.data?.current?.type === 'category'
@@ -414,16 +475,23 @@ export const CustomProjectCard = ({
           // 全体のurls配列を新順序に反映
           let newUrls: typeof project.urls
           if (!dragSourceCategory) {
-            // 未分類の場合
-            const categorized = project.urls.filter(u => u.category)
-            newUrls = [...moved, ...categorized]
+            // 未分類の場合: moved items in place using movedIndex
+            let movedIndex = 0
+            newUrls = project.urls.map(u => {
+              if (!u.category) {
+                return moved[movedIndex++]
+              }
+              return u
+            })
           } else {
-            // カテゴリ内の場合
-            newUrls = project.urls.map(u =>
-              u.category === dragSourceCategory
-                ? moved.find(m => m.url === u.url) || u
-                : u,
-            )
+            // カテゴリ内の場合: moved items in place using movedIndex
+            let movedIndex = 0
+            newUrls = project.urls.map(u => {
+              if (u.category === dragSourceCategory) {
+                return moved[movedIndex++]
+              }
+              return u
+            })
           }
           handleReorderUrls(project.id, newUrls)
           toast.success('URLの順序を変更しました')
@@ -445,144 +513,21 @@ export const CustomProjectCard = ({
       }
     }
 
-    // 4. DOM要素による未分類エリア検出（より確実な検出）
-    const mouseEvent = event.activatorEvent as MouseEvent
-    let isUncategorizedArea = false
-
-    // 特定の座標にある要素を取得（複数レイヤーのうち最上位のみ）
-    const targetElement = document.elementFromPoint(
-      mouseEvent.clientX,
-      mouseEvent.clientY,
-    ) as HTMLElement
-    if (targetElement) {
-      // デバッグ用に詳細情報出力
-      console.log('ドロップ位置の最上位要素:', {
-        tag: targetElement.tagName,
-        id: targetElement.id,
-        className: targetElement.className,
-        dataType: targetElement.getAttribute('data-type'),
-        dataArea: targetElement.getAttribute('data-uncategorized-area'),
-      })
-
-      // 未分類エリア検出のための最も直接的な方法
-      if (
-        targetElement.getAttribute('data-uncategorized-area') === 'true' ||
-        targetElement.getAttribute('data-type') === 'uncategorized' ||
-        targetElement.id?.includes('uncategorized') ||
-        targetElement.classList.contains('uncategorized-area')
-      ) {
-        isUncategorizedArea = true
-      }
-
-      // 未分類エリア内か判定するための親要素の走査
-      let parentElement = targetElement.parentElement
-      for (let i = 0; i < 5 && parentElement && !isUncategorizedArea; i++) {
-        if (
-          parentElement.getAttribute('data-uncategorized-area') === 'true' ||
-          parentElement.getAttribute('data-type') === 'uncategorized' ||
-          parentElement.id?.includes('uncategorized') ||
-          parentElement.classList.contains('uncategorized-area')
-        ) {
-          isUncategorizedArea = true
-          console.log('未分類エリアを親要素から検出:', parentElement)
-          break
-        }
-        parentElement = parentElement.parentElement
-      }
-    }
-
-    if (isUncategorizedArea) {
-      console.log('DOM要素による未分類エリア検出に成功')
-      if (dragSourceCategory) {
-        handleSetUrlCategory(project.id, actualUrl, undefined)
-        toast.success('URLを未分類に移動しました')
+    // カテゴリへのドロップを検出（未分類エリア検出後に実行）
+    if (over?.data?.current?.type === 'category') {
+      const targetCategory = over.data.current.categoryName
+      if (targetCategory && targetCategory !== dragSourceCategory) {
+        console.log(
+          `カテゴリ "${targetCategory}" にドロップされました (ID: ${over.id})`,
+        )
+        handleSetUrlCategory(project.id, actualUrl, targetCategory)
+        toast.success(`URLを「${targetCategory}」に移動しました`)
         setDraggedOverCategory(null)
         return
       }
     }
 
-    // カテゴリへのドロップを検出（未分類エリア検出後に実行）
-    // ...existing code...
-  }
-
-  // 文字列が未分類を表すかチェックするヘルパー関数
-  function isUncategorizedString(str: string): boolean {
-    return (
-      str.includes('uncategorized') ||
-      str === 'undefined' ||
-      str.includes('未分類')
-    )
-  }
-
-  // DOM要素から未分類エリアの検出を行う補助関数を改善
-  function isUncategorizedElementAtPoint(event: DragEndEvent): boolean {
-    try {
-      // MouseEvent にキャストして clientX と clientY にアクセス
-      const mouseEvent = event.activatorEvent as MouseEvent
-
-      // 複数の要素を取得 (より確実な検出のため)
-      const elementsAtPoint = getElementsAtPoint(
-        mouseEvent.clientX,
-        mouseEvent.clientY,
-      )
-      console.log('検出した要素数:', elementsAtPoint.length)
-
-      // いずれかの要素が未分類エリアである場合
-      for (const elem of elementsAtPoint) {
-        if (
-          elem.getAttribute('data-type') === 'uncategorized' ||
-          elem.id?.includes('uncategorized') ||
-          elem.getAttribute('data-uncategorized-area') === 'true'
-        ) {
-          console.log('未分類エリア要素を検出:', elem)
-          return true
-        }
-      }
-      return false
-    } catch (error) {
-      console.error('未分類エリア要素検出エラー:', error)
-      return false
-    }
-  }
-
-  // ポイント位置にある複数の要素を取得する関数
-  function getElementsAtPoint(x: number, y: number): HTMLElement[] {
-    const elements: HTMLElement[] = []
-    const element = document.elementFromPoint(x, y) as HTMLElement
-
-    if (!element) return elements
-
-    // 最初の要素を追加
-    elements.push(element)
-
-    // 要素を一時的に非表示にして、その下の要素を取得するループ
-    let currentElement = element
-    const originalVisibility: [HTMLElement, string][] = []
-
-    while (currentElement) {
-      // 元のvisibilityを保存
-      originalVisibility.push([currentElement, currentElement.style.visibility])
-
-      // 要素を一時的に非表示に
-      currentElement.style.visibility = 'hidden'
-
-      // 次の要素を取得
-      currentElement = document.elementFromPoint(x, y) as HTMLElement
-
-      // 次の要素が存在し、まだリストにない場合は追加
-      if (currentElement && !elements.includes(currentElement)) {
-        elements.push(currentElement)
-      } else {
-        break // 次の要素がない、または既に処理済みの場合はループ終了
-      }
-    }
-
-    // 元のvisibilityを復元
-    for (const [elem, visibility] of originalVisibility) {
-      elem.style.visibility = visibility
-    }
-
-    return elements
+    setDraggedOverCategory(null)
   }
 
   // カテゴリのドラッグ&ドロップ処理（カテゴリの順序変更のみに修正）
@@ -723,37 +668,10 @@ export const CustomProjectCard = ({
                 {...attributes}
                 {...attributes}
                 className='cursor-grab active:cursor-grabbing p-1 hover:bg-accent hover:text-accent-foreground rounded-md'
-              >
-                <GripVertical size={20} className='text-muted-foreground' />
-              </div>
-
-              <h2
-                className='text-xl font-bold truncate max-w-[180px] md:max-w-xs'
-                title={project.name}
-              >
-                {project.name}
-              </h2>
-              <Badge variant='outline' className='whitespace-nowrap'>
-                {project.urls.length} URL
-              </Badge>
+              ></div>
             </div>
             <div className='flex gap-2 flex-wrap justify-end items-center min-w-0 max-w-full'>
               <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant='ghost'
-                      className='truncate'
-                      size='sm'
-                      onClick={() => setIsRenaming(true)}
-                    >
-                      <Edit size={16} className='mr-1' />
-                      <span className='hidden md:inline'>編集</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>プロジェクト名を編集</TooltipContent>
-                </Tooltip>
-
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -767,21 +685,6 @@ export const CustomProjectCard = ({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>新しいカテゴリを追加</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant='ghost'
-                      className='truncate'
-                      size='sm'
-                      onClick={() => handleDeleteProject(project.id)}
-                    >
-                      <Trash2 size={16} className='mr-1' />
-                      <span className='hidden md:inline'>削除</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>プロジェクトを削除</TooltipContent>
                 </Tooltip>
 
                 {project.urls.length > 0 && handleOpenAllUrls && (
@@ -817,7 +720,7 @@ export const CustomProjectCard = ({
         {/* すべてのドラッグ&ドロップを単一のDndContextで処理 */}
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={collisionDetectionStrategy}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={
@@ -841,6 +744,7 @@ export const CustomProjectCard = ({
                     handleDeleteCategory={handleDeleteCategory}
                     handleSetUrlCategory={handleSetUrlCategory}
                     handleAddCategory={handleAddCategory}
+                    handleRenameCategory={handleRenameCategory}
                     settings={settings}
                     dragData={{ type: 'category' }}
                     isHighlighted={draggedOverCategory === categoryName}
@@ -961,7 +865,7 @@ export const CustomProjectCard = ({
 
           {/* ドラッグ中のオーバーレイ */}
           {activeId && (
-            <DragOverlay>
+            <DragOverlay style={{ pointerEvents: 'none' }}>
               {project.urls.find(
                 u =>
                   u.url === activeId.id ||

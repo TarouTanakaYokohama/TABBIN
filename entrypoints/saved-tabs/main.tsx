@@ -77,6 +77,7 @@ import { toast } from 'sonner'
 import {
   addCategoryToProject,
   removeCategoryFromProject,
+  renameCategoryInProject,
   reorderProjectUrls,
   setUrlCategory,
   updateCategoryOrder,
@@ -752,6 +753,44 @@ const SavedTabs = () => {
     } catch (error) {
       console.error('プロジェクト順序更新エラー:', error)
       toast.error('プロジェクト順序の更新に失敗しました')
+    }
+  }
+
+  // カテゴリ名変更ハンドラ
+  const handleRenameCategory = async (
+    projectId: string,
+    oldCategoryName: string,
+    newCategoryName: string,
+  ) => {
+    try {
+      await renameCategoryInProject(projectId, oldCategoryName, newCategoryName)
+      const updated = customProjects.map(project =>
+        project.id === projectId
+          ? {
+              ...project,
+              categories: project.categories.map(cat =>
+                cat === oldCategoryName ? newCategoryName : cat,
+              ),
+              categoryOrder: project.categoryOrder
+                ? project.categoryOrder.map(cat =>
+                    cat === oldCategoryName ? newCategoryName : cat,
+                  )
+                : project.categoryOrder,
+              urls: project.urls.map(item => ({
+                ...item,
+                category:
+                  item.category === oldCategoryName
+                    ? newCategoryName
+                    : item.category,
+              })),
+            }
+          : project,
+      )
+      setCustomProjects(updated)
+      toast.success('カテゴリ名を変更しました')
+    } catch (error) {
+      console.error('カテゴリ名の変更エラー:', error)
+      toast.error('カテゴリ名の変更に失敗しました')
     }
   }
 
@@ -1540,15 +1579,11 @@ const SavedTabs = () => {
     <>
       <Toaster />
       <div className='container mx-auto px-4 py-2 min-h-screen'>
-        <Header tabGroups={tabGroups} />
-
-        {/* モード切替セクションを追加 */}
-        <div className='mb-4 flex justify-end'>
-          <ViewModeToggle
-            currentMode={viewMode}
-            onChange={handleViewModeChange}
-          />
-        </div>
+        <Header
+          tabGroups={tabGroups}
+          currentMode={viewMode}
+          onModeChange={handleViewModeChange}
+        />
 
         {isLoading ? (
           <div className='flex items-center justify-center min-h-[200px]'>
@@ -1680,6 +1715,7 @@ const SavedTabs = () => {
             handleMoveUrlBetweenProjects={handleMoveUrlBetweenProjects}
             handleMoveUrlsBetweenCategories={handleMoveUrlsBetweenCategories}
             handleReorderProjects={handleReorderProjects} // 追加: プロジェクト順序更新ハンドラー
+            handleRenameCategory={handleRenameCategory} // 追加: カテゴリ名変更ハンドラー
             settings={settings}
           />
         )}

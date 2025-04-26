@@ -38,6 +38,11 @@ interface CustomProjectSectionProps {
   handleRenameProject: (projectId: string, newName: string) => void
   handleAddCategory: (projectId: string, categoryName: string) => void
   handleDeleteCategory: (projectId: string, categoryName: string) => void
+  handleRenameCategory?: (
+    projectId: string,
+    oldCategoryName: string,
+    newCategoryName: string,
+  ) => void
   handleSetUrlCategory: (
     projectId: string,
     url: string,
@@ -72,6 +77,7 @@ export const CustomProjectSection = ({
   handleRenameProject,
   handleAddCategory,
   handleDeleteCategory,
+  handleRenameCategory, // 追加: カテゴリ名変更ハンドラ
   handleSetUrlCategory,
   handleUpdateCategoryOrder,
   handleReorderUrls,
@@ -287,6 +293,7 @@ export const CustomProjectSection = ({
                   handleRenameProject={handleRenameProject}
                   handleAddCategory={handleAddCategory}
                   handleDeleteCategory={handleDeleteCategory}
+                  handleRenameCategory={handleRenameCategory} // 追加: カテゴリ名変更ハンドラ
                   handleSetUrlCategory={handleSetUrlCategory}
                   handleUpdateCategoryOrder={handleUpdateCategoryOrder}
                   handleReorderUrls={handleReorderUrls}

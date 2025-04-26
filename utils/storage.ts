@@ -1551,3 +1551,38 @@ export async function updateProjectOrder(projectIds: string[]): Promise<void> {
     throw error
   }
 }
+
+// カテゴリ名を変更する関数
+export async function renameCategoryInProject(
+  projectId: string,
+  oldCategoryName: string,
+  newCategoryName: string,
+): Promise<void> {
+  const projects = await getCustomProjects()
+  const projectIndex = projects.findIndex(p => p.id === projectId)
+  if (projectIndex === -1) {
+    throw new Error(`Project with ID ${projectId} not found`)
+  }
+  const project = projects[projectIndex]
+  if (project.categories.includes(newCategoryName)) {
+    throw new Error(
+      `Category name ${newCategoryName} already exists in project ${projectId}`,
+    )
+  }
+  project.categories = project.categories.map(cat =>
+    cat === oldCategoryName ? newCategoryName : cat,
+  )
+  if (project.categoryOrder) {
+    project.categoryOrder = project.categoryOrder.map(cat =>
+      cat === oldCategoryName ? newCategoryName : cat,
+    )
+  }
+  project.urls = project.urls.map(item => ({
+    ...item,
+    category:
+      item.category === oldCategoryName ? newCategoryName : item.category,
+  }))
+  project.updatedAt = Date.now()
+  projects[projectIndex] = project
+  await saveCustomProjects(projects)
+}
