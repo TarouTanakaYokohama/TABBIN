@@ -37,10 +37,7 @@ export const SortableUrlItem = ({
   const buttonTimeoutRef = useRef<number | null>(null)
 
   // ドラッグが開始されたとき
-  const handleDragStart = (
-    e: React.DragEvent<HTMLButtonElement>,
-    url: string,
-  ) => {
+  const handleDragStart = (e: React.DragEvent<HTMLElement>, url: string) => {
     setIsDragging(true)
     setLeftWindow(false)
     // URLをテキストとして設定
@@ -82,7 +79,7 @@ export const SortableUrlItem = ({
     )
   }, [url, groupId])
 
-  const handleDragEnd = (e: React.DragEvent<HTMLButtonElement>) => {
+  const handleDragEnd = (e: React.DragEvent<HTMLElement>) => {
     // リスナーをクリーンアップ
     document.removeEventListener('mouseleave', handleMouseLeave)
 
@@ -190,36 +187,46 @@ export const SortableUrlItem = ({
       </div>
       <div className='flex-1 relative min-w-0'>
         <Button
+          asChild
           variant='ghost'
           size='sm'
-          draggable='true'
-          onDragStart={e => handleDragStart(e, url as string)}
-          onDragEnd={handleDragEnd}
-          onClick={() => handleOpenTab(url)}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleUIMouseLeave}
           className='text-foreground hover:text-foreground hover:underline cursor-pointer text-left w-full bg-transparent border-0 flex items-center gap-1 h-full justify-start px-0 pr-8 overflow-hidden'
-          title={title}
         >
-          <div className='flex flex-col truncate w-full'>
-            <span className='truncate'>{title}</span>
-            {/* 保存日時と残り時間を表示 - settings.showSavedTime に基づき条件分岐 */}
-            {savedAt && (
-              <div className='flex gap-2 items-center text-xs'>
-                {settings.showSavedTime && (
-                  <span className='text-muted-foreground'>
-                    {formatDatetime(savedAt)}
-                  </span>
-                )}
-                {autoDeletePeriod && autoDeletePeriod !== 'never' && (
-                  <TimeRemaining
-                    savedAt={savedAt}
-                    autoDeletePeriod={autoDeletePeriod}
-                  />
-                )}
-              </div>
-            )}
-          </div>
+          <a
+            href={url as string}
+            target='_blank'
+            rel='noopener noreferrer'
+            draggable
+            onDragStart={e => handleDragStart(e, url as string)}
+            onDragEnd={handleDragEnd}
+            onClick={e => {
+              e.preventDefault()
+              handleOpenTab(url)
+            }}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleUIMouseLeave}
+            title={title}
+          >
+            <div className='flex flex-col truncate w-full'>
+              <span className='truncate'>{title}</span>
+              {/* 保存日時と残り時間を表示 - settings.showSavedTime に基づき条件分岐 */}
+              {savedAt && (
+                <div className='flex gap-2 items-center text-xs'>
+                  {settings.showSavedTime && (
+                    <span className='text-muted-foreground'>
+                      {formatDatetime(savedAt)}
+                    </span>
+                  )}
+                  {autoDeletePeriod && autoDeletePeriod !== 'never' && (
+                    <TimeRemaining
+                      savedAt={savedAt}
+                      autoDeletePeriod={autoDeletePeriod}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          </a>
         </Button>
         {isDeleteButtonVisible && (
           <Button
