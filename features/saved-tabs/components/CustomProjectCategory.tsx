@@ -193,6 +193,7 @@ export const CustomProjectCategory = ({
       </CardHeader>
 
       <CardContent
+        ref={setDroppableRef}
         className='p-2'
         data-is-drop-area='true'
         data-category-name={category}
@@ -224,6 +225,7 @@ export const CustomProjectCategory = ({
           </ul>
         ) : (
           <div
+            ref={setDroppableRef}
             className='text-center text-muted-foreground py-2 border-2 border-dashed rounded p-4'
             data-is-drop-area='true'
             data-category-name={category}

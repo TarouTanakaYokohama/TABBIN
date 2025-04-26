@@ -392,7 +392,60 @@ export const CustomProjectCard = ({
       }
     }
 
-    // 3. DOM要素による未分類エリア検出（より確実な検出）
+    // 3. 同一プロジェクト内でURLの並び替え・カテゴリ移動
+    if (over && active.data.current?.type === 'url' && over.id !== active.id) {
+      // ドロップ先がカテゴリカードの場合はcategoryNameを、そうでなければcategoryを参照
+      const overCategory =
+        over.data?.current?.type === 'category'
+          ? over.data?.current?.categoryName
+          : over.data?.current?.category
+      // 並び替え（同じカテゴリ or 未分類内）
+      if (
+        (!dragSourceCategory && !overCategory) ||
+        (dragSourceCategory && dragSourceCategory === overCategory)
+      ) {
+        const urlsInTarget = project.urls.filter(
+          u => u.category === dragSourceCategory,
+        )
+        const oldIndex = urlsInTarget.findIndex(u => u.url === actualUrl)
+        const newIndex = urlsInTarget.findIndex(u => u.url === over.id)
+        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+          const moved = arrayMove(urlsInTarget, oldIndex, newIndex)
+          // 全体のurls配列を新順序に反映
+          let newUrls: typeof project.urls
+          if (!dragSourceCategory) {
+            // 未分類の場合
+            const categorized = project.urls.filter(u => u.category)
+            newUrls = [...moved, ...categorized]
+          } else {
+            // カテゴリ内の場合
+            newUrls = project.urls.map(u =>
+              u.category === dragSourceCategory
+                ? moved.find(m => m.url === u.url) || u
+                : u,
+            )
+          }
+          handleReorderUrls(project.id, newUrls)
+          toast.success('URLの順序を変更しました')
+          setDraggedOverCategory(null)
+          return
+        }
+      } else {
+        // カテゴリ間、未分類⇔カテゴリ間の移動
+        if (dragSourceCategory !== overCategory) {
+          handleSetUrlCategory(project.id, actualUrl, overCategory)
+          toast.success(
+            overCategory
+              ? `URLを「${overCategory}」に移動しました`
+              : 'URLを未分類に移動しました',
+          )
+          setDraggedOverCategory(null)
+          return
+        }
+      }
+    }
+
+    // 4. DOM要素による未分類エリア検出（より確実な検出）
     const mouseEvent = event.activatorEvent as MouseEvent
     let isUncategorizedArea = false
 
