@@ -94,6 +94,7 @@ const SavedTabs = () => {
     showSavedTime: false,
     clickBehavior: 'saveWindowTabs', // 必須プロパティを追加
     excludePinnedTabs: false, // 必須プロパティを追加
+    openUrlInBackground: true, // URLクリックを別タブで開く
   })
   const [categories, setCategories] = useState<ParentCategory[]>([])
   const [newSubCategory, setNewSubCategory] = useState('')
@@ -795,7 +796,8 @@ const SavedTabs = () => {
 
   // 既存のタブ開く処理を拡張して両方のモードで同期する
   const handleOpenTab = async (url: string) => {
-    window.open(url, '_blank')
+    // 設定に基づきバックグラウンド(active: false)またはフォアグラウンド(active: true)で開く
+    chrome.tabs.create({ url, active: !settings.openUrlInBackground })
 
     // 設定に基づいて、開いたタブを削除するかどうかを決定
     if (settings.removeTabAfterOpen) {
@@ -832,7 +834,8 @@ const SavedTabs = () => {
   // handleOpenAllTabs関数も同様に修正
   const handleOpenAllTabs = async (urls: { url: string; title: string }[]) => {
     for (const { url } of urls) {
-      window.open(url, '_blank')
+      // 設定に基づきバックグラウンド(active: false)またはフォアグラウンド(active: true)で開く
+      chrome.tabs.create({ url, active: !settings.openUrlInBackground })
       // 設定に基づいて、開いたタブグループを削除するかどうかを決定
       if (settings.removeTabAfterOpen) {
         // 開いたすべてのタブを含むグループを削除する処理
