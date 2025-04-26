@@ -9,6 +9,22 @@ import {
 } from '../utils/storage'
 
 // 型定義
+interface ProjectUrl {
+  url: string
+  title: string
+  savedAt: number
+}
+
+interface Project {
+  id: string
+  name: string
+  description: string
+  urls: ProjectUrl[]
+  categories: string[]
+  createdAt: number
+  updatedAt: number
+}
+
 interface TabGroup {
   id: string
   domain: string
@@ -766,6 +782,9 @@ export default defineBackground(() => {
       const clickBehavior = settings.clickBehavior || 'saveWindowTabs'
       console.log(`選択されたクリック挙動: ${clickBehavior}`)
 
+      // 保存したTabsとURLsを追跡するための配列（カスタムプロジェクト同期用）
+      let savedUrls: { url: string; title: string }[] = []
+
       // 選択された挙動に基づいて処理を実行
       switch (clickBehavior) {
         case 'saveCurrentTab': {
@@ -789,6 +808,11 @@ export default defineBackground(() => {
 
           // タブを保存
           await saveTabsWithAutoCategory([activeTab])
+
+          // カスタムプロジェクト同期用にURLを記録
+          savedUrls = [
+            { url: activeTab.url || '', title: activeTab.title || '' },
+          ]
 
           // 通知表示
           try {
@@ -858,6 +882,12 @@ export default defineBackground(() => {
               // タブを保存
               await saveTabsWithAutoCategory(filteredTabs)
 
+              // カスタムプロジェクト同期用にURLを記録
+              savedUrls = filteredTabs.map(tab => ({
+                url: tab.url || '',
+                title: tab.title || '',
+              }))
+
               // 通知を表示
               try {
                 const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
@@ -918,6 +948,12 @@ export default defineBackground(() => {
             // タブを保存
             await saveTabsWithAutoCategory(filteredTabs)
 
+            // カスタムプロジェクト同期用にURLを記録
+            savedUrls = filteredTabs.map(tab => ({
+              url: tab.url || '',
+              title: tab.title || '',
+            }))
+
             // 通知を表示
             try {
               const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
@@ -968,6 +1004,13 @@ export default defineBackground(() => {
 
           // タブを保存して自動カテゴライズする
           await saveTabsWithAutoCategory(filteredTabs)
+
+          // カスタムプロジェクト同期用にURLを記録
+          savedUrls = filteredTabs.map(tab => ({
+            url: tab.url || '',
+            title: tab.title || '',
+          }))
+
           console.log('タブの保存と自動カテゴライズが完了しました')
 
           // 保存完了通知を表示
@@ -1029,6 +1072,79 @@ export default defineBackground(() => {
           }
           break
         }
+      }
+
+      // カスタムプロジェクトのデフォルトプロジェクトにも同期保存（背景で処理）
+      try {
+        // カスタムプロジェクトを取得
+        const { customProjects = [] } =
+          await chrome.storage.local.get('customProjects')
+
+        // プロジェクトが存在しなければデフォルトプロジェクトを作成
+        if (customProjects.length === 0) {
+          console.log(
+            'カスタムプロジェクトが存在しないため、デフォルトプロジェクトを作成します',
+          )
+
+          const defaultProject: Project = {
+            id: crypto.randomUUID
+              ? crypto.randomUUID()
+              : Math.random().toString(36).substring(2, 15),
+            name: 'デフォルトプロジェクト',
+            description: '自動的に作成されたプロジェクト',
+            urls: [],
+            categories: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          }
+
+          // URLsを追加
+          for (const item of savedUrls) {
+            defaultProject.urls.push({
+              url: item.url,
+              title: item.title,
+              savedAt: Date.now(),
+            })
+          }
+
+          // 保存
+          await chrome.storage.local.set({ customProjects: [defaultProject] })
+          console.log('デフォルトプロジェクトを作成し、URLを追加しました')
+        } else {
+          // 最初のプロジェクトに追加
+          const firstProject = customProjects[0] as Project
+          console.log(
+            `既存プロジェクト「${firstProject.name}」にURLを追加します`,
+          )
+
+          // 重複を避けるため既存URLをチェック
+          const existingUrls = new Set(
+            firstProject.urls.map((u: ProjectUrl) => u.url),
+          )
+
+          for (const item of savedUrls) {
+            if (!existingUrls.has(item.url)) {
+              firstProject.urls.push({
+                url: item.url,
+                title: item.title,
+                savedAt: Date.now(),
+              })
+            }
+          }
+
+          firstProject.updatedAt = Date.now()
+
+          // 保存
+          await chrome.storage.local.set({ customProjects })
+          console.log(
+            `既存プロジェクトにURLを追加しました (合計: ${firstProject.urls.length} URLs)`,
+          )
+        }
+      } catch (syncError) {
+        console.error(
+          'カスタムプロジェクトへの同期中にエラーが発生しました:',
+          syncError,
+        )
       }
     } catch (error: unknown) {
       console.error(
