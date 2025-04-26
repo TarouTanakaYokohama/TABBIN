@@ -53,7 +53,7 @@ export const defaultSettings: UserSettings = {
   enableCategories: true, // デフォルトは無効
   autoDeletePeriod: 'never', // デフォルトでは自動削除しない
   showSavedTime: false, // デフォルトでは表示しない
-  clickBehavior: 'saveWindowTabs', // デフォルトは「ウィンドウのすべてのタブを保存」
+  clickBehavior: 'saveSameDomainTabs', // デフォルトは「現在開いているドメインのタブをすべて保存」
   excludePinnedTabs: true, // デフォルトでは固定タブを除外する
   openUrlInBackground: true, // デフォルト: URLをバックグラウンドで開く
 }
