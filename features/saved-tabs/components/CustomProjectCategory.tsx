@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ArrowUpDown, ChevronDown, GripVertical, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ProjectUrlItem } from './ProjectUrlItem'
 
 export interface CustomProjectCategoryProps {
@@ -86,17 +86,27 @@ export const CustomProjectCategory = ({
     },
   })
 
-  const setRefs = (node: HTMLElement | null) => {
-    setNodeRef(node)
-    setDroppableRef(node)
-  }
+  const setRefs = useCallback(
+    (node: HTMLElement | null) => {
+      setNodeRef(node)
+      setDroppableRef(node)
+    },
+    [setNodeRef, setDroppableRef],
+  )
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   }
 
-  const categoryUrls = urls.filter(u => u.category === category)
+  const categoryUrls = useMemo(
+    () => urls.filter(u => u.category === category),
+    [urls, category],
+  )
+  const [localCategoryUrls, setLocalCategoryUrls] = useState(categoryUrls)
+  useEffect(() => {
+    setLocalCategoryUrls(categoryUrls)
+  }, [categoryUrls])
   const isDropTarget = isHighlighted || isOver
   const isSelfDragging = isDraggingCategory && draggedCategoryName === category
   const isReorderTarget =
@@ -200,7 +210,7 @@ export const CustomProjectCategory = ({
               </button>
             </h3>
           )}
-          <Badge variant='secondary'>{categoryUrls.length} URL</Badge>
+          <Badge variant='secondary'>{localCategoryUrls.length} URL</Badge>
         </div>
         <div className='flex items-center gap-1'>
           {isReorderTarget && isCategoryReorder && (
@@ -209,18 +219,33 @@ export const CustomProjectCategory = ({
               <span>順序を変更</span>
             </div>
           )}
-          {categoryUrls.length > 0 && (
+          {localCategoryUrls.length > 0 && (
             <Button
               variant='outline'
               size='sm'
               className='mr-1'
               onClick={() => {
-                for (const u of categoryUrls) {
+                for (const u of localCategoryUrls) {
                   window.open(u.url, '_blank', 'noopener,noreferrer')
                 }
               }}
             >
               すべて開く
+            </Button>
+          )}
+          {localCategoryUrls.length > 0 && (
+            <Button
+              variant='outline'
+              size='sm'
+              className='mr-1'
+              onClick={async () => {
+                setLocalCategoryUrls([])
+                for (const u of localCategoryUrls) {
+                  await handleDeleteUrl(projectId, u.url)
+                }
+              }}
+            >
+              すべて削除
             </Button>
           )}
           {handleDeleteCategory && (
@@ -256,9 +281,9 @@ export const CustomProjectCategory = ({
         data-type='category'
         data-category-drop-id={categoryDropId}
       >
-        {categoryUrls.length > 0 ? (
+        {localCategoryUrls.length > 0 ? (
           <SortableContext
-            items={categoryUrls.map(item => item.url)}
+            items={localCategoryUrls.map(item => item.url)}
             strategy={verticalListSortingStrategy}
           >
             <ul
@@ -266,7 +291,7 @@ export const CustomProjectCategory = ({
                 isOver ? 'bg-primary/5 p-1 rounded' : ''
               }`}
             >
-              {categoryUrls.map(item => (
+              {localCategoryUrls.map(item => (
                 <ProjectUrlItem
                   key={item.url}
                   item={item}

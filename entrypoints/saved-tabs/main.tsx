@@ -571,19 +571,18 @@ const SavedTabs = () => {
       await chrome.storage.local.set({ savedTabs: updatedGroups })
       console.log(`URL "${url}" をドメインモードからも削除しました`)
 
-      // プロジェクトリストを更新
-      const updatedProjects = customProjects.map(p => {
-        if (p.id === projectId) {
-          return {
-            ...p,
-            urls: p.urls.filter(item => item.url !== url),
-            updatedAt: Date.now(),
-          }
-        }
-        return p
-      })
-
-      setCustomProjects(updatedProjects)
+      // プロジェクトリストを更新（functional updateで最新状態を使用）
+      setCustomProjects(prev =>
+        prev.map(p =>
+          p.id === projectId
+            ? {
+                ...p,
+                urls: p.urls.filter(item => item.url !== url),
+                updatedAt: Date.now(),
+              }
+            : p,
+        ),
+      )
       toast.success('URLを削除しました')
     } catch (error) {
       console.error('URL削除エラー:', error)
