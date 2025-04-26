@@ -871,13 +871,23 @@ const OptionsPage = () => {
           </p>
         </div>
       </div>
-      {isSaved && (
-        <div className='text-center mb-4'>
-          <span className='text-foreground bg-muted px-3 py-1 rounded font-medium'>
-            設定が保存されました！
-          </span>
-        </div>
-      )}
+      {/* お問い合わせボタン */}
+      <div className='text-center mt-4'>
+        <Button
+          type='button'
+          variant='outline'
+          onClick={() =>
+            window.open('https://forms.gle/c9gBiF2TmgXaeU7J6', '_blank')
+          }
+        >
+          お問い合わせ
+        </Button>
+      </div>
+      <p className='mt-2 text-sm text-muted-foreground px-10'>
+        Google Formsを使用します。
+        <br />
+        ※画像アップロード可能な設定ですので、Googleアカウントでのログインが必要です
+      </p>
     </div>
   )
 }
