@@ -668,7 +668,7 @@ export const CustomProjectCard = ({
                 {...attributes}
                 {...attributes}
                 className='cursor-grab active:cursor-grabbing p-1 hover:bg-accent hover:text-accent-foreground rounded-md'
-              ></div>
+              />
             </div>
             <div className='flex gap-2 flex-wrap justify-end items-center min-w-0 max-w-full'>
               <TooltipProvider>
