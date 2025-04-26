@@ -136,25 +136,35 @@ export const ProjectUrlItem = ({
       {/* タイトル＋バッジ部 */}
       <div className='flex-1 min-w-0 flex items-center'>
         <Button
+          asChild
           variant='ghost'
           size='sm'
           className='text-left w-full justify-start text-foreground hover:text-foreground hover:underline truncate'
-          onClick={() => handleOpenUrl(item.url)}
         >
-          {/* サブカテゴリ付きのURLの場合はChevronRightを表示 */}
-          {item.category?.includes('/') && (
-            <ChevronRight
-              size={14}
-              className='text-primary mr-1 inline-block'
-            />
-          )}
-          <span className='truncate'>{item.title || item.url}</span>
-          {/* カテゴリ階層の視覚的な表示をシンプル化 */}
-          {item.category?.includes('/') && (
-            <Badge variant='outline' className='ml-2 text-xs'>
-              {getCategoryDisplayName(item.category)}
-            </Badge>
-          )}
+          <a
+            href={item.url}
+            target='_blank'
+            rel='noopener noreferrer'
+            onClick={e => {
+              e.preventDefault()
+              handleOpenUrl(item.url)
+            }}
+          >
+            {/* サブカテゴリ付きのURLの場合はChevronRightを表示 */}
+            {item.category?.includes('/') && (
+              <ChevronRight
+                size={14}
+                className='text-primary mr-1 inline-block'
+              />
+            )}
+            <span className='truncate'>{item.title || item.url}</span>
+            {/* カテゴリ階層の視覚的な表示をシンプル化 */}
+            {item.category?.includes('/') && (
+              <Badge variant='outline' className='ml-2 text-xs'>
+                {getCategoryDisplayName(item.category)}
+              </Badge>
+            )}
+          </a>
         </Button>
       </div>
       {/* ボタン群 */}
@@ -164,7 +174,7 @@ export const ProjectUrlItem = ({
           size='sm'
           onClick={() => handleDeleteUrl(projectId, item.url)}
           className='h-8 w-8 p-0'
-          title='削除'
+          title='URLを削除'
         >
           <X size={14} />
         </Button>
