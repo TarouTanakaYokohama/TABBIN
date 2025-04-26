@@ -685,7 +685,7 @@ export const CustomProjectCard = ({
       ref={setCombinedRefs}
       style={style}
     >
-      <CardHeader className='flex-row justify-between items-baseline py-3'>
+      <CardHeader className='flex flex-row flex-wrap justify-between items-baseline py-3 gap-2'>
         {isRenaming ? (
           <div className='flex items-center gap-2 w-full'>
             <Input
@@ -717,7 +717,7 @@ export const CustomProjectCard = ({
           </div>
         ) : (
           <>
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-2 min-w-0 flex-1'>
               {/* プロジェクトのドラッグハンドル */}
               <div
                 {...attributes}
@@ -727,15 +727,23 @@ export const CustomProjectCard = ({
                 <GripVertical size={20} className='text-muted-foreground' />
               </div>
 
-              <h2 className='text-xl font-bold'>{project.name}</h2>
-              <Badge variant='outline'>{project.urls.length} URL</Badge>
+              <h2
+                className='text-xl font-bold truncate max-w-[180px] md:max-w-xs'
+                title={project.name}
+              >
+                {project.name}
+              </h2>
+              <Badge variant='outline' className='whitespace-nowrap'>
+                {project.urls.length} URL
+              </Badge>
             </div>
-            <div className='flex gap-2 flex-wrap justify-end'>
+            <div className='flex gap-2 flex-wrap justify-end items-center min-w-0 max-w-full'>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant='ghost'
+                      className='truncate'
                       size='sm'
                       onClick={() => setIsRenaming(true)}
                     >
@@ -750,6 +758,7 @@ export const CustomProjectCard = ({
                   <TooltipTrigger asChild>
                     <Button
                       variant='ghost'
+                      className='truncate'
                       size='sm'
                       onClick={() => setIsAddingCategory(true)}
                     >
@@ -764,6 +773,7 @@ export const CustomProjectCard = ({
                   <TooltipTrigger asChild>
                     <Button
                       variant='ghost'
+                      className='truncate'
                       size='sm'
                       onClick={() => handleDeleteProject(project.id)}
                     >
@@ -779,6 +789,7 @@ export const CustomProjectCard = ({
                     <TooltipTrigger asChild>
                       <Button
                         variant='ghost'
+                        className='truncate max-w-[120px] md:max-w-xs'
                         size='sm'
                         onClick={() => handleOpenAllUrls(project.urls)}
                       >

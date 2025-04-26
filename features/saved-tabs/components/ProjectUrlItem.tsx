@@ -112,7 +112,7 @@ export const ProjectUrlItem = ({
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex justify-between items-center border-b border-border pb-1 last:border-0 group
+      className={`flex justify-between items-center border-b border-border pb-1 last:border-0 group min-w-0
         ${isDragging ? 'opacity-50 bg-secondary/50' : ''}
         ${isInSubcategory ? 'pl-2' : ''}
         ${item.category ? 'border-l-2 border-l-primary/30' : ''}
@@ -132,27 +132,32 @@ export const ProjectUrlItem = ({
       >
         <GripVertical size={16} className='text-muted-foreground' />
       </div>
-
-      <Button
-        variant='ghost'
-        size='sm'
-        className='text-left w-full justify-start text-foreground hover:text-foreground hover:underline truncate'
-        onClick={() => handleOpenUrl(item.url)}
-      >
-        {/* サブカテゴリ付きのURLの場合はChevronRightを表示 */}
-        {item.category?.includes('/') && (
-          <ChevronRight size={14} className='text-primary mr-1 inline-block' />
-        )}
-        {item.title || item.url}
-        {/* カテゴリ階層の視覚的な表示をシンプル化 */}
-        {item.category?.includes('/') && (
-          <Badge variant='outline' className='ml-2 text-xs'>
-            {getCategoryDisplayName(item.category)}
-          </Badge>
-        )}
-      </Button>
-
-      <div className='flex items-center gap-1'>
+      {/* タイトル＋バッジ部 */}
+      <div className='flex-1 min-w-0 flex items-center'>
+        <Button
+          variant='ghost'
+          size='sm'
+          className='text-left w-full justify-start text-foreground hover:text-foreground hover:underline truncate'
+          onClick={() => handleOpenUrl(item.url)}
+        >
+          {/* サブカテゴリ付きのURLの場合はChevronRightを表示 */}
+          {item.category?.includes('/') && (
+            <ChevronRight
+              size={14}
+              className='text-primary mr-1 inline-block'
+            />
+          )}
+          <span className='truncate'>{item.title || item.url}</span>
+          {/* カテゴリ階層の視覚的な表示をシンプル化 */}
+          {item.category?.includes('/') && (
+            <Badge variant='outline' className='ml-2 text-xs'>
+              {getCategoryDisplayName(item.category)}
+            </Badge>
+          )}
+        </Button>
+      </div>
+      {/* ボタン群 */}
+      <div className='flex items-center gap-1 shrink-0'>
         <Button
           variant='ghost'
           size='sm'
