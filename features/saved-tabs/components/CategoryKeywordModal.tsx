@@ -349,16 +349,38 @@ export const CategoryKeywordModal = ({
     onSave(group.id, activeCategory, updatedKeywords)
   }
 
-  // キーワードを削除した時に自動保存するよう変更
-  const handleRemoveKeyword = (keywordToRemove: string) => {
+  // キーワードを削除した時に関連URLを未分類に戻す処理を追加
+  const handleRemoveKeyword = async (keywordToRemove: string) => {
     console.log('削除するキーワード:', keywordToRemove)
     const updatedKeywords = keywords.filter(k => k !== keywordToRemove)
     console.log('削除後のキーワード:', updatedKeywords)
 
     setKeywords(updatedKeywords)
 
-    // 即座に保存
-    onSave(group.id, activeCategory, updatedKeywords)
+    // ストレージにキーワードとURLのカテゴリ情報を同時に保存
+    try {
+      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      const updatedGroups = (savedTabs as TabGroup[]).map(g =>
+        g.id === group.id
+          ? {
+              ...g,
+              categoryKeywords: (g.categoryKeywords || []).map(ck =>
+                ck.categoryName === activeCategory
+                  ? { ...ck, keywords: updatedKeywords }
+                  : ck,
+              ),
+              urls: g.urls.map(item =>
+                item.subCategory === activeCategory
+                  ? { ...item, subCategory: undefined }
+                  : item,
+              ),
+            }
+          : g,
+      )
+      await chrome.storage.local.set({ savedTabs: updatedGroups })
+    } catch (error) {
+      console.error('キーワード削除に伴う保存処理に失敗しました:', error)
+    }
   }
 
   // モーダルコンテンツのクリックイベントの伝播を停止
@@ -821,8 +843,8 @@ export const CategoryKeywordModal = ({
                     <div className='text-gray-300 mb-2 text-sm'>
                       「{activeCategory}」の新しい名前を入力してください
                       <br />
-                      <span className='text-xs text-gray-400'>
-                        (入力後、フォーカスを外すかEnterキーで保存されます。キャンセルするにはEscを押してください)
+                      <span className='text-xs text-gray-400 ml-2'>
+                        （入力後、フォーカスを外すかEnterキーで保存されます。キャンセルするにはEscを押してください）
                       </span>
                     </div>
                     <Input
