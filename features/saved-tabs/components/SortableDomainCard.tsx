@@ -30,6 +30,9 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
+  ArrowUpDown,
+  ArrowUpNarrowWide,
+  ArrowUpWideNarrow,
   ChevronDown,
   ChevronUp,
   ExternalLink,
@@ -58,6 +61,9 @@ export const SortableDomainCard = ({
     useSortable({ id: group.id })
   const [showKeywordModal, setShowKeywordModal] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>(
+    'default',
+  )
   // カテゴリの順序を管理する状態を追加
   const [categoryOrder, setCategoryOrder] = useState<string[]>([])
   // 未分類も含めたすべてのカテゴリを管理する状態を追加
@@ -68,7 +74,19 @@ export const SortableDomainCard = ({
 
   // カード内のタブをサブカテゴリごとに整理
   const organizeUrlsByCategory = () => {
-    type UrlType = { url: string; title: string; subCategory?: string }
+    type UrlType = {
+      url: string
+      title: string
+      subCategory?: string
+      savedAt?: number
+    }
+    // default では手動順保持、それ以外は日時でソート
+    let urlsToGroup = group.urls
+    if (sortOrder !== 'default') {
+      urlsToGroup = [...group.urls]
+      urlsToGroup.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
+      if (sortOrder === 'desc') urlsToGroup.reverse()
+    }
     // サブカテゴリでタブをグループ化
     const categorizedUrls: Record<string, UrlType[]> = {
       __uncategorized: [], // 未分類カテゴリを最初に初期化
@@ -82,7 +100,7 @@ export const SortableDomainCard = ({
     }
 
     // URLを適切なカテゴリに振り分け
-    for (const url of group.urls) {
+    for (const url of urlsToGroup) {
       if (url.subCategory && group.subCategories?.includes(url.subCategory)) {
         categorizedUrls[url.subCategory].push(url)
       } else {
@@ -527,7 +545,7 @@ export const SortableDomainCard = ({
       data-urls-count={group.urls.length} // タブ数をdata属性に追加
     >
       <CardHeader className='p-2 pb-0 w-full'>
-        <div className='flex items-center justify-between w-full'>
+        <div className='flex items-center justify-between w-full gap-2'>
           {/* 折りたたみ切り替えボタン */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -551,6 +569,51 @@ export const SortableDomainCard = ({
             </TooltipTrigger>
             <TooltipContent side='top' className='lg:hidden block'>
               {isCollapsed ? '展開' : '折りたたむ'}
+            </TooltipContent>
+          </Tooltip>
+          {/* ソート順切り替え */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='secondary'
+                size='sm'
+                onClick={e => {
+                  e.stopPropagation()
+                  setSortOrder(o =>
+                    o === 'default' ? 'asc' : o === 'asc' ? 'desc' : 'default',
+                  )
+                }}
+                className='flex items-center gap-1 cursor-pointer'
+                title={
+                  sortOrder === 'default'
+                    ? 'デフォルト'
+                    : sortOrder === 'asc'
+                      ? '昇順'
+                      : '降順'
+                }
+                aria-label={
+                  sortOrder === 'default'
+                    ? 'デフォルト'
+                    : sortOrder === 'asc'
+                      ? '昇順'
+                      : '降順'
+                }
+              >
+                {sortOrder === 'default' ? (
+                  <ArrowUpDown size={14} />
+                ) : sortOrder === 'asc' ? (
+                  <ArrowUpNarrowWide size={14} />
+                ) : (
+                  <ArrowUpWideNarrow size={14} />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side='top' className='lg:hidden block'>
+              {sortOrder === 'default'
+                ? 'デフォルト'
+                : sortOrder === 'asc'
+                  ? '昇順'
+                  : '降順'}
             </TooltipContent>
           </Tooltip>
           {/* 左側: ドメイン情報 */}
