@@ -538,7 +538,7 @@ export const CustomProjectCard = ({
       activeId: active.id,
       activeType: active.data.current?.type,
       overId: over?.id,
-      overType: over?.data.current?.type,
+      overType: over?.data?.current?.type,
       isDraggingCategory,
     })
 
@@ -622,7 +622,7 @@ export const CustomProjectCard = ({
 
   return (
     <Card
-      className={`mb-4 w-full ${
+      className={`mb-4 w-full overflow-x-hidden ${
         isExternalItemOver
           ? 'border-primary border-2 shadow-lg bg-primary/5'
           : ''
@@ -708,7 +708,7 @@ export const CustomProjectCard = ({
           </>
         )}
       </CardHeader>
-      <CardContent>
+      <CardContent className='overflow-x-hidden'>
         {/* プロジェクト間ドラッグ中の表示 */}
         {isExternalItemOver && (
           <div className='border-2 border-dashed border-primary p-4 mb-4 rounded bg-primary/10 text-center font-medium'>
@@ -761,7 +761,7 @@ export const CustomProjectCard = ({
           {/* 未分類URL表示部分 */}
           {project.urls.length > 0 && uncategorizedUrls.length > 0 && (
             <div
-              className={`mt-4 p-4 uncategorized-area uncategorized-drop-zone ${
+              className={`mt-4 p-4 uncategorized-area uncategorized-drop-zone overflow-x-hidden ${
                 isUncategorizedOver
                   ? 'border-2 border-primary bg-primary/10 rounded shadow-sm'
                   : 'border border-dashed border-muted rounded'
@@ -801,6 +801,7 @@ export const CustomProjectCard = ({
                   data-parent-id={`uncategorized-${project.id}`}
                   data-uncategorized-area='true'
                   data-uncategorized-list='true'
+                  style={{ overflow: 'hidden' }}
                 >
                   {uncategorizedUrls.map(item => (
                     <ProjectUrlItem
@@ -834,6 +835,7 @@ export const CustomProjectCard = ({
                 id={`uncategorized-${project.id}`}
                 data-type='uncategorized'
                 data-project-id={project.id}
+                data-is-drop-area='true'
                 data-uncategorized-area='true'
                 data-uncategorized-container='true'
                 data-empty-container='true'

@@ -172,7 +172,7 @@ export const CustomProjectCategory = ({
     <Card
       ref={setRefs}
       style={cardStyle}
-      className={`mb-2 ${
+      className={`mb-2 overflow-x-hidden ${
         isDropTarget ? 'border-primary border-2 bg-primary/5' : ''
       } ${isSelfDragging ? 'opacity-50' : ''}`}
       id={categoryDropId}
