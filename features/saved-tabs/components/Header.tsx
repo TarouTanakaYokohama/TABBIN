@@ -39,25 +39,7 @@ export const Header = ({
           placeholder='検索...'
           value={searchQuery}
           onChange={e => onSearchChange(e.target.value)}
-          className='w-48'
         />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={onOpenFilter}
-              className='flex items-center gap-1'
-              title='フィルター'
-            >
-              <Sliders size={16} />
-              <span className='lg:inline hidden'>フィルター</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side='top' className='lg:hidden block'>
-            フィルター
-          </TooltipContent>
-        </Tooltip>
       </div>
       <div className='flex items-center gap-1'>
         {currentMode === 'domain' && (

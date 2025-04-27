@@ -57,7 +57,6 @@ import {
 } from '@/components/ui/tooltip'
 import { CategoryGroup } from '@/features/saved-tabs/components/CategoryGroup'
 import { CustomProjectSection } from '@/features/saved-tabs/components/CustomProjectSection'
-import { FilterModal } from '@/features/saved-tabs/components/FilterModal'
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
 import { SortableDomainCard } from '@/features/saved-tabs/components/SortableDomainCard'
 import { ViewModeToggle } from '@/features/saved-tabs/components/ViewModeToggle'
@@ -1554,20 +1553,6 @@ const SavedTabs = () => {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onOpenFilter={() => setIsFilterOpen(true)}
-        />
-        <FilterModal
-          isOpen={isFilterOpen}
-          onClose={() => setIsFilterOpen(false)}
-          startDate={filterStartDate}
-          endDate={filterEndDate}
-          onApply={(s, e) => {
-            setFilterStartDate(s)
-            setFilterEndDate(e)
-          }}
-          onReset={() => {
-            setFilterStartDate(null)
-            setFilterEndDate(null)
-          }}
         />
         {isLoading ? (
           <div className='flex items-center justify-center min-h-[200px]'>
