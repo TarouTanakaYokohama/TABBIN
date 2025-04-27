@@ -253,6 +253,22 @@ const OptionsPage = () => {
     }
   }
 
+  // 「すべてのタブを開く」を新しいウィンドウで開く設定の切り替えハンドラを追加
+  const handleToggleOpenAllInNewWindow = async (checked: boolean) => {
+    try {
+      const newSettings = { ...settings, openAllInNewWindow: checked }
+      setSettings(newSettings)
+      await saveUserSettings(newSettings)
+      setIsSaved(true)
+      setTimeout(() => setIsSaved(false), 2000)
+    } catch (error) {
+      console.error(
+        '「すべてのタブを開く」を新しいウィンドウで開く設定の保存エラー:',
+        error,
+      )
+    }
+  }
+
   const handleExcludePatternsChange = (
     e: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
@@ -779,6 +795,25 @@ const OptionsPage = () => {
         </div>
         <p className='text-sm text-muted-foreground mt-1 ml-7'>
           オンにすると、URLをバックグラウンドで開きます。
+        </p>
+
+        {/* 「すべてのタブを開く」を新しいウィンドウで開く設定を追加 */}
+        <div className='mb-4 mt-6 flex items-center space-x-2'>
+          <Checkbox
+            id='open-all-in-new-window'
+            checked={settings.openAllInNewWindow}
+            onCheckedChange={handleToggleOpenAllInNewWindow}
+            className='cursor-pointer'
+          />
+          <Label
+            htmlFor='open-all-in-new-window'
+            className='text-foreground cursor-pointer'
+          >
+            すべてのタブを新しいウィンドウで開く
+          </Label>
+        </div>
+        <p className='text-sm text-muted-foreground mt-1 ml-7'>
+          オンにすると、「すべて開く」ボタンで新しいウィンドウを作成し、タブを開きます。
         </p>
 
         {/* 保存日時表示設定を追加 */}

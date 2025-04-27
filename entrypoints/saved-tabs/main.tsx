@@ -95,6 +95,7 @@ const SavedTabs = () => {
     clickBehavior: 'saveWindowTabs', // 必須プロパティを追加
     excludePinnedTabs: false, // 必須プロパティを追加
     openUrlInBackground: true, // URLクリックを別タブで開く
+    openAllInNewWindow: false, // 新しいウィンドウで開く初期値
   })
   const [categories, setCategories] = useState<ParentCategory[]>([])
   const [newSubCategory, setNewSubCategory] = useState('')
@@ -833,65 +834,57 @@ const SavedTabs = () => {
 
   // handleOpenAllTabs関数も同様に修正
   const handleOpenAllTabs = async (urls: { url: string; title: string }[]) => {
-    for (const { url } of urls) {
-      // 設定に基づきバックグラウンド(active: false)またはフォアグラウンド(active: true)で開く
-      chrome.tabs.create({ url, active: !settings.openUrlInBackground })
-      // 設定に基づいて、開いたタブグループを削除するかどうかを決定
-      if (settings.removeTabAfterOpen) {
-        // 開いたすべてのタブを含むグループを削除する処理
-        const urlSet = new Set(urls.map(item => item.url))
+    // ①新しいウィンドウでまとめて開くモード
+    if (settings.openAllInNewWindow) {
+      await chrome.windows.create({
+        url: urls.map(u => u.url),
+        focused: true, // 新ウィンドウを常に前面に表示
+      })
+    }
+    // ②通常モード: タブ単位で開く
+    else {
+      for (const { url } of urls) {
+        await chrome.tabs.create({ url, active: !settings.openUrlInBackground })
+      }
+    }
 
-        // 削除前に各グループのカテゴリ設定を保存
-        for (const group of tabGroups) {
-          const remainingUrls = group.urls.filter(item => !urlSet.has(item.url))
+    // ③開いた後に削除設定が有効ならグループ/プロジェクトを更新
+    if (settings.removeTabAfterOpen) {
+      const urlSet = new Set(urls.map(u => u.url))
 
-          if (remainingUrls.length === 0) {
-            // 子カテゴリ設定を保存
-            await updateDomainCategorySettings(
-              group.domain,
-              group.subCategories || [],
-              group.categoryKeywords || [],
-            )
-
-            // 親カテゴリマッピングは削除せず保持する
-            // 親カテゴリからドメインIDの削除は内部的に行われるので明示的に行わない
-          }
+      // カテゴリ設定を保存
+      for (const group of tabGroups) {
+        const remaining = group.urls.filter(item => !urlSet.has(item.url))
+        if (remaining.length === 0) {
+          await updateDomainCategorySettings(
+            group.domain,
+            group.subCategories || [],
+            group.categoryKeywords || [],
+          )
         }
+      }
 
-        // 従来通りの処理を続行
-        const updatedGroups = tabGroups
-          .map(group => {
-            // このグループのURLsを確認
-            const remainingUrls = group.urls.filter(
-              item => !urlSet.has(item.url),
-            )
+      // グループをフィルタリング
+      const updatedGroups = tabGroups
+        .map(g => {
+          const rem = g.urls.filter(item => !urlSet.has(item.url))
+          return rem.length === 0 ? null : { ...g, urls: rem }
+        })
+        .filter(Boolean) as TabGroup[]
 
-            if (remainingUrls.length === 0) {
-              return null // グループを削除
-            }
+      setTabGroups(updatedGroups)
+      await chrome.storage.local.set({ savedTabs: updatedGroups })
 
-            return {
-              ...group,
-              urls: remainingUrls,
-            }
-          })
-          .filter(Boolean) as TabGroup[]
-
-        setTabGroups(updatedGroups)
-        await chrome.storage.local.set({ savedTabs: updatedGroups })
-
-        // カスタムプロジェクトのURLも削除
-        try {
-          const updatedProjects = customProjects.map(project => ({
-            ...project,
-            urls: project.urls.filter(item => !urlSet.has(item.url)),
-          }))
-
-          setCustomProjects(updatedProjects)
-          await saveCustomProjects(updatedProjects)
-        } catch (error) {
-          console.error('カスタムプロジェクト同期エラー:', error)
-        }
+      // カスタムプロジェクトも同期
+      try {
+        const updatedProjects = customProjects.map(p => ({
+          ...p,
+          urls: p.urls.filter(item => !urlSet.has(item.url)),
+        }))
+        setCustomProjects(updatedProjects)
+        await saveCustomProjects(updatedProjects)
+      } catch (e) {
+        console.error('カスタムプロジェクト同期エラー:', e)
       }
     }
   }

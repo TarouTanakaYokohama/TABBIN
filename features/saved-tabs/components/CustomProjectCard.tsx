@@ -746,6 +746,7 @@ export const CustomProjectCard = ({
                     handleAddCategory={handleAddCategory}
                     handleRenameCategory={handleRenameCategory}
                     settings={settings}
+                    handleOpenAllUrls={handleOpenAllUrls}
                     dragData={{ type: 'category' }}
                     isHighlighted={draggedOverCategory === categoryName}
                     isDraggingCategory={isDraggingCategory}

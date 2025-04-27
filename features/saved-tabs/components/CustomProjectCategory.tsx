@@ -41,6 +41,7 @@ export interface CustomProjectCategoryProps {
   ) => void
   handleAddCategory: (projectId: string, category: string) => void
   settings: { removeTabAfterOpen: boolean }
+  handleOpenAllUrls?: (urls: { url: string; title: string }[]) => void
   dragData?: { type: string }
   isHighlighted?: boolean
   isDraggingCategory?: boolean
@@ -63,6 +64,7 @@ export const CustomProjectCategory = ({
   handleSetUrlCategory,
   handleAddCategory,
   settings,
+  handleOpenAllUrls,
   dragData = { type: 'category' },
   isHighlighted = false,
   isDraggingCategory = false,
@@ -315,8 +317,12 @@ export const CustomProjectCategory = ({
               size='sm'
               className='mr-1'
               onClick={() => {
-                for (const u of localCategoryUrls) {
-                  window.open(u.url, '_blank', 'noopener,noreferrer')
+                if (handleOpenAllUrls) {
+                  handleOpenAllUrls(localCategoryUrls)
+                } else {
+                  for (const u of localCategoryUrls) {
+                    window.open(u.url, '_blank', 'noopener,noreferrer')
+                  }
                 }
               }}
             >
