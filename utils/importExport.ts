@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { getUserSettings, saveUserSettings } from './storage'
+import { defaultSettings, getUserSettings, saveUserSettings } from './storage'
 import type {
   ParentCategory,
   SubCategoryKeyword,
@@ -633,8 +633,8 @@ export const importSettings = async (
       }
     })
 
-    // ユーザー設定を保存
-    await saveUserSettings(importedData.userSettings)
+    // ユーザー設定を保存（不足キーはデフォルトで補完）
+    await saveUserSettings({ ...defaultSettings, ...importedData.userSettings })
 
     // カテゴリを保存
     await saveParentCategories(cleanParentCategories)

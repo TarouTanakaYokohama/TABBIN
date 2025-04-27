@@ -1,5 +1,6 @@
 import '@/assets/global.css'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import Fuse from 'fuse.js'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import type {
   ParentCategory,
@@ -14,6 +15,7 @@ import {
   saveParentCategories,
   updateDomainCategorySettings,
 } from '../../utils/storage'
+import { defaultSettings } from '../../utils/storage'
 // 追加: 新しいユーティリティファイルからのインポート
 import { handleTabGroupRemoval } from '../../utils/tab-operations'
 
@@ -55,6 +57,7 @@ import {
 } from '@/components/ui/tooltip'
 import { CategoryGroup } from '@/features/saved-tabs/components/CategoryGroup'
 import { CustomProjectSection } from '@/features/saved-tabs/components/CustomProjectSection'
+import { FilterModal } from '@/features/saved-tabs/components/FilterModal'
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
 import { SortableDomainCard } from '@/features/saved-tabs/components/SortableDomainCard'
 import { ViewModeToggle } from '@/features/saved-tabs/components/ViewModeToggle'
@@ -87,16 +90,7 @@ import {
 const SavedTabs = () => {
   const [tabGroups, setTabGroups] = useState<TabGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [settings, setSettings] = useState<UserSettings>({
-    removeTabAfterOpen: false,
-    excludePatterns: [],
-    enableCategories: false,
-    showSavedTime: false,
-    clickBehavior: 'saveWindowTabs', // 必須プロパティを追加
-    excludePinnedTabs: false, // 必須プロパティを追加
-    openUrlInBackground: true, // URLクリックを別タブで開く
-    openAllInNewWindow: false, // 新しいウィンドウで開く初期値
-  })
+  const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [categories, setCategories] = useState<ParentCategory[]>([])
   const [newSubCategory, setNewSubCategory] = useState('')
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
@@ -105,6 +99,10 @@ const SavedTabs = () => {
   const [categoryOrder, setCategoryOrder] = useState<string[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>('domain')
   const [customProjects, setCustomProjects] = useState<CustomProject[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [filterStartDate, setFilterStartDate] = useState<string | null>(null)
+  const [filterEndDate, setFilterEndDate] = useState<string | null>(null)
 
   useEffect(() => {
     if (showSubCategoryModal && inputRef.current) {
@@ -567,7 +565,7 @@ const SavedTabs = () => {
             urls: updatedUrls,
           }
         })
-        .filter(Boolean) as TabGroup[]
+        .filter((proj: TabGroup | null): proj is TabGroup => proj !== null) // Filter out null entries with type guard
 
       // ドメインモードのデータを保存
       await chrome.storage.local.set({ savedTabs: updatedGroups })
@@ -809,7 +807,7 @@ const SavedTabs = () => {
           urls: group.urls.filter(item => item.url !== url),
         }))
         // 空のグループを削除
-        .filter(group => group.urls.length > 0)
+        .filter((proj: TabGroup | null): proj is TabGroup => proj !== null) // Filter out null entries with type guard
 
       setTabGroups(updatedGroups)
       await chrome.storage.local.set({ savedTabs: updatedGroups })
@@ -870,7 +868,7 @@ const SavedTabs = () => {
           const rem = g.urls.filter(item => !urlSet.has(item.url))
           return rem.length === 0 ? null : { ...g, urls: rem }
         })
-        .filter(Boolean) as TabGroup[]
+        .filter((proj: TabGroup | null): proj is TabGroup => proj !== null) // Filter out null entries with type guard
 
       setTabGroups(updatedGroups)
       await chrome.storage.local.set({ savedTabs: updatedGroups })
@@ -894,26 +892,25 @@ const SavedTabs = () => {
     try {
       // 削除前にカテゴリ設定と親カテゴリ情報を保存
       const groupToDelete = tabGroups.find(group => group.id === id)
-      if (groupToDelete) {
-        console.log(`グループを削除: ${groupToDelete.domain}`)
+      if (!groupToDelete) return
+      console.log(`グループを削除: ${groupToDelete.domain}`)
 
-        // 専用の削除前処理関数を呼び出し（インポートした関数を使用）
-        await handleTabGroupRemoval(id)
+      // 専用の削除前処理関数を呼び出し（インポートした関数を使用）
+      await handleTabGroupRemoval(id)
 
-        // 以降は従来通りの処理
-        const updatedGroups = tabGroups.filter(group => group.id !== id)
-        setTabGroups(updatedGroups)
-        await chrome.storage.local.set({ savedTabs: updatedGroups })
+      // 以降は従来通りの処理
+      const updatedGroups = tabGroups.filter(group => group.id !== id)
+      setTabGroups(updatedGroups)
+      await chrome.storage.local.set({ savedTabs: updatedGroups })
 
-        // 親カテゴリからはドメインIDのみを削除（ドメイン名は保持）
-        const updatedCategories = categories.map(category => ({
-          ...category,
-          domains: category.domains.filter(domainId => domainId !== id),
-        }))
+      // 親カテゴリからはドメインIDのみを削除（ドメイン名は保持）
+      const updatedCategories = categories.map(category => ({
+        ...category,
+        domains: category.domains.filter(domainId => domainId !== id),
+      }))
 
-        await saveParentCategories(updatedCategories)
-        console.log('グループ削除処理が完了しました')
-      }
+      await saveParentCategories(updatedCategories)
+      console.log('グループ削除処理が完了しました')
     } catch (error) {
       console.error('グループ削除エラー:', error)
     }
@@ -934,7 +931,8 @@ const SavedTabs = () => {
         }
         return group
       })
-      .filter(Boolean) as TabGroup[]
+      .filter((proj: TabGroup | null): proj is TabGroup => proj !== null) // Filter out null entries with type guard
+
     setTabGroups(updatedGroups)
     await chrome.storage.local.set({ savedTabs: updatedGroups })
   }
@@ -1123,7 +1121,10 @@ const SavedTabs = () => {
   }
 
   // タブグループをカテゴリごとに整理する関数を強化
-  const organizeTabGroups = () => {
+  const organizeTabGroups = (): {
+    categorized: Record<string, TabGroup[]>
+    uncategorized: TabGroup[]
+  } => {
     if (!settings.enableCategories) {
       return { categorized: {}, uncategorized: tabGroups }
     }
@@ -1135,7 +1136,33 @@ const SavedTabs = () => {
     const categorizedGroups: Record<string, TabGroup[]> = {}
     const uncategorizedGroups: TabGroup[] = []
 
-    for (const group of tabGroups) {
+    const groupsToOrganize = tabGroups
+      .map(g => {
+        const filteredUrls = g.urls.filter(item => {
+          if (
+            searchQuery &&
+            !(
+              item.title.includes(searchQuery) ||
+              item.url.includes(searchQuery) ||
+              g.domain.includes(searchQuery)
+            )
+          )
+            return false
+          if (filterStartDate) {
+            const d = new Date(item.savedAt || 0).toISOString().split('T')[0]
+            if (d < filterStartDate) return false
+          }
+          if (filterEndDate) {
+            const d = new Date(item.savedAt || 0).toISOString().split('T')[0]
+            if (d > filterEndDate) return false
+          }
+          return true
+        })
+        return { ...g, urls: filteredUrls }
+      })
+      .filter(g => g.urls.length > 0)
+
+    for (const group of groupsToOrganize) {
       // このグループが属するカテゴリを探す
       let found = false
 
@@ -1234,310 +1261,45 @@ const SavedTabs = () => {
     }
   }
 
+  // 検索・フィルタ適用後のグループを整理
   const { categorized, uncategorized } = organizeTabGroups()
-
-  // ドメインを別のカテゴリに移動する関数
-  const handleMoveDomainToCategory = async (
-    domainId: string,
-    fromCategoryId: string | null,
-    toCategoryId: string,
-  ) => {
-    try {
-      // 移動するドメイングループを取得
-      const domainGroup = tabGroups.find(group => group.id === domainId)
-      if (!domainGroup) return
-
-      // 更新するカテゴリのリストを準備
-      let updatedCategories = [...categories]
-
-      // 元のカテゴリからドメインIDを削除
-      if (fromCategoryId) {
-        updatedCategories = updatedCategories.map(cat => {
-          if (cat.id === fromCategoryId) {
-            return {
-              ...cat,
-              domains: cat.domains.filter(d => d !== domainId),
-              domainNames: cat.domainNames
-                ? cat.domainNames.filter(d => d !== domainGroup.domain)
-                : [],
-            }
-          }
-          return cat
-        })
-      }
-
-      // 新しいカテゴリにドメインIDとドメイン名を追加
-      updatedCategories = updatedCategories.map(cat => {
-        if (cat.id === toCategoryId) {
-          // 既に含まれていなければ追加
-          const containsDomain = cat.domains.includes(domainId)
-          const containsDomainName = cat.domainNames
-            ? cat.domainNames.includes(domainGroup.domain)
-            : false
-
-          return {
-            ...cat,
-            domains: containsDomain ? cat.domains : [...cat.domains, domainId],
-            domainNames: cat.domainNames
-              ? containsDomainName
-                ? cat.domainNames
-                : [...cat.domainNames, domainGroup.domain]
-              : [domainGroup.domain],
-          }
-        }
-        return cat
-      })
-
-      // 保存
-      await saveParentCategories(updatedCategories)
-      setCategories(updatedCategories)
-
-      console.log(
-        `ドメイン ${domainGroup.domain} を ${fromCategoryId || '未分類'} から ${toCategoryId} に移動しました`,
-      )
-    } catch (error) {
-      console.error('カテゴリ間ドメイン移動エラー:', error)
-    }
-  }
-
-  // プロジェクト間でURLを移動する関数を追加 (カテゴリ保持対応)
-  const handleMoveUrlBetweenProjects = async (
-    sourceProjectId: string,
-    targetProjectId: string,
-    url: string,
-  ) => {
-    try {
-      console.log(
-        `URL移動: ${sourceProjectId} → ${targetProjectId}, URL: ${url}`,
-      )
-
-      // 移動するURLのデータを取得
-      const sourceProject = customProjects.find(p => p.id === sourceProjectId)
-      const targetProject = customProjects.find(p => p.id === targetProjectId)
-
-      if (!sourceProject || !targetProject) {
-        console.error('プロジェクトが見つかりません')
-        return
-      }
-
-      // 移動するURLを見つける
-      const urlItem = sourceProject.urls.find(item => item.url === url)
-      if (!urlItem) {
-        console.error('移動するURLが見つかりません')
-        return
-      }
-
-      // 移動先に既に同じURLが存在していないか確認
-      const existsInTarget = targetProject.urls.some(item => item.url === url)
-      if (existsInTarget) {
-        console.log('移動先に既にURLが存在するため、移動をスキップします')
-        toast.info('移動先のプロジェクトに既にこのURLが存在します')
-        return
-      }
-
-      // 元のカテゴリ情報を保持（移動元のカテゴリが存在する場合）
-      const originalCategory = urlItem.category
-
-      // 元のプロジェクトからURLを削除
-      await removeUrlFromCustomProject(sourceProjectId, url)
-
-      // 移動先のプロジェクトにURLを追加（注記とカテゴリ情報も保持）
-      await addUrlToCustomProject(
-        targetProjectId,
-        url,
-        urlItem.title,
-        urlItem.notes,
-        undefined, // カテゴリは手動設定する
-      )
-
-      // UIの状態を更新
-      const updatedProjects = customProjects.map(project => {
-        if (project.id === sourceProjectId) {
-          return {
-            ...project,
-            urls: project.urls.filter(item => item.url !== url),
-            updatedAt: Date.now(),
-          }
-        }
-
-        if (project.id === targetProjectId) {
-          return {
-            ...project,
-            urls: [
-              ...project.urls,
-              { ...urlItem, category: undefined, savedAt: Date.now() },
-            ],
-            updatedAt: Date.now(),
-          }
-        }
-
-        return project
-      })
-
-      setCustomProjects(updatedProjects)
-      toast.success('URLを移動しました')
-
-      return originalCategory
-    } catch (error) {
-      console.error('URL移動エラー:', error)
-      toast.error('URLの移動に失敗しました')
-      return null
-    }
-  }
-
-  // カテゴリ間でURLを移動する関数
-  const handleMoveUrlsBetweenCategories = async (
-    projectId: string,
-    sourceCategoryName: string,
-    targetCategoryName: string,
-  ) => {
-    try {
-      console.log(
-        `カテゴリ間URL移動: ${sourceCategoryName} → ${targetCategoryName}, プロジェクト: ${projectId}`,
-      )
-
-      // 移動元と移動先のプロジェクトを見つける
-      const project = customProjects.find(p => p.id === projectId)
-
-      if (!project) {
-        console.error('プロジェクトが見つかりません')
-        return
-      }
-
-      // 移動元カテゴリに属するURLを特定
-      const urlsToMove = project.urls.filter(
-        item => item.category === sourceCategoryName,
-      )
-
-      // カテゴリに属するURLの数を表示
-      console.log(
-        `カテゴリ "${sourceCategoryName}" のURL数: ${urlsToMove.length}`,
-      )
-      console.log(
-        `カテゴリ "${targetCategoryName}" のURL数: ${project.urls.filter(item => item.category === targetCategoryName).length}`,
-      )
-
-      // カテゴリを統合するか、URLを移動するかを判断
-      if (urlsToMove.length === 0) {
-        // 移動元カテゴリにURLがない場合は単にカテゴリを削除（統合）
-        console.log(
-          `カテゴリ "${sourceCategoryName}" は空のため、削除してカテゴリを統合します`,
-        )
-
-        // 移動元カテゴリを削除
-        try {
-          // プロジェクトからカテゴリを削除
-          await removeCategoryFromProject(projectId, sourceCategoryName)
-          toast.success(
-            `カテゴリ「${sourceCategoryName}」を「${targetCategoryName}」に統合しました`,
-          )
-
-          // UIの状態を更新
-          const updatedProjects = customProjects.map(p => {
-            if (p.id === projectId) {
-              return {
-                ...p,
-                categories: p.categories.filter(c => c !== sourceCategoryName),
-                categoryOrder: p.categoryOrder
-                  ? p.categoryOrder.filter(c => c !== sourceCategoryName)
-                  : undefined,
-                updatedAt: Date.now(),
-              }
-            }
-            return p
-          })
-
-          setCustomProjects(updatedProjects)
-        } catch (error) {
-          console.error('カテゴリ削除エラー:', error)
-          toast.error('カテゴリの統合に失敗しました')
-        }
-        return
-      }
-
-      console.log(`移動するURL数: ${urlsToMove.length}`)
-
-      // 各URLのカテゴリを変更
-      let successCount = 0
-      for (const urlItem of urlsToMove) {
-        try {
-          await setUrlCategory(projectId, urlItem.url, targetCategoryName)
-          successCount++
-        } catch (error) {
-          console.error(`URL ${urlItem.url} の移動に失敗:`, error)
-        }
-      }
-
-      // UIの状態を更新
-      const updatedProjects = customProjects.map(p => {
-        if (p.id === projectId) {
-          return {
-            ...p,
-            urls: p.urls.map(item => {
-              if (item.category === sourceCategoryName) {
-                return {
-                  ...item,
-                  category: targetCategoryName,
-                }
-              }
-              return item
-            }),
-            updatedAt: Date.now(),
-          }
-        }
-        return p
-      })
-
-      setCustomProjects(updatedProjects)
-
-      // 移動が完了したら移動元カテゴリを削除
-      if (successCount > 0) {
-        try {
-          // すべてのURLを移動した後で移動元カテゴリを削除
-          await removeCategoryFromProject(projectId, sourceCategoryName)
-
-          // カテゴリリストを更新
-          const finalProjects = updatedProjects.map(p => {
-            if (p.id === projectId) {
-              return {
-                ...p,
-                categories: p.categories.filter(c => c !== sourceCategoryName),
-                categoryOrder: p.categoryOrder
-                  ? p.categoryOrder.filter(c => c !== sourceCategoryName)
-                  : undefined,
-                updatedAt: Date.now(),
-              }
-            }
-            return p
-          })
-
-          setCustomProjects(finalProjects)
-          toast.success(
-            `カテゴリ「${sourceCategoryName}」から「${targetCategoryName}」へ ${successCount} 件のURLを移動し、カテゴリを統合しました`,
-          )
-        } catch (error) {
-          console.error('カテゴリ削除エラー:', error)
-          toast.success(
-            `カテゴリ「${sourceCategoryName}」から「${targetCategoryName}」へ ${successCount} 件のURLを移動しました`,
-          )
-        }
-      } else {
-        toast.error('URLの移動に失敗しました')
-      }
-    } catch (error) {
-      console.error('カテゴリ間URL移動エラー:', error)
-      toast.error('URLの移動に失敗しました')
-    }
-  }
-
-  // 空のグループを除外するフィルタリング関数
-  const hasContentTabGroups = tabGroups.filter(group => group.urls.length > 0)
+  // コンテンツがあるグループリスト（カテゴリと未分類を結合）
+  const hasContentTabGroups = [
+    ...Object.values(categorized).flat(),
+    ...uncategorized,
+  ]
 
   // URLの合計数を計算
   const totalUrls = tabGroups.reduce(
     (total, group) => total + group.urls.length,
     0,
   )
+
+  // カスタムモード検索用にプロジェクトとURLをフィルタリング
+  const filteredCustomProjects = useMemo(() => {
+    const q = searchQuery.trim()
+    if (!q) return customProjects
+    // プロジェクト名での曖昧検索
+    const projectFuse = new Fuse(customProjects, {
+      keys: ['name'],
+      threshold: 0.4,
+    })
+    const matchedProjects = projectFuse.search(q).map(res => res.item)
+    // URLレベルでの曖昧検索
+    const urlFuseOptions = { keys: ['title', 'url'], threshold: 0.4 }
+    const urlMatchedProjects = customProjects
+      .filter(proj => !matchedProjects.includes(proj))
+      .map(proj => {
+        const fuseUrls = new Fuse(proj.urls, urlFuseOptions)
+        const matches = fuseUrls.search(q).map(r => r.item)
+        return matches.length ? { ...proj, urls: matches } : null
+      })
+      .filter(
+        (proj: CustomProject | null): proj is CustomProject => proj !== null,
+      ) // Filter out null entries with type guard
+
+    return [...matchedProjects, ...urlMatchedProjects]
+  }, [customProjects, searchQuery])
 
   // ストレージ変更検出時のリスナーを改善（ドメインモードとカスタムモード間の同期）
   useEffect(() => {
@@ -1570,6 +1332,217 @@ const SavedTabs = () => {
     })
   }, [viewMode, syncDomainDataToCustomProjects]) // 必要な依存関係を追加
 
+  // ドメインを別のカテゴリに移動する関数
+  const handleMoveDomainToCategory = async (
+    domainId: string,
+    fromCategoryId: string | null,
+    toCategoryId: string,
+  ) => {
+    try {
+      const domainGroup = tabGroups.find(group => group.id === domainId)
+      if (!domainGroup) return
+
+      let updatedCategories = [...categories]
+
+      if (fromCategoryId) {
+        updatedCategories = updatedCategories.map(cat =>
+          cat.id === fromCategoryId
+            ? {
+                ...cat,
+                domains: cat.domains.filter(d => d !== domainId),
+                domainNames: cat.domainNames
+                  ? cat.domainNames.filter(d => d !== domainGroup.domain)
+                  : [],
+              }
+            : cat,
+        )
+      }
+
+      updatedCategories = updatedCategories.map(cat =>
+        cat.id === toCategoryId
+          ? {
+              ...cat,
+              domains: cat.domains.includes(domainId)
+                ? cat.domains
+                : [...cat.domains, domainId],
+              domainNames: cat.domainNames?.includes(domainGroup.domain)
+                ? cat.domainNames
+                : [...(cat.domainNames || []), domainGroup.domain],
+            }
+          : cat,
+      )
+
+      await saveParentCategories(updatedCategories)
+      setCategories(updatedCategories)
+      console.log(
+        `ドメイン ${domainGroup.domain} を ${fromCategoryId || '未分類'} から ${toCategoryId} に移動しました`,
+      )
+    } catch (error) {
+      console.error('カテゴリ間ドメイン移動エラー:', error)
+    }
+  }
+
+  // カスタムプロジェクト間でURLを移動するハンドラ
+  const handleMoveUrlBetweenProjects = async (
+    sourceProjectId: string,
+    targetProjectId: string,
+    url: string,
+  ) => {
+    try {
+      console.log(
+        `URL移動: ${sourceProjectId} → ${targetProjectId}, URL: ${url}`,
+      )
+      // 移動するURLのデータを取得
+      const sourceProject = customProjects.find(p => p.id === sourceProjectId)
+      const targetProject = customProjects.find(p => p.id === targetProjectId)
+      if (!sourceProject || !targetProject) {
+        console.error('プロジェクトが見つかりません')
+        return null
+      }
+      // 移動するURLを見つける
+      const urlItem = sourceProject.urls.find(item => item.url === url)
+      if (!urlItem) {
+        console.error('移動するURLが見つかりません')
+        return null
+      }
+      // 移動先に既に同じURLが存在していないか確認
+      const existsInTarget = targetProject.urls.some(item => item.url === url)
+      if (existsInTarget) {
+        console.log('移動先に既にURLが存在するため、移動をスキップします')
+        toast.info('移動先のプロジェクトに既にこのURLが存在します')
+        return null
+      }
+      // 元のカテゴリ情報を保持（移動元のカテゴリが存在する場合）
+      const originalCategory = urlItem.category
+      // 元のプロジェクトからURLを削除
+      await removeUrlFromCustomProject(sourceProjectId, url)
+      // 移動先のプロジェクトにURLを追加（注記とカテゴリ情報も保持）
+      await addUrlToCustomProject(
+        targetProjectId,
+        url,
+        urlItem.title,
+        urlItem.notes,
+        originalCategory, // カテゴリを保持して移動
+      )
+      // UIの状態を更新
+      const updatedProjects = customProjects.map(project => {
+        if (project.id === sourceProjectId) {
+          return {
+            ...project,
+            urls: project.urls.filter(item => item.url !== url),
+            updatedAt: Date.now(),
+          }
+        }
+        if (project.id === targetProjectId) {
+          return {
+            ...project,
+            urls: [
+              ...project.urls,
+              { ...urlItem, category: originalCategory, savedAt: Date.now() },
+            ],
+            updatedAt: Date.now(),
+          }
+        }
+        return project
+      })
+      setCustomProjects(updatedProjects)
+      toast.success('URLを移動しました')
+      return originalCategory
+    } catch (error) {
+      console.error('URL移動エラー:', error)
+      toast.error('URLの移動に失敗しました')
+      return null
+    }
+  }
+
+  // カテゴリ間でURLを移動するハンドラ
+  const handleMoveUrlsBetweenCategories = async (
+    projectId: string,
+    sourceCategoryName: string,
+    targetCategoryName: string,
+  ) => {
+    try {
+      console.log(
+        `カテゴリ間URL移動: ${sourceCategoryName} → ${targetCategoryName}, プロジェクト: ${projectId}`,
+      )
+      // 移動元と移動先のプロジェクトを見つける
+      const project = customProjects.find(p => p.id === projectId)
+      if (!project) {
+        console.error('プロジェクトが見つかりません')
+        return
+      }
+      // 移動元カテゴリに属するURLを特定
+      const urlsToMove = project.urls.filter(
+        item => item.category === sourceCategoryName,
+      )
+      console.log(
+        `カテゴリ "${sourceCategoryName}" のURL数: ${urlsToMove.length}`,
+      )
+      console.log(
+        `カテゴリ "${targetCategoryName}" のURL数: ${project.urls.filter(item => item.category === targetCategoryName).length}`,
+      )
+      // カテゴリを統合するか、URLを移動するかを判断
+      if (urlsToMove.length === 0) {
+        // 移動元カテゴリにURLがない場合は統合
+        await removeCategoryFromProject(projectId, sourceCategoryName)
+        toast.success(
+          `カテゴリ「${sourceCategoryName}」を「${targetCategoryName}」に統合しました`,
+        )
+        const updatedProjects = customProjects.map(p => {
+          if (p.id === projectId) {
+            return {
+              ...p,
+              categories: p.categories.filter(c => c !== sourceCategoryName),
+              categoryOrder: p.categoryOrder
+                ? p.categoryOrder.filter(c => c !== sourceCategoryName)
+                : undefined,
+              updatedAt: Date.now(),
+            }
+          }
+          return p
+        })
+        setCustomProjects(updatedProjects)
+        return
+      }
+      // 各URLのカテゴリを変更
+      let successCount = 0
+      for (const urlItem of urlsToMove) {
+        try {
+          await setUrlCategory(projectId, urlItem.url, targetCategoryName)
+          successCount++
+        } catch (error) {
+          console.error(`URL ${urlItem.url} の移動に失敗:`, error)
+        }
+      }
+      // UIの状態を更新
+      const updatedProjects = customProjects.map(p => {
+        if (p.id === projectId) {
+          return {
+            ...p,
+            urls: p.urls.map(item => {
+              if (item.category === sourceCategoryName) {
+                return { ...item, category: targetCategoryName }
+              }
+              return item
+            }),
+            updatedAt: Date.now(),
+          }
+        }
+        return p
+      })
+      setCustomProjects(updatedProjects)
+      if (successCount > 0) {
+        await removeCategoryFromProject(projectId, sourceCategoryName)
+        toast.success(
+          `カテゴリ「${sourceCategoryName}」から「${targetCategoryName}」へ ${successCount} 件のURLを移動しました`,
+        )
+      }
+    } catch (error) {
+      console.error('カテゴリ間URL移動エラー:', error)
+      toast.error('URLの移動に失敗しました')
+    }
+  }
+
   return (
     <>
       <Toaster />
@@ -1578,8 +1551,24 @@ const SavedTabs = () => {
           tabGroups={tabGroups}
           currentMode={viewMode}
           onModeChange={handleViewModeChange}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onOpenFilter={() => setIsFilterOpen(true)}
         />
-
+        <FilterModal
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          startDate={filterStartDate}
+          endDate={filterEndDate}
+          onApply={(s, e) => {
+            setFilterStartDate(s)
+            setFilterEndDate(e)
+          }}
+          onReset={() => {
+            setFilterStartDate(null)
+            setFilterEndDate(null)
+          }}
+        />
         {isLoading ? (
           <div className='flex items-center justify-center min-h-[200px]'>
             <div className='text-xl text-foreground'>読み込み中...</div>
@@ -1694,7 +1683,7 @@ const SavedTabs = () => {
         ) : (
           // カスタムモード表示
           <CustomProjectSection
-            projects={customProjects}
+            projects={filteredCustomProjects}
             handleOpenUrl={handleOpenTab}
             handleDeleteUrl={handleDeleteUrlFromProject}
             handleAddUrl={handleAddUrlToProject}
