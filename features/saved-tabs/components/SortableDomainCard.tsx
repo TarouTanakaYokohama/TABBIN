@@ -43,6 +43,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CategoryKeywordModal } from './CategoryKeywordModal'
 import { SortableCategorySection } from './SortableCategorySection'
+import { CategorySection } from './TimeRemaining'
 
 // SortableDomainCardコンポーネントを修正
 export const SortableDomainCard = ({
@@ -715,42 +716,54 @@ export const SortableDomainCard = ({
       {/* カテゴリごとにまとめてタブを表示 */}
       {!isCollapsed && (
         <CardContent className='space-y-1 p-2'>
-          {allCategoryIds.length > 0 && group.urls.length > 0 ? (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleCategoryDragEnd}
-            >
-              <SortableContext
-                items={allCategoryIds}
-                strategy={verticalListSortingStrategy}
+          {group.urls.length > 0 ? (
+            allCategoryIds.length > 1 ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleCategoryDragEnd}
               >
-                {/* カテゴリ順序に従ってカテゴリセクションを表示（空カテゴリは表示しない） */}
-                {allCategoryIds.map(categoryName => {
-                  // 空のカテゴリはスキップ - より厳密にチェック
-                  const urls = categorizedUrls[categoryName] || []
-                  if (urls.length === 0) return null
+                <SortableContext
+                  items={allCategoryIds}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {/* カテゴリ順序に従ってカテゴリセクションを表示（空カテゴリは表示しない） */}
+                  {allCategoryIds.map(categoryName => {
+                    const urls = categorizedUrls[categoryName] || []
+                    if (urls.length === 0) return null
 
-                  return (
-                    <SortableCategorySection
-                      key={categoryName}
-                      id={categoryName}
-                      categoryName={categoryName}
-                      urls={urls}
-                      groupId={group.id}
-                      handleDeleteUrl={handleDeleteUrl}
-                      handleOpenTab={handleOpenTab}
-                      handleUpdateUrls={handleUpdateUrls}
-                      handleOpenAllTabs={handleOpenAllTabs}
-                      handleDeleteAllTabs={urls =>
-                        handleDeleteAllTabsInCategory(categoryName, urls)
-                      }
-                      settings={settings}
-                    />
-                  )
-                })}
-              </SortableContext>
-            </DndContext>
+                    return (
+                      <SortableCategorySection
+                        key={categoryName}
+                        id={categoryName}
+                        categoryName={categoryName}
+                        urls={urls}
+                        groupId={group.id}
+                        handleDeleteUrl={handleDeleteUrl}
+                        handleOpenTab={handleOpenTab}
+                        handleUpdateUrls={handleUpdateUrls}
+                        handleOpenAllTabs={handleOpenAllTabs}
+                        handleDeleteAllTabs={urls =>
+                          handleDeleteAllTabsInCategory(categoryName, urls)
+                        }
+                        settings={settings}
+                      />
+                    )
+                  })}
+                </SortableContext>
+              </DndContext>
+            ) : (
+              <CategorySection
+                categoryName={allCategoryIds[0] ?? '__uncategorized'}
+                urls={group.urls}
+                groupId={group.id}
+                handleDeleteUrl={handleDeleteUrl}
+                handleOpenTab={handleOpenTab}
+                handleUpdateUrls={handleUpdateUrls}
+                handleOpenAllTabs={handleOpenAllTabs}
+                settings={settings}
+              />
+            )
           ) : (
             <div className='text-center py-4 text-gray-400'>
               {group.urls.length === 0
