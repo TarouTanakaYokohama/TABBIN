@@ -38,7 +38,13 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Edit, ExternalLink, GripVertical } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronUp,
+  Edit,
+  ExternalLink,
+  GripVertical,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { SortableDomainCard } from './SortableDomainCard'
@@ -330,14 +336,39 @@ export const CategoryGroup = ({
         onDrop={handleDrop}
       >
         <CardHeader className='flex-row justify-between items-baseline my-2'>
-          <div
-            className='flex items-center gap-3 flex-grow cursor-grab hover:cursor-grab active:cursor-grabbing'
-            {...attributes}
-            {...listeners}
-          >
-            <span className='text-foreground'>
+          <div className='flex items-center gap-3 flex-grow'>
+            <span
+              className='text-foreground cursor-grab hover:cursor-grab active:cursor-grabbing'
+              {...attributes}
+              {...listeners}
+            >
               <GripVertical size={16} aria-hidden='true' />
             </span>
+            {/* 折りたたみ切り替えボタン */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant='secondary'
+                  size='sm'
+                  onClick={e => {
+                    e.stopPropagation()
+                    setIsCollapsed(prev => !prev)
+                  }}
+                  className='flex items-center gap-1 cursor-pointer'
+                  title={isCollapsed ? '展開' : '折りたたむ'}
+                  aria-label={isCollapsed ? '展開' : '折りたたむ'}
+                >
+                  {isCollapsed ? (
+                    <ChevronDown size={14} />
+                  ) : (
+                    <ChevronUp size={14} />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='top' className='lg:hidden block'>
+                {isCollapsed ? '展開' : '折りたたむ'}
+              </TooltipContent>
+            </Tooltip>
             <div className='flex gap-1 items-center'>
               <h2 className='text-xl font-bold text-foreground'>
                 {category.name}

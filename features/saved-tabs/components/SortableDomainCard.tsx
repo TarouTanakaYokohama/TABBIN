@@ -29,7 +29,14 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ExternalLink, GripVertical, Settings, Trash } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  GripVertical,
+  Settings,
+  Trash,
+} from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CategoryKeywordModal } from './CategoryKeywordModal'
 import { SortableCategorySection } from './SortableCategorySection'
@@ -50,6 +57,7 @@ export const SortableDomainCard = ({
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: group.id })
   const [showKeywordModal, setShowKeywordModal] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
   // カテゴリの順序を管理する状態を追加
   const [categoryOrder, setCategoryOrder] = useState<string[]>([])
   // 未分類も含めたすべてのカテゴリを管理する状態を追加
@@ -520,6 +528,31 @@ export const SortableDomainCard = ({
     >
       <CardHeader className='p-2 pb-0 w-full'>
         <div className='flex items-center justify-between w-full'>
+          {/* 折りたたみ切り替えボタン */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='secondary'
+                size='sm'
+                onClick={e => {
+                  e.stopPropagation()
+                  setIsCollapsed(prev => !prev)
+                }}
+                className='flex items-center gap-1 cursor-pointer'
+                title={isCollapsed ? '展開' : '折りたたむ'}
+                aria-label={isCollapsed ? '展開' : '折りたたむ'}
+              >
+                {isCollapsed ? (
+                  <ChevronDown size={14} />
+                ) : (
+                  <ChevronUp size={14} />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side='top' className='lg:hidden block'>
+              {isCollapsed ? '展開' : '折りたたむ'}
+            </TooltipContent>
+          </Tooltip>
           {/* 左側: ドメイン情報 */}
           <div
             className={
@@ -597,71 +630,73 @@ export const SortableDomainCard = ({
                 すべてのタブ削除
               </TooltipContent>
             </Tooltip>
+
+            {/* モーダルは最上位に配置 */}
+            {showKeywordModal && (
+              <CategoryKeywordModal
+                group={group}
+                isOpen={showKeywordModal}
+                onClose={handleCloseKeywordModal}
+                onSave={handleSaveKeywords}
+                onDeleteCategory={handleCategoryDelete}
+                parentCategories={parentCategories}
+                onCreateParentCategory={handleCreateParentCategory}
+                onAssignToParentCategory={handleAssignToParentCategory}
+                onUpdateParentCategories={handleUpdateParentCategories}
+              />
+            )}
           </div>
         </div>
-
-        {/* モーダルは最上位に配置 */}
-        {showKeywordModal && (
-          <CategoryKeywordModal
-            group={group}
-            isOpen={showKeywordModal}
-            onClose={handleCloseKeywordModal}
-            onSave={handleSaveKeywords}
-            onDeleteCategory={handleCategoryDelete}
-            parentCategories={parentCategories}
-            onCreateParentCategory={handleCreateParentCategory}
-            onAssignToParentCategory={handleAssignToParentCategory}
-            onUpdateParentCategories={handleUpdateParentCategories}
-          />
-        )}
       </CardHeader>
 
       {/* カテゴリごとにまとめてタブを表示 */}
-      <CardContent className='space-y-1 p-2'>
-        {allCategoryIds.length > 0 && group.urls.length > 0 ? (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleCategoryDragEnd}
-          >
-            <SortableContext
-              items={allCategoryIds}
-              strategy={verticalListSortingStrategy}
+      {!isCollapsed && (
+        <CardContent className='space-y-1 p-2'>
+          {allCategoryIds.length > 0 && group.urls.length > 0 ? (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleCategoryDragEnd}
             >
-              {/* カテゴリ順序に従ってカテゴリセクションを表示（空カテゴリは表示しない） */}
-              {allCategoryIds.map(categoryName => {
-                // 空のカテゴリはスキップ - より厳密にチェック
-                const urls = categorizedUrls[categoryName] || []
-                if (urls.length === 0) return null
+              <SortableContext
+                items={allCategoryIds}
+                strategy={verticalListSortingStrategy}
+              >
+                {/* カテゴリ順序に従ってカテゴリセクションを表示（空カテゴリは表示しない） */}
+                {allCategoryIds.map(categoryName => {
+                  // 空のカテゴリはスキップ - より厳密にチェック
+                  const urls = categorizedUrls[categoryName] || []
+                  if (urls.length === 0) return null
 
-                return (
-                  <SortableCategorySection
-                    key={categoryName}
-                    id={categoryName}
-                    categoryName={categoryName}
-                    urls={urls}
-                    groupId={group.id}
-                    handleDeleteUrl={handleDeleteUrl}
-                    handleOpenTab={handleOpenTab}
-                    handleUpdateUrls={handleUpdateUrls}
-                    handleOpenAllTabs={handleOpenAllTabs}
-                    handleDeleteAllTabs={urls =>
-                      handleDeleteAllTabsInCategory(categoryName, urls)
-                    }
-                    settings={settings}
-                  />
-                )
-              })}
-            </SortableContext>
-          </DndContext>
-        ) : (
-          <div className='text-center py-4 text-gray-400'>
-            {group.urls.length === 0
-              ? 'このドメインにはタブがありません'
-              : 'カテゴリを追加するにはカテゴリ管理から行ってください'}
-          </div>
-        )}
-      </CardContent>
+                  return (
+                    <SortableCategorySection
+                      key={categoryName}
+                      id={categoryName}
+                      categoryName={categoryName}
+                      urls={urls}
+                      groupId={group.id}
+                      handleDeleteUrl={handleDeleteUrl}
+                      handleOpenTab={handleOpenTab}
+                      handleUpdateUrls={handleUpdateUrls}
+                      handleOpenAllTabs={handleOpenAllTabs}
+                      handleDeleteAllTabs={urls =>
+                        handleDeleteAllTabsInCategory(categoryName, urls)
+                      }
+                      settings={settings}
+                    />
+                  )
+                })}
+              </SortableContext>
+            </DndContext>
+          ) : (
+            <div className='text-center py-4 text-gray-400'>
+              {group.urls.length === 0
+                ? 'このドメインにはタブがありません'
+                : 'カテゴリを追加するにはカテゴリ管理から行ってください'}
+            </div>
+          )}
+        </CardContent>
+      )}
     </Card>
   )
 }
