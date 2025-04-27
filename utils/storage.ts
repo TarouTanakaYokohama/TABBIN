@@ -45,6 +45,8 @@ export interface UserSettings {
   excludePinnedTabs: boolean // 固定タブ（ピン留め）を除外するかどうか
   openUrlInBackground: boolean // URLクリック時に別タブで開くかどうか
   openAllInNewWindow: boolean // 「すべてのタブを開く」を別ウィンドウで開くかどうか
+  confirmDeleteAll: boolean // すべて削除前に確認するかどうか
+  confirmDeleteEach: boolean // URL削除前に個別確認するかどうか
 }
 
 // デフォルト設定
@@ -58,6 +60,8 @@ export const defaultSettings: UserSettings = {
   excludePinnedTabs: true, // デフォルトでは固定タブを除外する
   openUrlInBackground: true, // デフォルト: URLをバックグラウンドで開く
   openAllInNewWindow: false, // デフォルト: 「すべてのタブを開く」を現在のウィンドウで開く
+  confirmDeleteAll: false, // デフォルト: 確認しない
+  confirmDeleteEach: false, // デフォルト: 確認しない
 }
 
 // 設定を取得する関数

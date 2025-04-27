@@ -298,7 +298,7 @@ export const CustomProjectSection = ({
                   handleUpdateCategoryOrder={handleUpdateCategoryOrder}
                   handleReorderUrls={handleReorderUrls}
                   handleOpenAllUrls={handleOpenAllUrls}
-                  settings={{ removeTabAfterOpen: settings.removeTabAfterOpen }}
+                  settings={settings}
                   // ドラッグ中のアイテム情報を渡す
                   draggedItem={draggedItem}
                   // ドラッグオーバー中のプロジェクトIDを渡す

@@ -269,6 +269,32 @@ const OptionsPage = () => {
     }
   }
 
+  // 追加: URL削除前確認設定の切替ハンドラ
+  const handleToggleConfirmDeleteEach = async (checked: boolean) => {
+    try {
+      const newSettings = { ...settings, confirmDeleteEach: checked }
+      setSettings(newSettings)
+      await saveUserSettings(newSettings)
+      setIsSaved(true)
+      setTimeout(() => setIsSaved(false), 2000)
+    } catch (error) {
+      console.error('URL削除前確認設定の保存エラー:', error)
+    }
+  }
+
+  // 追加: すべて削除前確認設定の切替ハンドラ
+  const handleToggleConfirmDeleteAll = async (checked: boolean) => {
+    try {
+      const newSettings = { ...settings, confirmDeleteAll: checked }
+      setSettings(newSettings)
+      await saveUserSettings(newSettings)
+      setIsSaved(true)
+      setTimeout(() => setIsSaved(false), 2000)
+    } catch (error) {
+      console.error('すべて削除前確認設定の保存エラー:', error)
+    }
+  }
+
   const handleExcludePatternsChange = (
     e: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
@@ -833,6 +859,43 @@ const OptionsPage = () => {
         </div>
         <p className='text-sm text-muted-foreground mt-1 ml-7'>
           オンにすると、保存タブ一覧に保存された日時が表示されます。
+        </p>
+
+        {/* 削除時の確認オプション */}
+        <div className='mb-4 mt-6 flex items-center space-x-2'>
+          <Checkbox
+            id='confirm-delete-each'
+            checked={settings.confirmDeleteEach}
+            onCheckedChange={handleToggleConfirmDeleteEach}
+            className='cursor-pointer'
+          />
+          <Label
+            htmlFor='confirm-delete-each'
+            className='text-foreground cursor-pointer'
+          >
+            URL削除前に確認する
+          </Label>
+        </div>
+        <p className='text-sm text-muted-foreground mt-1 ml-7'>
+          オンにすると、URLを削除する前に確認ダイアログを表示します。
+        </p>
+
+        <div className='mb-4 mt-6 flex items-center space-x-2'>
+          <Checkbox
+            id='confirm-delete-all'
+            checked={settings.confirmDeleteAll}
+            onCheckedChange={handleToggleConfirmDeleteAll}
+            className='cursor-pointer'
+          />
+          <Label
+            htmlFor='confirm-delete-all'
+            className='text-foreground cursor-pointer'
+          >
+            すべて削除前に確認する
+          </Label>
+        </div>
+        <p className='text-sm text-muted-foreground mt-1 ml-7'>
+          オンにすると、カテゴリごとにすべてのタブを削除する前に確認ダイアログを表示します。
         </p>
 
         {/* 自動削除期間設定を修正 */}

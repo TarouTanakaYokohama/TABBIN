@@ -7,7 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import type { CustomProject } from '@/utils/storage'
+import type { CustomProject, UserSettings } from '@/utils/storage'
 import { useDroppable } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -40,7 +40,7 @@ export interface CustomProjectCategoryProps {
     category?: string,
   ) => void
   handleAddCategory: (projectId: string, category: string) => void
-  settings: { removeTabAfterOpen: boolean }
+  settings: UserSettings
   handleOpenAllUrls?: (urls: { url: string; title: string }[]) => void
   dragData?: { type: string }
   isHighlighted?: boolean
@@ -316,7 +316,7 @@ export const CustomProjectCategory = ({
               variant='outline'
               size='sm'
               className='mr-1'
-              onClick={() => {
+              onClick={async () => {
                 if (handleOpenAllUrls) {
                   handleOpenAllUrls(localCategoryUrls)
                 } else {
@@ -335,9 +335,16 @@ export const CustomProjectCategory = ({
               size='sm'
               className='mr-1'
               onClick={async () => {
-                setLocalCategoryUrls([])
-                for (const u of localCategoryUrls) {
-                  await handleDeleteUrl(projectId, u.url)
+                if (
+                  !settings.confirmDeleteAll ||
+                  window.confirm(
+                    `「${category === '__uncategorized' ? '未分類' : category}」のタブをすべて削除しますか？`,
+                  )
+                ) {
+                  setLocalCategoryUrls([])
+                  for (const u of localCategoryUrls) {
+                    await handleDeleteUrl(projectId, u.url)
+                  }
                 }
               }}
             >
@@ -397,6 +404,7 @@ export const CustomProjectCategory = ({
                     handleDeleteUrl={handleDeleteUrl}
                     handleSetCategory={handleSetUrlCategory}
                     availableCategories={['undefined']}
+                    settings={settings}
                   />
                 ))}
               </ul>
