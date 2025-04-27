@@ -44,6 +44,7 @@ export interface UserSettings {
     | 'saveAllWindowsTabs' // 新しいオプション: クリック時の挙動
   excludePinnedTabs: boolean // 固定タブ（ピン留め）を除外するかどうか
   openUrlInBackground: boolean // URLクリック時に別タブで開くかどうか
+  openAllInNewWindow: boolean // 「すべてのタブを開く」を別ウィンドウで開くかどうか
 }
 
 // デフォルト設定
@@ -56,6 +57,7 @@ export const defaultSettings: UserSettings = {
   clickBehavior: 'saveSameDomainTabs', // デフォルトは「現在開いているドメインのタブをすべて保存」
   excludePinnedTabs: true, // デフォルトでは固定タブを除外する
   openUrlInBackground: true, // デフォルト: URLをバックグラウンドで開く
+  openAllInNewWindow: false, // デフォルト: 「すべてのタブを開く」を現在のウィンドウで開く
 }
 
 // 設定を取得する関数
