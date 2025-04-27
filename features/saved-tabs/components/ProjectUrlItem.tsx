@@ -113,7 +113,7 @@ export const ProjectUrlItem = ({
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex justify-between items-center border-b border-border pb-1 last:border-0 group min-w-0
+      className={`border-b border-border pb-1 last:border-0 flex items-center relative overflow-hidden group min-w-0
         ${isDragging ? 'opacity-50 bg-secondary/50' : ''}
         ${isInSubcategory ? 'pl-2' : ''}
         ${item.category ? 'border-l-2 border-l-primary/30' : ''}
@@ -139,7 +139,7 @@ export const ProjectUrlItem = ({
           asChild
           variant='ghost'
           size='sm'
-          className='text-left w-full justify-start text-foreground hover:text-foreground hover:underline truncate'
+          className='flex flex-1 items-center gap-1 overflow-hidden text-left text-foreground hover:text-foreground hover:underline'
         >
           <a
             href={item.url}
@@ -157,10 +157,10 @@ export const ProjectUrlItem = ({
                 className='text-primary mr-1 inline-block'
               />
             )}
-            <span className='truncate'>{item.title || item.url}</span>
+            <span className='flex-1 truncate'>{item.title || item.url}</span>
             {/* カテゴリ階層の視覚的な表示をシンプル化 */}
             {item.category?.includes('/') && (
-              <Badge variant='outline' className='ml-2 text-xs'>
+              <Badge variant='outline' className='ml-2 text-xs shrink-0'>
                 {getCategoryDisplayName(item.category)}
               </Badge>
             )}
