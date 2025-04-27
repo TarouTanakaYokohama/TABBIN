@@ -15,7 +15,13 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowUpDown, ChevronDown, GripVertical, Trash2 } from 'lucide-react'
+import {
+  ArrowUpDown,
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
+  Trash2,
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ProjectUrlItem } from './ProjectUrlItem'
 
@@ -130,6 +136,7 @@ export const CustomProjectCategory = ({
   }
 
   const [isEditing, setIsEditing] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const [editName, setEditName] = useState(category)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -162,15 +169,37 @@ export const CustomProjectCategory = ({
     >
       <CardHeader className='flex-row justify-between items-center py-2 px-3'>
         <div className='flex items-center gap-2'>
+          {/* collapse toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='secondary'
+                size='sm'
+                onClick={e => {
+                  e.stopPropagation()
+                  setIsCollapsed(prev => !prev)
+                }}
+                className='flex items-center gap-1 cursor-pointer'
+                title={isCollapsed ? '展開' : '折りたたむ'}
+                aria-label={isCollapsed ? '展開' : '折りたたむ'}
+              >
+                {isCollapsed ? (
+                  <ChevronDown size={14} />
+                ) : (
+                  <ChevronUp size={14} />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side='top' className='lg:hidden block'>
+              {isCollapsed ? '展開' : '折りたたむ'}
+            </TooltipContent>
+          </Tooltip>
           <div
             {...attributes}
             {...listeners}
             className='cursor-grab active:cursor-grabbing'
           >
             <GripVertical size={16} className='text-muted-foreground' />
-          </div>
-          <div className='flex items-center'>
-            <ChevronDown size={16} className='text-primary mr-1' />
           </div>
           {isEditing ? (
             <input
@@ -271,53 +300,55 @@ export const CustomProjectCategory = ({
         </div>
       </CardHeader>
 
-      <CardContent
-        ref={setDroppableRef}
-        className='p-2'
-        data-is-drop-area='true'
-        data-category-name={category}
-        data-project-id={projectId}
-        data-is-category='true'
-        data-type='category'
-        data-category-drop-id={categoryDropId}
-      >
-        {localCategoryUrls.length > 0 ? (
-          <SortableContext
-            items={localCategoryUrls.map(item => item.url)}
-            strategy={verticalListSortingStrategy}
-          >
-            <ul
-              className={`space-y-1 ${
-                isOver ? 'bg-primary/5 p-1 rounded' : ''
+      {!isCollapsed && (
+        <CardContent
+          ref={setDroppableRef}
+          className='p-2'
+          data-is-drop-area='true'
+          data-category-name={category}
+          data-project-id={projectId}
+          data-is-category='true'
+          data-type='category'
+          data-category-drop-id={categoryDropId}
+        >
+          {localCategoryUrls.length > 0 ? (
+            <SortableContext
+              items={localCategoryUrls.map(item => item.url)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul
+                className={`space-y-1 ${
+                  isOver ? 'bg-primary/5 p-1 rounded' : ''
+                }`}
+              >
+                {localCategoryUrls.map(item => (
+                  <ProjectUrlItem
+                    key={item.url}
+                    item={item}
+                    projectId={projectId}
+                    handleOpenUrl={handleOpenUrl}
+                    handleDeleteUrl={handleDeleteUrl}
+                    handleSetCategory={handleSetUrlCategory}
+                    availableCategories={['undefined']}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          ) : (
+            <div
+              className={`text-center text-muted-foreground py-2 border-2 border-dashed rounded p-4 ${
+                isOver ? 'bg-primary/10 border-primary' : ''
               }`}
             >
-              {localCategoryUrls.map(item => (
-                <ProjectUrlItem
-                  key={item.url}
-                  item={item}
-                  projectId={projectId}
-                  handleOpenUrl={handleOpenUrl}
-                  handleDeleteUrl={handleDeleteUrl}
-                  handleSetCategory={handleSetUrlCategory}
-                  availableCategories={['undefined']}
-                />
-              ))}
-            </ul>
-          </SortableContext>
-        ) : (
-          <div
-            className={`text-center text-muted-foreground py-2 border-2 border-dashed rounded p-4 ${
-              isOver ? 'bg-primary/10 border-primary' : ''
-            }`}
-          >
-            {isReorderTarget && isCategoryReorder
-              ? 'カテゴリの順序を変更'
-              : isDropTarget
-                ? 'ここにドロップしてカテゴリに追加'
-                : 'このカテゴリにはURLがありません。URLをドラッグ＆ドロップで追加できます。'}
-          </div>
-        )}
-      </CardContent>
+              {isReorderTarget && isCategoryReorder
+                ? 'カテゴリの順序を変更'
+                : isDropTarget
+                  ? 'ここにドロップしてカテゴリに追加'
+                  : 'このカテゴリにはURLがありません。URLをドラッグ＆ドロップで追加できます。'}
+            </div>
+          )}
+        </CardContent>
+      )}
     </Card>
   )
 }

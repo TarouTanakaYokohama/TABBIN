@@ -8,7 +8,13 @@ import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import { safelyUpdateGroupUrls } from '@/utils/tab-operations'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ExternalLink, GripVertical, Trash } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  GripVertical,
+  Trash,
+} from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { CategorySection } from './TimeRemaining'
 
@@ -83,88 +89,117 @@ export const SortableCategorySection = ({
     [props.urls, handleDeleteAllTabs, isDeleting],
   )
 
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={
-        isDragging
-          ? 'category-section mb-1 bg-muted rounded-md shadow-lg'
-          : 'category-section mb-1'
-      }
-    >
-      <div className='category-header mb-0.5 pb-0.5 border-b border-border flex items-center justify-between'>
-        {/* ドラッグハンドル部分 */}
-        <div
-          className={`flex items-center flex-grow ${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab active:cursor-grabbing'}`}
-          {...attributes}
-          {...listeners}
-        >
-          <div className='mr-2 text-muted-foreground/60'>
-            <GripVertical size={16} aria-hidden='true' />
-          </div>
-          <h3 className='font-medium text-foreground'>
-            {props.categoryName === '__uncategorized'
-              ? '未分類'
-              : props.categoryName}{' '}
-            <span className='text-sm text-muted-foreground'>
-              ({props.urls.length})
-            </span>
-          </h3>
-        </div>
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
-        {/* ボタンコンテナ */}
-        <div className='flex items-center gap-2'>
+  return (
+    <div>
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={
+          isDragging
+            ? 'category-section mb-1 bg-muted rounded-md shadow-lg'
+            : 'category-section mb-1'
+        }
+      >
+        <div className='category-header mb-0.5 pb-0.5 border-b border-border flex items-center justify-between'>
+          {/* 折りたたみ切り替えボタン */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant='secondary'
                 size='sm'
                 onClick={e => {
-                  e.stopPropagation() // ドラッグイベントの伝播を防止
-                  handleOpenAllTabs(props.urls)
+                  e.stopPropagation()
+                  setIsCollapsed(prev => !prev)
                 }}
-                className='flex items-center gap-1 z-20 pointer-events-auto cursor-pointer'
-                title={`${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}のタブをすべて開く`}
-                style={{ position: 'relative' }} // ボタンを確実に上に表示
+                className='flex items-center gap-1 cursor-pointer'
+                title={isCollapsed ? '展開' : '折りたたむ'}
+                aria-label={isCollapsed ? '展開' : '折りたたむ'}
               >
-                <ExternalLink size={14} />
-                <span className='lg:inline hidden'>すべて開く</span>
+                {isCollapsed ? (
+                  <ChevronDown size={14} />
+                ) : (
+                  <ChevronUp size={14} />
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent side='top' className='lg:hidden block'>
-              すべてのタブを開く
+              {isCollapsed ? '展開' : '折りたたむ'}
             </TooltipContent>
           </Tooltip>
+          {/* ドラッグハンドル部分 */}
+          <div
+            className={`flex items-center flex-grow ${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab active:cursor-grabbing'}`}
+            {...attributes}
+            {...listeners}
+          >
+            <div className='mr-2 text-muted-foreground/60'>
+              <GripVertical size={16} aria-hidden='true' />
+            </div>
+            <h3 className='font-medium text-foreground'>
+              {props.categoryName === '__uncategorized'
+                ? '未分類'
+                : props.categoryName}{' '}
+              <span className='text-sm text-muted-foreground'>
+                ({props.urls.length})
+              </span>
+            </h3>
+          </div>
 
-          {/* 削除ボタンを追加 */}
-          {handleDeleteAllTabs && (
+          {/* ボタンコンテナ */}
+          <div className='flex items-center gap-2'>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant='secondary'
                   size='sm'
-                  onClick={onDeleteAllTabs}
+                  onClick={e => {
+                    e.stopPropagation() // ドラッグイベントの伝播を防止
+                    handleOpenAllTabs(props.urls)
+                  }}
                   className='flex items-center gap-1 z-20 pointer-events-auto cursor-pointer'
-                  title={`${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}のタブをすべて削除する`}
-                  style={{ position: 'relative' }}
-                  disabled={isDeleting}
+                  title={`${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}のタブをすべて開く`}
+                  style={{ position: 'relative' }} // ボタンを確実に上に表示
                 >
-                  <Trash size={14} />
-                  <span className='lg:inline hidden'>
-                    {isDeleting ? '削除中...' : 'すべて削除'}
-                  </span>
+                  <ExternalLink size={14} />
+                  <span className='lg:inline hidden'>すべて開く</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side='top' className='lg:hidden block'>
-                すべてのタブを削除
+                すべてのタブを開く
               </TooltipContent>
             </Tooltip>
-          )}
-        </div>
-      </div>
 
-      <CategorySection {...props} settings={settings} />
+            {/* 削除ボタンを追加 */}
+            {handleDeleteAllTabs && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant='secondary'
+                    size='sm'
+                    onClick={onDeleteAllTabs}
+                    className='flex items-center gap-1 z-20 pointer-events-auto cursor-pointer'
+                    title={`${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}のタブをすべて削除する`}
+                    style={{ position: 'relative' }}
+                    disabled={isDeleting}
+                  >
+                    <Trash size={14} />
+                    <span className='lg:inline hidden'>
+                      {isDeleting ? '削除中...' : 'すべて削除'}
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side='top' className='lg:hidden block'>
+                  すべてのタブを削除
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        </div>
+
+        {!isCollapsed && <CategorySection {...props} settings={settings} />}
+      </div>
     </div>
   )
 }

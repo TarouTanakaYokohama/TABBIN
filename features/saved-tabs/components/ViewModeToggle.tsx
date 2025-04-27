@@ -33,8 +33,8 @@ export const ViewModeToggle = ({
         <SelectItem value='custom'>
           <div className='flex items-center gap-2'>
             <Folder size={16} />
-            <span className='hidden md:inline'>カスタムモード</span>
-            <span className='md:hidden'>PJ</span>
+            <span className='hidden md:inline'>(preview)カスタムモード</span>
+            <span className='md:hidden'>(preview)カスタム</span>
           </div>
         </SelectItem>
       </SelectContent>
