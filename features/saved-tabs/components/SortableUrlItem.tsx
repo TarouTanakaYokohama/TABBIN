@@ -163,7 +163,12 @@ export const SortableUrlItem = ({
   const handleDeleteButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
-    handleDeleteUrl(groupId, url)
+    if (
+      !settings.confirmDeleteEach ||
+      window.confirm('このURLを削除しますか？')
+    ) {
+      handleDeleteUrl(groupId, url)
+    }
   }
 
   const style = {

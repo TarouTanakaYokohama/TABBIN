@@ -88,7 +88,14 @@ export const SortableCategorySection = ({
 
           // まず削除フラグを設定して安全にUIを更新
           if (handleDeleteAllTabs) {
-            await handleDeleteAllTabs(urlsToDelete)
+            if (
+              !settings.confirmDeleteAll ||
+              window.confirm(
+                `「${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}」のタブをすべて削除しますか？`,
+              )
+            ) {
+              await handleDeleteAllTabs(urlsToDelete)
+            }
           }
 
           // 削除完了後は一定時間待ってからステートをリセット
@@ -101,7 +108,7 @@ export const SortableCategorySection = ({
         }
       }, 0)
     },
-    [props.urls, handleDeleteAllTabs, isDeleting],
+    [props.urls, handleDeleteAllTabs, isDeleting, settings, props.categoryName],
   )
 
   const [isCollapsed, setIsCollapsed] = useState(false)

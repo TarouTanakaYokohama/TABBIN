@@ -6,20 +6,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { CustomProject } from '@/utils/storage'
+import type { CustomProject, UserSettings } from '@/utils/storage'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
   ChevronRight,
-  ExternalLink,
   Folder,
   GripVertical,
   MoreVertical,
-  Trash2,
   X,
 } from 'lucide-react'
 
-interface ProjectUrlItemProps {
+export interface ProjectUrlItemProps {
   item: CustomProject['urls'][0]
   projectId: string
   handleOpenUrl: (url: string) => void
@@ -34,6 +32,7 @@ interface ProjectUrlItemProps {
   isInUncategorizedArea?: boolean
   // 追加: 親要素のタイプ情報
   parentType?: string
+  settings: UserSettings
 }
 
 // カテゴリ名から表示名を取得する関数を追加
@@ -65,6 +64,7 @@ export const ProjectUrlItem = ({
   availableCategories = [],
   isInUncategorizedArea = false,
   parentType,
+  settings,
 }: ProjectUrlItemProps) => {
   // 実際のURLを保存（元のURL）
   const originalUrl = item.url
@@ -172,9 +172,19 @@ export const ProjectUrlItem = ({
         <Button
           variant='ghost'
           size='sm'
-          onClick={() => handleDeleteUrl(projectId, item.url)}
+          onClick={e => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (
+              !settings.confirmDeleteEach ||
+              window.confirm('このURLを削除しますか？')
+            ) {
+              handleDeleteUrl(projectId, item.url)
+            }
+          }}
           className='h-8 w-8 p-0'
           title='URLを削除'
+          aria-label='URLを削除'
         >
           <X size={14} />
         </Button>

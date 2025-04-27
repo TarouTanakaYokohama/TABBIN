@@ -15,7 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import type { CustomProject } from '@/utils/storage'
+import type { CustomProject, UserSettings } from '@/utils/storage'
 import {
   Edit,
   ExternalLink,
@@ -79,7 +79,7 @@ interface CustomProjectCardProps {
   handleUpdateCategoryOrder: (projectId: string, newOrder: string[]) => void
   handleReorderUrls: (projectId: string, urls: CustomProject['urls']) => void
   handleOpenAllUrls?: (urls: { url: string; title: string }[]) => void
-  settings: { removeTabAfterOpen: boolean }
+  settings: UserSettings
   // 追加: ドラッグ中のアイテム情報
   draggedItem?: { url: string; projectId: string; title: string } | null
   // カテゴリ間のURL移動処理を追加
@@ -812,6 +812,7 @@ export const CustomProjectCard = ({
                       handleSetCategory={handleSetUrlCategory}
                       isInUncategorizedArea={true}
                       parentType='uncategorized'
+                      settings={settings}
                     />
                   ))}
                 </ul>
