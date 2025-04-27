@@ -9,13 +9,16 @@ import { safelyUpdateGroupUrls } from '@/utils/tab-operations'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
+  ArrowUpDown,
+  ArrowUpNarrowWide,
+  ArrowUpWideNarrow,
   ChevronDown,
   ChevronUp,
   ExternalLink,
   GripVertical,
   Trash,
 } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { CategorySection } from './TimeRemaining'
 
 // 並び替え可能なカテゴリセクションコンポーネント
@@ -52,6 +55,18 @@ export const SortableCategorySection = ({
   }
 
   const [isDeleting, setIsDeleting] = useState(false)
+  // sort order state: 'default' preserves manual drag order
+  const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>(
+    'default',
+  )
+  // derive sorted urls by savedAt (default = original order)
+  const sortedUrls = useMemo(() => {
+    if (sortOrder === 'default') return props.urls
+    const arr = [...props.urls]
+    arr.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
+    if (sortOrder === 'desc') arr.reverse()
+    return arr
+  }, [props.urls, sortOrder])
 
   // 完全に再設計された削除処理
   const onDeleteAllTabs = useCallback(
@@ -102,7 +117,7 @@ export const SortableCategorySection = ({
             : 'category-section mb-1'
         }
       >
-        <div className='category-header mb-0.5 pb-0.5 border-b border-border flex items-center justify-between'>
+        <div className='category-header mb-0.5 pb-0.5 border-b border-border flex items-center justify-between gap-2'>
           {/* 折りたたみ切り替えボタン */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -126,6 +141,51 @@ export const SortableCategorySection = ({
             </TooltipTrigger>
             <TooltipContent side='top' className='lg:hidden block'>
               {isCollapsed ? '展開' : '折りたたむ'}
+            </TooltipContent>
+          </Tooltip>
+          {/* ソート順切り替え */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='secondary'
+                size='sm'
+                onClick={e => {
+                  e.stopPropagation()
+                  setSortOrder(o =>
+                    o === 'default' ? 'asc' : o === 'asc' ? 'desc' : 'default',
+                  )
+                }}
+                className='flex items-center gap-1 cursor-pointer'
+                title={
+                  sortOrder === 'default'
+                    ? 'デフォルト'
+                    : sortOrder === 'asc'
+                      ? '昇順'
+                      : '降順'
+                }
+                aria-label={
+                  sortOrder === 'default'
+                    ? 'デフォルト'
+                    : sortOrder === 'asc'
+                      ? '昇順'
+                      : '降順'
+                }
+              >
+                {sortOrder === 'default' ? (
+                  <ArrowUpDown size={14} />
+                ) : sortOrder === 'asc' ? (
+                  <ArrowUpNarrowWide size={14} />
+                ) : (
+                  <ArrowUpWideNarrow size={14} />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side='top' className='lg:hidden block'>
+              {sortOrder === 'default'
+                ? 'デフォルト'
+                : sortOrder === 'asc'
+                  ? '昇順'
+                  : '降順'}
             </TooltipContent>
           </Tooltip>
           {/* ドラッグハンドル部分 */}
@@ -198,7 +258,9 @@ export const SortableCategorySection = ({
           </div>
         </div>
 
-        {!isCollapsed && <CategorySection {...props} settings={settings} />}
+        {!isCollapsed && (
+          <CategorySection {...props} urls={sortedUrls} settings={settings} />
+        )}
       </div>
     </div>
   )

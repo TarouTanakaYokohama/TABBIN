@@ -17,6 +17,8 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   ArrowUpDown,
+  ArrowUpNarrowWide,
+  ArrowUpWideNarrow,
   ChevronDown,
   ChevronUp,
   GripVertical,
@@ -113,6 +115,20 @@ export const CustomProjectCategory = ({
   useEffect(() => {
     setLocalCategoryUrls(categoryUrls)
   }, [categoryUrls])
+  // sort order state: 'default' preserves manual order
+  const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>(
+    'default',
+  )
+  useEffect(() => {
+    if (sortOrder === 'default') {
+      setLocalCategoryUrls(categoryUrls)
+    } else {
+      const sorted = [...categoryUrls]
+      sorted.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
+      if (sortOrder === 'desc') sorted.reverse()
+      setLocalCategoryUrls(sorted)
+    }
+  }, [categoryUrls, sortOrder])
   const isDropTarget = isHighlighted || isOver
   const isSelfDragging = isDraggingCategory && draggedCategoryName === category
   const isReorderTarget =
@@ -192,6 +208,51 @@ export const CustomProjectCategory = ({
             </TooltipTrigger>
             <TooltipContent side='top' className='lg:hidden block'>
               {isCollapsed ? '展開' : '折りたたむ'}
+            </TooltipContent>
+          </Tooltip>
+          {/* sort toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='secondary'
+                size='sm'
+                onClick={e => {
+                  e.stopPropagation()
+                  setSortOrder(o =>
+                    o === 'default' ? 'asc' : o === 'asc' ? 'desc' : 'default',
+                  )
+                }}
+                className='flex items-center gap-1 cursor-pointer'
+                title={
+                  sortOrder === 'default'
+                    ? 'デフォルト'
+                    : sortOrder === 'asc'
+                      ? '昇順'
+                      : '降順'
+                }
+                aria-label={
+                  sortOrder === 'default'
+                    ? 'デフォルト'
+                    : sortOrder === 'asc'
+                      ? '昇順'
+                      : '降順'
+                }
+              >
+                {sortOrder === 'default' ? (
+                  <ArrowUpDown size={14} />
+                ) : sortOrder === 'asc' ? (
+                  <ArrowUpNarrowWide size={14} />
+                ) : (
+                  <ArrowUpWideNarrow size={14} />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side='top' className='lg:hidden block'>
+              {sortOrder === 'default'
+                ? 'デフォルト'
+                : sortOrder === 'asc'
+                  ? '昇順'
+                  : '降順'}
             </TooltipContent>
           </Tooltip>
           <div
