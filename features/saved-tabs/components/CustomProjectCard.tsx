@@ -196,18 +196,26 @@ export const CustomProjectCard = ({
 
   // Custom collision detection: prioritize uncategorized drop zone via pointerCoordinates
   const collisionDetectionStrategy: CollisionDetection = args => {
+    const { droppableRects, active } = args
+    // URL drags: use default pointer→intersection→center detection to target list items
+    if (active.data.current?.type === 'url') {
+      const pointerCollisions = pointerWithin(args)
+      if (pointerCollisions.length > 0) return pointerCollisions
+      const intersections = rectIntersection(args)
+      if (intersections.length > 0) return intersections
+      return closestCenter(args)
+    }
     console.log('collisionDetectionStrategy:', {
-      droppables: Array.from(args.droppableRects.keys()),
+      droppables: Array.from(droppableRects.keys()),
       pointerCoordinates: args.pointerCoordinates,
     })
-    const { droppableRects } = args
     const uncategorizedId = `uncategorized-${project.id}`
 
-    // Always prioritize pointerWithin for uncategorized drop zone
+    // Prioritize uncategorized drop zone only for non-URL drags
     const pointerCollisions = pointerWithin(args)
     console.log('pointerWithin:', pointerCollisions)
     const uncPointer = pointerCollisions.find(c => c.id === uncategorizedId)
-    if (uncPointer) {
+    if (uncPointer && active.data.current?.type !== 'url') {
       console.log('collision by pointerWithin -> uncategorized')
       return [uncPointer]
     }
@@ -216,7 +224,7 @@ export const CustomProjectCard = ({
     const intersections = rectIntersection(args)
     console.log('rectIntersection:', intersections)
     const uncRect = intersections.find(c => c.id === uncategorizedId)
-    if (uncRect) {
+    if (uncRect && active.data.current?.type !== 'url') {
       console.log('collision by rectIntersection -> uncategorized')
       return [uncRect]
     }
@@ -385,28 +393,6 @@ export const CustomProjectCard = ({
     })
 
     setActiveId(null)
-
-    // Manual detection: detect drop on uncategorized area using activatorEvent and delta
-    const activatorEvent = event.activatorEvent as MouseEvent
-    const { delta } = event
-    const dropX = activatorEvent.clientX + delta.x
-    const dropY = activatorEvent.clientY + delta.y
-    console.log('manual detection drop pos:', {
-      startX: activatorEvent.clientX,
-      startY: activatorEvent.clientY,
-      delta,
-      dropX,
-      dropY,
-    })
-    const dropEl = document.elementFromPoint(dropX, dropY) as HTMLElement | null
-    console.log('manual detection element:', dropEl)
-    if (dropEl?.closest('[data-uncategorized-area="true"]')) {
-      console.log('manual detection uncategorized area')
-      handleSetUrlCategory(project.id, actualUrl, undefined)
-      toast.success('URLを未分類に移動しました')
-      setDraggedOverCategory(null)
-      return
-    }
 
     // 未分類エリアへのドロップ検出（empty含む）
     if (isUncategorizedOver && dragSourceCategory) {
