@@ -394,6 +394,24 @@ export const CustomProjectCard = ({
 
     setActiveId(null)
 
+    // Manual detection for any uncategorized area (empty or non-empty)
+    if (event.activatorEvent instanceof MouseEvent) {
+      const activatorEvent = event.activatorEvent as MouseEvent
+      const { delta } = event
+      const dropX = activatorEvent.clientX + delta.x
+      const dropY = activatorEvent.clientY + delta.y
+      const dropEl = document.elementFromPoint(
+        dropX,
+        dropY,
+      ) as HTMLElement | null
+      if (dropEl?.closest('[data-uncategorized-area="true"]')) {
+        handleSetUrlCategory(project.id, actualUrl, undefined)
+        toast.success('URLを未分類に移動しました')
+        setDraggedOverCategory(null)
+        return
+      }
+    }
+
     // 未分類エリアへのドロップ検出（empty含む）
     if (isUncategorizedOver && dragSourceCategory) {
       console.log('moving to uncategorized via handleUrlDragEnd')
