@@ -110,10 +110,6 @@ export const ImportExportSettings: React.FC = () => {
 
   return (
     <div className='space-y-4'>
-      <h3 className='text-lg font-medium text-foreground'>
-        バックアップと復元
-      </h3>
-
       <div className='flex flex-wrap gap-2'>
         <Button
           onClick={handleExport}
