@@ -48,6 +48,21 @@ interface ParentCategory {
 }
 
 export default defineBackground(() => {
+  chrome.runtime.onInstalled.addListener(details => {
+    const manifestVersion = chrome.runtime.getManifest().version
+    if (details.reason === 'install') {
+      chrome.tabs.create({ url: chrome.runtime.getURL('saved-tabs.html') })
+      chrome.storage.local.set({ seenVersion: manifestVersion })
+    } else if (details.reason === 'update') {
+      chrome.storage.local.get({ seenVersion: '' }, items => {
+        if (items.seenVersion !== manifestVersion) {
+          chrome.tabs.create({ url: chrome.runtime.getURL('changelog.html') })
+          chrome.storage.local.set({ seenVersion: manifestVersion })
+        }
+      })
+    }
+  })
+
   // ドラッグされたURL情報を一時保存するためのストア
   let draggedUrlInfo: {
     url: string
