@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import {
@@ -620,7 +621,7 @@ export const SortableDomainCard = ({
           {/* 左側: ドメイン情報 */}
           <div
             className={
-              'flex items-center gap-3 cursor-grab overflow-hidden flex-grow hover:cursor-grab active:cursor-grabbing'
+              'flex items-center gap-2 cursor-grab overflow-hidden flex-grow hover:cursor-grab active:cursor-grabbing'
             }
             {...attributes}
             {...listeners}
@@ -630,11 +631,10 @@ export const SortableDomainCard = ({
             </div>
             <h2 className='text-lg font-semibold text-foreground truncate'>
               {group.domain}
-              <span className='text-sm text-muted-foreground'>
-                {' '}
-                ({group.urls.length})
-              </span>
             </h2>
+            <span className='text-sm text-muted-foreground'>
+              <Badge variant='secondary'>{group.urls.length}</Badge>
+            </span>
           </div>
 
           {/* 右側: 操作ボタン類 */}

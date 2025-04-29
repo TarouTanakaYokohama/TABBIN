@@ -235,7 +235,7 @@ export const SortableUrlItem = ({
         </Button>
         {isDeleteButtonVisible && (
           <Button
-            variant='outline'
+            variant='ghost'
             size='icon'
             onClick={handleDeleteButtonClick}
             onMouseEnter={handleDeleteButtonMouseEnter}

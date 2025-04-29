@@ -168,7 +168,7 @@ export const ProjectUrlItem = ({
         </Button>
       </div>
       {/* ボタン群 */}
-      <div className='flex items-center gap-1 shrink-0'>
+      <div className='flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
         <Button
           variant='ghost'
           size='sm'
@@ -182,7 +182,7 @@ export const ProjectUrlItem = ({
               handleDeleteUrl(projectId, item.url)
             }
           }}
-          className='h-8 w-8 p-0'
+          className='h-8 w-8 p-0 cursor-pointer'
           title='URLを削除'
           aria-label='URLを削除'
         >
