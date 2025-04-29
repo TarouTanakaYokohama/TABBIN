@@ -19,7 +19,7 @@ import { SortableUrlItem } from './SortableUrlItem'
 // 新しく追加: カテゴリセクションコンポーネント
 export const CategorySection = ({
   categoryName,
-  urls,
+  urls = [],
   groupId,
   handleDeleteUrl,
   handleOpenTab,

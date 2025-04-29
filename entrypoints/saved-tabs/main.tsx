@@ -1548,6 +1548,8 @@ const SavedTabs = () => {
       <div className='container mx-auto px-4 py-2 min-h-screen'>
         <Header
           tabGroups={tabGroups}
+          customProjects={customProjects}
+          onAddCategory={handleAddCategory}
           currentMode={viewMode}
           onModeChange={handleViewModeChange}
           searchQuery={searchQuery}

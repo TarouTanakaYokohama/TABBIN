@@ -640,84 +640,6 @@ export const CustomProjectCard = ({
       ref={setCombinedRefs}
       style={style}
     >
-      <CardHeader className='flex flex-row flex-wrap justify-between items-baseline py-3 gap-2'>
-        {isRenaming ? (
-          <div className='flex items-center gap-2 w-full'>
-            <Input
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              className='flex-grow'
-              autoFocus
-              onKeyDown={e => {
-                if (e.key === 'Enter') handleRenameClick()
-                if (e.key === 'Escape') {
-                  setNewName(project.name)
-                  setIsRenaming(false)
-                }
-              }}
-            />
-            <Button size='sm' onClick={handleRenameClick}>
-              保存
-            </Button>
-            <Button
-              size='sm'
-              variant='ghost'
-              onClick={() => {
-                setNewName(project.name)
-                setIsRenaming(false)
-              }}
-            >
-              キャンセル
-            </Button>
-          </div>
-        ) : (
-          <>
-            <div className='flex items-center gap-2 min-w-0 flex-1'>
-              {/* プロジェクトのドラッグハンドル */}
-              <div
-                {...attributes}
-                {...attributes}
-                className='cursor-grab active:cursor-grabbing p-1 hover:bg-accent hover:text-accent-foreground rounded-md'
-              />
-            </div>
-            <div className='flex gap-2 flex-wrap justify-end items-center min-w-0 max-w-full'>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant='ghost'
-                      className='truncate'
-                      size='sm'
-                      onClick={() => setIsAddingCategory(true)}
-                    >
-                      <FolderPlus size={16} className='mr-1' />
-                      <span className='hidden md:inline'>カテゴリ追加</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>新しいカテゴリを追加</TooltipContent>
-                </Tooltip>
-
-                {project.urls.length > 0 && handleOpenAllUrls && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant='ghost'
-                        className='truncate max-w-[120px] md:max-w-xs'
-                        size='sm'
-                        onClick={() => handleOpenAllUrls(project.urls)}
-                      >
-                        <ExternalLink size={16} className='mr-1' />
-                        <span className='hidden md:inline'>すべて開く</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>すべてのタブを開く</TooltipContent>
-                  </Tooltip>
-                )}
-              </TooltipProvider>
-            </div>
-          </>
-        )}
-      </CardHeader>
       <CardContent className='overflow-x-hidden'>
         {/* プロジェクト間ドラッグ中の表示 */}
         {isExternalItemOver && (
@@ -743,8 +665,8 @@ export const CustomProjectCard = ({
               items={categoryOrder}
               strategy={verticalListSortingStrategy}
             >
-              {categoryOrder.map(categoryName => (
-                <div key={categoryName} className='mb-4'>
+              {categoryOrder.map((categoryName, idx) => (
+                <div key={`${project.id}-${idx}`} className='mb-4'>
                   <CustomProjectCategory
                     projectId={project.id}
                     category={categoryName}
@@ -908,37 +830,6 @@ export const CustomProjectCard = ({
           </div>
         )}
       </CardContent>
-
-      {/* カテゴリ追加モーダル */}
-      <Dialog open={isAddingCategory} onOpenChange={setIsAddingCategory}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>新しいカテゴリを追加</DialogTitle>
-          </DialogHeader>
-          <Input
-            value={newCategoryName}
-            onChange={e => setNewCategoryName(e.target.value)}
-            placeholder='カテゴリ名'
-            className='w-full'
-            autoFocus
-            onKeyDown={e => {
-              if (e.key === 'Enter') handleAddCategoryClick()
-            }}
-          />
-          <DialogFooter>
-            <Button
-              variant='ghost'
-              onClick={() => {
-                setNewCategoryName('')
-                setIsAddingCategory(false)
-              }}
-            >
-              キャンセル
-            </Button>
-            <Button onClick={handleAddCategoryClick}>追加</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   )
 }

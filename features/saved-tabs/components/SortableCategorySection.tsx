@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -197,21 +198,21 @@ export const SortableCategorySection = ({
           </Tooltip>
           {/* ドラッグハンドル部分 */}
           <div
-            className={`flex items-center flex-grow ${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab active:cursor-grabbing'}`}
+            className={`flex items-center gap-2 flex-grow ${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab active:cursor-grabbing'}`}
             {...attributes}
             {...listeners}
           >
-            <div className='mr-2 text-muted-foreground/60'>
+            <div className='text-muted-foreground/60'>
               <GripVertical size={16} aria-hidden='true' />
             </div>
             <h3 className='font-medium text-foreground'>
               {props.categoryName === '__uncategorized'
                 ? '未分類'
-                : props.categoryName}{' '}
-              <span className='text-sm text-muted-foreground'>
-                ({props.urls.length})
-              </span>
+                : props.categoryName}
             </h3>
+            <span className='text-sm text-muted-foreground'>
+              <Badge variant='secondary'>{props.urls.length}</Badge>
+            </span>
           </div>
 
           {/* ボタンコンテナ */}
