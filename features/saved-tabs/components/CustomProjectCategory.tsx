@@ -245,6 +245,7 @@ export const CustomProjectCategory = ({
               <Button
                 variant='secondary'
                 size='sm'
+                onPointerDown={e => e.stopPropagation()}
                 onClick={e => {
                   e.stopPropagation()
                   setIsCollapsed(prev => !prev)
@@ -270,6 +271,7 @@ export const CustomProjectCategory = ({
               <Button
                 variant='secondary'
                 size='sm'
+                onPointerDown={e => e.stopPropagation()}
                 onClick={e => {
                   e.stopPropagation()
                   setSortOrder(o =>
