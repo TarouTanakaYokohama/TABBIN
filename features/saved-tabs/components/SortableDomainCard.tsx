@@ -681,7 +681,16 @@ export const SortableDomainCard = ({
                 <Button
                   variant='secondary'
                   size='sm'
-                  onClick={() => handleDeleteGroup(group.id)}
+                  onClick={e => {
+                    e.stopPropagation()
+                    e.preventDefault()
+                    if (
+                      !settings.confirmDeleteAll ||
+                      window.confirm('すべてのタブを削除しますか？')
+                    ) {
+                      handleDeleteGroup(group.id)
+                    }
+                  }}
                   className='flex items-center gap-1 cursor-pointer'
                   title='グループを削除'
                   aria-label='グループを削除'
