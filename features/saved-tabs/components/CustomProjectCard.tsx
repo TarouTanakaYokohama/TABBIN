@@ -197,7 +197,7 @@ export const CustomProjectCard = ({
   // Custom collision detection: prioritize uncategorized drop zone via pointerCoordinates
   const collisionDetectionStrategy: CollisionDetection = args => {
     const { droppableRects, active } = args
-    // URL drags: use default pointer→intersection→center detection to target list items
+    // URL drags: default pointer→intersection→center detection
     if (active.data.current?.type === 'url') {
       const pointerCollisions = pointerWithin(args)
       if (pointerCollisions.length > 0) return pointerCollisions
@@ -292,16 +292,19 @@ export const CustomProjectCard = ({
 
     // 実際のURL（プレフィックスなし）を取得
     const actualUrl = active.data.current?.url || String(active.id)
-    const dragSourceProjectId = active.data.current?.projectId
+    const dragSourceProjectId = active.data.current?.projectId as string
+    const dragSourceCategory = active.data.current?.category
 
     console.log('ドラッグ中:', {
       activeId: active.id,
       activeUrl: actualUrl,
       activeType: active.data.current?.type,
       activeProjectId: dragSourceProjectId,
+      activeCategory: dragSourceCategory,
       overId: over?.id,
       overType: over?.data?.current?.type,
       currentProjectId: project.id,
+      overData: over?.data?.current || 'データなし',
     })
 
     // 未分類エリアへのドラッグを検出 - より強化した条件
@@ -404,7 +407,10 @@ export const CustomProjectCard = ({
         dropX,
         dropY,
       ) as HTMLElement | null
-      if (dropEl?.closest('[data-uncategorized-area="true"]')) {
+      if (
+        dropEl?.closest('[data-uncategorized-area="true"]') &&
+        dragSourceCategory
+      ) {
         handleSetUrlCategory(project.id, actualUrl, undefined)
         toast.success('URLを未分類に移動しました')
         setDraggedOverCategory(null)
