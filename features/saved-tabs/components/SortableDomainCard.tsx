@@ -755,7 +755,7 @@ export const SortableDomainCard = ({
             ) : (
               <CategorySection
                 categoryName={allCategoryIds[0] ?? '__uncategorized'}
-                urls={group.urls}
+                urls={categorizedUrls[allCategoryIds[0] ?? '__uncategorized']}
                 groupId={group.id}
                 handleDeleteUrl={handleDeleteUrl}
                 handleOpenTab={handleOpenTab}
