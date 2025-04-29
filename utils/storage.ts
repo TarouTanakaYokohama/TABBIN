@@ -47,6 +47,7 @@ export interface UserSettings {
   openAllInNewWindow: boolean // 「すべてのタブを開く」を別ウィンドウで開くかどうか
   confirmDeleteAll: boolean // すべて削除前に確認するかどうか
   confirmDeleteEach: boolean // URL削除前に個別確認するかどうか
+  colors?: Record<string, string> // ユーザー設定: カラー設定まとめ
 }
 
 // デフォルト設定
@@ -62,6 +63,7 @@ export const defaultSettings: UserSettings = {
   openAllInNewWindow: false, // デフォルト: 「すべてのタブを開く」を現在のウィンドウで開く
   confirmDeleteAll: false, // デフォルト: 確認しない
   confirmDeleteEach: false, // デフォルト: 確認しない
+  colors: {}, // デフォルト: カラー設定まとめ
 }
 
 // 設定を取得する関数

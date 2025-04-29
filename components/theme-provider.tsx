@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import type { UserSettings } from '../utils/storage'
 
-type Theme = 'dark' | 'light' | 'system'
+type Theme = 'dark' | 'light' | 'system' | 'user'
 
 type ThemeProviderProps = {
   children: React.ReactNode
@@ -56,7 +57,9 @@ export function ThemeProvider({
 
   useEffect(() => {
     const root = window.document.documentElement
-
+    // 既存のインラインスタイルをクリア
+    root.removeAttribute('style')
+    // ライト/ダークのクラス除去
     root.classList.remove('light', 'dark')
 
     if (theme === 'system') {
@@ -64,12 +67,47 @@ export function ThemeProvider({
         .matches
         ? 'dark'
         : 'light'
-
       root.classList.add(systemTheme)
       return
     }
 
+    if (theme === 'user') {
+      chrome.storage.local
+        .get('userSettings')
+        .then((result: { userSettings?: UserSettings }) => {
+          const userSettings = result.userSettings
+          if (!userSettings) return
+          const { colors = {} } = userSettings
+          for (const [key, val] of Object.entries(colors)) {
+            root.style.setProperty(`--${key}`, val)
+          }
+        })
+      return
+    }
+
+    // dark または light モードの直接適用
     root.classList.add(theme)
+  }, [theme])
+
+  // ユーザー設定のカラー変更を監視し、即座にCSS変数を更新
+  useEffect(() => {
+    const listener = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: string,
+    ) => {
+      if (areaName === 'local' && theme === 'user' && changes.userSettings) {
+        const updated = changes.userSettings.newValue as UserSettings
+        const { colors = {} } = updated
+        const root = window.document.documentElement
+        for (const [key, val] of Object.entries(colors)) {
+          root.style.setProperty(`--${key}`, val)
+        }
+      }
+    }
+    chrome.storage.onChanged.addListener(listener)
+    return () => {
+      chrome.storage.onChanged.removeListener(listener)
+    }
   }, [theme])
 
   const value = {
