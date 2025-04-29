@@ -16,6 +16,12 @@ export default defineConfig({
 			page: "options.html",
 			open_in_tab: true,
 		},
+		content_scripts: [
+			{
+				matches: ["<all_urls>"],
+				js: ["content-scripts/content.js"],
+			},
+		],
 	},
 	vite: () => ({
 		plugins: [react(), tailwindcss()],
