@@ -1021,6 +1021,18 @@ const OptionsPage = () => {
         <br />
         ※画像アップロード可能な設定ですので、Googleアカウントでのログインが必要です
       </p>
+      {/* リリースノートへのリンク */}
+      <div className='text-center mt-8'>
+        <Button
+          type='button'
+          variant='outline'
+          onClick={() =>
+            window.open(chrome.runtime.getURL('changelog.html'), '_blank')
+          }
+        >
+          リリースノート
+        </Button>
+      </div>
     </div>
   )
 }
