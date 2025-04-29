@@ -93,6 +93,17 @@ export default defineBackground(() => {
 
           // メニュー項目を作成
           try {
+            // 保存したタブを開くメニュー
+            chrome.contextMenus.create({
+              id: 'openSavedTabs',
+              title: '保存したタブを開く',
+              contexts: ['page'],
+            })
+            chrome.contextMenus.create({
+              id: 'sepOpenSavedTabs',
+              type: 'separator',
+              contexts: ['page'],
+            })
             // 現在のタブを保存メニュー
             chrome.contextMenus.create({
               id: 'saveCurrentTab',
@@ -178,10 +189,7 @@ export default defineBackground(() => {
                       console.log(`タブ ${tab.id} を閉じました`)
                     }
                   } catch (closeError) {
-                    console.error(
-                      'タブを閉じる際にエラーが発生しました:',
-                      closeError,
-                    )
+                    console.error('タブを閉じる際にエラー:', closeError)
                   }
                 } else if (info.menuItemId === 'saveAllTabs') {
                   console.log('すべてのタブを保存します')
@@ -388,6 +396,9 @@ export default defineBackground(() => {
                       }
                     }
                   }
+                } else if (info.menuItemId === 'openSavedTabs') {
+                  await openSavedTabsPage()
+                  return
                 }
               } catch (error) {
                 console.error('コンテキストメニュー処理エラー:', error)
@@ -916,7 +927,7 @@ export default defineBackground(() => {
                 console.error('通知表示エラー:', error)
               }
 
-              // saved-tabsページを開く
+              // saved-tabs.htmlページを開く
               const savedTabsTabId = await openSavedTabsPage()
 
               // 保存したタブを閉じる
