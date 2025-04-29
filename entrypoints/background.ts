@@ -161,7 +161,7 @@ export default defineBackground(() => {
                   // 通知を表示（エラーハンドリング改善）
                   try {
                     // 正しいアイコンパスを設定
-                    const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
+                    const iconUrl = chrome.runtime.getURL('icon/128.png')
                     console.log('通知アイコンURL:', iconUrl)
 
                     await chrome.notifications.create({
@@ -218,7 +218,7 @@ export default defineBackground(() => {
                   // 通知を表示（エラーハンドリング改善）
                   try {
                     // 正しいアイコンパスを設定
-                    const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
+                    const iconUrl = chrome.runtime.getURL('icon/128.png')
                     console.log('通知アイコンURL:', iconUrl)
 
                     await chrome.notifications.create({
@@ -309,7 +309,7 @@ export default defineBackground(() => {
 
                   // 通知を表示
                   try {
-                    const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
+                    const iconUrl = chrome.runtime.getURL('icon/128.png')
                     await chrome.notifications.create({
                       type: 'basic',
                       iconUrl: iconUrl,
@@ -360,7 +360,7 @@ export default defineBackground(() => {
 
                   // 通知を表示
                   try {
-                    const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
+                    const iconUrl = chrome.runtime.getURL('icon/128.png')
                     await chrome.notifications.create({
                       type: 'basic',
                       iconUrl: iconUrl,
@@ -829,7 +829,7 @@ export default defineBackground(() => {
 
           // 通知表示
           try {
-            const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
+            const iconUrl = chrome.runtime.getURL('icon/128.png')
             await chrome.notifications.create({
               type: 'basic',
               iconUrl: iconUrl,
@@ -903,7 +903,7 @@ export default defineBackground(() => {
 
               // 通知を表示
               try {
-                const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
+                const iconUrl = chrome.runtime.getURL('icon/128.png')
                 await chrome.notifications.create({
                   type: 'basic',
                   iconUrl: iconUrl,
@@ -969,7 +969,7 @@ export default defineBackground(() => {
 
             // 通知を表示
             try {
-              const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
+              const iconUrl = chrome.runtime.getURL('icon/128.png')
               await chrome.notifications.create({
                 type: 'basic',
                 iconUrl: iconUrl,
@@ -1028,7 +1028,7 @@ export default defineBackground(() => {
 
           // 保存完了通知を表示
           try {
-            const iconUrl = chrome.runtime.getURL('assets/icon-128.png')
+            const iconUrl = chrome.runtime.getURL('icon/128.png')
             console.log('通知アイコンURL:', iconUrl)
 
             await chrome.notifications?.create({
