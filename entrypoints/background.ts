@@ -74,9 +74,6 @@ export default defineBackground(() => {
   let isCreatingSavedTabsPage = false
   let savedTabsPageId: number | null = null
 
-  // コンテキストメニューの作成と初期化（バックグラウンド開始時に実行）
-  createContextMenus()
-
   // コンテキストメニューを作成する関数を改善
   function createContextMenus() {
     console.log('コンテキストメニュー作成開始')
@@ -544,8 +541,6 @@ export default defineBackground(() => {
     // コンテキストメニューを作成
     createContextMenus()
 
-    // クリックハンドラー設定関数を削除（createContextMenus内に統合）
-
     console.log('コンテキストメニューの初期化が完了しました')
   } catch (error) {
     console.error('コンテキストメニュー初期化エラー:', error)
@@ -775,14 +770,6 @@ export default defineBackground(() => {
   // インストール時に実行する処理
   chrome.runtime.onInstalled.addListener(async details => {
     console.log(`拡張機能がインストールまたは更新されました: ${details.reason}`)
-
-    // コンテキストメニューを再作成
-    try {
-      createContextMenus()
-      console.log('インストール時にコンテキストメニューを再作成しました')
-    } catch (error) {
-      console.error('インストール時のメニュー作成エラー:', error)
-    }
 
     // データ構造の移行を実行
     try {
