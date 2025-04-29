@@ -144,6 +144,13 @@ const OptionsPage = () => {
     const loadData = async () => {
       try {
         const userSettings = await getUserSettings()
+        // テーマ設定を反映
+        if (
+          userSettings.colors &&
+          Object.keys(userSettings.colors).length > 0
+        ) {
+          chrome.storage.local.set({ 'tab-manager-theme': 'user' })
+        }
         setSettings(userSettings)
 
         const categories = await getParentCategories()
@@ -309,6 +316,22 @@ const OptionsPage = () => {
   // テキストエリアからフォーカスが外れたときに保存
   const handleExcludePatternsBlur = () => {
     handleSaveSettings()
+  }
+
+  // カラー設定ハンドラ
+  const handleColorChange = async (key: string, value: string) => {
+    try {
+      const newColors = { ...(settings.colors || {}), [key]: value }
+      const newSettings = { ...settings, colors: newColors }
+      setSettings(newSettings)
+      // ライブプレビュー: 即座にCSS変数を更新
+      document.documentElement.style.setProperty(`--${key}`, value)
+      await saveUserSettings(newSettings)
+      setIsSaved(true)
+      setTimeout(() => setIsSaved(false), 2000)
+    } catch (error) {
+      console.error(`カラー ${key} 保存エラー:`, error)
+    }
   }
 
   // カテゴリ名のバリデーションと設定を行う関数
@@ -706,6 +729,48 @@ const OptionsPage = () => {
     )
   }
 
+  // 利用可能なカラー変数一覧
+  const colorOptions = [
+    { key: 'background', label: '背景' },
+    { key: 'foreground', label: 'テキスト' },
+    { key: 'card', label: 'カード背景' },
+    { key: 'card-foreground', label: 'カードテキスト' },
+    { key: 'popover', label: 'ポップオーバー' },
+    { key: 'popover-foreground', label: 'ポップオーバーテキスト' },
+    { key: 'primary', label: 'プライマリ背景' },
+    { key: 'primary-foreground', label: 'プライマリテキスト' },
+    { key: 'secondary', label: 'セカンダリ背景' },
+    { key: 'secondary-foreground', label: 'セカンダリテキスト' },
+    { key: 'muted', label: '控えめ背景' },
+    { key: 'muted-foreground', label: 'サブテキスト' },
+    { key: 'accent', label: 'アクセント背景' },
+    { key: 'accent-foreground', label: 'アクセントテキスト' },
+    { key: 'destructive', label: 'デストラクティブ背景' },
+    { key: 'destructive-foreground', label: 'デストラクティブテキスト' },
+    { key: 'border', label: 'ボーダー' },
+    { key: 'input', label: '入力背景' },
+    { key: 'ring', label: 'リング' },
+    { key: 'chart-1', label: 'チャート1' },
+    { key: 'chart-2', label: 'チャート2' },
+    { key: 'chart-3', label: 'チャート3' },
+    { key: 'chart-4', label: 'チャート4' },
+    { key: 'chart-5', label: 'チャート5' },
+    { key: 'sidebar', label: 'サイドバー背景' },
+    { key: 'sidebar-foreground', label: 'サイドバー テキスト' },
+    { key: 'sidebar-primary', label: 'サイドバー プライマリ背景' },
+    {
+      key: 'sidebar-primary-foreground',
+      label: 'サイドバー プライマリテキスト',
+    },
+    { key: 'sidebar-accent', label: 'サイドバー アクセント背景' },
+    {
+      key: 'sidebar-accent-foreground',
+      label: 'サイドバー アクセントテキスト',
+    },
+    { key: 'sidebar-border', label: 'サイドバー ボーダー' },
+    { key: 'sidebar-ring', label: 'サイドバー リング' },
+  ]
+
   return (
     <div className='mx-auto pt-10 bg-background min-h-screen'>
       {/* Toasterコンポーネントを追加 */}
@@ -1004,6 +1069,45 @@ const OptionsPage = () => {
           </p>
         </div>
       </div>
+
+      {/* カラーカスタマイズ */}
+      <div className='bg-card rounded-lg shadow-md p-6 mb-8 border border-border'>
+        <h2 className='text-xl font-semibold text-foreground mb-4'>
+          (preview)カラーカスタマイズ
+        </h2>
+        <div className='grid grid-cols-2 gap-4'>
+          {colorOptions.map(({ key, label }) => (
+            <div key={key} className='flex flex-col'>
+              <Label
+                htmlFor={`${key}-picker`}
+                className='block text-foreground mb-2 whitespace-normal break-all'
+              >
+                {label}
+              </Label>
+              <div className='flex items-center space-x-4'>
+                <input
+                  id={`${key}-picker`}
+                  type='color'
+                  value={settings.colors?.[key] || ''}
+                  onChange={e => handleColorChange(key, e.target.value)}
+                  className='w-8 h-8 p-0 border-0 flex-shrink-0'
+                />
+                <div className='flex-1 min-w-0'>
+                  <Input
+                    id={`${key}-hex`}
+                    type='text'
+                    value={settings.colors?.[key] || ''}
+                    onChange={e => handleColorChange(key, e.target.value)}
+                    className='w-full bg-background text-foreground'
+                    placeholder='HEX入力 (#FFFFFF)'
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* お問い合わせボタン */}
       <div className='text-center mt-4'>
         <Button

@@ -31,6 +31,9 @@ export function ModeToggle() {
         <DropdownMenuItem onClick={() => setTheme('system')}>
           システム設定
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('user')}>
+          ユーザー設定
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
