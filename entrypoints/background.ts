@@ -680,49 +680,63 @@ export default defineBackground(() => {
       console.log(`カットオフ時刻: ${new Date(cutoffTime).toLocaleString()}`)
 
       // 保存されたタブを取得
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-      if (!savedTabs || savedTabs.length === 0) {
+      const storageResult = await chrome.storage.local.get('savedTabs')
+      const savedTabs: TabGroup[] = storageResult.savedTabs || []
+      if (savedTabs.length === 0) {
         console.log('保存されたタブはありません')
         return
       }
 
       console.log(`チェック対象タブグループ数: ${savedTabs.length}`)
 
-      // 期限切れタブの詳細ログを出力
-      savedTabs.forEach((group: TabGroup, index: number) => {
-        const savedAtTime = group.savedAt || 0
-        const isExpired = savedAtTime < cutoffTime
-        console.log(
-          `[${index}] グループ ${group.domain}: ` +
-            `保存時刻=${new Date(savedAtTime).toLocaleString()}, ` +
-            `URL数=${group.urls.length}, ` +
-            `期限切れ=${isExpired}`,
-        )
-      })
+      // チェック対象のURL数を計算
+      const totalUrlCount: number = savedTabs.reduce(
+        (acc: number, g: TabGroup) => acc + g.urls.length,
+        0,
+      )
 
-      // 期限切れタブをフィルタリング
-      const updatedTabs = savedTabs.filter((group: TabGroup) => {
-        // 保存時刻がないグループは現在時刻を設定
-        if (!group.savedAt) {
-          group.savedAt = currentTime
-          return true
-        }
+      // URL単位で期限切れをフィルタリング
+      const updatedTabs = savedTabs
+        .map((group: TabGroup) => {
+          const originalUrlCount = group.urls.length
+          const filteredUrls = group.urls.filter(urlEntry => {
+            const urlSavedAt = urlEntry.savedAt ?? group.savedAt ?? currentTime
+            const isUrlExpired = urlSavedAt < cutoffTime
+            if (isUrlExpired) {
+              console.log(
+                `削除: URL ${urlEntry.url} (ドメイン: ${group.domain})`,
+              )
+              return false
+            }
+            return true
+          })
+          if (filteredUrls.length !== originalUrlCount) {
+            console.log(
+              `グループ ${group.domain}: ${originalUrlCount - filteredUrls.length} 件のURLを削除`,
+            )
+          }
+          group.urls = filteredUrls
+          return group
+        })
+        .filter(group => group.urls.length > 0)
 
-        // 期限切れチェックと詳細ログ
-        const isGroupExpired = group.savedAt < cutoffTime
-        if (isGroupExpired) {
-          console.log(
-            `削除: グループ ${group.domain} (${group.urls.length}個のURL)`,
-          )
-          return false // このグループは削除
-        }
-        return true
-      })
+      // 更新後のURL数を計算
+      const updatedUrlCount: number = updatedTabs.reduce(
+        (acc: number, g: TabGroup) => acc + g.urls.length,
+        0,
+      )
 
       // 変更があった場合のみ保存
-      if (updatedTabs.length !== savedTabs.length) {
-        console.log(`削除前: ${savedTabs.length} グループ`)
-        console.log(`削除後: ${updatedTabs.length} グループ`)
+      if (
+        updatedTabs.length !== savedTabs.length ||
+        updatedUrlCount !== totalUrlCount
+      ) {
+        console.log(
+          `削除前: ${savedTabs.length} グループ, ${totalUrlCount} 件のURL`,
+        )
+        console.log(
+          `削除後: ${updatedTabs.length} グループ, ${updatedUrlCount} 件のURL`,
+        )
         await chrome.storage.local.set({ savedTabs: updatedTabs })
         console.log('期限切れタブを削除しました')
       } else {
@@ -984,6 +998,7 @@ export default defineBackground(() => {
             const savedTabsTabId = await openSavedTabsPage()
 
             // タブを閉じる
+            const savedTabsUrls = ['saved-tabs.html', 'chrome-extension://']
             for (const tab of filteredTabs) {
               if (tab.id && tab.id !== savedTabsTabId) {
                 try {
@@ -1172,7 +1187,8 @@ export default defineBackground(() => {
     try {
       console.log(`タブの保存時刻を更新します: ${period || '不明な期間'}`)
 
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      const storageResult = await chrome.storage.local.get('savedTabs')
+      const savedTabs: TabGroup[] = storageResult.savedTabs || []
       if (savedTabs.length === 0) {
         console.log('保存されたタブがありません')
         return
@@ -1463,7 +1479,8 @@ export default defineBackground(() => {
 
   async function removeUrlFromStorage(url: string) {
     try {
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      const storageResult = await chrome.storage.local.get('savedTabs')
+      const savedTabs: TabGroup[] = storageResult.savedTabs || []
 
       // URLを含むグループを更新
       const updatedGroups = savedTabs
@@ -1511,11 +1528,13 @@ export default defineBackground(() => {
   // グループを親カテゴリから削除する関数を更新
   async function removeFromParentCategories(groupId: string) {
     try {
-      const { parentCategories = [] } =
-        await chrome.storage.local.get('parentCategories')
+      const storageResult = await chrome.storage.local.get('parentCategories')
+      const parentCategories: ParentCategory[] =
+        storageResult.parentCategories || []
 
       // 削除対象のドメイン名を取得
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      const storageResult2 = await chrome.storage.local.get('savedTabs')
+      const savedTabs: TabGroup[] = storageResult2.savedTabs || []
       const groupToRemove = savedTabs.find(
         (group: TabGroup) => group.id === groupId,
       )
