@@ -17,7 +17,8 @@ import {
   importSettings,
 } from '@/utils/importExport'
 import { AlertCircle, Download, Upload } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { useDropzone } from 'react-dropzone'
 import { toast } from 'sonner'
 
 export const ImportExportSettings: React.FC = () => {
@@ -65,48 +66,80 @@ export const ImportExportSettings: React.FC = () => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    setIsImporting(true)
+    processFile(file)
+  }
 
-    const reader = new FileReader()
-    reader.onload = async event => {
-      try {
-        const content = event.target?.result as string
-        if (!content) {
-          toast.error('ファイルの読み込みに失敗しました')
-          return
+  // ファイル処理の共通関数
+  const processFile = useCallback(
+    (file: File) => {
+      if (!file.name.endsWith('.json')) {
+        toast.error('JSONファイルを選択してください')
+        return
+      }
+
+      setIsImporting(true)
+
+      const reader = new FileReader()
+      reader.onload = async event => {
+        try {
+          const content = event.target?.result as string
+          if (!content) {
+            toast.error('ファイルの読み込みに失敗しました')
+            return
+          }
+
+          const result = await importSettings(content, mergeData) // マージオプションを渡す
+          if (result.success) {
+            toast.success(result.message)
+            setImportDialogOpen(false)
+
+            // バックグラウンドに更新を通知
+            chrome.runtime.sendMessage({ action: 'settingsImported' })
+          } else {
+            toast.error(result.message)
+          }
+        } catch (error) {
+          console.error('インポートエラー:', error)
+          toast.error('インポートに失敗しました')
+        } finally {
+          setIsImporting(false)
+          if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+          }
         }
+      }
 
-        const result = await importSettings(content, mergeData) // マージオプションを渡す
-        if (result.success) {
-          toast.success(result.message)
-          setImportDialogOpen(false)
-
-          // バックグラウンドに更新を通知
-          chrome.runtime.sendMessage({ action: 'settingsImported' })
-        } else {
-          toast.error(result.message)
-        }
-      } catch (error) {
-        console.error('インポートエラー:', error)
-        toast.error('インポートに失敗しました')
-      } finally {
+      reader.onerror = () => {
+        toast.error('ファイルの読み込みに失敗しました')
         setIsImporting(false)
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
         }
       }
-    }
 
-    reader.onerror = () => {
-      toast.error('ファイルの読み込みに失敗しました')
-      setIsImporting(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
+      reader.readAsText(file)
+    },
+    [mergeData],
+  )
+
+  // react-dropzoneの設定
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (acceptedFiles.length > 0) {
+        processFile(acceptedFiles[0])
       }
-    }
+    },
+    [processFile],
+  )
 
-    reader.readAsText(file)
-  }
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/json': ['.json'],
+    },
+    maxFiles: 1,
+    multiple: false,
+  })
 
   return (
     <div className='space-y-4'>
@@ -169,6 +202,27 @@ export const ImportExportSettings: React.FC = () => {
             </p>
           </div>
 
+          {/* ドラッグ&ドロップエリア */}
+          <div
+            {...getRootProps()}
+            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+              isDragActive
+                ? 'border-primary bg-primary/5'
+                : 'border-muted-foreground/20'
+            }`}
+          >
+            <input {...getInputProps()} />
+            <Upload className='mx-auto h-12 w-12 text-muted-foreground mb-2' />
+            <p className='text-sm font-medium mb-1'>
+              {isDragActive
+                ? 'ファイルをドロップ'
+                : 'JSONファイルをドラッグ&ドロップ'}
+            </p>
+            <p className='text-xs text-muted-foreground'>
+              または、クリックしてファイルを選択
+            </p>
+          </div>
+
           <Alert
             variant={mergeData ? 'default' : 'destructive'}
             className='my-4'
@@ -189,15 +243,6 @@ export const ImportExportSettings: React.FC = () => {
               disabled={isImporting}
             >
               キャンセル
-            </Button>
-            <Button
-              variant='default'
-              onClick={handleSelectFile}
-              disabled={isImporting}
-              className='flex items-center gap-2'
-            >
-              <Upload size={16} />
-              {isImporting ? 'インポート中...' : 'バックアップファイルを選択'}
             </Button>
           </DialogFooter>
         </DialogContent>
