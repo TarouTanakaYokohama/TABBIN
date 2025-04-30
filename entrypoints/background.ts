@@ -450,6 +450,17 @@ export default defineBackground(() => {
               `保存されていたタブID ${savedTabsPageId} を再利用します`,
             )
             await chrome.tabs.update(savedTabsPageId, { active: true })
+
+            // 既存のタブが固定されていない場合は固定する
+            if (!tab.pinned) {
+              try {
+                await chrome.tabs.update(savedTabsPageId, { pinned: true })
+                console.log(`既存のタブ ${savedTabsPageId} をピン留めしました`)
+              } catch (e) {
+                console.error('既存タブのピン留め設定中にエラー:', e)
+              }
+            }
+
             return savedTabsPageId
           }
         } catch (e) {
@@ -486,6 +497,16 @@ export default defineBackground(() => {
         if (savedTabsPageId) {
           await chrome.tabs.update(savedTabsPageId, { active: true })
 
+          // 既存のタブが固定されていない場合は固定する
+          if (!mainTab.pinned) {
+            try {
+              await chrome.tabs.update(savedTabsPageId, { pinned: true })
+              console.log(`既存のタブ ${savedTabsPageId} をピン留めしました`)
+            } catch (e) {
+              console.error('既存タブのピン留め設定中にエラー:', e)
+            }
+          }
+
           // 重複タブを閉じる（最初のタブ以外）
           if (savedTabsPages.length > 1) {
             console.log(`${savedTabsPages.length - 1}個の重複タブを閉じます`)
@@ -517,6 +538,7 @@ export default defineBackground(() => {
         `新しいsaved-tabsページを作成しました。ID: ${savedTabsPageId}`,
       )
 
+      // 新しく作成したタブを必ず固定する
       if (savedTabsPageId) {
         try {
           await chrome.tabs.update(savedTabsPageId, { pinned: true })
