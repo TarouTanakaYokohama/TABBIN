@@ -1,6 +1,14 @@
 import '@/assets/global.css'
 // lucide-reactからアイコンをインポート - AlertTriangleを追加
-import { AlertTriangle, Check, Edit, Plus, Trash, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  Check,
+  Edit,
+  Plus,
+  RotateCcw,
+  Trash,
+  X,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod'
@@ -41,6 +49,7 @@ import {
 // トースト通知用のインポート
 import { toast } from 'sonner'
 
+import { ThemeProvider } from '@/components/theme-provider'
 import { ImportExportSettings } from '@/features/options/ImportExportSettings'
 import { SubCategoryKeywordManager } from '@/features/options/SubCategoryKeywordManager'
 import { isPeriodShortening } from '@/utils/isPeriodShortening'
@@ -333,7 +342,34 @@ const OptionsPage = () => {
       console.error(`カラー ${key} 保存エラー:`, error)
     }
   }
+  // カラー設定をリセットするハンドラ
+  const handleResetColors = async () => {
+    try {
+      // 色設定を削除した新しい設定を作成
+      const newSettings = { ...settings, colors: {} }
+      setSettings(newSettings)
 
+      // CSS変数をリセット（デフォルトテーマに戻す）
+      for (const { key } of colorOptions) {
+        document.documentElement.style.removeProperty(`--${key}`)
+      }
+
+      // ストレージから色設定を削除
+      await saveUserSettings(newSettings)
+
+      // テーマをシステムに戻す
+      chrome.storage.local.set({ 'tab-manager-theme': 'system' })
+
+      setIsSaved(true)
+      setTimeout(() => setIsSaved(false), 2000)
+
+      // 成功メッセージを表示
+      toast.success('カラー設定をリセットしました')
+    } catch (error) {
+      console.error('カラーリセットエラー:', error)
+      toast.error('カラー設定のリセットに失敗しました')
+    }
+  }
   // カテゴリ名のバリデーションと設定を行う関数
   const validateAndSetCategoryName = (value: string) => {
     try {
@@ -1072,9 +1108,20 @@ const OptionsPage = () => {
 
       {/* カラーカスタマイズ */}
       <div className='bg-card rounded-lg shadow-md p-6 mb-8 border border-border'>
-        <h2 className='text-xl font-semibold text-foreground mb-4'>
-          (preview)カラーカスタマイズ
-        </h2>
+        <div className='flex justify-between items-center mb-4'>
+          <h2 className='text-xl font-semibold text-foreground'>
+            (preview)カラーカスタマイズ
+          </h2>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={handleResetColors}
+            className='flex items-center gap-1'
+          >
+            <RotateCcw size={16} />
+            リセット
+          </Button>
+        </div>
         <div className='grid grid-cols-2 gap-4'>
           {colorOptions.map(({ key, label }) => (
             <div key={key} className='flex flex-col'>
