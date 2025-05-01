@@ -26,3 +26,9 @@ web-ext.config.ts
 *.sw?
 
 *storybook.log
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
