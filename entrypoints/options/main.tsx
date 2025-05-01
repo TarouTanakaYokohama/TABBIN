@@ -159,6 +159,14 @@ const OptionsPage = () => {
           Object.keys(userSettings.colors).length > 0
         ) {
           chrome.storage.local.set({ 'tab-manager-theme': 'user' })
+        } else {
+          // ユーザーカラー設定がない場合、デフォルトカラーをCSSに適用
+          for (const { key } of colorOptions) {
+            document.documentElement.style.setProperty(
+              `--${key}`,
+              getDefaultColor(key),
+            )
+          }
         }
         setSettings(userSettings)
 
@@ -807,6 +815,47 @@ const OptionsPage = () => {
     { key: 'sidebar-ring', label: 'サイドバー リング' },
   ]
 
+  // デフォルトカラー値を取得する関数
+  const getDefaultColor = (key: string): string => {
+    // デフォルトカラー設定
+    const defaultColors: Record<string, string> = {
+      background: '#ffffff',
+      foreground: '#09090b',
+      card: '#ffffff',
+      'card-foreground': '#09090b',
+      popover: '#ffffff',
+      'popover-foreground': '#09090b',
+      primary: '#0ea5e9',
+      'primary-foreground': '#ffffff',
+      secondary: '#f1f5f9',
+      'secondary-foreground': '#0f172a',
+      muted: '#f1f5f9',
+      'muted-foreground': '#64748b',
+      accent: '#f1f5f9',
+      'accent-foreground': '#0f172a',
+      destructive: '#ef4444',
+      'destructive-foreground': '#ffffff',
+      border: '#e2e8f0',
+      input: '#e2e8f0',
+      ring: '#0ea5e9',
+      'chart-1': '#0ea5e9',
+      'chart-2': '#10b981',
+      'chart-3': '#f59e0b',
+      'chart-4': '#ef4444',
+      'chart-5': '#8b5cf6',
+      sidebar: '#f8fafc',
+      'sidebar-foreground': '#0f172a',
+      'sidebar-primary': '#0ea5e9',
+      'sidebar-primary-foreground': '#ffffff',
+      'sidebar-accent': '#f1f5f9',
+      'sidebar-accent-foreground': '#0f172a',
+      'sidebar-border': '#e2e8f0',
+      'sidebar-ring': '#0ea5e9',
+    }
+
+    return defaultColors[key] || '#ffffff'
+  }
+
   return (
     <div className='mx-auto pt-10 bg-background min-h-screen'>
       {/* Toasterコンポーネントを追加 */}
@@ -1135,7 +1184,7 @@ const OptionsPage = () => {
                 <input
                   id={`${key}-picker`}
                   type='color'
-                  value={settings.colors?.[key] || ''}
+                  value={settings.colors?.[key] || getDefaultColor(key)}
                   onChange={e => handleColorChange(key, e.target.value)}
                   className='w-8 h-8 p-0 border-0 flex-shrink-0'
                 />
@@ -1143,7 +1192,7 @@ const OptionsPage = () => {
                   <Input
                     id={`${key}-hex`}
                     type='text'
-                    value={settings.colors?.[key] || ''}
+                    value={settings.colors?.[key] || getDefaultColor(key)}
                     onChange={e => handleColorChange(key, e.target.value)}
                     className='w-full bg-background text-foreground'
                     placeholder='HEX入力 (#FFFFFF)'
