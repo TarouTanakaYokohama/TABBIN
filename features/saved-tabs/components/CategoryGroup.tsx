@@ -48,6 +48,7 @@ import {
   Edit,
   ExternalLink,
   GripVertical,
+  Trash,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -512,7 +513,16 @@ export const CategoryGroup = ({
                 <Button
                   variant='secondary'
                   size='sm'
-                  onClick={() => handleOpenAllTabs(allUrls)}
+                  onClick={() => {
+                    if (
+                      allUrls.length >= 10 &&
+                      !window.confirm(
+                        '10個以上のタブを開こうとしています。続行しますか？',
+                      )
+                    )
+                      return
+                    handleOpenAllTabs(allUrls)
+                  }}
                   className='flex items-center gap-1 cursor-pointer'
                   title='すべてのタブを開く'
                   aria-label='すべてのタブを開く'
@@ -523,6 +533,37 @@ export const CategoryGroup = ({
               </TooltipTrigger>
               <TooltipContent side='top' className='lg:hidden block'>
                 すべてのタブを開く
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant='secondary'
+                  size='sm'
+                  onClick={async e => {
+                    e.stopPropagation()
+                    e.preventDefault()
+                    if (
+                      !settings.confirmDeleteAll ||
+                      window.confirm(
+                        'カテゴリ内のすべてのドメインを削除しますか？',
+                      )
+                    ) {
+                      for (const { id } of domains) {
+                        await handleDeleteGroup(id)
+                      }
+                    }
+                  }}
+                  className='flex items-center gap-1 cursor-pointer'
+                  title='すべて削除'
+                  aria-label='すべて削除'
+                >
+                  <Trash size={14} />
+                  <span className='lg:inline hidden'>すべて削除</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='top' className='lg:hidden block'>
+                すべて削除
               </TooltipContent>
             </Tooltip>
           </div>

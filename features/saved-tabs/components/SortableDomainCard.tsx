@@ -665,6 +665,24 @@ export const SortableDomainCard = ({
 
           {/* 操作ボタン群 */}
           <div className='flex items-center gap-2 flex-shrink-0 ml-2'>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant='secondary'
+                  size='sm'
+                  onClick={() => setShowKeywordModal(!showKeywordModal)}
+                  className='flex items-center gap-1 cursor-pointer'
+                  title='カテゴリ管理を開く'
+                  aria-label='カテゴリ管理を開く'
+                >
+                  <Settings size={14} />
+                  <span className='lg:inline hidden'>カテゴリ管理</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='top' className='lg:hidden block'>
+                カテゴリ管理を開く
+              </TooltipContent>
+            </Tooltip>
             {/* すべて開く */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -672,6 +690,13 @@ export const SortableDomainCard = ({
                   variant='secondary'
                   size='sm'
                   onClick={e => {
+                    if (
+                      group.urls.length >= 10 &&
+                      !window.confirm(
+                        '10個以上のタブを開こうとしています。続行しますか？',
+                      )
+                    )
+                      return
                     e.stopPropagation()
                     handleOpenAllTabs(group.urls)
                   }}

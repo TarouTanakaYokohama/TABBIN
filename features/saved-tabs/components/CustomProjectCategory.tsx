@@ -354,6 +354,13 @@ export const CustomProjectCategory = ({
                   size='sm'
                   className='flex items-center gap-1 cursor-pointer'
                   onClick={async () => {
+                    if (
+                      localCategoryUrls.length >= 10 &&
+                      !window.confirm(
+                        '10個以上のタブを開こうとしています。続行しますか？',
+                      )
+                    )
+                      return
                     if (handleOpenAllUrls) {
                       handleOpenAllUrls(localCategoryUrls)
                     } else {
