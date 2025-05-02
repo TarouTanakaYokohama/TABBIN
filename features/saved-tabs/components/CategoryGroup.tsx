@@ -26,10 +26,11 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCenter,
+  useDndMonitor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type { DragEndEvent } from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import {
   SortableContext,
   arrayMove,
@@ -39,13 +40,16 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
+  ArrowUpDown,
+  ArrowUpNarrowWide,
+  ArrowUpWideNarrow,
   ChevronDown,
   ChevronUp,
   Edit,
   ExternalLink,
   GripVertical,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { SortableDomainCard } from './SortableDomainCard'
 
@@ -66,8 +70,22 @@ export const CategoryGroup = ({
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isDraggingOver, setIsDraggingOver] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  // Track when a domain card is being dragged
+  const [isDraggingDomains, setIsDraggingDomains] = useState(false)
+  // Track global drag state
+  const [isDraggingGlobal, setIsDraggingGlobal] = useState<boolean>(false)
   // ドメインの状態を追加
   const [localDomains, setLocalDomains] = useState<TabGroup[]>(domains)
+  const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>(
+    'default',
+  )
+  const sortedDomains = useMemo(() => {
+    if (sortOrder === 'default') return localDomains
+    const arr = [...localDomains]
+    arr.sort((a, b) => a.domain.localeCompare(b.domain))
+    if (sortOrder === 'desc') arr.reverse()
+    return arr
+  }, [localDomains, sortOrder])
 
   // カテゴリ名が更新されたときの処理
   const handleCategoryUpdate = async (categoryId: string, newName: string) => {
@@ -219,6 +237,32 @@ export const CategoryGroup = ({
     transition,
   }
 
+  // Monitor global drag state for collapse, but only for category dragging
+  useDndMonitor({
+    onDragStart: () => {
+      // カテゴリドラッグ開始時にすべてのカテゴリを折りたたむ
+      setIsDraggingGlobal(true)
+    },
+    onDragEnd: () => {
+      setIsDraggingGlobal(false)
+      // ドロップ時に展開する
+      setIsCollapsed(false)
+    },
+    onDragCancel: () => {
+      setIsDraggingGlobal(false)
+      // ドラッグキャンセル時も展開する
+      setIsCollapsed(false)
+    },
+  })
+
+  // Update collapse state when dragging the category itself
+  useEffect(() => {
+    // カテゴリ自体がドラッグされている場合のみ折りたたむ
+    if (isDraggingGlobal) {
+      setIsCollapsed(true)
+    }
+  }, [isDraggingGlobal])
+
   // ドメインの変更を検知して更新
   useEffect(() => {
     setLocalDomains(domains)
@@ -285,6 +329,14 @@ export const CategoryGroup = ({
         }
       }
     }
+    // ドラッグ終了時に展開する
+    setIsDraggingDomains(false)
+    setIsCollapsed(false)
+  }
+
+  // Collapse all domain cards at drag start
+  const handleDragStart = (event: DragStartEvent) => {
+    setIsDraggingDomains(true)
   }
 
   // カード内のタブをサブカテゴリごとに整理
@@ -336,14 +388,7 @@ export const CategoryGroup = ({
         onDrop={handleDrop}
       >
         <CardHeader className='flex-row justify-between items-baseline my-2'>
-          <div className='flex items-center gap-3 flex-grow'>
-            <span
-              className='text-foreground cursor-grab hover:cursor-grab active:cursor-grabbing'
-              {...attributes}
-              {...listeners}
-            >
-              <GripVertical size={16} aria-hidden='true' />
-            </span>
+          <div className='flex items-center gap-2 flex-grow'>
             {/* 折りたたみ切り替えボタン */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -369,13 +414,69 @@ export const CategoryGroup = ({
                 {isCollapsed ? '展開' : '折りたたむ'}
               </TooltipContent>
             </Tooltip>
-            <div className='flex gap-1 items-center'>
-              <h2 className='text-xl font-bold text-foreground'>
-                {category.name}
-              </h2>
-              <span className='text-muted-foreground'>
-                ({domains.length}ドメイン / {allUrls.length}タブ)
-              </span>
+            {/* ソート順切り替え */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant='secondary'
+                  size='sm'
+                  onClick={e => {
+                    e.stopPropagation()
+                    setSortOrder(o =>
+                      o === 'default'
+                        ? 'asc'
+                        : o === 'asc'
+                          ? 'desc'
+                          : 'default',
+                    )
+                  }}
+                  className='flex items-center gap-1 cursor-pointer'
+                  title={
+                    sortOrder === 'default'
+                      ? 'デフォルト'
+                      : sortOrder === 'asc'
+                        ? '昇順'
+                        : '降順'
+                  }
+                  aria-label={
+                    sortOrder === 'default'
+                      ? 'デフォルト'
+                      : sortOrder === 'asc'
+                        ? '昇順'
+                        : '降順'
+                  }
+                >
+                  {sortOrder === 'default' ? (
+                    <ArrowUpDown size={14} />
+                  ) : sortOrder === 'asc' ? (
+                    <ArrowUpNarrowWide size={14} />
+                  ) : (
+                    <ArrowUpWideNarrow size={14} />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='top' className='lg:hidden block'>
+                {sortOrder === 'default'
+                  ? 'デフォルト'
+                  : sortOrder === 'asc'
+                    ? '昇順'
+                    : '降順'}
+              </TooltipContent>
+            </Tooltip>
+            <div
+              className='flex items-center gap-1 text-foreground cursor-grab hover:cursor-grab active:cursor-grabbing w-full'
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical size={16} aria-hidden='true' />
+              <div className='flex gap-1 items-center'>
+                <h2 className='text-xl font-bold text-foreground'>
+                  {category.name}
+                </h2>
+                <span className='text-muted-foreground'>
+                  ({domains.length}ドメイン / {allUrls.length}タブ)
+                </span>
+              </div>
             </div>
           </div>
           <div className='flex-shrink-0 ml-2 pointer-events-auto flex gap-2'>
@@ -431,13 +532,14 @@ export const CategoryGroup = ({
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={localDomains.map(domain => domain.id)}
+                items={sortedDomains.map(domain => domain.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {localDomains.map(group => (
+                {sortedDomains.map(group => (
                   <SortableDomainCard
                     key={group.id}
                     group={group}
@@ -448,7 +550,7 @@ export const CategoryGroup = ({
                     handleUpdateUrls={handleUpdateUrls}
                     handleDeleteCategory={handleDeleteCategory}
                     categoryId={category.id} // 親カテゴリIDを渡す
-                    isDraggingOver={false}
+                    isDraggingOver={isDraggingDomains}
                     settings={settings} // settingsを渡す
                   />
                 ))}

@@ -18,6 +18,7 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCenter,
+  useDndMonitor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
@@ -536,15 +537,40 @@ export const SortableDomainCard = ({
     [],
   )
 
+  // Monitor global drag state for collapse
+  const [isDraggingGlobal, setIsDraggingGlobal] = useState<boolean>(false)
+  useDndMonitor({
+    onDragStart: () => {
+      // ドメインドラッグ開始時にすべてのドメインを折りたたむ
+      setIsDraggingGlobal(true)
+    },
+    onDragEnd: () => {
+      setIsDraggingGlobal(false)
+      // ドロップ時に展開する
+      setIsCollapsed(false)
+    },
+    onDragCancel: () => {
+      setIsDraggingGlobal(false)
+      // ドラッグキャンセル時も展開する
+      setIsCollapsed(false)
+    },
+  })
+  useEffect(() => {
+    // ドメイン自体がドラッグされている場合のみ折りたたむ
+    if (isDraggingGlobal) {
+      setIsCollapsed(true)
+    }
+  }, [isDraggingGlobal])
+
   return (
     <Card
       ref={setNodeRef}
       style={style}
       className={`rounded-lg shadow-md ${
-        isDraggingOver ? 'border-blue-500 border-2' : 'border-border'
+        isDraggingOver ? 'border-ring border-2' : 'border-border'
       }`}
       data-category-id={categoryId}
-      data-urls-count={group.urls.length} // タブ数をdata属性に追加
+      data-urls-count={group.urls.length}
     >
       <CardHeader className='p-2 pb-0 w-full'>
         <div className='flex items-center justify-between w-full gap-2'>
@@ -573,6 +599,7 @@ export const SortableDomainCard = ({
               {isCollapsed ? '展開' : '折りたたむ'}
             </TooltipContent>
           </Tooltip>
+
           {/* ソート順切り替え */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -618,11 +645,10 @@ export const SortableDomainCard = ({
                   : '降順'}
             </TooltipContent>
           </Tooltip>
-          {/* 左側: ドメイン情報 */}
+
+          {/* ドラッグハンドル＆ドメイン表示 */}
           <div
-            className={
-              'flex items-center gap-2 cursor-grab overflow-hidden flex-grow hover:cursor-grab active:cursor-grabbing'
-            }
+            className='flex items-center gap-2 cursor-grab overflow-hidden flex-grow hover:cursor-grab active:cursor-grabbing'
             {...attributes}
             {...listeners}
           >
@@ -637,45 +663,32 @@ export const SortableDomainCard = ({
             </span>
           </div>
 
-          {/* 右側: 操作ボタン類 */}
+          {/* 操作ボタン群 */}
           <div className='flex items-center gap-2 flex-shrink-0 ml-2'>
+            {/* すべて開く */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant='secondary'
                   size='sm'
-                  onClick={() => setShowKeywordModal(true)}
-                  className='text-secondary-foreground flex items-center gap-1 cursor-pointer'
-                  title='カテゴリ管理'
-                >
-                  <Settings size={14} />
-                  <span className='lg:inline hidden'>カテゴリ管理</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
-                カテゴリ管理
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant='secondary'
-                  size='sm'
-                  onClick={() => handleOpenAllTabs(group.urls)}
+                  onClick={e => {
+                    e.stopPropagation()
+                    handleOpenAllTabs(group.urls)
+                  }}
                   className='flex items-center gap-1 cursor-pointer'
-                  title='すべてのタブを開く'
-                  aria-label='すべてのタブを開く'
+                  title='すべて開く'
+                  aria-label='すべて開く'
                 >
                   <ExternalLink size={14} />
                   <span className='lg:inline hidden'>すべて開く</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side='top' className='lg:hidden block'>
-                すべてのタブを開く
+                すべて開く
               </TooltipContent>
             </Tooltip>
 
+            {/* グループ削除 */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -704,7 +717,7 @@ export const SortableDomainCard = ({
               </TooltipContent>
             </Tooltip>
 
-            {/* モーダルは最上位に配置 */}
+            {/* キーワードモーダル */}
             {showKeywordModal && (
               <CategoryKeywordModal
                 group={group}
@@ -722,7 +735,7 @@ export const SortableDomainCard = ({
         </div>
       </CardHeader>
 
-      {/* カテゴリごとにまとめてタブを表示 */}
+      {/* カード展開部 */}
       {!isCollapsed && (
         <CardContent className='space-y-1 p-2'>
           {group.urls.length > 0 ? (
@@ -736,11 +749,9 @@ export const SortableDomainCard = ({
                   items={allCategoryIds}
                   strategy={verticalListSortingStrategy}
                 >
-                  {/* カテゴリ順序に従ってカテゴリセクションを表示（空カテゴリは表示しない） */}
                   {allCategoryIds.map(categoryName => {
                     const urls = categorizedUrls[categoryName] || []
                     if (urls.length === 0) return null
-
                     return (
                       <SortableCategorySection
                         key={categoryName}
