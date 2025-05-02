@@ -890,78 +890,8 @@ export async function migrateParentCategoriesToDomainNames(): Promise<void> {
   }
 }
 
-// タブを開いた後のグループ削除処理を修正
-export async function handleTabGroupRemoval(id: string): Promise<void> {
-  try {
-    // 削除前にドメイン情報を保存
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-    const groupToRemove = savedTabs.find((group: TabGroup) => group.id === id)
-
-    if (groupToRemove?.domain) {
-      console.log(`グループ削除前の処理: ${groupToRemove.domain}`)
-
-      // カテゴリ設定を永続化
-      await updateDomainCategorySettings(
-        groupToRemove.domain,
-        groupToRemove.subCategories || [],
-        groupToRemove.categoryKeywords || [],
-      )
-
-      // 親カテゴリにドメイン名を確実に保持させる
-      if (groupToRemove.parentCategoryId) {
-        const parentCategories = await getParentCategories()
-        const parentCategory = parentCategories.find(
-          cat => cat.id === groupToRemove.parentCategoryId,
-        )
-
-        if (parentCategory) {
-          // domainNamesが存在し、このドメイン名を含んでいるか確認
-          const hasDomainName = parentCategory.domainNames?.includes(
-            groupToRemove.domain,
-          )
-
-          if (!hasDomainName) {
-            // ドメイン名を追加
-            const updatedCategory = {
-              ...parentCategory,
-              domainNames: [
-                ...(parentCategory.domainNames || []),
-                groupToRemove.domain,
-              ],
-            }
-
-            // 親カテゴリを更新
-            await saveParentCategories(
-              parentCategories.map(cat =>
-                cat.id === groupToRemove.parentCategoryId
-                  ? updatedCategory
-                  : cat,
-              ),
-            )
-            console.log(
-              `ドメイン ${groupToRemove.domain} を親カテゴリのdomainNamesに追加しました`,
-            )
-          }
-        }
-      }
-
-      // ドメイン-カテゴリマッピングも保持
-      if (groupToRemove.parentCategoryId) {
-        await updateDomainCategoryMapping(
-          groupToRemove.domain,
-          groupToRemove.parentCategoryId,
-        )
-        console.log(
-          `ドメイン ${groupToRemove.domain} のマッピングを更新しました`,
-        )
-      }
-    }
-
-    return
-  } catch (error) {
-    console.error('タブグループの削除処理中にエラーが発生:', error)
-  }
-}
+// 注: handleTabGroupRemoval 関数は utils/tab-operations.ts に移動しました
+// この関数は削除されました - tab-operations.ts から import してください
 
 // タブ保存時に自動分類も行うようにsaveTabsを拡張
 export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
