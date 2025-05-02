@@ -1,5 +1,10 @@
 import type { TabGroup } from './storage'
-import { updateDomainCategorySettings } from './storage'
+import {
+  getParentCategories,
+  saveParentCategories,
+  updateDomainCategoryMapping,
+  updateDomainCategorySettings,
+} from './storage'
 
 /**
  * タブグループ削除前の処理関数
@@ -10,17 +15,67 @@ import { updateDomainCategorySettings } from './storage'
 export async function handleTabGroupRemoval(groupId: string): Promise<void> {
   try {
     const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-    const groupToDelete = savedTabs.find(
+    const groupToRemove = savedTabs.find(
       (group: TabGroup) => group.id === groupId,
     )
+    if (groupToRemove?.domain) {
+      console.log(`グループ削除前の処理: ${groupToRemove.domain}`)
 
-    if (groupToDelete) {
-      // 子カテゴリ設定を保存
+      // カテゴリ設定を永続化
       await updateDomainCategorySettings(
-        groupToDelete.domain,
-        groupToDelete.subCategories || [],
-        groupToDelete.categoryKeywords || [],
+        groupToRemove.domain,
+        groupToRemove.subCategories || [],
+        groupToRemove.categoryKeywords || [],
       )
+
+      // 親カテゴリにドメイン名を確実に保持させる
+      if (groupToRemove.parentCategoryId) {
+        const parentCategories = await getParentCategories()
+        const parentCategory = parentCategories.find(
+          cat => cat.id === groupToRemove.parentCategoryId,
+        )
+
+        if (parentCategory) {
+          // domainNamesが存在し、このドメイン名を含んでいるか確認
+          const hasDomainName = parentCategory.domainNames?.includes(
+            groupToRemove.domain,
+          )
+
+          if (!hasDomainName) {
+            // ドメイン名を追加
+            const updatedCategory = {
+              ...parentCategory,
+              domainNames: [
+                ...(parentCategory.domainNames || []),
+                groupToRemove.domain,
+              ],
+            }
+
+            // 親カテゴリを更新
+            await saveParentCategories(
+              parentCategories.map(cat =>
+                cat.id === groupToRemove.parentCategoryId
+                  ? updatedCategory
+                  : cat,
+              ),
+            )
+            console.log(
+              `ドメイン ${groupToRemove.domain} を親カテゴリのdomainNamesに追加しました`,
+            )
+          }
+        }
+      }
+
+      // ドメイン-カテゴリマッピングも保持
+      if (groupToRemove.parentCategoryId) {
+        await updateDomainCategoryMapping(
+          groupToRemove.domain,
+          groupToRemove.parentCategoryId,
+        )
+        console.log(
+          `ドメイン ${groupToRemove.domain} のマッピングを更新しました`,
+        )
+      }
     }
   } catch (error) {
     console.error('タブグループ削除前処理エラー:', error)
