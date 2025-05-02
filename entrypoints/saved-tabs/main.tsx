@@ -890,7 +890,10 @@ const SavedTabs = () => {
   const handleDeleteGroup = async (id: string) => {
     try {
       // 削除前にカテゴリ設定と親カテゴリ情報を保存
-      const groupToDelete = tabGroups.find(group => group.id === id)
+      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      const groupToDelete = savedTabs.find(
+        (group: { id: string }) => group.id === id,
+      )
       if (!groupToDelete) return
       console.log(`グループを削除: ${groupToDelete.domain}`)
 
@@ -898,7 +901,9 @@ const SavedTabs = () => {
       await handleTabGroupRemoval(id)
 
       // 以降は従来通りの処理
-      const updatedGroups = tabGroups.filter(group => group.id !== id)
+      const updatedGroups = savedTabs.filter(
+        (group: { id: string }) => group.id !== id,
+      )
       setTabGroups(updatedGroups)
       await chrome.storage.local.set({ savedTabs: updatedGroups })
 

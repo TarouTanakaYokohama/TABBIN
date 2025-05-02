@@ -665,6 +665,24 @@ export const SortableDomainCard = ({
 
           {/* 操作ボタン群 */}
           <div className='flex items-center gap-2 flex-shrink-0 ml-2'>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant='secondary'
+                  size='sm'
+                  onClick={() => setShowKeywordModal(!showKeywordModal)}
+                  className='flex items-center gap-1 cursor-pointer'
+                  title='カテゴリ管理を開く'
+                  aria-label='カテゴリ管理を開く'
+                >
+                  <Settings size={14} />
+                  カテゴリ管理
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='top' className='lg:hidden block'>
+                カテゴリ管理を開く
+              </TooltipContent>
+            </Tooltip>
             {/* すべて開く */}
             <Tooltip>
               <TooltipTrigger asChild>
