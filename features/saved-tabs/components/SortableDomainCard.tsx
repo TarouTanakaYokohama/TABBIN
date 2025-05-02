@@ -676,7 +676,7 @@ export const SortableDomainCard = ({
                   aria-label='カテゴリ管理を開く'
                 >
                   <Settings size={14} />
-                  カテゴリ管理
+                  <span className='lg:inline hidden'>カテゴリ管理</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side='top' className='lg:hidden block'>
@@ -690,6 +690,13 @@ export const SortableDomainCard = ({
                   variant='secondary'
                   size='sm'
                   onClick={e => {
+                    if (
+                      group.urls.length >= 10 &&
+                      !window.confirm(
+                        '10個以上のタブを開こうとしています。続行しますか？',
+                      )
+                    )
+                      return
                     e.stopPropagation()
                     handleOpenAllTabs(group.urls)
                   }}

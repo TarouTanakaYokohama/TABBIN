@@ -142,6 +142,13 @@ export const SortableCategorySection = ({
                 variant='secondary'
                 size='sm'
                 onClick={e => {
+                  if (
+                    props.urls.length >= 10 &&
+                    !window.confirm(
+                      '10個以上のタブを開こうとしています。続行しますか？',
+                    )
+                  )
+                    return
                   e.stopPropagation() // ドラッグイベントの伝播を防止
                   handleOpenAllTabs(props.urls)
                 }}

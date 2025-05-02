@@ -513,7 +513,16 @@ export const CategoryGroup = ({
                 <Button
                   variant='secondary'
                   size='sm'
-                  onClick={() => handleOpenAllTabs(allUrls)}
+                  onClick={() => {
+                    if (
+                      allUrls.length >= 10 &&
+                      !window.confirm(
+                        '10個以上のタブを開こうとしています。続行しますか？',
+                      )
+                    )
+                      return
+                    handleOpenAllTabs(allUrls)
+                  }}
                   className='flex items-center gap-1 cursor-pointer'
                   title='すべてのタブを開く'
                   aria-label='すべてのタブを開く'
