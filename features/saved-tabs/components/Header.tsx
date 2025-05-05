@@ -68,7 +68,7 @@ export const Header = ({
                 title='親カテゴリ作成'
               >
                 <Plus size={16} />
-                <span className='lg:inline hidden'>カテゴリ作成</span>
+                <span className='lg:inline hidden'>親カテゴリ作成</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side='top' className='lg:hidden block'>

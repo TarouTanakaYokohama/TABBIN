@@ -43,8 +43,8 @@ import {
 // カテゴリ名のバリデーションスキーマ
 const categoryNameSchema = z
   .string()
-  .min(1, 'カテゴリ名を入力してください')
-  .max(25, 'カテゴリ名は25文字以下にしてください')
+  .min(1, '新規親カテゴリ名を入力してください')
+  .max(25, '新規親カテゴリ名は25文字以下にしてください')
 
 interface CategoryModalProps {
   onClose: () => void
@@ -78,8 +78,8 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
   // 処理中状態
   const [isLoading, setIsLoading] = useState(false)
 
-  // 削除確認ダイアログの状態
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  // 削除確認UIの状態
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [categoryToDelete, setCategoryToDelete] =
     useState<ParentCategory | null>(null)
 
@@ -239,6 +239,25 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
     }
   }
 
+  // エンターキー押下時のハンドラー
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      // 入力が有効な場合のみカテゴリを作成
+      if (newCategoryName.trim() && !nameError && !isLoading) {
+        handleCreateCategory()
+      }
+    }
+  }
+
+  // フォーカスが外れた時のハンドラー
+  const handleBlur = () => {
+    // 入力が有効な場合のみカテゴリを作成
+    if (newCategoryName.trim() && !nameError && !isLoading) {
+      handleCreateCategory()
+    }
+  }
+
   // カテゴリ保存ハンドラ
   const handleSaveCategory = async () => {
     if (!selectedCategoryId) {
@@ -345,11 +364,11 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
       toast.error('カテゴリの削除に失敗しました')
     } finally {
       setIsLoading(false)
-      setDeleteConfirmOpen(false)
+      setShowDeleteConfirm(false)
     }
   }
 
-  // 削除ボタンクリック時のハンドラ
+  // 削除ボタンクリック時のハンドラー
   const handleDeleteClick = () => {
     const categoryToDelete = categories.find(c => c.id === selectedCategoryId)
     if (!categoryToDelete) {
@@ -358,7 +377,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
     }
 
     setCategoryToDelete(categoryToDelete)
-    setDeleteConfirmOpen(true)
+    setShowDeleteConfirm(true)
   }
 
   // ドメイン選択状態の切り替えハンドラ（チェックボックス変更時に保存）
@@ -461,210 +480,217 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
 
           <div className='grid gap-4 py-4 overflow-y-auto pr-1'>
             {/* 新規カテゴリ作成エリア */}
-            <div className='flex items-end gap-2'>
-              <div className='flex-1'>
-                <Label htmlFor='newCategory'>新規親カテゴリ名</Label>
-                <Input
-                  id='newCategory'
-                  value={newCategoryName}
-                  onChange={handleCategoryNameChange}
-                  placeholder='新しい親カテゴリ名を入力 (25文字以内)'
-                  className={nameError ? 'border-red-500' : ''}
-                />
-                {nameError && (
-                  <p className='text-red-500 text-xs mt-1'>{nameError}</p>
-                )}
-              </div>
-              <Button
-                onClick={handleCreateCategory}
-                disabled={!newCategoryName.trim() || !!nameError || isLoading}
-              >
-                作成
-              </Button>
+            <div>
+              <Label htmlFor='newCategory' className='mb-2'>
+                新規親カテゴリ名
+              </Label>
+              <Input
+                id='newCategory'
+                value={newCategoryName}
+                onChange={handleCategoryNameChange}
+                onKeyDown={handleKeyDown}
+                onBlur={handleBlur}
+                placeholder='カテゴリ名を入力 (25文字以内)'
+                className={nameError ? 'border-red-500' : ''}
+              />
+              {nameError && (
+                <p className='text-red-500 text-xs mt-1'>{nameError}</p>
+              )}
             </div>
 
             {/* カテゴリ選択エリア */}
-            <div>
-              <div className='flex items-center justify-between mb-2'>
-                <Label htmlFor='categorySelect'>親カテゴリ選択</Label>
-                {categories.length > 0 &&
-                  selectedCategoryId &&
-                  selectedCategoryId !== 'uncategorized' && (
-                    <Button
-                      variant='secondary'
-                      size='sm'
-                      onClick={handleDeleteClick}
-                      disabled={isLoading}
-                    >
-                      <Trash2 size={16} className='mr-1' />
-                      削除
-                    </Button>
-                  )}
+            {categories.length !== 0 && (
+              <div>
+                <div className='flex items-center justify-between mb-2'>
+                  <Label htmlFor='categorySelect'>親カテゴリ選択</Label>
+                  {categories.length > 0 &&
+                    selectedCategoryId &&
+                    selectedCategoryId !== 'uncategorized' && (
+                      <Button
+                        variant='secondary'
+                        size='sm'
+                        onClick={handleDeleteClick}
+                        disabled={isLoading}
+                      >
+                        <Trash2 size={16} className='mr-1' />
+                        現在のカテゴリを削除
+                      </Button>
+                    )}
+                </div>
+                <Select
+                  value={selectedCategoryId || ''}
+                  onValueChange={handleCategoryChange}
+                >
+                  <SelectTrigger className='w-full' id='categorySelect'>
+                    <SelectValue placeholder='親カテゴリを選択' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(category => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {/* 削除確認UI */}
+                {showDeleteConfirm && categoryToDelete && (
+                  <div className='mt-2 p-3 border rounded mb-3'>
+                    <p className='text-gray-700 dark:text-gray-300 mb-2'>
+                      カテゴリ「{categoryToDelete.name}
+                      」を削除しますか？この操作は取り消せません。
+                      {categoryToDelete.domainNames?.length ? (
+                        <span className='block text-xs mt-1'>
+                          このカテゴリには {categoryToDelete.domainNames.length}{' '}
+                          件のドメインが関連付けられています。
+                          削除すると、これらのドメインとカテゴリの関連付けも解除されます。
+                        </span>
+                      ) : null}
+                    </p>
+                    <div className='flex justify-end gap-2'>
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        onClick={() => setShowDeleteConfirm(false)}
+                        disabled={isLoading}
+                      >
+                        キャンセル
+                      </Button>
+                      <Button
+                        variant='destructive'
+                        size='sm'
+                        onClick={handleDeleteCategory}
+                        disabled={isLoading}
+                        className='flex items-center gap-1'
+                      >
+                        <Trash2 size={14} />
+                        削除する
+                      </Button>
+                    </div>
+                  </div>
+                )}{' '}
               </div>
-              <Select
-                value={selectedCategoryId || ''}
-                onValueChange={handleCategoryChange}
-              >
-                <SelectTrigger className='w-full' id='categorySelect'>
-                  <SelectValue placeholder='親カテゴリを選択' />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(category => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            )}
 
             {/* ドメイン選択エリア */}
-            <div>
-              <Label>
-                ドメイン選択
-                {selectedCategoryId === 'uncategorized' &&
-                  '（未割り当てドメインのみ表示）'}
-              </Label>
-              <ScrollArea className='h-[calc(70vh-150px)] border rounded p-2'>
-                {tabGroups.length > 0 ? (
-                  // 未分類とカテゴリ分類済みでソート
-                  [...tabGroups]
-                    .sort((a, b) => {
-                      // domainCategoriesがnullかどうかでソート（nullが先=未分類が先）
-                      const aHasCategory = !!domainCategories[a.id]
-                      const bHasCategory = !!domainCategories[b.id]
 
-                      if (!aHasCategory && bHasCategory) return -1 // aが未分類ならaを前に
-                      if (aHasCategory && !bHasCategory) return 1 // bが未分類ならbを前に
+            {categories.length !== 0 && (
+              <div>
+                <Label>
+                  ドメイン選択
+                  {selectedCategoryId === 'uncategorized' &&
+                    '（未割り当てドメインのみ表示）'}
+                </Label>
+                <ScrollArea className='h-[calc(70vh-150px)] mt-3 border rounded p-2'>
+                  {tabGroups.length > 0 ? (
+                    // 未分類とカテゴリ分類済みでソート
+                    [...tabGroups]
+                      .sort((a, b) => {
+                        // domainCategoriesがnullかどうかでソート（nullが先=未分類が先）
+                        const aHasCategory = !!domainCategories[a.id]
+                        const bHasCategory = !!domainCategories[b.id]
 
-                      // 両方同じカテゴリ状態の場合はドメイン名でソート
-                      return a.domain.localeCompare(b.domain)
-                    })
-                    .map(group => {
-                      const belongsToCategory = domainCategories[group.id]
-                      const isInCurrentCategory =
-                        selectedCategoryId &&
-                        selectedCategoryId !== 'uncategorized' &&
-                        belongsToCategory?.id === selectedCategoryId
-                      const isUncategorized = !belongsToCategory
+                        if (!aHasCategory && bHasCategory) return -1 // aが未分類ならaを前に
+                        if (aHasCategory && !bHasCategory) return 1 // bが未分類ならbを前に
 
-                      // 未分類カテゴリ選択時に未分類以外のドメインを非表示にする
-                      if (
-                        selectedCategoryId === 'uncategorized' &&
-                        belongsToCategory
-                      ) {
-                        return null
-                      }
+                        // 両方同じカテゴリ状態の場合はドメイン名でソート
+                        return a.domain.localeCompare(b.domain)
+                      })
+                      .map(group => {
+                        const belongsToCategory = domainCategories[group.id]
+                        const isInCurrentCategory =
+                          selectedCategoryId &&
+                          selectedCategoryId !== 'uncategorized' &&
+                          belongsToCategory?.id === selectedCategoryId
+                        const isUncategorized = !belongsToCategory
 
-                      return (
-                        <div
-                          key={group.id}
-                          className={`flex items-center space-x-2 py-2 border-b last:border-0 ${
-                            isInCurrentCategory ? 'bg-primary/10' : ''
-                          } ${isUncategorized ? 'bg-muted/50' : ''}`}
-                        >
-                          <Checkbox
-                            id={`domain-${group.id}`}
-                            checked={selectedDomains[group.id] || false}
-                            onCheckedChange={() =>
-                              toggleDomainSelection(group.id)
-                            }
-                            // 未分類カテゴリでも操作可能にする（但し警告メッセージが表示される）
-                            disabled={isLoading || !selectedCategoryId}
-                          />
-                          <div className='flex-1'>
-                            <Label
-                              htmlFor={`domain-${group.id}`}
-                              className='flex-1 cursor-pointer'
-                            >
-                              {group.domain}
-                            </Label>
-                            {belongsToCategory && (
-                              <button
-                                type='button'
-                                className='text-xs text-muted-foreground flex items-center mt-1 cursor-pointer w-full text-left bg-transparent border-0 p-0 hover:text-foreground'
-                                onClick={() => toggleDomainSelection(group.id)}
-                                disabled={isLoading || !selectedCategoryId}
-                                aria-label={`${selectedCategoryId === belongsToCategory.id ? '現在選択中のカテゴリ' : '所属カテゴリ'}: ${belongsToCategory.name}`}
+                        // 未分類カテゴリ選択時に未分類以外のドメインを非表示にする
+                        if (
+                          selectedCategoryId === 'uncategorized' &&
+                          belongsToCategory
+                        ) {
+                          return null
+                        }
+
+                        return (
+                          <div
+                            key={group.id}
+                            className={`flex items-center space-x-2 p-2 rounded border-b last:border-0 ${
+                              isInCurrentCategory ? 'bg-primary/10' : ''
+                            } ${isUncategorized ? 'bg-muted/50' : ''}`}
+                          >
+                            <Checkbox
+                              id={`domain-${group.id}`}
+                              checked={selectedDomains[group.id] || false}
+                              onCheckedChange={() =>
+                                toggleDomainSelection(group.id)
+                              }
+                              // 未分類カテゴリでも操作可能にする（但し警告メッセージが表示される）
+                              disabled={isLoading || !selectedCategoryId}
+                            />
+                            <div className='flex-1'>
+                              <Label
+                                htmlFor={`domain-${group.id}`}
+                                className='flex-1 cursor-pointer'
                               >
-                                <span className='inline-block w-2 h-2 rounded-full bg-primary mr-1' />
-                                <span>
-                                  {selectedCategoryId === belongsToCategory.id
-                                    ? '現在選択中のカテゴリ: '
-                                    : '所属カテゴリ: '}
-                                  {belongsToCategory.name}
-                                </span>
-                              </button>
-                            )}
+                                {group.domain}
+                              </Label>
+                              {belongsToCategory && (
+                                <button
+                                  type='button'
+                                  className='text-xs text-muted-foreground flex items-center mt-1 cursor-pointer w-full text-left bg-transparent border-0 p-0 hover:text-foreground'
+                                  onClick={() =>
+                                    toggleDomainSelection(group.id)
+                                  }
+                                  disabled={isLoading || !selectedCategoryId}
+                                  aria-label={`${selectedCategoryId === belongsToCategory.id ? '現在選択中のカテゴリ' : '所属カテゴリ'}: ${belongsToCategory.name}`}
+                                >
+                                  <span className='inline-block w-2 h-2 rounded-full bg-primary mr-1' />
+                                  <span>
+                                    {selectedCategoryId === belongsToCategory.id
+                                      ? '現在選択中のカテゴリ: '
+                                      : '所属カテゴリ: '}
+                                    {belongsToCategory.name}
+                                  </span>
+                                </button>
+                              )}
 
-                            {!belongsToCategory && (
-                              <button
-                                type='button'
-                                className='text-xs text-muted-foreground flex items-center mt-1 cursor-pointer w-full text-left bg-transparent border-0 p-0 hover:text-foreground'
-                                onClick={() => toggleDomainSelection(group.id)}
-                                disabled={isLoading || !selectedCategoryId}
-                                aria-label='未分類のドメイン'
-                              >
-                                <span className='inline-block w-2 h-2 rounded-full bg-muted-foreground mr-1' />
-                                <span>未分類</span>
-                              </button>
-                            )}
+                              {!belongsToCategory && (
+                                <button
+                                  type='button'
+                                  className='text-xs text-muted-foreground flex items-center mt-1 cursor-pointer w-full text-left bg-transparent border-0 p-0 hover:text-foreground'
+                                  onClick={() =>
+                                    toggleDomainSelection(group.id)
+                                  }
+                                  disabled={isLoading || !selectedCategoryId}
+                                  aria-label='未分類のドメイン'
+                                >
+                                  <span className='inline-block w-2 h-2 rounded-full bg-muted-foreground mr-1' />
+                                  <span>未分類</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )
-                    })
-                    .filter(Boolean) // nullをフィルタリング
-                ) : (
-                  <div className='text-center py-8 text-muted-foreground'>
-                    保存されたドメインがありません
-                  </div>
-                )}
-                {/* 未分類カテゴリで表示するものがない場合のメッセージ */}
-                {selectedCategoryId === 'uncategorized' &&
-                  tabGroups.every(group => domainCategories[group.id]) && (
+                        )
+                      })
+                      .filter(Boolean) // nullをフィルタリング
+                  ) : (
                     <div className='text-center py-8 text-muted-foreground'>
-                      すべてのドメインがカテゴリに分類されています
+                      保存されたドメインがありません
                     </div>
                   )}
-              </ScrollArea>
-            </div>
+                  {/* 未分類カテゴリで表示するものがない場合のメッセージ */}
+                  {selectedCategoryId === 'uncategorized' &&
+                    tabGroups.every(group => domainCategories[group.id]) && (
+                      <div className='text-center py-8 text-muted-foreground'>
+                        すべてのドメインがカテゴリに分類されています
+                      </div>
+                    )}
+                </ScrollArea>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* 削除確認ダイアログ */}
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>カテゴリを削除しますか？</AlertDialogTitle>
-            <AlertDialogDescription>
-              カテゴリ「{categoryToDelete?.name}
-              」を削除します。この操作は取り消せません。
-              {categoryToDelete?.domainNames?.length ? (
-                <p className='mt-2'>
-                  このカテゴリには {categoryToDelete.domainNames.length}{' '}
-                  件のドメインが関連付けられています。
-                  削除すると、これらのドメインとカテゴリの関連付けも解除されます。
-                </p>
-              ) : null}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isLoading}>
-              キャンセル
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={e => {
-                e.preventDefault()
-                handleDeleteCategory()
-              }}
-              disabled={isLoading}
-            >
-              削除する
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }
