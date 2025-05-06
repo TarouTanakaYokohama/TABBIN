@@ -6,7 +6,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
-import { safelyUpdateGroupUrls } from '@/utils/tab-operations'
 import { useDndMonitor } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'

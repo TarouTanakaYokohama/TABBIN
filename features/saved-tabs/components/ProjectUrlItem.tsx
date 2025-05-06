@@ -1,21 +1,9 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import type { CustomProject, UserSettings } from '@/utils/storage'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import {
-  ChevronRight,
-  Folder,
-  GripVertical,
-  MoreVertical,
-  X,
-} from 'lucide-react'
+import { ChevronRight, GripVertical, X } from 'lucide-react'
 
 export interface ProjectUrlItemProps {
   item: CustomProject['urls'][0]

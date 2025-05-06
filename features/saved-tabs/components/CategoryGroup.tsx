@@ -46,7 +46,6 @@ import {
   ArrowUpWideNarrow,
   ChevronDown,
   ChevronUp,
-  Edit,
   ExternalLink,
   GripVertical,
   Settings,

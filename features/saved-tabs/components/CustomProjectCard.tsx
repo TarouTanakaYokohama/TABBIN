@@ -1,28 +1,5 @@
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Card, CardContent } from '@/components/ui/card'
 import type { CustomProject, UserSettings } from '@/utils/storage'
-import {
-  Edit,
-  ExternalLink,
-  FolderPlus,
-  GripVertical,
-  Trash2,
-} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CustomProjectCategory } from './CustomProjectCategory'
 import { ProjectUrlItem } from './ProjectUrlItem'

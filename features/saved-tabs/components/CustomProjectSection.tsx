@@ -19,7 +19,6 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { CustomProjectCard } from './CustomProjectCard'
 
