@@ -21,7 +21,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Edit, Plus, Save, X } from 'lucide-react'
+import type { ParentCategory } from '@/utils/storage'
+import { Edit, Plus, Save, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod' // zodをインポート
@@ -85,6 +86,7 @@ export const CategoryManagementModal = ({
   const [categoryNameError, setCategoryNameError] = useState<string | null>(
     null,
   ) // エラー状態を追加
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // 入力値バリデーション関数
   const validateCategoryName = (name: string) => {
@@ -325,6 +327,27 @@ export const CategoryManagementModal = ({
     }
   }
 
+  // 親カテゴリ削除処理
+  const handleDeleteCategory = async () => {
+    if (isProcessing) return
+    setIsProcessing(true)
+    try {
+      const data = await chrome.storage.local.get('parentCategories')
+      const parentCategories: ParentCategory[] = data.parentCategories ?? []
+      const updatedCategories = parentCategories.filter(
+        cat => cat.id !== category.id,
+      )
+      await chrome.storage.local.set({ parentCategories: updatedCategories })
+      toast.success(`親カテゴリ「${category.name}」を削除しました`)
+      onClose()
+    } catch (error) {
+      console.error('親カテゴリの削除に失敗しました:', error)
+      toast.error('親カテゴリの削除に失敗しました')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   // ドメインをカテゴリに追加
   const handleAddDomain = async () => {
     if (!selectedDomain || isProcessing) return
@@ -485,36 +508,45 @@ export const CategoryManagementModal = ({
         onClose()
       }}
     >
-      <DialogContent className='max-h-[80vh] overflow-y-auto'>
+      <DialogContent className='overflow-y-auto'>
         <DialogHeader className='text-left'>
           <DialogTitle>「{localCategoryName}」の親カテゴリ管理</DialogTitle>
-          <DialogDescription>
-            カテゴリの名前変更やカテゴリ内のドメイン管理を行います。
-          </DialogDescription>
         </DialogHeader>
 
         <div ref={modalContentRef} className='space-y-4'>
           {/* カテゴリ名変更セクション */}
-          <div className='mb-4 border-b border-zinc-700 pb-4'>
+          <div className='mb-4'>
             <div className='flex justify-between items-center mb-2'>
               <Label>親カテゴリ名</Label>
               {!isRenaming && (
-                <Button
-                  variant='secondary'
-                  size='sm'
-                  onClick={handleStartRenaming}
-                  className='px-2 py-1 rounded flex items-center gap-1 cursor-pointer'
-                >
-                  <Edit size={14} />
-                  <span className='ml-1'>名前を変更</span>
-                </Button>
+                <div className='flex items-center gap-2'>
+                  <Button
+                    variant='secondary'
+                    size='sm'
+                    onClick={handleStartRenaming}
+                    className='px-2 py-1 rounded flex items-center gap-1 cursor-pointer'
+                  >
+                    <Edit size={14} />
+                    <span className='ml-1'>親カテゴリ名を変更</span>
+                  </Button>
+                  <Button
+                    variant='secondary'
+                    size='sm'
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className='px-2 py-1 rounded flex items-center gap-1 cursor-pointer'
+                    disabled={isProcessing}
+                  >
+                    <Trash2 size={14} />
+                    <span className='ml-1'>親カテゴリを削除</span>
+                  </Button>
+                </div>
               )}
             </div>
 
             {isRenaming ? (
-              <div className='mt-2 p-3 border rounded mb-3'>
+              <div className='mt-2 p-3 border rounded'>
                 <div className='text-gray-300 mb-2 text-sm'>
-                  「{localCategoryName}」の新しい名前を入力してください
+                  「{localCategoryName}」の新しい親カテゴリ名を入力してください
                 </div>
                 <Input
                   ref={inputRef}
@@ -556,11 +588,48 @@ export const CategoryManagementModal = ({
                 )}
               </div>
             ) : (
-              <div className='p-2 border rounded bg-secondary/20'>
+              <button
+                type='button'
+                onClick={handleStartRenaming}
+                className='p-2 border rounded bg-secondary/20 cursor-pointer'
+              >
                 {localCategoryName}
-              </div>
+              </button>
             )}
           </div>
+          {showDeleteConfirm && (
+            <div className='mt-1 p-3 border rounded mb-3'>
+              <p className='text-gray-700 dark:text-gray-300 mb-2'>
+                親カテゴリ「{localCategoryName}
+                」を削除しますか？この操作は取り消せません。
+                {domains.length ? (
+                  <span className='block text-xs mt-1'>
+                    このカテゴリには {domains.length}{' '}
+                    件のドメインが関連付けられています。
+                    削除すると、ドメインと親カテゴリの関連付けも削除されます。
+                  </span>
+                ) : null}
+              </p>
+              <div className='flex justify-end gap-2'>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isProcessing}
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  variant='destructive'
+                  size='sm'
+                  onClick={handleDeleteCategory}
+                  disabled={isProcessing}
+                >
+                  削除
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* 登録済みドメイン一覧 */}
           <div className='mb-4'>
@@ -635,9 +704,7 @@ export const CategoryManagementModal = ({
                 </Button>
               </div>
             ) : (
-              <p className='text-gray-500'>
-                追加できるドメインがありません。新しいタブグループを作成してください。
-              </p>
+              <p className='text-gray-500'>追加できるドメインがありません。</p>
             )}
           </div>
         </div>

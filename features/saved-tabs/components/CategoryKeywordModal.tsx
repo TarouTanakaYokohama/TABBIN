@@ -735,10 +735,7 @@ export const CategoryKeywordModal = ({
         }}
       >
         <DialogHeader className='text-left'>
-          <DialogTitle>「{group.domain}」のカテゴリ管理</DialogTitle>
-          <DialogDescription>
-            カテゴリの追加、削除、リネーム、キーワード設定を行います。
-          </DialogDescription>
+          <DialogTitle>「{group.domain}」の子カテゴリ管理</DialogTitle>
         </DialogHeader>
 
         <div
@@ -753,7 +750,7 @@ export const CategoryKeywordModal = ({
           className='space-y-4'
         >
           {/* 子カテゴリ追加セクション */}
-          <div className='mb-4 border-b border-zinc-700 pb-4'>
+          <div className='mb-4'>
             <h4 className='text-md font-medium mb-2 text-gray-300'>
               新しい子カテゴリを追加
             </h4>
@@ -761,7 +758,7 @@ export const CategoryKeywordModal = ({
               <Input
                 value={newSubCategory}
                 onChange={handleSubCategoryNameChange}
-                placeholder='新しいカテゴリ名を入力 (25文字以内)'
+                placeholder='新しい子カテゴリ名を入力 (25文字以内)'
                 className={`flex-grow p-2 border rounded ${subCategoryNameError ? 'border-red-500' : ''}`}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
@@ -784,13 +781,11 @@ export const CategoryKeywordModal = ({
           </div>
 
           {/* 既存のカテゴリ管理セクション */}
-          {group.subCategories && group.subCategories.length > 0 ? (
+          {group.subCategories && group.subCategories.length > 0 && (
             <>
               <div className='mb-4'>
                 <div className='flex justify-between items-center mb-2'>
-                  <Label htmlFor='category-select'>
-                    キーワード設定を行うカテゴリを選択
-                  </Label>
+                  <Label htmlFor='category-select'>子カテゴリを選択</Label>
 
                   <div className='flex gap-2'>
                     {!isRenaming && (
@@ -801,15 +796,17 @@ export const CategoryKeywordModal = ({
                             size='sm'
                             onClick={handleStartRenaming}
                             className='px-2 py-1 rounded flex items-center gap-1 cursor-pointer'
-                            title='カテゴリ名を変更'
+                            title='子カテゴリ名を変更'
                             disabled={!activeCategory}
                           >
                             <Edit size={14} />
-                            <span className='lg:inline hidden'>名前を変更</span>
+                            <span className='lg:inline hidden'>
+                              子カテゴリ名を変更
+                            </span>
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side='top' className='lg:hidden block'>
-                          カテゴリ名を変更
+                          子カテゴリ名を変更
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -821,17 +818,17 @@ export const CategoryKeywordModal = ({
                           size='sm'
                           onClick={() => setShowDeleteConfirm(true)}
                           className='px-2 py-1 rounded flex items-center gap-1 cursor-pointer'
-                          title='現在のカテゴリを削除'
+                          title='選択中の子カテゴリを削除'
                           disabled={!activeCategory}
                         >
                           <Trash size={14} />
                           <span className='lg:inline hidden'>
-                            現在のカテゴリを削除
+                            選択中の子カテゴリを削除
                           </span>
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side='top' className='lg:hidden block'>
-                        現在のカテゴリを削除
+                        選択中の子カテゴリを削除
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -844,13 +841,13 @@ export const CategoryKeywordModal = ({
                       「{activeCategory}」の新しい名前を入力してください
                       <br />
                       <span className='text-xs text-gray-400 ml-2'>
-                        （入力後、フォーカスを外すかEnterキーで保存されます。キャンセルするにはEscを押してください）
+                        入力後、フォーカスを外すかEnterキーで保存されます。キャンセルするにはEscを押してください
                       </span>
                     </div>
                     <Input
                       value={newCategoryName}
                       onChange={handleRenameCategoryNameChange}
-                      placeholder='新しいカテゴリ名 (25文字以内)'
+                      placeholder='新しい子カテゴリ名 (25文字以内)'
                       className={`w-full p-2 border rounded ${categoryRenameError ? 'border-red-500' : ''}`}
                       autoFocus
                       data-rename-input='true'
@@ -877,10 +874,10 @@ export const CategoryKeywordModal = ({
                 {showDeleteConfirm && (
                   <div className='mt-2 p-3 border rounded mb-3'>
                     <p className='text-gray-300 mb-2'>
-                      「{activeCategory}」カテゴリを削除しますか？
+                      「{activeCategory}」子カテゴリを削除しますか？
                       <br />
                       <span className='text-xs'>
-                        このカテゴリに属するすべてのタブは未分類になります
+                        この子カテゴリに属するすべてのタブは未分類になります
                       </span>
                     </p>
                     <div className='flex justify-end gap-2'>
@@ -893,6 +890,7 @@ export const CategoryKeywordModal = ({
                         キャンセル
                       </Button>
                       <Button
+                        variant='destructive'
                         size='sm'
                         onClick={handleDeleteCategory}
                         className='flex items-center gap-1 cursor-pointer'
@@ -930,15 +928,15 @@ export const CategoryKeywordModal = ({
               <div className='mb-4'>
                 <Label
                   htmlFor='keyword-input'
-                  className='block text-sm text-gray-400 mb-2'
+                  className='block text-sm text-gray-400'
                 >
-                  「{activeCategory}」カテゴリのキーワード
-                  <span className='text-xs text-gray-500 ml-2'>
-                    （タイトルにキーワードが含まれていると自動的にこのカテゴリに分類されます）
-                  </span>
+                  「{activeCategory}」子カテゴリのキーワード
                 </Label>
+                <span className='text-xs text-gray-500 mb-1'>
+                  タイトルにキーワードが含まれていると自動的にこの子カテゴリに分類されます
+                </span>
 
-                <div className='mb-2 flex'>
+                <div className='my-2 flex'>
                   <Input
                     id='keyword-input'
                     value={newKeyword}
@@ -987,10 +985,6 @@ export const CategoryKeywordModal = ({
                 </div>
               </div>
             </>
-          ) : (
-            <p className='text-gray-400 mb-4'>
-              このドメインには子カテゴリがありません。上記のフォームから子カテゴリを追加してください。
-            </p>
           )}
         </div>
       </DialogContent>
