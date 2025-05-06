@@ -12,7 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Plus, Settings, Sliders } from 'lucide-react'
+import { Plus, Settings, Sliders, Wrench } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { CustomProject, TabGroup, ViewMode } from '../../../utils/storage'
@@ -51,7 +51,7 @@ export const Header = ({
         <h1 className='text-3xl font-bold text-foreground'>TABBIN</h1>
         <Input
           type='text'
-          placeholder='検索...'
+          placeholder='検索'
           value={searchQuery}
           onChange={e => onSearchChange(e.target.value)}
         />
@@ -65,14 +65,14 @@ export const Header = ({
                 size='sm'
                 onClick={() => setIsModalOpen(true)}
                 className='flex items-center gap-2 cursor-pointer'
-                title='親カテゴリ作成'
+                title='親カテゴリ管理'
               >
                 <Plus size={16} />
-                <span className='lg:inline hidden'>親カテゴリ作成</span>
+                <span className='lg:inline hidden'>親カテゴリ管理</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side='top' className='lg:hidden block'>
-              親カテゴリ作成
+              親カテゴリ管理
             </TooltipContent>
           </Tooltip>
         )}
@@ -105,7 +105,7 @@ export const Header = ({
               className='flex items-center gap-2 cursor-pointer'
               title='設定'
             >
-              <Settings size={16} />
+              <Wrench size={16} />
               <span className='lg:inline hidden'>設定</span>
             </Button>
           </TooltipTrigger>

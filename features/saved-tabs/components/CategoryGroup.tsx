@@ -16,6 +16,7 @@ interface ParentCategory {
   domains: string[]
   domainNames: string[]
 }
+import { Badge } from '@/components/ui/badge'
 import {
   Tooltip,
   TooltipContent,
@@ -48,6 +49,7 @@ import {
   Edit,
   ExternalLink,
   GripVertical,
+  Settings,
   Trash,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -343,16 +345,21 @@ export const CategoryGroup = ({
   // カード内のタブをサブカテゴリごとに整理
   const organizeUrlsByCategory = () => {
     type UrlType = { url: string; title: string; subCategory?: string }
-    // サブカテゴリでタブをグループ化
+    // カテゴリと未分類のURLを初期化
     const categorizedUrls: Record<string, UrlType[]> = {
-      __uncategorized: [], // 未分類カテゴリを最初に初期化
+      __uncategorized: [],
     }
-
-    // 初期化 - サブカテゴリの初期化
-    if (domains[0]?.subCategories) {
-      for (const cat of domains[0].subCategories) {
-        categorizedUrls[cat] = []
+    // 全ドメインからサブカテゴリを収集して初期化
+    const subCategorySet = new Set<string>()
+    for (const domain of domains) {
+      if (domain.subCategories) {
+        for (const cat of domain.subCategories) {
+          subCategorySet.add(cat)
+        }
       }
+    }
+    for (const cat of subCategorySet) {
+      categorizedUrls[cat] = []
     }
 
     // URLを適切なカテゴリに振り分け
@@ -373,7 +380,9 @@ export const CategoryGroup = ({
   }
 
   const categorizedUrls = organizeUrlsByCategory()
-  const subCategories = [...(domains[0].subCategories || [])]
+  const subCategories = Object.keys(categorizedUrls).filter(
+    cat => cat !== '__uncategorized',
+  )
 
   // 未分類のタブがあれば、それも表示
   const hasUncategorized = categorizedUrls.__uncategorized.length > 0
@@ -474,8 +483,9 @@ export const CategoryGroup = ({
                 <h2 className='text-xl font-bold text-foreground'>
                   {category.name}
                 </h2>
-                <span className='text-muted-foreground'>
-                  ({domains.length}ドメイン / {allUrls.length}タブ)
+                <span className='text-muted-foreground flex gap-2'>
+                  <Badge variant='secondary'>{allUrls.length}</Badge>
+                  <Badge variant='secondary'>{domains.length}</Badge>
                 </span>
               </div>
             </div>
@@ -496,15 +506,15 @@ export const CategoryGroup = ({
                     setIsModalOpen(true)
                   }}
                   className='flex items-center gap-1 cursor-pointer'
-                  title='カテゴリを管理'
-                  aria-label='カテゴリを管理'
+                  title='親カテゴリを管理'
+                  aria-label='親カテゴリを管理'
                 >
-                  <Edit size={14} />
-                  <span className='lg:inline hidden'>カテゴリ管理</span>
+                  <Settings size={14} />
+                  <span className='lg:inline hidden'>親カテゴリ管理</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side='top' className='lg:hidden block'>
-                カテゴリを管理
+                親カテゴリを管理
               </TooltipContent>
             </Tooltip>
 
@@ -555,15 +565,15 @@ export const CategoryGroup = ({
                     }
                   }}
                   className='flex items-center gap-1 cursor-pointer'
-                  title='すべて削除'
-                  aria-label='すべて削除'
+                  title='すべてのタブを削除'
+                  aria-label='すべてのタブを削除'
                 >
                   <Trash size={14} />
                   <span className='lg:inline hidden'>すべて削除</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side='top' className='lg:hidden block'>
-                すべて削除
+                すべてのタブを削除
               </TooltipContent>
             </Tooltip>
           </div>

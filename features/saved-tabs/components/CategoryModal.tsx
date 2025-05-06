@@ -513,7 +513,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                         disabled={isLoading}
                       >
                         <Trash2 size={16} className='mr-1' />
-                        現在のカテゴリを削除
+                        選択中の親カテゴリを削除
                       </Button>
                     )}
                 </div>
@@ -536,13 +536,13 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                 {showDeleteConfirm && categoryToDelete && (
                   <div className='mt-2 p-3 border rounded mb-3'>
                     <p className='text-gray-700 dark:text-gray-300 mb-2'>
-                      カテゴリ「{categoryToDelete.name}
+                      親カテゴリ「{categoryToDelete.name}
                       」を削除しますか？この操作は取り消せません。
                       {categoryToDelete.domainNames?.length ? (
                         <span className='block text-xs mt-1'>
-                          このカテゴリには {categoryToDelete.domainNames.length}{' '}
+                          このカテゴリには {categoryToDelete.domainNames.length}
                           件のドメインが関連付けられています。
-                          削除すると、これらのドメインとカテゴリの関連付けも解除されます。
+                          削除すると、ドメインと親カテゴリの関連付けも削除されます。
                         </span>
                       ) : null}
                     </p>

@@ -148,7 +148,7 @@ export const ImportExportSettings: React.FC = () => {
           onClick={handleExport}
           disabled={isExporting}
           variant='outline'
-          className='flex items-center gap-2'
+          className='flex items-center gap-2 w-full justify-start'
         >
           <Download size={16} />
           {isExporting ? 'エクスポート中...' : '設定とタブデータをエクスポート'}
@@ -158,7 +158,7 @@ export const ImportExportSettings: React.FC = () => {
           onClick={handleOpenImportDialog}
           disabled={isImporting}
           variant='outline'
-          className='flex items-center gap-2'
+          className='flex items-center gap-2 w-full justify-start'
         >
           <Upload size={16} />
           {isImporting ? 'インポート中...' : '設定とタブデータをインポート'}

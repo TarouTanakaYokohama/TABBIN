@@ -572,7 +572,7 @@ export const SortableDomainCard = ({
       data-category-id={categoryId}
       data-urls-count={group.urls.length}
     >
-      <CardHeader className='p-2 pb-0 w-full'>
+      <CardHeader className='p-2 w-full'>
         <div className='flex items-center justify-between w-full gap-2'>
           {/* 折りたたみ切り替えボタン */}
           <Tooltip>
@@ -615,17 +615,17 @@ export const SortableDomainCard = ({
                 className='flex items-center gap-1 cursor-pointer'
                 title={
                   sortOrder === 'default'
-                    ? 'デフォルト'
+                    ? '保存日時のデフォルト'
                     : sortOrder === 'asc'
-                      ? '昇順'
-                      : '降順'
+                      ? '保存日時の昇順'
+                      : '保存日時の降順'
                 }
                 aria-label={
                   sortOrder === 'default'
-                    ? 'デフォルト'
+                    ? '保存日時のデフォルト'
                     : sortOrder === 'asc'
-                      ? '昇順'
-                      : '降順'
+                      ? '保存日時の昇順'
+                      : '保存日時の降順'
                 }
               >
                 {sortOrder === 'default' ? (
@@ -639,10 +639,10 @@ export const SortableDomainCard = ({
             </TooltipTrigger>
             <TooltipContent side='top' className='lg:hidden block'>
               {sortOrder === 'default'
-                ? 'デフォルト'
+                ? '保存日時のデフォルト'
                 : sortOrder === 'asc'
-                  ? '昇順'
-                  : '降順'}
+                  ? '保存日時の昇順'
+                  : '保存日時の降順'}
             </TooltipContent>
           </Tooltip>
 
@@ -664,7 +664,7 @@ export const SortableDomainCard = ({
           </div>
 
           {/* 操作ボタン群 */}
-          <div className='flex items-center gap-2 flex-shrink-0 ml-2'>
+          <div className='flex items-center gap-2 flex-shrink-0'>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -672,15 +672,15 @@ export const SortableDomainCard = ({
                   size='sm'
                   onClick={() => setShowKeywordModal(!showKeywordModal)}
                   className='flex items-center gap-1 cursor-pointer'
-                  title='カテゴリ管理を開く'
-                  aria-label='カテゴリ管理を開く'
+                  title='子カテゴリを管理'
+                  aria-label='子カテゴリを管理'
                 >
                   <Settings size={14} />
-                  <span className='lg:inline hidden'>カテゴリ管理</span>
+                  <span className='lg:inline hidden'>子カテゴリ管理</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side='top' className='lg:hidden block'>
-                カテゴリ管理を開く
+                子カテゴリを管理
               </TooltipContent>
             </Tooltip>
             {/* すべて開く */}
@@ -701,15 +701,15 @@ export const SortableDomainCard = ({
                     handleOpenAllTabs(group.urls)
                   }}
                   className='flex items-center gap-1 cursor-pointer'
-                  title='すべて開く'
-                  aria-label='すべて開く'
+                  title='すべてのタブを開く'
+                  aria-label='すべてのタブを開く'
                 >
                   <ExternalLink size={14} />
                   <span className='lg:inline hidden'>すべて開く</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side='top' className='lg:hidden block'>
-                すべて開く
+                すべてのタブを開く
               </TooltipContent>
             </Tooltip>
 
@@ -730,15 +730,15 @@ export const SortableDomainCard = ({
                     }
                   }}
                   className='flex items-center gap-1 cursor-pointer'
-                  title='グループを削除'
-                  aria-label='グループを削除'
+                  title='すべてのタブを削除'
+                  aria-label='すべてのタブを削除'
                 >
                   <Trash size={14} />
                   <span className='lg:inline hidden'>すべて削除</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side='top' className='lg:hidden block'>
-                すべてのタブ削除
+                すべてのタブを削除
               </TooltipContent>
             </Tooltip>
 
