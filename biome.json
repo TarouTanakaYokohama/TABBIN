@@ -9,7 +9,12 @@
     "enabled": true,
     "ignore": [".output", ".wxt", "wxt.config.ts", "node_modules"],
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "nursery": { "useSortedClasses": "warn" },
+      "correctness": {
+        "noUnusedImports": "warn",
+        "noUnusedVariables": "warn"
+      }
     }
   },
   "formatter": {
@@ -39,5 +44,10 @@
       "indentWidth": 2,
       "lineWidth": 80
     }
+  },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
   }
 }

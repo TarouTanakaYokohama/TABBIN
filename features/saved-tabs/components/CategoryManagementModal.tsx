@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -16,13 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import type { ParentCategory } from '@/utils/storage'
-import { Edit, Plus, Save, Trash2, X } from 'lucide-react'
+import { Edit, Plus, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod' // zodをインポート
@@ -544,7 +538,7 @@ export const CategoryManagementModal = ({
             </div>
 
             {isRenaming ? (
-              <div className='mt-2 p-3 border rounded'>
+              <div className='mt-2 p-3 border rounded w-full'>
                 <div className='text-gray-300 mb-2 text-sm'>
                   「{localCategoryName}」の新しい親カテゴリ名を入力してください
                 </div>
@@ -553,7 +547,7 @@ export const CategoryManagementModal = ({
                   value={newCategoryName}
                   onChange={handleCategoryNameChange}
                   placeholder='新しいカテゴリ名 (25文字以内)'
-                  className={`w-full p-2 border rounded ${categoryNameError ? 'border-red-500' : ''}`}
+                  className={`w-full p-2 border rounded flex-1 ${categoryNameError ? 'border-red-500' : ''}`}
                   autoFocus
                   onBlur={() => {
                     if (isProcessing) {
@@ -591,7 +585,7 @@ export const CategoryManagementModal = ({
               <button
                 type='button'
                 onClick={handleStartRenaming}
-                className='p-2 border rounded bg-secondary/20 cursor-pointer'
+                className='flex p-2 w-full justify-start border rounded bg-secondary/20 cursor-pointer'
               >
                 {localCategoryName}
               </button>
@@ -625,6 +619,7 @@ export const CategoryManagementModal = ({
                   onClick={handleDeleteCategory}
                   disabled={isProcessing}
                 >
+                  <Trash2 size={14} />
                   削除
                 </Button>
               </div>

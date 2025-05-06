@@ -2,19 +2,10 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import type { CategoryKeywordModalProps } from '@/types/saved-tabs'
-import type {
-  ParentCategory,
-  SubCategoryKeyword,
-  TabGroup,
-} from '@/utils/storage'
-
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -22,7 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Edit, Settings, Trash, X } from 'lucide-react'
+import type { CategoryKeywordModalProps } from '@/types/saved-tabs'
+import type { ParentCategory, TabGroup } from '@/utils/storage'
+import { Edit, Trash, Trash2, X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -821,7 +814,7 @@ export const CategoryKeywordModal = ({
                           title='選択中の子カテゴリを削除'
                           disabled={!activeCategory}
                         >
-                          <Trash size={14} />
+                          <Trash2 size={14} />
                           <span className='lg:inline hidden'>
                             選択中の子カテゴリを削除
                           </span>
@@ -840,7 +833,7 @@ export const CategoryKeywordModal = ({
                     <div className='text-gray-300 mb-2 text-sm'>
                       「{activeCategory}」の新しい名前を入力してください
                       <br />
-                      <span className='text-xs text-gray-400 ml-2'>
+                      <span className='text-xs text-gray-400'>
                         入力後、フォーカスを外すかEnterキーで保存されます。キャンセルするにはEscを押してください
                       </span>
                     </div>
@@ -896,7 +889,7 @@ export const CategoryKeywordModal = ({
                         className='flex items-center gap-1 cursor-pointer'
                       >
                         <Trash size={14} />
-                        <span className='lg:inline hidden'>削除する</span>
+                        <span className='lg:inline hidden'>削除</span>
                       </Button>
                     </div>
                   </div>

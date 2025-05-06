@@ -39,7 +39,7 @@ export const ViewModeToggle = ({
 
   return (
     <Select value={currentMode} onValueChange={onChange}>
-      <SelectTrigger className='flex items-center gap-2'>
+      <SelectTrigger className='flex items-center gap-2 h-9'>
         <SelectValue placeholder='表示モード'>
           {renderSelectedValue()}
         </SelectValue>
