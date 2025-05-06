@@ -51,8 +51,9 @@ import {
   Settings,
   Trash,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { useSortOrder } from '../hooks/useSortOrder'
 import { SortableDomainCard } from './SortableDomainCard'
 
 // カテゴリグループコンポーネント
@@ -76,18 +77,13 @@ export const CategoryGroup = ({
   const [isDraggingDomains, setIsDraggingDomains] = useState(false)
   // Track global drag state
   const [isDraggingGlobal, setIsDraggingGlobal] = useState<boolean>(false)
-  // ドメインの状態を追加
+  // ドメインの状態とソート順を共通フックで管理
   const [localDomains, setLocalDomains] = useState<TabGroup[]>(domains)
-  const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>(
-    'default',
-  )
-  const sortedDomains = useMemo(() => {
-    if (sortOrder === 'default') return localDomains
-    const arr = [...localDomains]
-    arr.sort((a, b) => a.domain.localeCompare(b.domain))
-    if (sortOrder === 'desc') arr.reverse()
-    return arr
-  }, [localDomains, sortOrder])
+  const {
+    sortOrder,
+    setSortOrder,
+    sortedItems: sortedDomains,
+  } = useSortOrder(localDomains, d => d.domain)
 
   // カテゴリ名が更新されたときの処理
   const handleCategoryUpdate = async (categoryId: string, newName: string) => {

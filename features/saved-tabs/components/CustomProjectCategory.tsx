@@ -15,7 +15,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import type { CustomProject, UserSettings } from '@/utils/storage'
 import { useDroppable } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -35,34 +34,8 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CustomProjectCategoryProps } from '../types/CustomProjectCategory.types'
 import { ProjectUrlItem } from './ProjectUrlItem'
-
-export interface CustomProjectCategoryProps {
-  projectId: string
-  category: string
-  urls: CustomProject['urls']
-  handleOpenUrl: (url: string) => void
-  handleDeleteUrl: (projectId: string, url: string) => void
-  handleDeleteCategory?: (projectId: string, category: string) => void
-  handleSetUrlCategory: (
-    projectId: string,
-    url: string,
-    category?: string,
-  ) => void
-  handleAddCategory: (projectId: string, category: string) => void
-  settings: UserSettings
-  handleOpenAllUrls?: (urls: { url: string; title: string }[]) => void
-  dragData?: { type: string }
-  isHighlighted?: boolean
-  isDraggingCategory?: boolean
-  draggedCategoryName?: string | null
-  isCategoryReorder?: boolean
-  handleRenameCategory?: (
-    projectId: string,
-    oldCategoryName: string,
-    newCategoryName: string,
-  ) => void
-}
 
 export const CustomProjectCategory = ({
   projectId,
