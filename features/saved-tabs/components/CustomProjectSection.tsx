@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { CustomProject } from '@/utils/storage'
-import type { UserSettings } from '@/utils/storage'
 // DnDのインポートを追加
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core'
 import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
@@ -22,49 +21,7 @@ import {
 import { useState } from 'react'
 import { CustomProjectCard } from './CustomProjectCard'
 
-interface CustomProjectSectionProps {
-  projects: CustomProject[]
-  handleOpenUrl: (url: string) => void
-  handleDeleteUrl: (projectId: string, url: string) => void
-  handleAddUrl: (
-    projectId: string,
-    url: string,
-    title: string,
-    category?: string,
-  ) => void
-  handleCreateProject: (name: string, description?: string) => void
-  handleDeleteProject: (projectId: string) => void
-  handleRenameProject: (projectId: string, newName: string) => void
-  handleAddCategory: (projectId: string, categoryName: string) => void
-  handleDeleteCategory: (projectId: string, categoryName: string) => void
-  handleRenameCategory?: (
-    projectId: string,
-    oldCategoryName: string,
-    newCategoryName: string,
-  ) => void
-  handleSetUrlCategory: (
-    projectId: string,
-    url: string,
-    category?: string,
-  ) => void
-  handleUpdateCategoryOrder: (projectId: string, newOrder: string[]) => void
-  handleReorderUrls: (projectId: string, urls: CustomProject['urls']) => void
-  handleReorderProjects?: (projectIds: string[]) => void // 追加: プロジェクト順序の更新ハンドラ
-  handleOpenAllUrls?: (urls: { url: string; title: string }[]) => void
-  // プロジェクト間のURL移動処理を追加
-  handleMoveUrlBetweenProjects?: (
-    sourceProjectId: string,
-    targetProjectId: string,
-    url: string,
-  ) => void
-  // カテゴリ間のURL移動処理を追加
-  handleMoveUrlsBetweenCategories?: (
-    projectId: string,
-    sourceCategoryName: string,
-    targetCategoryName: string,
-  ) => void
-  settings: UserSettings
-}
+import type { CustomProjectSectionProps } from '../types/CustomProjectSection.types'
 
 export const CustomProjectSection = ({
   projects,

@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card'
-import type { CustomProject, UserSettings } from '@/utils/storage'
 import { useEffect, useState } from 'react'
+import { useCategoryDnD } from '../hooks/useCategoryDnD'
+import type { CustomProjectCardProps } from '../types/CustomProjectCard.types'
 import { CustomProjectCategory } from './CustomProjectCategory'
 import { ProjectUrlItem } from './ProjectUrlItem'
 
@@ -17,13 +18,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type {
-  Active,
-  CollisionDetection,
-  DragEndEvent,
-  DragOverEvent,
-  DragStartEvent,
-} from '@dnd-kit/core'
+import type { CollisionDetection, DragEndEvent } from '@dnd-kit/core'
 import {
   SortableContext,
   arrayMove,
@@ -32,53 +27,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { toast } from 'sonner'
 
-interface CustomProjectCardProps {
-  project: CustomProject
-  handleOpenUrl: (url: string) => void
-  handleDeleteUrl: (projectId: string, url: string) => void
-  handleAddUrl: (
-    projectId: string,
-    url: string,
-    title: string,
-    category?: string,
-  ) => void
-  handleDeleteProject: (projectId: string) => void
-  handleRenameProject: (projectId: string, newName: string) => void
-  handleAddCategory: (projectId: string, categoryName: string) => void
-  handleDeleteCategory: (projectId: string, categoryName: string) => void
-  handleSetUrlCategory: (
-    projectId: string,
-    url: string,
-    category?: string,
-  ) => void
-  handleUpdateCategoryOrder: (projectId: string, newOrder: string[]) => void
-  handleReorderUrls: (projectId: string, urls: CustomProject['urls']) => void
-  handleOpenAllUrls?: (urls: { url: string; title: string }[]) => void
-  settings: UserSettings
-  // 追加: ドラッグ中のアイテム情報
-  draggedItem?: { url: string; projectId: string; title: string } | null
-  // カテゴリ間のURL移動処理を追加
-  handleMoveUrlsBetweenCategories?: (
-    projectId: string,
-    sourceCategoryName: string,
-    targetCategoryName: string,
-  ) => void
-  // ドロップターゲットであるかのフラグを追加
-  isDropTarget?: boolean
-  // プロジェクト間のURL移動処理を追加
-  handleMoveUrlBetweenProjects?: (
-    sourceProjectId: string,
-    targetProjectId: string,
-    url: string,
-  ) => void
-  handleRenameCategory?: (
-    projectId: string,
-    oldCategoryName: string,
-    newCategoryName: string,
-  ) => void
-}
+import { toast } from 'sonner'
 
 export const CustomProjectCard = ({
   project,
@@ -127,14 +77,19 @@ export const CustomProjectCard = ({
   const [newName, setNewName] = useState(project.name)
   const [isAddingCategory, setIsAddingCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
-  const [activeId, setActiveId] = useState<Active | null>(null)
-  const [draggedOverCategory, setDraggedOverCategory] = useState<string | null>(
-    null,
-  )
-  const [isDraggingCategory, setIsDraggingCategory] = useState(false)
-  const [draggedCategoryName, setDraggedCategoryName] = useState<string | null>(
-    null,
-  )
+
+  // DnD状態管理をカスタムフックで共通化
+  const {
+    isDraggingCategory,
+    draggedCategoryName,
+    activeId,
+    draggedOverCategory,
+    setDraggedOverCategory,
+    setActiveId,
+    handleDragStart,
+    handleDragOver,
+    resetDnD,
+  } = useCategoryDnD()
 
   // このプロジェクトをドロップターゲットとして設定
   const { setNodeRef: setProjectDroppableRef, isOver: isProjectOver } =
@@ -240,111 +195,6 @@ export const CustomProjectCard = ({
       handleAddCategory(project.id, newCategoryName.trim())
       setNewCategoryName('')
       setIsAddingCategory(false)
-    }
-  }
-
-  // URLアイテムのドラッグ開始時
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active)
-    setDraggedOverCategory(null)
-
-    // ドラッグしているのがカテゴリかどうかを判定
-    const itemType = event.active.data.current?.type
-    const itemId = event.active.id
-    console.log(`ドラッグ開始: ${itemId}, タイプ: ${itemType}`)
-
-    if (itemType === 'category') {
-      setIsDraggingCategory(true)
-      setDraggedCategoryName(String(itemId))
-      console.log(`カテゴリ "${itemId}" のドラッグを開始`)
-    } else {
-      setIsDraggingCategory(false)
-      setDraggedCategoryName(null)
-    }
-  }
-
-  // URLアイテムのドラッグ中
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event
-
-    // 実際のURL（プレフィックスなし）を取得
-    const actualUrl = active.data.current?.url || String(active.id)
-    const dragSourceProjectId = active.data.current?.projectId as string
-    const dragSourceCategory = active.data.current?.category
-
-    console.log('ドラッグ中:', {
-      activeId: active.id,
-      activeUrl: actualUrl,
-      activeType: active.data.current?.type,
-      activeProjectId: dragSourceProjectId,
-      activeCategory: dragSourceCategory,
-      overId: over?.id,
-      overType: over?.data?.current?.type,
-      currentProjectId: project.id,
-      overData: over?.data?.current || 'データなし',
-    })
-
-    // 未分類エリアへのドラッグを検出 - より強化した条件
-    const isOverUncategorized =
-      over?.id === `uncategorized-${project.id}` ||
-      (typeof over?.id === 'string' &&
-        String(over.id).includes('uncategorized')) ||
-      over?.data?.current?.type === 'uncategorized'
-
-    // 未分類エリアが検出されたらコンソールに詳細出力
-    if (isOverUncategorized) {
-      console.log('未分類エリアの上でドラッグ中', over?.id, over?.data?.current)
-      setDraggedOverCategory(null)
-      return
-    }
-
-    if (over?.data?.current) {
-      console.log('ドロップターゲットのデータ:', over.data.current)
-
-      // 未分類エリアへのドラッグの場合もハイライトを解除
-      if (over.data.current.type === 'uncategorized') {
-        console.log('未分類エリアの上でドラッグ中')
-        setDraggedOverCategory(null)
-        return
-      }
-
-      // カテゴリへのドラッグ判定を改善 - より多くの条件で判定
-      const isCategory =
-        over.data.current.type === 'category' ||
-        over.data.current.isCategory === true ||
-        over.data.current.isDropArea === true ||
-        (typeof over.id === 'string' &&
-          (String(over.id).startsWith('category-drop-') ||
-            String(over.id).includes('category'))) ||
-        // データ属性から判定
-        (over.data.current.categoryName && !over.data.current.url) ||
-        // 親要素を確認してカテゴリかどうかを判断
-        over.data.current.parent?.type === 'category'
-
-      if (isCategory) {
-        // カテゴリ名を取得 (より確実に)
-        let categoryName = over.data.current.categoryName
-
-        if (!categoryName && typeof over.id === 'string') {
-          const parts = String(over.id).split('-')
-          if (parts.length >= 4) {
-            // 最後の部分がカテゴリ名
-            categoryName = parts.slice(3).join('-')
-          }
-        }
-
-        if (categoryName) {
-          console.log(
-            `"${categoryName}" カテゴリの上でドラッグ中 (ID: ${over.id})`,
-          )
-          setDraggedOverCategory(categoryName)
-          return
-        }
-      }
-
-      setDraggedOverCategory(null)
-    } else {
-      setDraggedOverCategory(null)
     }
   }
 
@@ -520,7 +370,6 @@ export const CustomProjectCard = ({
   // カテゴリのドラッグ&ドロップ処理（カテゴリの順序変更のみに修正）
   const handleCategoryDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
-
     console.log('カテゴリドラッグ終了:', {
       activeId: active.id,
       activeType: active.data.current?.type,
@@ -528,48 +377,27 @@ export const CustomProjectCard = ({
       overType: over?.data?.current?.type,
       isDraggingCategory,
     })
-
-    setIsDraggingCategory(false)
-    setActiveId(null)
-
-    if (!over) {
-      setDraggedCategoryName(null)
-      return
-    }
-
-    // カテゴリをドラッグしていた場合
+    resetDnD()
+    if (!over) return
     if (isDraggingCategory && draggedCategoryName) {
-      const sourceCategoryName = draggedCategoryName
-
-      // 別のカテゴリ上にドロップされた場合も、単にカテゴリの順序を変更
       if (active.id !== over.id) {
-        console.log(
-          `カテゴリの順序を変更: ${active.id} を ${over.id} の位置に移動`,
-        )
-
-        // カテゴリの順序を変更
         const oldIndex =
           project.categoryOrder?.indexOf(active.id as string) ??
           project.categories.indexOf(active.id as string)
-
         const newIndex =
           project.categoryOrder?.indexOf(over.id as string) ??
           project.categories.indexOf(over.id as string)
-
         if (oldIndex !== -1 && newIndex !== -1) {
           const newOrder = arrayMove(
             project.categoryOrder || project.categories,
             oldIndex,
             newIndex,
           )
-
           handleUpdateCategoryOrder(project.id, newOrder)
           toast.success('カテゴリの順序を変更しました')
         }
       }
     }
-
-    setDraggedCategoryName(null)
   }
 
   // カテゴリに属さないURL
@@ -631,7 +459,7 @@ export const CustomProjectCard = ({
           sensors={sensors}
           collisionDetection={collisionDetectionStrategy}
           onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
+          onDragOver={event => handleDragOver(event, project)}
           onDragEnd={
             isDraggingCategory ? handleCategoryDragEnd : handleUrlDragEnd
           }
@@ -811,25 +639,5 @@ export const CustomProjectCard = ({
   )
 }
 
-// 要素が未分類エリア内にあるかを判定
-function isElementInUncategorizedArea(element: HTMLElement): boolean {
-  let currentElement = element
-  const maxDepth = 10 // 無限ループを避けるための最大探索深度
-
-  for (let i = 0; i < maxDepth && currentElement; i++) {
-    if (
-      currentElement.getAttribute('data-uncategorized-area') === 'true' ||
-      currentElement.getAttribute('data-type') === 'uncategorized' ||
-      currentElement.id?.includes('uncategorized') ||
-      currentElement.classList.contains('uncategorized-area')
-    ) {
-      return true
-    }
-
-    // 親要素に遡る
-    currentElement = currentElement.parentElement as HTMLElement
-    if (!currentElement) break
-  }
-
-  return false
-}
+// ユーティリティ関数として分離
+// import { isElementInUncategorizedArea } from '../utils/isElementInUncategorizedArea'
