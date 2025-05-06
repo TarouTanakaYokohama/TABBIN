@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/tooltip'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import { safelyUpdateGroupUrls } from '@/utils/tab-operations'
+import { useDndMonitor } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
@@ -19,7 +20,7 @@ import {
   GripVertical,
   Trash,
 } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CategorySection } from './TimeRemaining'
 
 // 並び替え可能なカテゴリセクションコンポーネント
@@ -113,6 +114,25 @@ export const SortableCategorySection = ({
   )
 
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isDraggingGlobal, setIsDraggingGlobal] = useState(false)
+  useDndMonitor({
+    onDragStart: () => {
+      setIsDraggingGlobal(true)
+    },
+    onDragEnd: () => {
+      setIsDraggingGlobal(false)
+      setIsCollapsed(false)
+    },
+    onDragCancel: () => {
+      setIsDraggingGlobal(false)
+      setIsCollapsed(false)
+    },
+  })
+  useEffect(() => {
+    if (isDraggingGlobal) {
+      setIsCollapsed(true)
+    }
+  }, [isDraggingGlobal])
 
   return (
     <div>
