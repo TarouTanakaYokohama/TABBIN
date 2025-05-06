@@ -123,7 +123,10 @@ const SavedTabs = () => {
         }
 
         // データ読み込み
-        const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+        const storageResult = await chrome.storage.local.get('savedTabs')
+        const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
+          ? storageResult.savedTabs
+          : []
         console.log('読み込まれたタブ:', savedTabs)
         setTabGroups(savedTabs)
 
@@ -189,7 +192,10 @@ const SavedTabs = () => {
         console.log('ドメインモードのデータをカスタムプロジェクトと同期します')
 
         // 最新のタブグループを取得
-        const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+        const storageResult = await chrome.storage.local.get('savedTabs')
+        const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
+          ? storageResult.savedTabs
+          : []
         console.log(`同期元のドメインモードタブグループ数: ${savedTabs.length}`)
 
         // 最新のカスタムプロジェクトを取得
@@ -1315,7 +1321,11 @@ const SavedTabs = () => {
 
       // savedTabsの変更を検出した場合
       if (changes.savedTabs) {
-        setTabGroups(changes.savedTabs.newValue || [])
+        const storageResult = await chrome.storage.local.get('savedTabs')
+        const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
+          ? storageResult.savedTabs
+          : []
+        setTabGroups(savedTabs)
 
         // ドメインモードで変更があった場合、カスタムプロジェクトも同期更新
         await syncDomainDataToCustomProjects()
