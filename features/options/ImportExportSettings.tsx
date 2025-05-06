@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import {
-  BackupData,
   downloadAsJson,
   exportSettings,
   importSettings,

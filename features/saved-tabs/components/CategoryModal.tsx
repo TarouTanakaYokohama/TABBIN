@@ -1,20 +1,8 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -28,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Trash2 } from 'lucide-react'
+import { Trash, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod' // zodをインポート
@@ -562,8 +550,8 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                         disabled={isLoading}
                         className='flex items-center gap-1'
                       >
-                        <Trash2 size={14} />
-                        削除する
+                        <Trash size={14} />
+                        削除
                       </Button>
                     </div>
                   </div>

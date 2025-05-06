@@ -184,18 +184,18 @@ export const SortableUrlItem = ({
       data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
     >
       <div
-        className='text-muted-foreground/40 cursor-grab hover:cursor-grab active:cursor-grabbing mr-2 z-10 flex-shrink-0'
+        className='text-muted-foreground/40 cursor-grab hover:cursor-grab active:cursor-grabbing pr-2 z-10 flex-shrink-0'
         {...attributes}
         {...listeners}
       >
         <GripVertical size={16} aria-hidden='true' />
       </div>
-      <div className='flex-1 relative min-w-0'>
+      <div className='flex-1 relative'>
         <Button
           asChild
           variant='ghost'
           size='sm'
-          className='text-foreground hover:text-foreground hover:underline cursor-pointer text-left w-full bg-transparent border-0 flex items-center gap-1 h-full justify-start px-0 pr-8 overflow-hidden'
+          className='text-foreground hover:text-foreground cursor-pointer flex items-center gap-1 py-2 overflow-hidden'
         >
           <a
             href={url as string}

@@ -1,4 +1,3 @@
-import type { DragEndEvent } from '@dnd-kit/core'
 import type { ParentCategory, TabGroup, UserSettings } from '../utils/storage'
 
 // カテゴリグループコンポーネント

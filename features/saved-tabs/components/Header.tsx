@@ -12,7 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Plus, Settings, Sliders, Wrench } from 'lucide-react'
+import { Plus, Wrench } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { CustomProject, TabGroup, ViewMode } from '../../../utils/storage'
@@ -46,17 +46,20 @@ export const Header = ({
   const [newCategoryName, setNewCategoryName] = useState('')
 
   return (
-    <div className='flex justify-between items-center mb-4'>
-      <div className='flex items-center gap-4'>
-        <h1 className='text-3xl font-bold text-foreground'>TABBIN</h1>
+    <div className='flex items-center mb-4 gap-4'>
+      <div className='flex items-center gap-4 flex-1'>
+        <h1 className='text-3xl font-bold text-foreground whitespace-nowrap'>
+          TABBIN
+        </h1>
         <Input
           type='text'
           placeholder='検索'
           value={searchQuery}
           onChange={e => onSearchChange(e.target.value)}
+          className='h-9 w-full'
         />
       </div>
-      <div className='flex items-center gap-1'>
+      <div className='flex items-center gap-1 whitespace-nowrap flex-shrink-0'>
         {currentMode === 'domain' && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -64,7 +67,7 @@ export const Header = ({
                 variant='outline'
                 size='sm'
                 onClick={() => setIsModalOpen(true)}
-                className='flex items-center gap-2 cursor-pointer'
+                className='flex items-center gap-2 cursor-pointer h-9'
                 title='親カテゴリ管理'
               >
                 <Plus size={16} />
@@ -83,7 +86,7 @@ export const Header = ({
                 variant='outline'
                 size='sm'
                 onClick={() => setIsCustomCategoryModalOpen(true)}
-                className='flex items-center gap-2 cursor-pointer'
+                className='flex items-center gap-2 cursor-pointer h-9'
                 title='カテゴリ追加'
               >
                 <Plus size={16} />
@@ -102,7 +105,7 @@ export const Header = ({
               variant='outline'
               size='sm'
               onClick={() => chrome.runtime.openOptionsPage()}
-              className='flex items-center gap-2 cursor-pointer'
+              className='flex items-center gap-2 cursor-pointer h-9'
               title='設定'
             >
               <Wrench size={16} />

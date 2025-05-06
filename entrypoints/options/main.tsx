@@ -1,14 +1,6 @@
 import '@/assets/global.css'
 // lucide-reactからアイコンをインポート - AlertTriangleを追加
-import {
-  AlertTriangle,
-  Check,
-  Edit,
-  Plus,
-  RotateCcw,
-  Trash,
-  X,
-} from 'lucide-react'
+import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod'
@@ -23,7 +15,6 @@ import {
   defaultSettings,
   getParentCategories,
   saveParentCategories,
-  setCategoryKeywords,
 } from '../../utils/storage'
 
 // UIコンポーネントのインポート
@@ -41,17 +32,11 @@ import {
 } from '@/components/ui/select'
 import { Toaster } from '@/components/ui/sonner'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 // トースト通知用のインポート
 import { toast } from 'sonner'
 
 import { ThemeProvider } from '@/components/theme-provider'
 import { ImportExportSettings } from '@/features/options/ImportExportSettings'
-import { SubCategoryKeywordManager } from '@/features/options/SubCategoryKeywordManager'
 import { isPeriodShortening } from '@/utils/isPeriodShortening'
 
 // Zodによるカテゴリ名のバリデーションスキーマを定義

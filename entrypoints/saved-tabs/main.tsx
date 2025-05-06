@@ -35,7 +35,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 // lucide-reactからのアイコンインポート
-import { Plus, Settings } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 import { ThemeProvider } from '@/components/theme-provider'
 // UIコンポーネントのインポート
@@ -59,7 +59,6 @@ import { CategoryGroup } from '@/features/saved-tabs/components/CategoryGroup'
 import { CustomProjectSection } from '@/features/saved-tabs/components/CustomProjectSection'
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
 import { SortableDomainCard } from '@/features/saved-tabs/components/SortableDomainCard'
-import { ViewModeToggle } from '@/features/saved-tabs/components/ViewModeToggle'
 import {
   type CustomProject,
   type ViewMode,
