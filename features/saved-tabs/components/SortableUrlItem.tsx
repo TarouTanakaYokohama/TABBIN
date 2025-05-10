@@ -190,12 +190,12 @@ export const SortableUrlItem = ({
       >
         <GripVertical size={16} aria-hidden='true' />
       </div>
-      <div className='flex-1 relative'>
+      <div className='flex-1 relative min-w-0'>
         <Button
           asChild
           variant='ghost'
           size='sm'
-          className='text-foreground hover:text-foreground cursor-pointer flex items-center gap-1 py-2 overflow-hidden'
+          className='text-foreground hover:text-foreground cursor-pointer bg-transparent flex items-center gap-1 h-full justify-start px-1 pr-8 py-2 overflow-hidden'
         >
           <a
             href={url as string}
@@ -240,8 +240,8 @@ export const SortableUrlItem = ({
             onClick={handleDeleteButtonClick}
             onMouseEnter={handleDeleteButtonMouseEnter}
             className='absolute right-0 top-0 bottom-0 my-auto flex-shrink-0 cursor-pointer'
-            title='URLを削除'
-            aria-label='URLを削除'
+            title='タブを削除'
+            aria-label='タブを削除'
           >
             <X size={14} />
           </Button>
