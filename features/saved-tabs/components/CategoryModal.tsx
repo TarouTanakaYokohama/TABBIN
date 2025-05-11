@@ -551,11 +551,11 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                         className='flex items-center gap-1'
                       >
                         <Trash size={14} />
-                        削除
+                        <span className='hidden lg:inline'>削除</span>
                       </Button>
                     </div>
                   </div>
-                )}{' '}
+                )}
               </div>
             )}
 

@@ -2,7 +2,6 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -164,35 +163,6 @@ export const Header = ({
               className='w-full mb-2'
               autoFocus
             />
-            {/* エラーメッセージは toast で表示 */}
-            <DialogFooter>
-              <Button
-                variant='ghost'
-                onClick={() => setIsCustomCategoryModalOpen(false)}
-              >
-                キャンセル
-              </Button>
-              <Button
-                onClick={() => {
-                  if (customProjects.length === 0) return
-                  const name = newCategoryName.trim()
-                  if (!name) {
-                    toast.error('カテゴリ名を入力してください')
-                    return
-                  }
-                  if (customProjects[0].categories.includes(name)) {
-                    toast.error('同じカテゴリ名は追加できません')
-                    return
-                  }
-                  onAddCategory(customProjects[0].id, name)
-                  toast.success(`カテゴリ「${name}」を追加しました`)
-                  setNewCategoryName('')
-                  setIsCustomCategoryModalOpen(false)
-                }}
-              >
-                追加
-              </Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { ParentCategory } from '@/utils/storage'
-import { Edit, Plus, Trash2, X } from 'lucide-react'
+import { Edit, Plus, Trash, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod' // zodをインポート
@@ -518,20 +518,20 @@ export const CategoryManagementModal = ({
                     variant='secondary'
                     size='sm'
                     onClick={handleStartRenaming}
-                    className='px-2 py-1 rounded flex items-center gap-1 cursor-pointer'
+                    className='px-2 py-1 rounded flex items-center gap-2 cursor-pointer'
                   >
                     <Edit size={14} />
-                    <span className='ml-1'>親カテゴリ名を変更</span>
+                    <span className='hidden lg:inline'>親カテゴリ名を変更</span>
                   </Button>
                   <Button
                     variant='secondary'
                     size='sm'
                     onClick={() => setShowDeleteConfirm(true)}
-                    className='px-2 py-1 rounded flex items-center gap-1 cursor-pointer'
+                    className='px-2 py-1 rounded flex items-center gap-2 cursor-pointer'
                     disabled={isProcessing}
                   >
                     <Trash2 size={14} />
-                    <span className='ml-1'>親カテゴリを削除</span>
+                    <span className='hidden lg:inline'>親カテゴリを削除</span>
                   </Button>
                 </div>
               )}
@@ -619,8 +619,8 @@ export const CategoryManagementModal = ({
                   onClick={handleDeleteCategory}
                   disabled={isProcessing}
                 >
-                  <Trash2 size={14} />
-                  削除
+                  <Trash size={14} />
+                  <span className='hidden lg:inline'>削除</span>
                 </Button>
               </div>
             </div>
