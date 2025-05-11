@@ -136,32 +136,19 @@ const OptionsPage = () => {
 
   useEffect(() => {
     const loadData = async () => {
+      setIsLoading(true) // ローディング開始を明示
       try {
         const userSettings = await getUserSettings()
-        // テーマ設定を反映
-        if (
-          userSettings.colors &&
-          Object.keys(userSettings.colors).length > 0
-        ) {
-          chrome.storage.local.set({ 'tab-manager-theme': 'user' })
-        } else {
-          // ユーザーカラー設定がない場合、デフォルトカラーをCSSに適用
-          for (const { key } of colorOptions) {
-            document.documentElement.style.setProperty(
-              `--${key}`,
-              getDefaultColor(key),
-            )
-          }
-        }
         setSettings(userSettings)
 
         const categories = await getParentCategories()
         setParentCategories(categories)
 
-        const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-        setSavedTabs(savedTabs)
+        const storageData = await chrome.storage.local.get('savedTabs')
+        setSavedTabs(storageData.savedTabs || []) // savedTabs が存在しない場合は空配列
       } catch (error) {
         console.error('設定の読み込みエラー:', error)
+        setSettings(defaultSettings) // エラー時はデフォルト設定を適用
       } finally {
         setIsLoading(false)
       }
@@ -169,19 +156,37 @@ const OptionsPage = () => {
 
     loadData()
 
-    // ストレージが変更されたときに再読み込み
-    chrome.storage.onChanged.addListener(changes => {
-      if (changes.userSettings) {
-        setSettings(prev => ({ ...prev, ...changes.userSettings.newValue }))
+    const storageChangeListener = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: string,
+    ) => {
+      if (areaName === 'local') {
+        if (changes.userSettings) {
+          if (changes.userSettings.newValue) {
+            // newValue は完全な UserSettings オブジェクトであると期待
+            setSettings(changes.userSettings.newValue as UserSettings)
+          } else {
+            // userSettings がストレージから削除された場合 (newValue が undefined)
+            // デフォルト設定に戻す
+            setSettings(defaultSettings)
+          }
+        }
+        if (changes.parentCategories) {
+          setParentCategories(changes.parentCategories.newValue || [])
+        }
+        if (changes.savedTabs) {
+          setSavedTabs(changes.savedTabs.newValue || [])
+        }
       }
-      if (changes.parentCategories) {
-        setParentCategories(changes.parentCategories.newValue || [])
-      }
-      if (changes.savedTabs) {
-        setSavedTabs(changes.savedTabs.newValue || [])
-      }
-    })
-  }, [])
+    }
+
+    chrome.storage.onChanged.addListener(storageChangeListener)
+
+    // クリーンアップ関数
+    return () => {
+      chrome.storage.onChanged.removeListener(storageChangeListener)
+    }
+  }, []) // 依存配列が空なので、このeffectはマウント時とアンマウント時にのみ実行される
 
   const handleSaveSettings = async () => {
     try {
