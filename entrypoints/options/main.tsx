@@ -896,9 +896,6 @@ const OptionsPage = () => {
               </SelectContent>
             </Select>
           </div>
-          <p className='text-sm text-muted-foreground mt-2'>
-            拡張機能のアイコンをクリックした時の動作を設定します。
-          </p>
         </div>
 
         <div className='mb-4 flex items-center space-x-2'>
@@ -1204,7 +1201,7 @@ const OptionsPage = () => {
       <p className='mt-2 text-sm text-muted-foreground px-10'>
         Google Formsを使用します。
         <br />
-        ※画像アップロード可能な設定ですので、Googleアカウントでのログインが必要です
+        ※画像アップロード可能な設定ですので、Googleアカウントでのログインが必要です。
       </p>
       {/* リリースノートへのリンク */}
       <div className='text-center mt-8'>
