@@ -1,0 +1,19 @@
+name: 💬 Question / Discussion
+description: 質問・議論・雑談などはこちら
+labels: [question]
+body:
+  - type: textarea
+    id: topic
+    attributes:
+      label: 話題・質問内容
+      description: 話したい内容や聞きたいことを明確に書いてください。
+      placeholder: 〇〇の仕様について確認したい、△△の方針について議論したい など
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 背景・前提（任意）
+      description: 話題に関係する背景や状況があれば共有してください。
+      placeholder: 今〇〇のタスクをしていて、△△が必要になった など

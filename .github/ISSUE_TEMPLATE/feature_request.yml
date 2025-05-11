@@ -1,0 +1,28 @@
+name: ✨ Feature Request
+description: 新機能や改善提案を投稿します
+labels: [enhancement]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 概要
+      description: 提案する機能の要点を記述してください。
+      placeholder: 「〇〇の画面に△△の機能を追加して、□□を実現したい」
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: 背景・モチベーション
+      description: なぜその機能が必要なのか、どんな課題を解決したいのかを書いてください。
+      placeholder: 現在〇〇に時間がかかるため、△△機能で効率化したい
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 解決策の提案
+      description: 実装のイメージや参考になりそうな例があれば書いてください。
+      placeholder: 〇〇ライブラリの使用を想定しています
