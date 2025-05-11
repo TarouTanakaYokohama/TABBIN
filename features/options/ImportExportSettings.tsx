@@ -176,7 +176,7 @@ export const ImportExportSettings: React.FC = () => {
         <DialogContent className='sm:max-w-md'>
           <DialogHeader>
             <DialogTitle>設定とタブデータのインポート</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className='text-left'>
               以前にエクスポートしたバックアップファイルから設定とタブデータを復元します。
             </DialogDescription>
           </DialogHeader>
