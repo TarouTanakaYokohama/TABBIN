@@ -54,8 +54,14 @@ export default defineBackground(() => {
       chrome.tabs.create({ url: chrome.runtime.getURL('saved-tabs.html') })
       chrome.storage.local.set({ seenVersion: manifestVersion })
     } else if (details.reason === 'update') {
+      // バージョンアップ時に変更点を表示
       chrome.storage.local.get({ seenVersion: '' }, items => {
-        if (items.seenVersion !== manifestVersion) {
+        // バージョンを解析して比較
+        const [oldMajor, oldMinor] = items.seenVersion.split('.').map(Number)
+        const [newMajor, newMinor] = manifestVersion.split('.').map(Number)
+
+        // メジャーバージョンまたはマイナーバージョンが変更された場合のみ表示
+        if (oldMajor !== newMajor || oldMinor !== newMinor) {
           chrome.tabs.create({ url: chrome.runtime.getURL('changelog.html') })
           chrome.storage.local.set({ seenVersion: manifestVersion })
         }
