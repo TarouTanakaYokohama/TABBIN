@@ -34,6 +34,12 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { ImportExportSettings } from '@/features/options/ImportExportSettings'
 import { isPeriodShortening } from '@/utils/isPeriodShortening'
 
+import { autoDeleteOptions } from '@/constants/autoDeleteOptions'
+// 定数をインポート
+import { clickBehaviorOptions } from '@/constants/clickBehaviorOptions'
+import { colorOptions } from '@/constants/colorOptions'
+import { getDefaultColor } from '@/constants/defaultColors'
+
 // Zodによるカテゴリ名のバリデーションスキーマを定義
 const categoryNameSchema = z
   .string()
@@ -63,19 +69,7 @@ const OptionsPage = () => {
     pendingAction: '',
   })
 
-  // クリック挙動オプション定義
-  const clickBehaviorOptions = [
-    { value: 'saveCurrentTab', label: '現在のタブを保存' },
-    { value: 'saveWindowTabs', label: 'ウィンドウのすべてのタブを保存' },
-    {
-      value: 'saveSameDomainTabs',
-      label: '現在開いているドメインのタブをすべて保存',
-    },
-    {
-      value: 'saveAllWindowsTabs',
-      label: '他のウィンドウを含めすべてのタブを保存',
-    },
-  ]
+  // クリック挙動オプションは外部ファイルからインポート済み
 
   // クリック挙動設定変更ハンドラ
   const handleClickBehaviorChange = async (value: string) => {
@@ -381,17 +375,7 @@ const OptionsPage = () => {
     }
   }
 
-  // 自動削除期間の説明テキスト
-  const autoDeleteOptions = [
-    { value: 'never', label: '自動削除しない' },
-    { value: '1hour', label: '1時間' },
-    { value: '1day', label: '1日' },
-    { value: '7days', label: '7日' },
-    { value: '14days', label: '14日' },
-    { value: '30days', label: '30日' },
-    { value: '180days', label: '6ヶ月' },
-    { value: '365days', label: '1年' },
-  ]
+  // 自動削除期間の説明テキストは外部ファイルからインポート済み
 
   // 自動削除期間選択時の処理
   const handleAutoDeletePeriodChange = (value: string) => {
@@ -526,89 +510,6 @@ const OptionsPage = () => {
         <div className='text-foreground text-xl'>読み込み中...</div>
       </div>
     )
-  }
-
-  // 利用可能なカラー変数一覧
-  const colorOptions = [
-    { key: 'background', label: '背景' },
-    { key: 'foreground', label: 'テキスト' },
-    { key: 'card', label: 'カード背景' },
-    { key: 'card-foreground', label: 'カードテキスト' },
-    { key: 'popover', label: 'ポップオーバー' },
-    { key: 'popover-foreground', label: 'ポップオーバーテキスト' },
-    { key: 'primary', label: 'プライマリ背景' },
-    { key: 'primary-foreground', label: 'プライマリテキスト' },
-    { key: 'secondary', label: 'セカンダリ背景' },
-    { key: 'secondary-foreground', label: 'セカンダリテキスト' },
-    { key: 'muted', label: '控えめ背景' },
-    { key: 'muted-foreground', label: 'サブテキスト' },
-    { key: 'accent', label: 'アクセント背景' },
-    { key: 'accent-foreground', label: 'アクセントテキスト' },
-    { key: 'destructive', label: 'デストラクティブ背景' },
-    { key: 'destructive-foreground', label: 'デストラクティブテキスト' },
-    { key: 'border', label: 'ボーダー' },
-    { key: 'input', label: '入力背景' },
-    { key: 'ring', label: 'リング' },
-    { key: 'chart-1', label: 'チャート1' },
-    { key: 'chart-2', label: 'チャート2' },
-    { key: 'chart-3', label: 'チャート3' },
-    { key: 'chart-4', label: 'チャート4' },
-    { key: 'chart-5', label: 'チャート5' },
-    { key: 'sidebar', label: 'サイドバー背景' },
-    { key: 'sidebar-foreground', label: 'サイドバー テキスト' },
-    { key: 'sidebar-primary', label: 'サイドバー プライマリ背景' },
-    {
-      key: 'sidebar-primary-foreground',
-      label: 'サイドバー プライマリテキスト',
-    },
-    { key: 'sidebar-accent', label: 'サイドバー アクセント背景' },
-    {
-      key: 'sidebar-accent-foreground',
-      label: 'サイドバー アクセントテキスト',
-    },
-    { key: 'sidebar-border', label: 'サイドバー ボーダー' },
-    { key: 'sidebar-ring', label: 'サイドバー リング' },
-  ]
-
-  // デフォルトカラー値を取得する関数
-  const getDefaultColor = (key: string): string => {
-    // デフォルトカラー設定
-    const defaultColors: Record<string, string> = {
-      background: '#ffffff',
-      foreground: '#09090b',
-      card: '#ffffff',
-      'card-foreground': '#09090b',
-      popover: '#ffffff',
-      'popover-foreground': '#09090b',
-      primary: '#0ea5e9',
-      'primary-foreground': '#ffffff',
-      secondary: '#f1f5f9',
-      'secondary-foreground': '#0f172a',
-      muted: '#f1f5f9',
-      'muted-foreground': '#64748b',
-      accent: '#f1f5f9',
-      'accent-foreground': '#0f172a',
-      destructive: '#ef4444',
-      'destructive-foreground': '#ffffff',
-      border: '#e2e8f0',
-      input: '#e2e8f0',
-      ring: '#0ea5e9',
-      'chart-1': '#0ea5e9',
-      'chart-2': '#10b981',
-      'chart-3': '#f59e0b',
-      'chart-4': '#ef4444',
-      'chart-5': '#8b5cf6',
-      sidebar: '#f8fafc',
-      'sidebar-foreground': '#0f172a',
-      'sidebar-primary': '#0ea5e9',
-      'sidebar-primary-foreground': '#ffffff',
-      'sidebar-accent': '#f1f5f9',
-      'sidebar-accent-foreground': '#0f172a',
-      'sidebar-border': '#e2e8f0',
-      'sidebar-ring': '#0ea5e9',
-    }
-
-    return defaultColors[key] || '#ffffff'
   }
 
   return (
