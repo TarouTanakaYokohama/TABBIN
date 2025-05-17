@@ -1,16 +1,8 @@
 import '@/assets/global.css'
 // lucide-reactからアイコンをインポート - AlertTriangleを追加
 import { AlertTriangle, RotateCcw } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { z } from 'zod'
-import { getUserSettings, saveUserSettings } from '../../utils/storage'
-import type { ParentCategory, UserSettings } from '../../utils/storage'
-import {
-  createParentCategory,
-  defaultSettings,
-  getParentCategories,
-} from '../../utils/storage'
+import type { UserSettings } from '../../utils/storage'
 
 // UIコンポーネントのインポート
 import { Button } from '@/components/ui/button'
@@ -27,12 +19,9 @@ import {
 } from '@/components/ui/select'
 import { Toaster } from '@/components/ui/sonner'
 import { Textarea } from '@/components/ui/textarea'
-// トースト通知用のインポート
-import { toast } from 'sonner'
 
 import { ThemeProvider } from '@/components/theme-provider'
 import { ImportExportSettings } from '@/features/options/ImportExportSettings'
-import { isPeriodShortening } from '@/utils/isPeriodShortening'
 
 import { autoDeleteOptions } from '@/constants/autoDeleteOptions'
 // 定数をインポート
@@ -40,322 +29,84 @@ import { clickBehaviorOptions } from '@/constants/clickBehaviorOptions'
 import { colorOptions } from '@/constants/colorOptions'
 import { getDefaultColor } from '@/constants/defaultColors'
 
-// Zodによるカテゴリ名のバリデーションスキーマを定義
-const categoryNameSchema = z
-  .string()
-  .max(25, 'カテゴリ名は25文字以下にしてください')
+// Hooksのインポート
+import {
+  useAutoDeletePeriod,
+  useCategories,
+  useColorSettings,
+  useSettings,
+} from '@/features/options/hooks'
 
 const OptionsPage = () => {
-  const [settings, setSettings] = useState<UserSettings>(defaultSettings)
-  const [isLoading, setIsLoading] = useState(true)
-  const [parentCategories, setParentCategories] = useState<ParentCategory[]>([])
-  const [newCategoryName, setNewCategoryName] = useState('')
-  const [categoryError, setCategoryError] = useState<string | null>(null) // エラーメッセージ用の状態変数
-  // 保留中の自動削除期間設定用の状態変数を修正 - 初期値をnullからundefinedに変更
-  const [pendingAutoDeletePeriod, setPendingAutoDeletePeriod] = useState<
-    string | undefined
-  >(undefined)
+  // カスタムhooksを使用
+  const {
+    settings,
+    setSettings,
+    isLoading,
+    updateSetting,
+    handleExcludePatternsChange,
+    handleExcludePatternsBlur,
+  } = useSettings()
 
-  // 確認ステップの状態を追加
-  const [confirmationState, setConfirmationState] = useState<{
-    isVisible: boolean
-    message: string
-    onConfirm: () => void
-    pendingAction: string
-  }>({
-    isVisible: false,
-    message: '',
-    onConfirm: () => {},
-    pendingAction: '',
-  })
+  // 色設定hooks
+  const { handleColorChange, handleResetColors } = useColorSettings(
+    settings,
+    setSettings,
+  )
 
-  // クリック挙動オプションは外部ファイルからインポート済み
+  // カテゴリ管理hooks
+  const { handleCategoryKeyDown } = useCategories()
+
+  // 自動削除期間管理hooks
+  const {
+    pendingAutoDeletePeriod,
+    confirmationState,
+    hideConfirmation,
+    handleAutoDeletePeriodChange,
+    prepareAutoDeletePeriod,
+  } = useAutoDeletePeriod(settings, setSettings)
 
   // クリック挙動設定変更ハンドラ
   const handleClickBehaviorChange = async (value: string) => {
-    try {
-      const newSettings = {
-        ...settings,
-        clickBehavior: value as UserSettings['clickBehavior'],
-      }
-
-      // 状態を更新
-      setSettings(newSettings)
-
-      // 設定を保存
-      await saveUserSettings(newSettings)
-    } catch (error) {
-      console.error('クリック挙動設定の保存エラー:', error)
-    }
+    await updateSetting('clickBehavior', value as UserSettings['clickBehavior'])
   }
 
-  // 固定タブ除外設定の切り替えハンドラを追加
-  const handleToggleExcludePinnedTabs = async (checked: boolean) => {
-    try {
-      // 新しい設定を作成
-      const newSettings = {
-        ...settings,
-        excludePinnedTabs: checked,
-      }
-
-      // 状態を更新
-      setSettings(newSettings)
-
-      // 保存
-      await saveUserSettings(newSettings)
-    } catch (error) {
-      console.error('固定タブ除外設定の保存エラー:', error)
-    }
-  }
-
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true) // ローディング開始を明示
-      try {
-        const userSettings = await getUserSettings()
-        setSettings(userSettings)
-
-        const categories = await getParentCategories()
-        setParentCategories(categories)
-      } catch (error) {
-        console.error('設定の読み込みエラー:', error)
-        setSettings(defaultSettings) // エラー時はデフォルト設定を適用
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadData()
-
-    const storageChangeListener = (
-      changes: { [key: string]: chrome.storage.StorageChange },
-      areaName: string,
-    ) => {
-      if (areaName === 'local') {
-        if (changes.userSettings) {
-          if (changes.userSettings.newValue) {
-            // newValue は完全な UserSettings オブジェクトであると期待
-            setSettings(changes.userSettings.newValue as UserSettings)
-          } else {
-            // userSettings がストレージから削除された場合 (newValue が undefined)
-            // デフォルト設定に戻す
-            setSettings(defaultSettings)
-          }
-        }
-        if (changes.parentCategories) {
-          setParentCategories(changes.parentCategories.newValue || [])
-        }
-      }
-    }
-
-    chrome.storage.onChanged.addListener(storageChangeListener)
-
-    // クリーンアップ関数
-    return () => {
-      chrome.storage.onChanged.removeListener(storageChangeListener)
-    }
-  }, []) // 依存配列が空なので、このeffectはマウント時とアンマウント時にのみ実行される
-
-  const handleSaveSettings = async () => {
-    try {
-      // 保存する前に空の行を除外
-      const cleanSettings = {
-        ...settings,
-        excludePatterns: settings.excludePatterns.filter(p => p.trim()),
-      }
-      await saveUserSettings(cleanSettings)
-    } catch (error) {
-      console.error('設定の保存エラー:', error)
-    }
-  }
-
-  // Checkbox用にハンドラを修正 - 非同期関数に変更
+  // Checkbox用のハンドラを簡略化
   const handleToggleRemoveAfterOpen = async (checked: boolean) => {
-    try {
-      // 新しい設定を作成
-      const newSettings = {
-        ...settings,
-        removeTabAfterOpen: checked,
-      }
-
-      // 状態を更新
-      setSettings(newSettings)
-
-      // 空の行を除外して保存
-      const cleanSettings = {
-        ...newSettings,
-        excludePatterns: newSettings.excludePatterns.filter(p => p.trim()),
-      }
-
-      // 直接保存
-      await saveUserSettings(cleanSettings)
-    } catch (error) {
-      console.error('設定の保存エラー:', error)
-    }
+    await updateSetting('removeTabAfterOpen', checked)
   }
 
-  // 保存日時表示設定の切り替えハンドラを追加
+  // 固定タブ除外設定のハンドラ
+  const handleToggleExcludePinnedTabs = async (checked: boolean) => {
+    await updateSetting('excludePinnedTabs', checked)
+  }
+
+  // 保存日時表示設定のハンドラ
   const handleToggleShowSavedTime = async (checked: boolean) => {
-    try {
-      // 新しい設定を作成
-      const newSettings = {
-        ...settings,
-        showSavedTime: checked,
-      }
-
-      // 状態を更新
-      setSettings(newSettings)
-
-      // 保存
-      await saveUserSettings(newSettings)
-    } catch (error) {
-      console.error('保存日時表示設定の保存エラー:', error)
-    }
+    await updateSetting('showSavedTime', checked)
   }
 
-  // URLを別タブで開く設定の切り替えハンドラを追加
+  // URLを別タブで開く設定のハンドラ
   const handleToggleOpenUrlInBackground = async (checked: boolean) => {
-    try {
-      const newSettings = {
-        ...settings,
-        openUrlInBackground: checked,
-      }
-      setSettings(newSettings)
-      await saveUserSettings(newSettings)
-    } catch (error) {
-      console.error('URLを別タブで開く設定の保存エラー:', error)
-    }
+    await updateSetting('openUrlInBackground', checked)
   }
 
-  // 「すべてのタブを開く」を新しいウィンドウで開く設定の切り替えハンドラを追加
+  // 「すべてのタブを開く」を新しいウィンドウで開く設定のハンドラ
   const handleToggleOpenAllInNewWindow = async (checked: boolean) => {
-    try {
-      const newSettings = { ...settings, openAllInNewWindow: checked }
-      setSettings(newSettings)
-      await saveUserSettings(newSettings)
-    } catch (error) {
-      console.error(
-        '「すべてのタブを開く」を新しいウィンドウで開く設定の保存エラー:',
-        error,
-      )
-    }
+    await updateSetting('openAllInNewWindow', checked)
   }
 
-  // 追加: URL削除前確認設定の切替ハンドラ
+  // URL削除前確認設定のハンドラ
   const handleToggleConfirmDeleteEach = async (checked: boolean) => {
-    try {
-      const newSettings = { ...settings, confirmDeleteEach: checked }
-      setSettings(newSettings)
-      await saveUserSettings(newSettings)
-    } catch (error) {
-      console.error('URL削除前確認設定の保存エラー:', error)
-    }
+    await updateSetting('confirmDeleteEach', checked)
   }
 
-  // 追加: すべて削除前確認設定の切替ハンドラ
+  // すべて削除前確認設定のハンドラ
   const handleToggleConfirmDeleteAll = async (checked: boolean) => {
-    try {
-      const newSettings = { ...settings, confirmDeleteAll: checked }
-      setSettings(newSettings)
-      await saveUserSettings(newSettings)
-    } catch (error) {
-      console.error('すべて削除前確認設定の保存エラー:', error)
-    }
+    await updateSetting('confirmDeleteAll', checked)
   }
 
-  const handleExcludePatternsChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>,
-  ) => {
-    // 空の行も含めて全ての行を保持
-    const patterns = e.target.value.split('\n')
-    setSettings(prev => ({
-      ...prev,
-      excludePatterns: patterns,
-    }))
-  }
-
-  // テキストエリアからフォーカスが外れたときに保存
-  const handleExcludePatternsBlur = () => {
-    handleSaveSettings()
-  }
-
-  // カラー設定ハンドラ
-  const handleColorChange = async (key: string, value: string) => {
-    try {
-      const newColors = { ...(settings.colors || {}), [key]: value }
-      const newSettings = { ...settings, colors: newColors }
-      setSettings(newSettings)
-      // ライブプレビュー: 即座にCSS変数を更新
-      document.documentElement.style.setProperty(`--${key}`, value)
-      await saveUserSettings(newSettings)
-    } catch (error) {
-      console.error(`カラー ${key} 保存エラー:`, error)
-    }
-  }
-  // カラー設定をリセットするハンドラ
-  const handleResetColors = async () => {
-    try {
-      // 色設定を削除した新しい設定を作成
-      const newSettings = { ...settings, colors: {} }
-      setSettings(newSettings)
-
-      // CSS変数をリセット（デフォルトテーマに戻す）
-      for (const { key } of colorOptions) {
-        document.documentElement.style.removeProperty(`--${key}`)
-      }
-
-      // ストレージから色設定を削除
-      await saveUserSettings(newSettings)
-
-      // テーマをシステムに戻す
-      chrome.storage.local.set({ 'tab-manager-theme': 'system' })
-
-      // 成功メッセージを表示
-      toast.success('カラー設定をリセットしました')
-    } catch (error) {
-      console.error('カラーリセットエラー:', error)
-      toast.error('カラー設定のリセットに失敗しました')
-    }
-  }
-
-  // 新しいカテゴリを追加
-  const handleAddCategory = async () => {
-    if (newCategoryName.trim()) {
-      // バリデーションチェック
-      try {
-        categoryNameSchema.parse(newCategoryName.trim())
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          setCategoryError(error.errors[0].message)
-          setTimeout(() => setCategoryError(null), 3000)
-          return
-        }
-      }
-
-      // 重複をチェック
-      const isDuplicate = parentCategories.some(
-        cat => cat.name.toLowerCase() === newCategoryName.trim().toLowerCase(),
-      )
-
-      if (isDuplicate) {
-        setCategoryError('同じ名前のカテゴリがすでに存在します。')
-        setTimeout(() => setCategoryError(null), 3000) // 3秒後にエラーメッセージを消す
-        return
-      }
-
-      try {
-        await createParentCategory(newCategoryName.trim())
-        setNewCategoryName('')
-        setCategoryError(null)
-      } catch (error) {
-        console.error('カテゴリ追加エラー:', error)
-        setCategoryError('カテゴリの追加に失敗しました。')
-        setTimeout(() => setCategoryError(null), 3000)
-      }
-    }
-  }
-
-  // Enterキーを押したときのハンドラ
+  // テキストエリアとEnterキーの処理
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -368,139 +119,7 @@ const OptionsPage = () => {
     // カテゴリ入力の場合
     else if (e.key === 'Enter') {
       e.preventDefault()
-      // エラーがなければ追加を実行
-      if (!categoryError) {
-        handleAddCategory()
-      }
-    }
-  }
-
-  // 自動削除期間の説明テキストは外部ファイルからインポート済み
-
-  // 自動削除期間選択時の処理
-  const handleAutoDeletePeriodChange = (value: string) => {
-    console.log(`自動削除期間を選択: ${value}`)
-    // 選択した値を一時保存
-    setPendingAutoDeletePeriod(value)
-
-    // 確認表示を非表示にする
-    hideConfirmation()
-  }
-
-  // 確認表示を隠す
-  const hideConfirmation = () => {
-    setConfirmationState(prev => ({
-      ...prev,
-      isVisible: false,
-    }))
-  }
-
-  // 確認表示を表示する
-  const showConfirmation = (
-    message: string,
-    onConfirm: () => void,
-    pendingAction: string,
-  ) => {
-    setConfirmationState({
-      isVisible: true,
-      message,
-      onConfirm,
-      pendingAction,
-    })
-  }
-
-  // 自動削除期間を確定して保存する処理の前に確認を表示
-  const prepareAutoDeletePeriod = () => {
-    console.log('自動削除期間設定ボタンが押されました')
-
-    // 保留中の設定がなければ、現在の設定値を使用
-    const periodToApply = pendingAutoDeletePeriod ?? settings.autoDeletePeriod
-
-    if (!periodToApply) return
-
-    // 「自動削除しない」の場合は確認なしで直接適用
-    if (periodToApply === 'never') {
-      applyAutoDeletePeriod()
-      return
-    }
-
-    // 選択した期間のラベルを取得
-    const selectedOption = autoDeleteOptions.find(
-      opt => opt.value === periodToApply,
-    )
-    const periodLabel = selectedOption ? selectedOption.label : periodToApply
-
-    // 警告メッセージを作成
-    const currentPeriod = settings.autoDeletePeriod || 'never'
-    const isShortening = isPeriodShortening(currentPeriod, periodToApply)
-    const warningMessage = isShortening
-      ? '警告: 現在よりも短い期間に設定するため、一部のタブがすぐに削除される可能性があります！'
-      : '注意: 設定した期間より古いタブはすぐに削除される可能性があります。'
-
-    // 確認メッセージを表示
-    const message = `自動削除期間を「${periodLabel}」に設定します。\n\n${warningMessage}\n\n続行しますか？`
-
-    // 確認を表示
-    showConfirmation(message, applyAutoDeletePeriod, periodToApply)
-  }
-
-  // 実際の適用処理（確認後に実行）
-  const applyAutoDeletePeriod = () => {
-    const periodToApply = pendingAutoDeletePeriod ?? settings.autoDeletePeriod
-
-    if (!periodToApply) return
-
-    try {
-      console.log(`自動削除期間を設定: ${periodToApply}`)
-
-      const newSettings = {
-        ...settings,
-        autoDeletePeriod: periodToApply,
-      }
-
-      // ストレージに直接保存
-      chrome.storage.local.set({ userSettings: newSettings }, () => {
-        console.log('設定を保存しました:', newSettings)
-
-        // UI状態を更新
-        setSettings(newSettings)
-
-        // トースト通知を表示
-        if (periodToApply === 'never') {
-          toast.success('自動削除を無効にしました')
-        } else {
-          const selectedOption = autoDeleteOptions.find(
-            opt => opt.value === periodToApply,
-          )
-          const periodLabel = selectedOption
-            ? selectedOption.label
-            : periodToApply
-          toast.success(`自動削除期間を「${periodLabel}」に設定しました`)
-        }
-
-        // バックグラウンドに通知
-        const needsTimestampUpdate =
-          periodToApply === '30sec' || periodToApply === '1min'
-        chrome.runtime.sendMessage(
-          {
-            action: 'checkExpiredTabs',
-            updateTimestamps: needsTimestampUpdate,
-            period: periodToApply,
-            forceReload: true,
-          },
-          response => console.log('応答:', response),
-        )
-      })
-
-      // 確認を非表示
-      hideConfirmation()
-
-      // 保留中の設定をクリア
-      setPendingAutoDeletePeriod(undefined)
-    } catch (error) {
-      console.error('自動削除期間の保存エラー:', error)
-      // エラー時のトースト通知
-      toast.error('設定の保存に失敗しました')
+      handleCategoryKeyDown(e)
     }
   }
 
