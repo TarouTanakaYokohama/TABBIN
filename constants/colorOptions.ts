@@ -1,0 +1,43 @@
+/**
+ * 利用可能なカラー変数一覧
+ */
+export const colorOptions = [
+  { key: 'background', label: '背景' },
+  { key: 'foreground', label: 'テキスト' },
+  { key: 'card', label: 'カード背景' },
+  { key: 'card-foreground', label: 'カードテキスト' },
+  { key: 'popover', label: 'ポップオーバー' },
+  { key: 'popover-foreground', label: 'ポップオーバーテキスト' },
+  { key: 'primary', label: 'プライマリ背景' },
+  { key: 'primary-foreground', label: 'プライマリテキスト' },
+  { key: 'secondary', label: 'セカンダリ背景' },
+  { key: 'secondary-foreground', label: 'セカンダリテキスト' },
+  { key: 'muted', label: '控えめ背景' },
+  { key: 'muted-foreground', label: 'サブテキスト' },
+  { key: 'accent', label: 'アクセント背景' },
+  { key: 'accent-foreground', label: 'アクセントテキスト' },
+  { key: 'destructive', label: 'デストラクティブ背景' },
+  { key: 'destructive-foreground', label: 'デストラクティブテキスト' },
+  { key: 'border', label: 'ボーダー' },
+  { key: 'input', label: '入力背景' },
+  { key: 'ring', label: 'リング' },
+  { key: 'chart-1', label: 'チャート1' },
+  { key: 'chart-2', label: 'チャート2' },
+  { key: 'chart-3', label: 'チャート3' },
+  { key: 'chart-4', label: 'チャート4' },
+  { key: 'chart-5', label: 'チャート5' },
+  { key: 'sidebar', label: 'サイドバー背景' },
+  { key: 'sidebar-foreground', label: 'サイドバー テキスト' },
+  { key: 'sidebar-primary', label: 'サイドバー プライマリ背景' },
+  {
+    key: 'sidebar-primary-foreground',
+    label: 'サイドバー プライマリテキスト',
+  },
+  { key: 'sidebar-accent', label: 'サイドバー アクセント背景' },
+  {
+    key: 'sidebar-accent-foreground',
+    label: 'サイドバー アクセントテキスト',
+  },
+  { key: 'sidebar-border', label: 'サイドバー ボーダー' },
+  { key: 'sidebar-ring', label: 'サイドバー リング' },
+]

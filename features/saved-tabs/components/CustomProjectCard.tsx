@@ -611,6 +611,3 @@ export const CustomProjectCard = ({
     </Card>
   )
 }
-
-// ユーティリティ関数として分離
-// import { isElementInUncategorizedArea } from '../utils/isElementInUncategorizedArea'
