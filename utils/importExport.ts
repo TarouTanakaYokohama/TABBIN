@@ -35,23 +35,6 @@ interface ImportedKeywordData {
   [key: string]: unknown // その他の可能性のあるプロパティ
 }
 
-// インポート時のサブカテゴリ形式に対応するインターフェース
-interface ImportedSubCategory {
-  name?: string
-  [key: string]: unknown // その他の可能性のあるプロパティ
-}
-
-// インポート時のタブグループ形式に対応するインターフェース
-interface ImportedTabGroup {
-  id: string
-  domain: string
-  urls: ImportedUrlData[]
-  parentCategoryId?: string
-  subCategories?: ImportedSubCategory[]
-  categoryKeywords?: ImportedKeywordData[]
-  savedAt?: number
-}
-
 // バックアップデータのバリデーションスキーマ
 const backupDataSchema = z.object({
   version: z.string(),

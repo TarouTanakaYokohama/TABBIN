@@ -311,14 +311,14 @@ export const SubCategoryKeywordManager = ({
 
   if (!tabGroup.subCategories || tabGroup.subCategories.length === 0) {
     return (
-      <div className='mt-4 border-t border-border pt-4'>
-        <p className='text-muted-foreground mb-3'>
+      <div className='mt-4 border-border border-t pt-4'>
+        <p className='mb-3 text-muted-foreground'>
           このドメインには子カテゴリがありません。
         </p>
         <div className='mb-4'>
           <Label
             htmlFor='new-subcategory'
-            className='block text-sm font-medium text-foreground mb-1'
+            className='mb-1 block font-medium text-foreground text-sm'
           >
             新しい子カテゴリを追加
           </Label>
@@ -329,7 +329,7 @@ export const SubCategoryKeywordManager = ({
             onChange={e => setNewSubCategory(e.target.value)}
             onBlur={handleAddSubCategory}
             placeholder='子カテゴリ名（入力後にフォーカスを外すと保存）'
-            className='w-full p-2 border border-border bg-input text-foreground rounded focus:ring-2 focus:ring-ring'
+            className='w-full rounded border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
             onKeyDown={e => {
               if (e.key === 'Enter') {
                 e.preventDefault()
@@ -343,8 +343,8 @@ export const SubCategoryKeywordManager = ({
   }
 
   return (
-    <div className='mt-4 border-t border-border pt-4'>
-      <h4 className='text-md font-medium mb-2 text-foreground'>
+    <div className='mt-4 border-border border-t pt-4'>
+      <h4 className='mb-2 font-medium text-foreground text-md'>
         子カテゴリキーワード管理
       </h4>
 
@@ -352,7 +352,7 @@ export const SubCategoryKeywordManager = ({
       <div className='mb-4'>
         <Label
           htmlFor='new-subcategory'
-          className='block text-sm font-medium text-foreground mb-1'
+          className='mb-1 block font-medium text-foreground text-sm'
         >
           新しい子カテゴリを追加
         </Label>
@@ -363,7 +363,7 @@ export const SubCategoryKeywordManager = ({
           onChange={e => setNewSubCategory(e.target.value)}
           onBlur={handleAddSubCategory}
           placeholder='子カテゴリ名（入力後にフォーカスを外すと保存）'
-          className='w-full p-2 border border-border bg-input text-foreground rounded focus:ring-2 focus:ring-ring'
+          className='w-full rounded border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
           onKeyDown={e => {
             if (e.key === 'Enter') {
               e.preventDefault()
@@ -374,18 +374,18 @@ export const SubCategoryKeywordManager = ({
       </div>
 
       {/* 子カテゴリボタン一覧 - レスポンシブ対応を改善 */}
-      <div className='flex flex-wrap gap-2 mb-3'>
+      <div className='mb-3 flex flex-wrap gap-2'>
         {tabGroup.subCategories.map(category => (
-          <div key={category} className='flex items-center max-w-full'>
+          <div key={category} className='flex max-w-full items-center'>
             <Button
               type='button'
               onClick={() => handleCategorySelect(category)}
               variant={activeCategory === category ? 'secondary' : 'outline'}
               size='sm'
-              className={`rounded-r-none truncate max-w-[180px] cursor-pointer ${
+              className={`max-w-[180px] cursor-pointer truncate rounded-r-none ${
                 activeCategory === category
                   ? 'bg-secondary text-secondary-foreground'
-                  : 'bg-muted hover:bg-secondary/80 text-foreground'
+                  : 'bg-muted text-foreground hover:bg-secondary/80'
               }`}
               title={category} // 長い名前の場合はホバーでフル表示
             >
@@ -396,7 +396,7 @@ export const SubCategoryKeywordManager = ({
               onClick={() => handleRemoveSubCategory(category)}
               variant='outline'
               size='sm'
-              className='rounded-l-none flex-shrink-0 cursor-pointer'
+              className='flex-shrink-0 cursor-pointer rounded-l-none'
               title='カテゴリを削除'
               aria-label={`カテゴリ ${category} を削除`}
             >
@@ -410,10 +410,10 @@ export const SubCategoryKeywordManager = ({
         <div className='mt-2'>
           {/* カテゴリリネーム機能 - レスポンシブ対応を改善 */}
           {isRenamingSubCategory ? (
-            <div className='mb-4 relative'>
+            <div className='relative mb-4'>
               <Label
                 htmlFor='rename-category'
-                className='block text-sm text-foreground mb-1'
+                className='mb-1 block text-foreground text-sm'
               >
                 カテゴリ名を変更
               </Label>
@@ -433,7 +433,7 @@ export const SubCategoryKeywordManager = ({
                       cancelRename()
                     }
                   }}
-                  className='flex-grow p-2 border rounded-l bg-input border-border text-foreground'
+                  className='flex-grow rounded-l border border-border bg-input p-2 text-foreground'
                 />
                 <div className='flex flex-shrink-0'>
                   <Button
@@ -441,7 +441,7 @@ export const SubCategoryKeywordManager = ({
                     onClick={completeRename}
                     variant='secondary'
                     size='icon'
-                    className='bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-none'
+                    className='rounded-none bg-secondary text-secondary-foreground hover:bg-secondary/80'
                     title='変更を保存'
                   >
                     <Check size={16} />
@@ -458,15 +458,15 @@ export const SubCategoryKeywordManager = ({
                   </Button>
                 </div>
               </div>
-              <div className='text-xs text-muted-foreground mt-1'>
+              <div className='mt-1 text-muted-foreground text-xs'>
                 Enter で確定、Escape でキャンセル
               </div>
             </div>
           ) : (
-            <div className='flex items-center justify-between mb-3'>
+            <div className='mb-3 flex items-center justify-between'>
               <div className='flex items-center gap-2 overflow-hidden'>
                 <h4
-                  className='font-medium text-foreground truncate max-w-[200px]'
+                  className='max-w-[200px] truncate font-medium text-foreground'
                   title={activeCategory}
                 >
                   「{activeCategory}」カテゴリのキーワード
@@ -476,7 +476,7 @@ export const SubCategoryKeywordManager = ({
                   onClick={startRenameMode}
                   variant='outline'
                   size='sm'
-                  className='text-xs bg-muted hover:bg-muted/70 text-foreground flex-shrink-0'
+                  className='flex-shrink-0 bg-muted text-foreground text-xs hover:bg-muted/70'
                   title='カテゴリ名を変更'
                 >
                   リネーム
@@ -488,10 +488,10 @@ export const SubCategoryKeywordManager = ({
           <div className='mb-2'>
             <Label
               htmlFor={`keyword-input-${activeCategory}`}
-              className='block text-sm text-foreground mb-1'
+              className='mb-1 block text-foreground text-sm'
             >
               キーワード
-              <span className='text-xs text-muted-foreground ml-2'>
+              <span className='ml-2 text-muted-foreground text-xs'>
                 （タイトルにキーワードが含まれていると自動的にこのカテゴリに分類されます）
               </span>
             </Label>
@@ -503,7 +503,7 @@ export const SubCategoryKeywordManager = ({
                 value={newKeyword}
                 onChange={e => setNewKeyword(e.target.value)}
                 placeholder='新しいキーワードを入力'
-                className='flex-grow p-2 border border-border bg-input text-foreground rounded-l focus:ring-2 focus:ring-ring'
+                className='flex-grow rounded-l border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
@@ -516,9 +516,9 @@ export const SubCategoryKeywordManager = ({
                 onClick={handleAddKeyword}
                 disabled={!newKeyword.trim()}
                 variant='secondary'
-                className={`rounded-l-none flex-shrink-0 cursor-pointer ${
+                className={`flex-shrink-0 cursor-pointer rounded-l-none ${
                   !newKeyword.trim()
-                    ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed'
+                    ? 'cursor-not-allowed bg-secondary/50 text-muted-foreground'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                 }`}
                 aria-label='キーワードを追加'
@@ -529,7 +529,7 @@ export const SubCategoryKeywordManager = ({
           </div>
 
           {/* キーワード表示を改善 */}
-          <div className='flex flex-wrap gap-2 mt-2'>
+          <div className='mt-2 flex flex-wrap gap-2'>
             {keywords.length === 0 ? (
               <p className='text-muted-foreground text-sm'>
                 キーワードがありません
@@ -538,16 +538,16 @@ export const SubCategoryKeywordManager = ({
               keywords.map(keyword => (
                 <div
                   key={keyword}
-                  className='bg-muted text-foreground px-2 py-1 rounded text-sm flex items-center max-w-full'
+                  className='flex max-w-full items-center rounded bg-muted px-2 py-1 text-foreground text-sm'
                   title={keyword}
                 >
-                  <span className='truncate max-w-[150px]'>{keyword}</span>
+                  <span className='max-w-[150px] truncate'>{keyword}</span>
                   <Button
                     type='button'
                     onClick={() => handleRemoveKeyword(keyword)}
                     variant='ghost'
                     size='sm'
-                    className='ml-1 p-0 text-muted-foreground hover:text-foreground hover:bg-transparent flex-shrink-0 cursor-pointer'
+                    className='ml-1 flex-shrink-0 cursor-pointer p-0 text-muted-foreground hover:bg-transparent hover:text-foreground'
                     aria-label={`キーワード ${keyword} を削除`}
                   >
                     <X size={14} />

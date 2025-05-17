@@ -895,7 +895,6 @@ export async function migrateParentCategoriesToDomainNames(): Promise<void> {
 
 // タブ保存時に自動分類も行うようにsaveTabsを拡張
 export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
-  const currentTime = Date.now() // 現在時刻をミリ秒で取得
   await saveTabs(tabs)
 
   // 保存したタブグループのIDを取得

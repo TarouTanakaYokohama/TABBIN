@@ -91,16 +91,12 @@ const SavedTabs = () => {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [categories, setCategories] = useState<ParentCategory[]>([])
   const [newSubCategory, setNewSubCategory] = useState('')
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
   const [showSubCategoryModal, setShowSubCategoryModal] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const [categoryOrder, setCategoryOrder] = useState<string[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>('domain')
   const [customProjects, setCustomProjects] = useState<CustomProject[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [isFilterOpen, setIsFilterOpen] = useState(false)
-  const [filterStartDate, setFilterStartDate] = useState<string | null>(null)
-  const [filterEndDate, setFilterEndDate] = useState<string | null>(null)
 
   useEffect(() => {
     if (showSubCategoryModal && inputRef.current) {
@@ -966,9 +962,9 @@ const SavedTabs = () => {
 
   // 子カテゴリを追加
   const handleAddSubCategory = async () => {
-    if (activeGroupId && newSubCategory.trim()) {
+    if (newSubCategory.trim()) {
       try {
-        await addSubCategoryToGroup(activeGroupId, newSubCategory.trim())
+        await addSubCategoryToGroup('', newSubCategory.trim())
         setShowSubCategoryModal(false)
         setNewSubCategory('')
       } catch (error) {
@@ -1157,14 +1153,6 @@ const SavedTabs = () => {
             )
           )
             return false
-          if (filterStartDate) {
-            const d = new Date(item.savedAt || 0).toISOString().split('T')[0]
-            if (d < filterStartDate) return false
-          }
-          if (filterEndDate) {
-            const d = new Date(item.savedAt || 0).toISOString().split('T')[0]
-            if (d > filterEndDate) return false
-          }
           return true
         })
         return { ...g, urls: filteredUrls }
@@ -1277,12 +1265,6 @@ const SavedTabs = () => {
     ...Object.values(categorized).flat(),
     ...uncategorized,
   ]
-
-  // URLの合計数を計算
-  const totalUrls = tabGroups.reduce(
-    (total, group) => total + group.urls.length,
-    0,
-  )
 
   // カスタムモード検索用にプロジェクトとURLをフィルタリング
   const filteredCustomProjects = useMemo(() => {
@@ -1559,7 +1541,7 @@ const SavedTabs = () => {
   return (
     <>
       <Toaster />
-      <div className='container mx-auto px-4 py-2 min-h-screen'>
+      <div className='container mx-auto min-h-screen px-4 py-2'>
         <Header
           tabGroups={tabGroups}
           customProjects={customProjects}
@@ -1568,11 +1550,10 @@ const SavedTabs = () => {
           onModeChange={handleViewModeChange}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onOpenFilter={() => setIsFilterOpen(true)}
         />
         {isLoading ? (
-          <div className='flex items-center justify-center min-h-[200px]'>
-            <div className='text-xl text-foreground'>読み込み中...</div>
+          <div className='flex min-h-[200px] items-center justify-center'>
+            <div className='text-foreground text-xl'>読み込み中...</div>
           </div>
         ) : viewMode === 'domain' ? (
           // ドメインモード表示（既存の表示）
@@ -1627,7 +1608,7 @@ const SavedTabs = () => {
                   </DndContext>
 
                   {uncategorized.length > 0 && (
-                    <h2 className='text-xl font-bold text-foreground mt-2 mb-1'>
+                    <h2 className='mt-2 mb-1 font-bold text-foreground text-xl'>
                       未分類のドメイン
                     </h2>
                   )}
@@ -1671,7 +1652,7 @@ const SavedTabs = () => {
 
             {/* すべてのカテゴリとドメインが空の場合のメッセージ */}
             {hasContentTabGroups.length === 0 && (
-              <div className='flex flex-col items-center justify-center min-h-[200px] gap-4'>
+              <div className='flex min-h-[200px] flex-col items-center justify-center gap-4'>
                 <div className='text-2xl text-foreground'>
                   保存されたタブはありません
                 </div>
@@ -1720,7 +1701,7 @@ const SavedTabs = () => {
                 value={newSubCategory}
                 onChange={e => setNewSubCategory(e.target.value)}
                 placeholder='カテゴリ名を入力'
-                className='w-full p-2 border rounded mb-4 text-foreground'
+                className='mb-4 w-full rounded border p-2 text-foreground'
                 ref={inputRef}
               />
               <DialogFooter>
@@ -1730,13 +1711,13 @@ const SavedTabs = () => {
                       variant='ghost'
                       size='sm'
                       onClick={() => setShowSubCategoryModal(false)}
-                      className='text-secondary-foreground px-2 py-1 rounded cursor-pointer'
+                      className='cursor-pointer rounded px-2 py-1 text-secondary-foreground'
                       title='キャンセル'
                     >
                       キャンセル
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side='top' className='lg:hidden block'>
+                  <TooltipContent side='top' className='block lg:hidden'>
                     キャンセル
                   </TooltipContent>
                 </Tooltip>
@@ -1747,14 +1728,14 @@ const SavedTabs = () => {
                       variant='default'
                       size='sm'
                       onClick={handleAddSubCategory}
-                      className='text-primary-foreground rounded flex items-center gap-1 cursor-pointer'
+                      className='flex cursor-pointer items-center gap-1 rounded text-primary-foreground'
                       title='追加'
                     >
                       <Plus size={14} />
-                      <span className='lg:inline hidden'>追加</span>
+                      <span className='hidden lg:inline'>追加</span>
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side='top' className='lg:hidden block'>
+                  <TooltipContent side='top' className='block lg:hidden'>
                     追加
                   </TooltipContent>
                 </Tooltip>

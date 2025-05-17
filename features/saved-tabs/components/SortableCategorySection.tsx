@@ -140,11 +140,11 @@ export const SortableCategorySection = ({
         style={style}
         className={
           isDragging
-            ? 'category-section mb-1 bg-muted rounded-md shadow-lg'
+            ? 'category-section mb-1 rounded-md bg-muted shadow-lg'
             : 'category-section mb-1'
         }
       >
-        <div className='category-header mb-0.5 pb-0.5 border-b border-border flex items-center justify-between gap-2'>
+        <div className='category-header mb-0.5 flex items-center justify-between gap-2 border-border border-b pb-0.5'>
           {/* 折りたたみ切り替えボタン */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -155,7 +155,7 @@ export const SortableCategorySection = ({
                   e.stopPropagation()
                   setIsCollapsed(prev => !prev)
                 }}
-                className='flex items-center gap-1 cursor-pointer'
+                className='flex cursor-pointer items-center gap-1'
                 title={isCollapsed ? '展開' : '折りたたむ'}
                 aria-label={isCollapsed ? '展開' : '折りたたむ'}
               >
@@ -166,7 +166,7 @@ export const SortableCategorySection = ({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='lg:hidden block'>
+            <TooltipContent side='top' className='block lg:hidden'>
               {isCollapsed ? '展開' : '折りたたむ'}
             </TooltipContent>
           </Tooltip>
@@ -182,7 +182,7 @@ export const SortableCategorySection = ({
                     o === 'default' ? 'asc' : o === 'asc' ? 'desc' : 'default',
                   )
                 }}
-                className='flex items-center gap-1 cursor-pointer'
+                className='flex cursor-pointer items-center gap-1'
                 title={
                   sortOrder === 'default'
                     ? 'デフォルト'
@@ -207,7 +207,7 @@ export const SortableCategorySection = ({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='lg:hidden block'>
+            <TooltipContent side='top' className='block lg:hidden'>
               {sortOrder === 'default'
                 ? 'デフォルト'
                 : sortOrder === 'asc'
@@ -217,7 +217,7 @@ export const SortableCategorySection = ({
           </Tooltip>
           {/* ドラッグハンドル部分 */}
           <div
-            className={`flex items-center gap-2 flex-grow ${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab active:cursor-grabbing'}`}
+            className={`flex flex-grow items-center gap-2 ${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab active:cursor-grabbing'}`}
             {...attributes}
             {...listeners}
           >
@@ -229,7 +229,7 @@ export const SortableCategorySection = ({
                 ? '未分類'
                 : props.categoryName}
             </h3>
-            <span className='text-sm text-muted-foreground'>
+            <span className='text-muted-foreground text-sm'>
               <Badge variant='secondary'>{props.urls.length}</Badge>
             </span>
           </div>
@@ -252,15 +252,15 @@ export const SortableCategorySection = ({
                     e.stopPropagation() // ドラッグイベントの伝播を防止
                     handleOpenAllTabs(props.urls)
                   }}
-                  className='flex items-center gap-1 z-20 pointer-events-auto cursor-pointer'
+                  className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
                   title={`${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}のタブをすべて開く`}
                   style={{ position: 'relative' }} // ボタンを確実に上に表示
                 >
                   <ExternalLink size={14} />
-                  <span className='lg:inline hidden'>すべて開く</span>
+                  <span className='hidden lg:inline'>すべて開く</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 すべてのタブを開く
               </TooltipContent>
             </Tooltip>
@@ -273,18 +273,18 @@ export const SortableCategorySection = ({
                     variant='secondary'
                     size='sm'
                     onClick={onDeleteAllTabs}
-                    className='flex items-center gap-1 z-20 pointer-events-auto cursor-pointer'
+                    className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
                     title={`${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}のタブをすべて削除する`}
                     style={{ position: 'relative' }}
                     disabled={isDeleting}
                   >
                     <Trash size={14} />
-                    <span className='lg:inline hidden'>
+                    <span className='hidden lg:inline'>
                       {isDeleting ? '削除中...' : 'すべて削除'}
                     </span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='top' className='lg:hidden block'>
+                <TooltipContent side='top' className='block lg:hidden'>
                   すべてのタブを削除
                 </TooltipContent>
               </Tooltip>

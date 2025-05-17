@@ -217,15 +217,6 @@ export const CustomProjectSection = ({
 
   return (
     <div>
-      <div className='flex justify-between items-center mb-4'>
-        {/* 新規プロジェクト作成ボタンを非表示に
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus size={16} className='mr-1' />
-          新規プロジェクト
-        </Button>
-        */}
-      </div>
-
       {projects.length > 0 ? (
         <DndContext
           collisionDetection={closestCenter}
@@ -271,14 +262,14 @@ export const CustomProjectSection = ({
           {/* ドラッグ中の要素のオーバーレイ */}
           <DragOverlay>
             {draggedItem && (
-              <div className='bg-background border rounded-md p-2 shadow-md max-w-[300px] truncate'>
+              <div className='max-w-[300px] truncate rounded-md border bg-background p-2 shadow-md'>
                 {draggedItem.title || draggedItem.url}
               </div>
             )}
             {draggedProject && (
-              <div className='bg-background border rounded-md p-4 shadow-lg w-full max-w-[600px]'>
-                <div className='text-lg font-bold'>{draggedProject.name}</div>
-                <div className='text-sm text-muted-foreground'>
+              <div className='w-full max-w-[600px] rounded-md border bg-background p-4 shadow-lg'>
+                <div className='font-bold text-lg'>{draggedProject.name}</div>
+                <div className='text-muted-foreground text-sm'>
                   {draggedProject.description}
                 </div>
               </div>
@@ -286,11 +277,11 @@ export const CustomProjectSection = ({
           </DragOverlay>
         </DndContext>
       ) : (
-        <div className='flex flex-col items-center justify-center min-h-[200px] gap-4 border rounded-md p-8'>
+        <div className='flex min-h-[200px] flex-col items-center justify-center gap-4 rounded-md border p-8'>
           <div className='text-2xl text-foreground'>
             プロジェクトがありません
           </div>
-          <div className='text-muted-foreground text-center'>
+          <div className='text-center text-muted-foreground'>
             デフォルトプロジェクトが必要です
             <br />
             タブは拡張機能アイコンまたは右クリックメニューから保存できます
@@ -320,7 +311,7 @@ export const CustomProjectSection = ({
                 className={`w-full ${nameError ? 'border-red-500' : ''}`}
               />
               {nameError && (
-                <p className='text-red-500 text-xs mt-1'>{nameError}</p>
+                <p className='mt-1 text-red-500 text-xs'>{nameError}</p>
               )}
             </div>
             <div>

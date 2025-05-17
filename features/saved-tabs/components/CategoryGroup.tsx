@@ -31,7 +31,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
 import {
   SortableContext,
   arrayMove,
@@ -333,54 +333,9 @@ export const CategoryGroup = ({
   }
 
   // Collapse all domain cards at drag start
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = () => {
     setIsDraggingDomains(true)
   }
-
-  // カード内のタブをサブカテゴリごとに整理
-  const organizeUrlsByCategory = () => {
-    type UrlType = { url: string; title: string; subCategory?: string }
-    // カテゴリと未分類のURLを初期化
-    const categorizedUrls: Record<string, UrlType[]> = {
-      __uncategorized: [],
-    }
-    // 全ドメインからサブカテゴリを収集して初期化
-    const subCategorySet = new Set<string>()
-    for (const domain of domains) {
-      if (domain.subCategories) {
-        for (const cat of domain.subCategories) {
-          subCategorySet.add(cat)
-        }
-      }
-    }
-    for (const cat of subCategorySet) {
-      categorizedUrls[cat] = []
-    }
-
-    // URLを適切なカテゴリに振り分け
-    for (const domain of domains) {
-      for (const url of domain.urls) {
-        if (
-          url.subCategory &&
-          domain.subCategories?.includes(url.subCategory)
-        ) {
-          categorizedUrls[url.subCategory].push(url)
-        } else {
-          categorizedUrls.__uncategorized.push(url)
-        }
-      }
-    }
-
-    return categorizedUrls
-  }
-
-  const categorizedUrls = organizeUrlsByCategory()
-  const subCategories = Object.keys(categorizedUrls).filter(
-    cat => cat !== '__uncategorized',
-  )
-
-  // 未分類のタブがあれば、それも表示
-  const hasUncategorized = categorizedUrls.__uncategorized.length > 0
 
   return (
     <>
@@ -392,8 +347,8 @@ export const CategoryGroup = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <CardHeader className='flex-row justify-between items-baseline my-2'>
-          <div className='flex items-center gap-2 flex-grow'>
+        <CardHeader className='my-2 flex-row items-baseline justify-between'>
+          <div className='flex flex-grow items-center gap-2'>
             {/* 折りたたみ切り替えボタン */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -404,7 +359,7 @@ export const CategoryGroup = ({
                     e.stopPropagation()
                     setIsCollapsed(prev => !prev)
                   }}
-                  className='flex items-center gap-1 cursor-pointer'
+                  className='flex cursor-pointer items-center gap-1'
                   title={isCollapsed ? '展開' : '折りたたむ'}
                   aria-label={isCollapsed ? '展開' : '折りたたむ'}
                 >
@@ -415,7 +370,7 @@ export const CategoryGroup = ({
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 {isCollapsed ? '展開' : '折りたたむ'}
               </TooltipContent>
             </Tooltip>
@@ -435,7 +390,7 @@ export const CategoryGroup = ({
                           : 'default',
                     )
                   }}
-                  className='flex items-center gap-1 cursor-pointer'
+                  className='flex cursor-pointer items-center gap-1'
                   title={
                     sortOrder === 'default'
                       ? 'デフォルト'
@@ -460,7 +415,7 @@ export const CategoryGroup = ({
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 {sortOrder === 'default'
                   ? 'デフォルト'
                   : sortOrder === 'asc'
@@ -469,23 +424,23 @@ export const CategoryGroup = ({
               </TooltipContent>
             </Tooltip>
             <div
-              className='flex items-center gap-1 text-foreground cursor-grab hover:cursor-grab active:cursor-grabbing w-full'
+              className='flex w-full cursor-grab items-center gap-1 text-foreground hover:cursor-grab active:cursor-grabbing'
               {...attributes}
               {...listeners}
             >
               <GripVertical size={16} aria-hidden='true' />
-              <div className='flex gap-1 items-center'>
-                <h2 className='text-xl font-bold text-foreground'>
+              <div className='flex items-center gap-1'>
+                <h2 className='font-bold text-foreground text-xl'>
                   {category.name}
                 </h2>
-                <span className='text-muted-foreground flex gap-2'>
+                <span className='flex gap-2 text-muted-foreground'>
                   <Badge variant='secondary'>{allUrls.length}</Badge>
                   <Badge variant='secondary'>{domains.length}</Badge>
                 </span>
               </div>
             </div>
           </div>
-          <div className='flex-shrink-0 ml-2 pointer-events-auto flex gap-2'>
+          <div className='pointer-events-auto ml-2 flex flex-shrink-0 gap-2'>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -500,15 +455,15 @@ export const CategoryGroup = ({
                     })
                     setIsModalOpen(true)
                   }}
-                  className='flex items-center gap-1 cursor-pointer'
+                  className='flex cursor-pointer items-center gap-1'
                   title='親カテゴリを管理'
                   aria-label='親カテゴリを管理'
                 >
                   <Settings size={14} />
-                  <span className='lg:inline hidden'>親カテゴリ管理</span>
+                  <span className='hidden lg:inline'>親カテゴリ管理</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 親カテゴリを管理
               </TooltipContent>
             </Tooltip>
@@ -528,15 +483,15 @@ export const CategoryGroup = ({
                       return
                     handleOpenAllTabs(allUrls)
                   }}
-                  className='flex items-center gap-1 cursor-pointer'
+                  className='flex cursor-pointer items-center gap-1'
                   title='すべてのタブを開く'
                   aria-label='すべてのタブを開く'
                 >
                   <ExternalLink size={14} />
-                  <span className='lg:inline hidden'>すべて開く</span>
+                  <span className='hidden lg:inline'>すべて開く</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 すべてのタブを開く
               </TooltipContent>
             </Tooltip>
@@ -559,15 +514,15 @@ export const CategoryGroup = ({
                       }
                     }
                   }}
-                  className='flex items-center gap-1 cursor-pointer'
+                  className='flex cursor-pointer items-center gap-1'
                   title='すべてのタブを削除'
                   aria-label='すべてのタブを削除'
                 >
                   <Trash size={14} />
-                  <span className='lg:inline hidden'>すべて削除</span>
+                  <span className='hidden lg:inline'>すべて削除</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 すべてのタブを削除
               </TooltipContent>
             </Tooltip>

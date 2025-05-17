@@ -246,68 +246,6 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
     }
   }
 
-  // カテゴリ保存ハンドラ
-  const handleSaveCategory = async () => {
-    if (!selectedCategoryId) {
-      toast.error('カテゴリを選択してください')
-      return
-    }
-
-    try {
-      setIsLoading(true)
-
-      // 選択されたカテゴリと選択状態のドメインを取得
-      const selectedCategory = categories.find(c => c.id === selectedCategoryId)
-      if (!selectedCategory) return
-
-      // 各ドメインについてカテゴリへの割り当て状態を更新 (mapからfor...ofに変更)
-      const promises = []
-      for (const group of tabGroups) {
-        const isSelected = selectedDomains[group.id] || false
-
-        // カテゴリに割り当てるか解除するか
-        const promise = assignDomainToCategory(
-          group.id,
-          isSelected ? selectedCategoryId : 'none',
-        )
-        promises.push(promise)
-      }
-
-      await Promise.all(promises)
-
-      // 親カテゴリリストを再取得して最新状態を反映
-      const updatedCategories = await getParentCategories()
-      setCategories(updatedCategories)
-
-      // ドメインのカテゴリ情報も更新
-      const updatedDomainCategories = { ...domainCategories }
-      for (const group of tabGroups) {
-        const isSelected = selectedDomains[group.id] || false
-
-        if (isSelected && selectedCategory) {
-          updatedDomainCategories[group.id] = {
-            id: selectedCategory.id,
-            name: selectedCategory.name,
-          }
-        } else if (
-          !isSelected &&
-          updatedDomainCategories[group.id]?.id === selectedCategoryId
-        ) {
-          updatedDomainCategories[group.id] = null
-        }
-      }
-
-      setDomainCategories(updatedDomainCategories)
-
-      toast.success('カテゴリ設定を保存しました')
-    } catch (error) {
-      console.error('カテゴリの保存に失敗しました', error)
-      toast.error('カテゴリ設定の保存に失敗しました')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   // カテゴリ削除ハンドラ
   const handleDeleteCategory = async () => {
     if (!categoryToDelete) return
@@ -461,12 +399,12 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
   return (
     <>
       <Dialog open={true} onOpenChange={() => onClose()}>
-        <DialogContent className='sm:max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden'>
+        <DialogContent className='flex max-h-[90vh] flex-col overflow-hidden sm:max-w-[500px]'>
           <DialogHeader>
             <DialogTitle>親カテゴリ管理</DialogTitle>
           </DialogHeader>
 
-          <div className='grid gap-4 py-4 overflow-y-auto pr-1'>
+          <div className='grid gap-4 overflow-y-auto py-4 pr-1'>
             {/* 新規カテゴリ作成エリア */}
             <div>
               <Label htmlFor='newCategory' className='mb-2'>
@@ -482,14 +420,14 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                 className={nameError ? 'border-red-500' : ''}
               />
               {nameError && (
-                <p className='text-red-500 text-xs mt-1'>{nameError}</p>
+                <p className='mt-1 text-red-500 text-xs'>{nameError}</p>
               )}
             </div>
 
             {/* カテゴリ選択エリア */}
             {categories.length !== 0 && (
               <div>
-                <div className='flex items-center justify-between mb-2'>
+                <div className='mb-2 flex items-center justify-between'>
                   <Label htmlFor='categorySelect'>親カテゴリ選択</Label>
                   {categories.length > 0 &&
                     selectedCategoryId &&
@@ -522,12 +460,12 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                 </Select>
                 {/* 削除確認UI */}
                 {showDeleteConfirm && categoryToDelete && (
-                  <div className='mt-2 p-3 border rounded mb-3'>
-                    <p className='text-gray-700 dark:text-gray-300 mb-2'>
+                  <div className='mt-2 mb-3 rounded border p-3'>
+                    <p className='mb-2 text-gray-700 dark:text-gray-300'>
                       親カテゴリ「{categoryToDelete.name}
                       」を削除しますか？この操作は取り消せません。
                       {categoryToDelete.domainNames?.length ? (
-                        <span className='block text-xs mt-1'>
+                        <span className='mt-1 block text-xs'>
                           このカテゴリには {categoryToDelete.domainNames.length}
                           件のドメインが関連付けられています。
                           削除すると、ドメインと親カテゴリの関連付けも削除されます。
@@ -568,7 +506,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                   {selectedCategoryId === 'uncategorized' &&
                     '（未割り当てドメインのみ表示）'}
                 </Label>
-                <ScrollArea className='h-[calc(70vh-150px)] mt-3 border rounded p-2'>
+                <ScrollArea className='mt-3 h-[calc(70vh-150px)] rounded border p-2'>
                   {tabGroups.length > 0 ? (
                     // 未分類とカテゴリ分類済みでソート
                     [...tabGroups]
@@ -602,7 +540,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                         return (
                           <div
                             key={group.id}
-                            className={`flex items-center space-x-2 p-2 rounded border-b last:border-0 ${
+                            className={`flex items-center space-x-2 rounded border-b p-2 last:border-0 ${
                               isInCurrentCategory ? 'bg-primary/10' : ''
                             } ${isUncategorized ? 'bg-muted/50' : ''}`}
                           >
@@ -625,14 +563,14 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                               {belongsToCategory && (
                                 <button
                                   type='button'
-                                  className='text-xs text-muted-foreground flex items-center mt-1 cursor-pointer w-full text-left bg-transparent border-0 p-0 hover:text-foreground'
+                                  className='mt-1 flex w-full cursor-pointer items-center border-0 bg-transparent p-0 text-left text-muted-foreground text-xs hover:text-foreground'
                                   onClick={() =>
                                     toggleDomainSelection(group.id)
                                   }
                                   disabled={isLoading || !selectedCategoryId}
                                   aria-label={`${selectedCategoryId === belongsToCategory.id ? '現在選択中のカテゴリ' : '所属カテゴリ'}: ${belongsToCategory.name}`}
                                 >
-                                  <span className='inline-block w-2 h-2 rounded-full bg-primary mr-1' />
+                                  <span className='mr-1 inline-block h-2 w-2 rounded-full bg-primary' />
                                   <span>
                                     {selectedCategoryId === belongsToCategory.id
                                       ? '現在選択中のカテゴリ: '
@@ -645,14 +583,14 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                               {!belongsToCategory && (
                                 <button
                                   type='button'
-                                  className='text-xs text-muted-foreground flex items-center mt-1 cursor-pointer w-full text-left bg-transparent border-0 p-0 hover:text-foreground'
+                                  className='mt-1 flex w-full cursor-pointer items-center border-0 bg-transparent p-0 text-left text-muted-foreground text-xs hover:text-foreground'
                                   onClick={() =>
                                     toggleDomainSelection(group.id)
                                   }
                                   disabled={isLoading || !selectedCategoryId}
                                   aria-label='未分類のドメイン'
                                 >
-                                  <span className='inline-block w-2 h-2 rounded-full bg-muted-foreground mr-1' />
+                                  <span className='mr-1 inline-block h-2 w-2 rounded-full bg-muted-foreground' />
                                   <span>未分類</span>
                                 </button>
                               )}
@@ -662,14 +600,14 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                       })
                       .filter(Boolean) // nullをフィルタリング
                   ) : (
-                    <div className='text-center py-8 text-muted-foreground'>
+                    <div className='py-8 text-center text-muted-foreground'>
                       保存されたドメインがありません
                     </div>
                   )}
                   {/* 未分類カテゴリで表示するものがない場合のメッセージ */}
                   {selectedCategoryId === 'uncategorized' &&
                     tabGroups.every(group => domainCategories[group.id]) && (
-                      <div className='text-center py-8 text-muted-foreground'>
+                      <div className='py-8 text-center text-muted-foreground'>
                         すべてのドメインがカテゴリに分類されています
                       </div>
                     )}

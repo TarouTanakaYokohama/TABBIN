@@ -24,8 +24,7 @@ export const CategorySection = ({
   handleDeleteUrl,
   handleOpenTab,
   handleUpdateUrls,
-  handleOpenAllTabs, // 追加: すべて開く処理
-  settings, // 追加: 設定を受け取る
+  settings,
 }: CategorySectionProps) => {
   // DnDのセンサー設定
   const sensors = useSensors(
@@ -66,8 +65,6 @@ export const CategorySection = ({
   }
 
   // 表示名を設定
-  const displayName =
-    categoryName === '__uncategorized' ? '未分類' : categoryName
 
   return (
     <div className='category-section mb-1'>

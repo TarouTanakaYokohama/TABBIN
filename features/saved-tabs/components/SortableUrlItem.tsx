@@ -11,13 +11,10 @@ export const SortableUrlItem = ({
   title,
   id,
   groupId,
-  subCategory,
-  savedAt, // 個別プロパティとして受け取る
-  autoDeletePeriod, // 個別プロパティとして受け取る
-  availableSubCategories = [],
+  savedAt,
+  autoDeletePeriod,
   handleDeleteUrl,
   handleOpenTab,
-  handleSetSubCategory,
   categoryContext,
   settings,
 }: SortableUrlItemProps) => {
@@ -31,7 +28,6 @@ export const SortableUrlItem = ({
 
   const [isDragging, setIsDragging] = useState(false)
   const [leftWindow, setLeftWindow] = useState(false)
-  const [isHovered, setIsHovered] = useState(false)
   const dragTimeoutRef = useRef<number | null>(null)
   const [isDeleteButtonVisible, setIsDeleteButtonVisible] = useState(false)
   const buttonTimeoutRef = useRef<number | null>(null)
@@ -124,7 +120,6 @@ export const SortableUrlItem = ({
 
   // マウスイベントの処理を改善
   const handleMouseEnter = () => {
-    setIsHovered(true)
     setIsDeleteButtonVisible(true)
     // タイマーをクリア
     if (buttonTimeoutRef.current) {
@@ -134,7 +129,6 @@ export const SortableUrlItem = ({
   }
 
   const handleUIMouseLeave = () => {
-    setIsHovered(false)
     // ボタンの非表示を少し遅らせて、ボタンへのマウス移動を可能にする
     buttonTimeoutRef.current = window.setTimeout(() => {
       setIsDeleteButtonVisible(false)
@@ -180,22 +174,22 @@ export const SortableUrlItem = ({
     <li
       ref={setNodeRef}
       style={style}
-      className='border-b border-border pb-1 last:border-0 last:pb-0 flex items-center relative overflow-hidden'
+      className='relative flex items-center overflow-hidden border-border border-b pb-1 last:border-0 last:pb-0'
       data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
     >
       <div
-        className='text-muted-foreground/40 cursor-grab hover:cursor-grab active:cursor-grabbing pr-2 z-10 flex-shrink-0'
+        className='z-10 flex-shrink-0 cursor-grab pr-2 text-muted-foreground/40 hover:cursor-grab active:cursor-grabbing'
         {...attributes}
         {...listeners}
       >
         <GripVertical size={16} aria-hidden='true' />
       </div>
-      <div className='flex-1 relative min-w-0'>
+      <div className='relative min-w-0 flex-1'>
         <Button
           asChild
           variant='ghost'
           size='sm'
-          className='text-foreground hover:text-foreground cursor-pointer bg-transparent flex items-center gap-1 h-full justify-start px-1 pr-8 py-2 overflow-hidden'
+          className='flex h-full cursor-pointer items-center justify-start gap-1 overflow-hidden bg-transparent px-1 py-2 pr-8 text-foreground hover:text-foreground'
         >
           <a
             href={url as string}
@@ -212,11 +206,11 @@ export const SortableUrlItem = ({
             onMouseLeave={handleUIMouseLeave}
             title={title}
           >
-            <div className='flex flex-col truncate w-full'>
+            <div className='flex w-full flex-col truncate'>
               <span className='truncate'>{title}</span>
               {/* 保存日時と残り時間を表示 - settings.showSavedTime に基づき条件分岐 */}
               {savedAt && (
-                <div className='flex gap-2 items-center text-xs'>
+                <div className='flex items-center gap-2 text-xs'>
                   {settings.showSavedTime && (
                     <span className='text-muted-foreground'>
                       {formatDatetime(savedAt)}
@@ -239,7 +233,7 @@ export const SortableUrlItem = ({
             size='icon'
             onClick={handleDeleteButtonClick}
             onMouseEnter={handleDeleteButtonMouseEnter}
-            className='absolute right-0 top-0 bottom-0 my-auto flex-shrink-0 cursor-pointer'
+            className='absolute top-0 right-0 bottom-0 my-auto flex-shrink-0 cursor-pointer'
             title='タブを削除'
             aria-label='タブを削除'
           >
