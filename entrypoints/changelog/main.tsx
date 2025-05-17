@@ -66,11 +66,7 @@ const App: React.FC = () => (
         <h1 className='font-extrabold text-5xl text-primary sm:text-6xl sm:tracking-tight'>
           <span className='block'>リリースノート</span>
         </h1>
-        <p className='mt-4 text-muted-foreground text-xl'>
-          アプリの進化の記録 - 新機能と改善点
-        </p>
       </div>
-
       <div className='space-y-12'>
         {CHANGELOG.map(item => (
           <Card
