@@ -33,7 +33,7 @@ export function useCategoryDnD() {
 
   // ドラッグ中
   const handleDragOver = (event: DragOverEvent, project: { id: string }) => {
-    const { active, over } = event
+    const { over } = event
     // 未分類エリアへのドラッグはハイライト解除
     const isOverUncategorized =
       over?.id === `uncategorized-${project.id}` ||

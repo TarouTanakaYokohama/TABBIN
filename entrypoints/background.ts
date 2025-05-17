@@ -5,7 +5,6 @@ import {
   getUserSettings,
   migrateParentCategoriesToDomainNames,
   saveTabsWithAutoCategory,
-  updateDomainCategorySettings,
 } from '../utils/storage'
 
 // 型定義
@@ -181,9 +180,6 @@ export default defineBackground(() => {
                     console.error('通知表示エラー:', notificationError)
                   }
 
-                  // saved-tabs.htmlページを開く処理を追加
-                  const savedTabsTabId = await openSavedTabsPage()
-
                   // タブを閉じる処理を追加
                   try {
                     if (tab.id) {
@@ -213,9 +209,6 @@ export default defineBackground(() => {
                   console.log(
                     `フィルタリング後のタブ数: ${filteredTabs.length}`,
                   )
-
-                  // ユーザー設定を取得
-                  const settings = await getUserSettings()
 
                   // 先にタブを保存してから、保存完了後にsaved-tabsページを開く
                   await saveTabsWithAutoCategory(filteredTabs)
@@ -281,8 +274,7 @@ export default defineBackground(() => {
                   console.log(`現在のドメインのタブを保存: ${tab.url}`)
 
                   // 現在のタブからドメインを取得
-                  const url = new URL(tab.url)
-                  const currentDomain = url.hostname
+                  const currentDomain = new URL(tab.url).hostname
                   console.log(`現在のドメイン: ${currentDomain}`)
 
                   // 現在のウィンドウの同じドメインのタブをすべて取得
@@ -292,7 +284,7 @@ export default defineBackground(() => {
                     try {
                       const tabUrl = new URL(t.url)
                       return tabUrl.hostname === currentDomain
-                    } catch (e) {
+                    } catch (_e) {
                       return false
                     }
                   })
@@ -325,9 +317,6 @@ export default defineBackground(() => {
                   } catch (notificationError) {
                     console.error('通知表示エラー:', notificationError)
                   }
-
-                  // saved-tabs.htmlページを開く
-                  const savedTabsTabId = await openSavedTabsPage()
 
                   // 保存したタブを閉じる
                   for (const domainTab of filteredTabs) {
@@ -376,9 +365,6 @@ export default defineBackground(() => {
                   } catch (notificationError) {
                     console.error('通知表示エラー:', notificationError)
                   }
-
-                  // saved-tabs.htmlページを開く
-                  const savedTabsTabId = await openSavedTabsPage()
 
                   // タブを閉じる
                   const savedTabsUrls = [
@@ -469,7 +455,7 @@ export default defineBackground(() => {
 
             return savedTabsPageId
           }
-        } catch (e) {
+        } catch (_e) {
           // タブが見つからない場合は続行して新しく作成
           console.log(
             '保存されていたタブIDは存在しませんでした。新規作成します。',
@@ -674,7 +660,7 @@ export default defineBackground(() => {
   }
 
   // 期限切れのタブをチェックして削除する関数
-  async function checkAndRemoveExpiredTabs(forceReload = false) {
+  async function checkAndRemoveExpiredTabs() {
     try {
       console.log(
         '期限切れタブのチェックを開始...',
@@ -882,9 +868,6 @@ export default defineBackground(() => {
             console.error('通知表示エラー:', error)
           }
 
-          // saved-tabsページを開く
-          const savedTabsTabId = await openSavedTabsPage()
-
           // タブを閉じる
           if (activeTab.id) {
             try {
@@ -917,7 +900,7 @@ export default defineBackground(() => {
                 try {
                   const tabUrl = new URL(tab.url)
                   return tabUrl.hostname === currentDomain
-                } catch (e) {
+                } catch (_e) {
                   return false
                 }
               })
@@ -955,9 +938,6 @@ export default defineBackground(() => {
               } catch (error) {
                 console.error('通知表示エラー:', error)
               }
-
-              // saved-tabs.htmlページを開く
-              const savedTabsTabId = await openSavedTabsPage()
 
               // 保存したタブを閉じる
               for (const tab of filteredTabs) {
@@ -1026,7 +1006,7 @@ export default defineBackground(() => {
             const savedTabsTabId = await openSavedTabsPage()
 
             // タブを閉じる
-            const savedTabsUrls = ['saved-tabs.html', 'chrome-extension://']
+
             for (const tab of filteredTabs) {
               if (tab.id && tab.id !== savedTabsTabId) {
                 try {
@@ -1269,7 +1249,7 @@ export default defineBackground(() => {
   }
 
   // メッセージリスナーを追加
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     console.log('バックグラウンドがメッセージを受信:', message)
 
     // URLのドラッグ開始を処理
@@ -1381,11 +1361,11 @@ export default defineBackground(() => {
         console.log(`タブの保存時刻を更新します (${message.period || '不明'})`)
         // 処理の簡略化 - まずタイムスタンプを更新し、待機せずにチェック実行
         updateTabTimestamps(message.period)
-          .then(result => {
+          .then(_result => {
             console.log('タブの時刻更新完了。チェックを実行します。')
 
             // 設定を再読み込みし、チェック実行
-            checkAndRemoveExpiredTabs(true)
+            checkAndRemoveExpiredTabs()
               .then(() => {
                 console.log('期限切れチェック完了')
                 sendResponse({ status: 'completed', success: true })
@@ -1401,7 +1381,7 @@ export default defineBackground(() => {
           })
       } else {
         // 単純化 - 常に強制リロードする
-        checkAndRemoveExpiredTabs(true)
+        checkAndRemoveExpiredTabs()
           .then(() => {
             console.log('期限切れチェック完了')
             sendResponse({ status: 'completed' })
@@ -1529,27 +1509,6 @@ export default defineBackground(() => {
     } catch (error) {
       console.error('URLの削除中にエラーが発生しました:', error)
       throw error
-    }
-  }
-
-  // ドメインの設定を永続化する関数
-  async function saveDomainSettings(
-    domain: string,
-    subCategories: string[],
-    categoryKeywords: SubCategoryKeyword[],
-  ) {
-    try {
-      // domainが実際のURLドメインでなければ処理しない
-      if (!domain.includes('://')) return
-
-      await updateDomainCategorySettings(
-        domain,
-        subCategories,
-        categoryKeywords,
-      )
-      console.log(`ドメイン ${domain} のカテゴリ設定を永続化しました`)
-    } catch (error) {
-      console.error('カテゴリ設定の永続化エラー:', error)
     }
   }
 

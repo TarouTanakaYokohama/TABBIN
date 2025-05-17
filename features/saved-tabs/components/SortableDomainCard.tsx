@@ -67,8 +67,6 @@ export const SortableDomainCard = ({
   const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>(
     'default',
   )
-  // カテゴリの順序を管理する状態を追加
-  const [categoryOrder, setCategoryOrder] = useState<string[]>([])
   // 未分類も含めたすべてのカテゴリを管理する状態を追加
   const [allCategoryIds, setAllCategoryIds] = useState<string[]>([])
   // カテゴリ更新フラグ - カテゴリ削除後のリフレッシュ用
@@ -211,12 +209,6 @@ export const SortableDomainCard = ({
 
   // カテゴリ順序の初期化と更新
   useEffect(() => {
-    if (group.subCategories) {
-      // subCategoryOrder がある場合はそれを使用、なければ subCategories をそのまま使用
-      const initialOrder = group.subCategoryOrder || [...group.subCategories]
-      setCategoryOrder(initialOrder)
-    }
-
     // subCategoryOrderWithUncategorizedがあればそれを使用
     if (group.subCategoryOrderWithUncategorized) {
       const savedOrder = [...group.subCategoryOrderWithUncategorized]
@@ -225,11 +217,7 @@ export const SortableDomainCard = ({
         setAllCategoryIds(savedOrder)
       }
     }
-  }, [
-    group.subCategories,
-    group.subCategoryOrder,
-    group.subCategoryOrderWithUncategorized,
-  ])
+  }, [group.subCategoryOrderWithUncategorized])
 
   // アクティブカテゴリの更新とallCategoryIdsの初期化
   useEffect(() => {
@@ -266,7 +254,6 @@ export const SortableDomainCard = ({
   ) => {
     try {
       // ローカル状態を更新
-      setCategoryOrder(updatedOrder)
 
       // 全カテゴリ順序も指定がある場合は更新
       if (updatedAllOrder) {
@@ -567,13 +554,13 @@ export const SortableDomainCard = ({
       ref={setNodeRef}
       style={style}
       className={`rounded-lg shadow-md ${
-        isDraggingOver ? 'border-ring border-2' : 'border-border'
+        isDraggingOver ? 'border-2 border-ring' : 'border-border'
       }`}
       data-category-id={categoryId}
       data-urls-count={group.urls.length}
     >
-      <CardHeader className='p-2 w-full'>
-        <div className='flex items-center justify-between w-full gap-2'>
+      <CardHeader className='w-full p-2'>
+        <div className='flex w-full items-center justify-between gap-2'>
           {/* 折りたたみ切り替えボタン */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -584,7 +571,7 @@ export const SortableDomainCard = ({
                   e.stopPropagation()
                   setIsCollapsed(prev => !prev)
                 }}
-                className='flex items-center gap-1 cursor-pointer'
+                className='flex cursor-pointer items-center gap-1'
                 title={isCollapsed ? '展開' : '折りたたむ'}
                 aria-label={isCollapsed ? '展開' : '折りたたむ'}
               >
@@ -595,7 +582,7 @@ export const SortableDomainCard = ({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='lg:hidden block'>
+            <TooltipContent side='top' className='block lg:hidden'>
               {isCollapsed ? '展開' : '折りたたむ'}
             </TooltipContent>
           </Tooltip>
@@ -612,7 +599,7 @@ export const SortableDomainCard = ({
                     o === 'default' ? 'asc' : o === 'asc' ? 'desc' : 'default',
                   )
                 }}
-                className='flex items-center gap-1 cursor-pointer'
+                className='flex cursor-pointer items-center gap-1'
                 title={
                   sortOrder === 'default'
                     ? '保存日時のデフォルト'
@@ -637,7 +624,7 @@ export const SortableDomainCard = ({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='lg:hidden block'>
+            <TooltipContent side='top' className='block lg:hidden'>
               {sortOrder === 'default'
                 ? '保存日時のデフォルト'
                 : sortOrder === 'asc'
@@ -648,38 +635,38 @@ export const SortableDomainCard = ({
 
           {/* ドラッグハンドル＆ドメイン表示 */}
           <div
-            className='flex items-center gap-2 cursor-grab overflow-hidden flex-grow hover:cursor-grab active:cursor-grabbing'
+            className='flex flex-grow cursor-grab items-center gap-2 overflow-hidden hover:cursor-grab active:cursor-grabbing'
             {...attributes}
             {...listeners}
           >
-            <div className='text-muted-foreground/80 flex-shrink-0'>
+            <div className='flex-shrink-0 text-muted-foreground/80'>
               <GripVertical size={16} aria-hidden='true' />
             </div>
-            <h2 className='text-lg font-semibold text-foreground truncate'>
+            <h2 className='truncate font-semibold text-foreground text-lg'>
               {group.domain}
             </h2>
-            <span className='text-sm text-muted-foreground'>
+            <span className='text-muted-foreground text-sm'>
               <Badge variant='secondary'>{group.urls.length}</Badge>
             </span>
           </div>
 
           {/* 操作ボタン群 */}
-          <div className='flex items-center gap-2 flex-shrink-0'>
+          <div className='flex flex-shrink-0 items-center gap-2'>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant='secondary'
                   size='sm'
                   onClick={() => setShowKeywordModal(!showKeywordModal)}
-                  className='flex items-center gap-1 cursor-pointer'
+                  className='flex cursor-pointer items-center gap-1'
                   title='子カテゴリを管理'
                   aria-label='子カテゴリを管理'
                 >
                   <Settings size={14} />
-                  <span className='lg:inline hidden'>子カテゴリ管理</span>
+                  <span className='hidden lg:inline'>子カテゴリ管理</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 子カテゴリを管理
               </TooltipContent>
             </Tooltip>
@@ -700,15 +687,15 @@ export const SortableDomainCard = ({
                     e.stopPropagation()
                     handleOpenAllTabs(group.urls)
                   }}
-                  className='flex items-center gap-1 cursor-pointer'
+                  className='flex cursor-pointer items-center gap-1'
                   title='すべてのタブを開く'
                   aria-label='すべてのタブを開く'
                 >
                   <ExternalLink size={14} />
-                  <span className='lg:inline hidden'>すべて開く</span>
+                  <span className='hidden lg:inline'>すべて開く</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 すべてのタブを開く
               </TooltipContent>
             </Tooltip>
@@ -729,15 +716,15 @@ export const SortableDomainCard = ({
                       handleDeleteGroup(group.id)
                     }
                   }}
-                  className='flex items-center gap-1 cursor-pointer'
+                  className='flex cursor-pointer items-center gap-1'
                   title='すべてのタブを削除'
                   aria-label='すべてのタブを削除'
                 >
                   <Trash size={14} />
-                  <span className='lg:inline hidden'>すべて削除</span>
+                  <span className='hidden lg:inline'>すべて削除</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 すべてのタブを削除
               </TooltipContent>
             </Tooltip>
@@ -810,7 +797,7 @@ export const SortableDomainCard = ({
               />
             )
           ) : (
-            <div className='text-center py-4 text-gray-400'>
+            <div className='py-4 text-center text-gray-400'>
               {group.urls.length === 0
                 ? 'このドメインにはタブがありません'
                 : 'カテゴリを追加するにはカテゴリ管理から行ってください'}

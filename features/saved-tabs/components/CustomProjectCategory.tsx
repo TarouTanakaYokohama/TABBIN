@@ -45,7 +45,6 @@ export const CustomProjectCategory = ({
   handleDeleteUrl,
   handleDeleteCategory,
   handleSetUrlCategory,
-  handleAddCategory,
   settings,
   handleOpenAllUrls,
   dragData = { type: 'category' },
@@ -136,20 +135,7 @@ export const CustomProjectCategory = ({
     ...reorderStyle,
   }
 
-  const [isEditing, setIsEditing] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [editName, setEditName] = useState(category)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (isEditing) {
-      inputRef.current?.focus()
-    }
-  }, [isEditing])
-
-  useEffect(() => {
-    setEditName(category)
-  }, [category])
 
   // カテゴリ管理ダイアログ用の状態
   const [showManageDialog, setShowManageDialog] = useState(false)
@@ -193,7 +179,7 @@ export const CustomProjectCategory = ({
       ref={setRefs}
       style={cardStyle}
       className={`mb-2 overflow-x-hidden ${
-        isDropTarget ? 'border-primary border-2 bg-primary/5' : ''
+        isDropTarget ? 'border-2 border-primary bg-primary/5' : ''
       } ${isSelfDragging ? 'opacity-50' : ''}`}
       id={categoryDropId}
       data-category={category}
@@ -205,11 +191,11 @@ export const CustomProjectCategory = ({
       data-category-drop-id={categoryDropId}
       aria-label={`カテゴリ: ${category}`}
     >
-      <CardHeader className='flex-row justify-between items-center py-2 px-3'>
+      <CardHeader className='flex-row items-center justify-between px-3 py-2'>
         <div
           {...attributes}
           {...listeners}
-          className='flex items-center gap-2 cursor-grab overflow-hidden flex-grow hover:cursor-grab active:cursor-grabbing'
+          className='flex flex-grow cursor-grab items-center gap-2 overflow-hidden hover:cursor-grab active:cursor-grabbing'
         >
           {/* collapse toggle */}
           <Tooltip>
@@ -222,7 +208,7 @@ export const CustomProjectCategory = ({
                   e.stopPropagation()
                   setIsCollapsed(prev => !prev)
                 }}
-                className='flex items-center gap-1 cursor-pointer'
+                className='flex cursor-pointer items-center gap-1'
                 title={isCollapsed ? '展開' : '折りたたむ'}
                 aria-label={isCollapsed ? '展開' : '折りたたむ'}
               >
@@ -233,7 +219,7 @@ export const CustomProjectCategory = ({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='lg:hidden block'>
+            <TooltipContent side='top' className='block lg:hidden'>
               {isCollapsed ? '展開' : '折りたたむ'}
             </TooltipContent>
           </Tooltip>
@@ -250,7 +236,7 @@ export const CustomProjectCategory = ({
                     o === 'default' ? 'asc' : o === 'asc' ? 'desc' : 'default',
                   )
                 }}
-                className='flex items-center gap-1 cursor-pointer'
+                className='flex cursor-pointer items-center gap-1'
                 title={
                   sortOrder === 'default'
                     ? 'デフォルト'
@@ -275,7 +261,7 @@ export const CustomProjectCategory = ({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='lg:hidden block'>
+            <TooltipContent side='top' className='block lg:hidden'>
               {sortOrder === 'default'
                 ? 'デフォルト'
                 : sortOrder === 'asc'
@@ -283,17 +269,17 @@ export const CustomProjectCategory = ({
                   : '降順'}
             </TooltipContent>
           </Tooltip>
-          <div className='text-muted-foreground flex-shrink-0'>
+          <div className='flex-shrink-0 text-muted-foreground'>
             <GripVertical size={16} aria-hidden='true' />
           </div>
-          <h3 className='m-0 text-lg font-medium bg-transparent border-none p-0'>
+          <h3 className='m-0 border-none bg-transparent p-0 font-medium text-lg'>
             {category}
           </h3>
           <Badge variant='secondary'>{localCategoryUrls.length}</Badge>
         </div>
         <div className='flex items-center gap-1'>
           {isReorderTarget && isCategoryReorder && (
-            <div className='text-blue-600 text-sm flex items-center mr-2'>
+            <div className='mr-2 flex items-center text-blue-600 text-sm'>
               <ArrowUpDown className='mr-1' size={14} />
               <span>順序を変更</span>
             </div>
@@ -304,16 +290,16 @@ export const CustomProjectCategory = ({
                 <Button
                   variant='secondary'
                   size='sm'
-                  className='flex items-center gap-1 cursor-pointer'
+                  className='flex cursor-pointer items-center gap-1'
                   onClick={() => setShowManageDialog(true)}
                   title='カテゴリ管理'
                   aria-label='カテゴリ管理'
                 >
                   <Settings size={14} />
-                  <span className='lg:inline hidden'>カテゴリ管理</span>
+                  <span className='hidden lg:inline'>カテゴリ管理</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 カテゴリ管理
               </TooltipContent>
             </Tooltip>
@@ -324,7 +310,7 @@ export const CustomProjectCategory = ({
                 <Button
                   variant='secondary'
                   size='sm'
-                  className='flex items-center gap-1 cursor-pointer'
+                  className='flex cursor-pointer items-center gap-1'
                   onClick={async () => {
                     if (
                       localCategoryUrls.length >= 10 &&
@@ -345,10 +331,10 @@ export const CustomProjectCategory = ({
                   aria-label='すべて開く'
                 >
                   <ExternalLink size={14} />
-                  <span className='lg:inline hidden'>すべて開く</span>
+                  <span className='hidden lg:inline'>すべて開く</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 すべて開く
               </TooltipContent>
             </Tooltip>
@@ -359,7 +345,7 @@ export const CustomProjectCategory = ({
                 <Button
                   variant='secondary'
                   size='sm'
-                  className='flex items-center gap-1 cursor-pointer'
+                  className='flex cursor-pointer items-center gap-1'
                   onClick={async () => {
                     if (
                       !settings.confirmDeleteAll ||
@@ -377,10 +363,10 @@ export const CustomProjectCategory = ({
                   aria-label='すべて削除'
                 >
                   <Trash2 size={14} />
-                  <span className='lg:inline hidden'>すべて削除</span>
+                  <span className='hidden lg:inline'>すべて削除</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='lg:hidden block'>
+              <TooltipContent side='top' className='block lg:hidden'>
                 すべて削除
               </TooltipContent>
             </Tooltip>
@@ -406,7 +392,7 @@ export const CustomProjectCategory = ({
             >
               <ul
                 className={`space-y-1 ${
-                  isOver ? 'bg-primary/5 p-1 rounded' : ''
+                  isOver ? 'rounded bg-primary/5 p-1' : ''
                 }`}
               >
                 {localCategoryUrls.map(item => (
@@ -425,8 +411,8 @@ export const CustomProjectCategory = ({
             </SortableContext>
           ) : (
             <div
-              className={`text-center text-muted-foreground py-2 border-2 border-dashed rounded p-4 ${
-                isOver ? 'bg-primary/10 border-primary' : ''
+              className={`rounded border-2 border-dashed p-4 py-2 text-center text-muted-foreground ${
+                isOver ? 'border-primary bg-primary/10' : ''
               }`}
             >
               {isReorderTarget && isCategoryReorder
@@ -463,7 +449,7 @@ export const CustomProjectCategory = ({
                 onChange={e => setNewCategoryName(e.target.value)}
                 onBlur={handleRename}
                 placeholder='新しいカテゴリ名 (25文字以内)'
-                className={`w-full p-2 border rounded ${renameError ? 'border-red-500' : ''}`}
+                className={`w-full rounded border p-2 ${renameError ? 'border-red-500' : ''}`}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
@@ -472,15 +458,15 @@ export const CustomProjectCategory = ({
                 }}
               />
               {renameError && (
-                <p className='text-red-500 text-xs mt-1'>{renameError}</p>
+                <p className='mt-1 text-red-500 text-xs'>{renameError}</p>
               )}
             </div>
-            <div className='pt-4 border-t'>
-              <p className='text-sm text-gray-600'>
+            <div className='border-t pt-4'>
+              <p className='text-gray-600 text-sm'>
                 カテゴリを削除すると、このカテゴリに属するすべてのURLは未分類になります。
               </p>
               {showDeleteConfirm ? (
-                <div className='flex justify-end gap-2 mt-2'>
+                <div className='mt-2 flex justify-end gap-2'>
                   <Button
                     variant='ghost'
                     size='sm'
@@ -497,7 +483,7 @@ export const CustomProjectCategory = ({
                   </Button>
                 </div>
               ) : (
-                <div className='flex justify-end mt-2'>
+                <div className='mt-2 flex justify-end'>
                   <Button
                     variant='destructive'
                     size='sm'

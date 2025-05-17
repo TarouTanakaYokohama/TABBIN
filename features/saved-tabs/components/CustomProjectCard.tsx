@@ -34,9 +34,6 @@ export const CustomProjectCard = ({
   project,
   handleOpenUrl,
   handleDeleteUrl,
-  handleAddUrl,
-  handleDeleteProject,
-  handleRenameProject,
   handleAddCategory,
   handleDeleteCategory,
   handleRenameCategory, // カテゴリ名変更ハンドラ
@@ -46,19 +43,10 @@ export const CustomProjectCard = ({
   handleOpenAllUrls,
   settings,
   draggedItem,
-  handleMoveUrlsBetweenCategories,
   isDropTarget = false,
-  handleMoveUrlBetweenProjects,
 }: CustomProjectCardProps) => {
   // プロジェクト全体をドラッグ可能にするためのsortable設定
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { setNodeRef, transform, transition, isDragging } = useSortable({
     id: project.id,
     data: {
       type: 'project',
@@ -72,10 +60,6 @@ export const CustomProjectCard = ({
     transition,
     opacity: isDragging ? 0.5 : 1,
   }
-
-  const [isRenaming, setIsRenaming] = useState(false)
-  const [newName, setNewName] = useState(project.name)
-  const [isAddingCategory, setIsAddingCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
 
   // DnD状態管理をカスタムフックで共通化
@@ -180,21 +164,10 @@ export const CustomProjectCard = ({
     draggedItem &&
     draggedItem.projectId !== project.id
 
-  const handleRenameClick = () => {
-    if (newName && newName !== project.name) {
-      handleRenameProject(project.id, newName)
-      setIsRenaming(false)
-    } else {
-      setNewName(project.name)
-      setIsRenaming(false)
-    }
-  }
-
-  const handleAddCategoryClick = () => {
+  const _handleAddCategoryClick = () => {
     if (newCategoryName.trim()) {
       handleAddCategory(project.id, newCategoryName.trim())
       setNewCategoryName('')
-      setIsAddingCategory(false)
     }
   }
 
@@ -439,7 +412,7 @@ export const CustomProjectCard = ({
     <Card
       className={`mb-4 w-full overflow-x-hidden ${
         isExternalItemOver
-          ? 'border-primary border-2 shadow-lg bg-primary/5'
+          ? 'border-2 border-primary bg-primary/5 shadow-lg'
           : ''
       }`}
       ref={setCombinedRefs}
@@ -448,7 +421,7 @@ export const CustomProjectCard = ({
       <CardContent className='overflow-x-hidden'>
         {/* プロジェクト間ドラッグ中の表示 */}
         {isExternalItemOver && (
-          <div className='border-2 border-dashed border-primary p-4 mb-4 rounded bg-primary/10 text-center font-medium'>
+          <div className='mb-4 rounded border-2 border-primary border-dashed bg-primary/10 p-4 text-center font-medium'>
             <span className='text-primary'>{draggedItem?.title || 'URL'}</span>{' '}
             をここにドロップして追加
           </div>
@@ -498,10 +471,10 @@ export const CustomProjectCard = ({
           {/* 未分類URL表示部分 */}
           {project.urls.length > 0 && uncategorizedUrls.length > 0 && (
             <div
-              className={`mt-4 p-4 uncategorized-area uncategorized-drop-zone overflow-x-hidden ${
+              className={`uncategorized-area uncategorized-drop-zone mt-4 overflow-x-hidden p-4 ${
                 isUncategorizedOver
-                  ? 'border-2 border-primary bg-primary/10 rounded shadow-sm'
-                  : 'border border-dashed border-muted rounded'
+                  ? 'rounded border-2 border-primary bg-primary/10 shadow-sm'
+                  : 'rounded border border-muted border-dashed'
               }`}
               ref={setUncategorizedDropRef}
               id={`uncategorized-${project.id}`}
@@ -514,7 +487,7 @@ export const CustomProjectCard = ({
             >
               {project.categories.length > 0 && (
                 <h3
-                  className='text-md font-semibold mb-2 px-2 uncategorized-heading'
+                  className='uncategorized-heading mb-2 px-2 font-semibold text-md'
                   data-type='uncategorized'
                   data-uncategorized-area='true'
                 >
@@ -533,7 +506,7 @@ export const CustomProjectCard = ({
                 strategy={verticalListSortingStrategy}
               >
                 <ul
-                  className='space-y-2 uncategorized-area uncategorized-list'
+                  className='uncategorized-area uncategorized-list space-y-2'
                   data-type='uncategorized'
                   data-parent-id={`uncategorized-${project.id}`}
                   data-uncategorized-area='true'
@@ -563,7 +536,7 @@ export const CustomProjectCard = ({
             uncategorizedUrls.length === 0 &&
             project.categories.length > 0 && (
               <button
-                className={`mt-4 p-8 border-2 border-dashed rounded cursor-pointer w-full text-left uncategorized-area uncategorized-drop-zone uncategorized-empty ${
+                className={`uncategorized-area uncategorized-drop-zone uncategorized-empty mt-4 w-full cursor-pointer rounded border-2 border-dashed p-8 text-left ${
                   isUncategorizedOver
                     ? 'border-primary bg-primary/10 shadow-md'
                     : 'border-muted hover:border-muted-foreground hover:bg-accent/5'
@@ -612,7 +585,7 @@ export const CustomProjectCard = ({
                   u.url === activeId.id ||
                   u.url === activeId.data?.current?.url,
               ) && (
-                <div className='border p-2 rounded bg-secondary'>
+                <div className='rounded border bg-secondary p-2'>
                   {project.urls.find(
                     u =>
                       u.url === activeId.id ||
@@ -626,7 +599,7 @@ export const CustomProjectCard = ({
 
         {/* プロジェクトが空の場合 */}
         {project.urls.length === 0 && !isExternalItemOver && (
-          <div className='text-center text-muted-foreground py-4'>
+          <div className='py-4 text-center text-muted-foreground'>
             このプロジェクトにはURLがありません。
             <br />
             拡張機能アイコンからタブを保存するか、右クリックメニューから追加できます。

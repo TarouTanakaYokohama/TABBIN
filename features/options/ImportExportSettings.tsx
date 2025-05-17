@@ -53,13 +53,6 @@ export const ImportExportSettings: React.FC = () => {
     setImportDialogOpen(true)
   }
 
-  // ファイル選択を開く
-  const handleSelectFile = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click()
-    }
-  }
-
   // ファイル読み込み処理
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -147,7 +140,7 @@ export const ImportExportSettings: React.FC = () => {
           onClick={handleExport}
           disabled={isExporting}
           variant='outline'
-          className='flex items-center gap-2 w-full justify-start'
+          className='flex w-full items-center justify-start gap-2'
         >
           <Download size={16} />
           {isExporting ? 'エクスポート中...' : '設定とタブデータをエクスポート'}
@@ -157,7 +150,7 @@ export const ImportExportSettings: React.FC = () => {
           onClick={handleOpenImportDialog}
           disabled={isImporting}
           variant='outline'
-          className='flex items-center gap-2 w-full justify-start'
+          className='flex w-full items-center justify-start gap-2'
         >
           <Upload size={16} />
           {isImporting ? 'インポート中...' : '設定とタブデータをインポート'}
@@ -182,7 +175,7 @@ export const ImportExportSettings: React.FC = () => {
           </DialogHeader>
 
           {/* マージオプションを追加 */}
-          <div className='flex items-center space-x-2 mb-4'>
+          <div className='mb-4 flex items-center space-x-2'>
             <Checkbox
               id='merge-data'
               checked={mergeData}
@@ -193,7 +186,7 @@ export const ImportExportSettings: React.FC = () => {
             </Label>
           </div>
 
-          <div className='text-sm text-muted-foreground mb-4'>
+          <div className='mb-4 text-muted-foreground text-sm'>
             <p>
               {mergeData
                 ? '既存のデータを保持しつつ、新しいデータを追加・更新します。'
@@ -204,20 +197,20 @@ export const ImportExportSettings: React.FC = () => {
           {/* ドラッグ&ドロップエリア */}
           <div
             {...getRootProps()}
-            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+            className={`cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
               isDragActive
                 ? 'border-primary bg-primary/5'
                 : 'border-muted-foreground/20'
             }`}
           >
             <input {...getInputProps()} />
-            <Upload className='mx-auto h-12 w-12 text-muted-foreground mb-2' />
-            <p className='text-sm font-medium mb-1'>
+            <Upload className='mx-auto mb-2 h-12 w-12 text-muted-foreground' />
+            <p className='mb-1 font-medium text-sm'>
               {isDragActive
                 ? 'ファイルをドロップ'
                 : 'JSONファイルをドラッグ&ドロップ'}
             </p>
-            <p className='text-xs text-muted-foreground'>
+            <p className='text-muted-foreground text-xs'>
               または、クリックしてファイルを選択
             </p>
           </div>
@@ -235,7 +228,7 @@ export const ImportExportSettings: React.FC = () => {
             </AlertDescription>
           </Alert>
 
-          <DialogFooter className='flex flex-col sm:flex-row sm:justify-between gap-2'>
+          <DialogFooter className='flex flex-col gap-2 sm:flex-row sm:justify-between'>
             <Button
               variant='secondary'
               onClick={() => setImportDialogOpen(false)}

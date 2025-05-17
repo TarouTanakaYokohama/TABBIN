@@ -44,81 +44,6 @@ export const CategoryKeywordModal = ({
   onDeleteCategory,
   parentCategories: initialParentCategories = [], // デフォルト値を空配列に設定
   onUpdateParentCategories,
-  onCreateParentCategory = async (name: string) => {
-    const { parentCategories = [] } =
-      await chrome.storage.local.get('parentCategories')
-    const existingCategories = parentCategories as ParentCategory[]
-
-    // 重複チェック
-    if (existingCategories.some((cat: ParentCategory) => cat.name === name)) {
-      toast.error('同じ名前の親カテゴリが既に存在します')
-      throw new Error('同じ名前の親カテゴリが既に存在します')
-    }
-
-    // 新しい親カテゴリを作成
-    const newCategory: ParentCategory = {
-      id: crypto.randomUUID(),
-      name,
-      domains: [],
-      domainNames: [],
-    }
-
-    // 保存
-    await chrome.storage.local.set({
-      parentCategories: [...existingCategories, newCategory],
-    })
-
-    return newCategory
-  },
-  onAssignToParentCategory = async (groupId: string, categoryId: string) => {
-    const { parentCategories = [] } =
-      await chrome.storage.local.get('parentCategories')
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-
-    const existingTabs = savedTabs as TabGroup[]
-    const existingCategories = parentCategories as ParentCategory[]
-
-    const targetGroup = existingTabs.find((tab: TabGroup) => tab.id === groupId)
-    if (!targetGroup) {
-      toast.error('タブグループが見つかりません')
-      throw new Error('タブグループが見つかりません')
-    }
-
-    // 更新されたカテゴリ一覧を作成
-    const updatedCategories = existingCategories.map((cat: ParentCategory) => {
-      // 親カテゴリの関連付けを解除
-      if (categoryId === '') {
-        return {
-          ...cat,
-          domains: cat.domains.filter((id: string) => id !== groupId),
-          domainNames: cat.domainNames.filter(
-            (domain: string) => domain !== targetGroup.domain,
-          ),
-        }
-      }
-
-      // 選択された親カテゴリに追加
-      if (cat.id === categoryId) {
-        return {
-          ...cat,
-          domains: [...new Set([...cat.domains, groupId])],
-          domainNames: [...new Set([...cat.domainNames, targetGroup.domain])],
-        }
-      }
-
-      // 他の親カテゴリからは削除
-      return {
-        ...cat,
-        domains: cat.domains.filter((id: string) => id !== groupId),
-        domainNames: cat.domainNames.filter(
-          (domain: string) => domain !== targetGroup.domain,
-        ),
-      }
-    })
-
-    // 保存
-    await chrome.storage.local.set({ parentCategories: updatedCategories })
-  },
 }: CategoryKeywordModalProps) => {
   const [activeCategory, setActiveCategory] = useState<string>(
     group.subCategories && group.subCategories.length > 0
@@ -133,7 +58,6 @@ export const CategoryKeywordModal = ({
   const modalContentRef = useRef<HTMLDivElement>(null)
   const [isRenaming, setIsRenaming] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
-  const [newParentCategory, setNewParentCategory] = useState('')
   const [internalParentCategories, setInternalParentCategories] = useState<
     ParentCategory[]
   >(initialParentCategories)
@@ -141,9 +65,6 @@ export const CategoryKeywordModal = ({
     useState<string>('none')
 
   // エラー状態の追加
-  const [parentCategoryNameError, setParentCategoryNameError] = useState<
-    string | null
-  >(null)
   const [subCategoryNameError, setSubCategoryNameError] = useState<
     string | null
   >(null)
@@ -381,15 +302,6 @@ export const CategoryKeywordModal = ({
     e.stopPropagation()
   }
 
-  // 親カテゴリ名の入力ハンドラ
-  const handleParentCategoryNameChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const value = e.target.value
-    setNewParentCategory(value)
-    validateCategoryName(value, setParentCategoryNameError)
-  }
-
   // 子カテゴリ名の入力ハンドラ
   const handleSubCategoryNameChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -406,62 +318,6 @@ export const CategoryKeywordModal = ({
     const value = e.target.value
     setNewCategoryName(value)
     validateCategoryName(value, setCategoryRenameError)
-  }
-
-  // 新しい親カテゴリの作成処理 - バリデーション追加
-  const handleCreateParentCategory = async (e: React.MouseEvent) => {
-    // イベント伝播を防止
-    e.stopPropagation()
-    e.preventDefault()
-
-    if (!newParentCategory.trim()) return
-    if (!onCreateParentCategory || !onAssignToParentCategory) {
-      toast.error('親カテゴリの作成機能が利用できません')
-      return
-    }
-
-    // 先にバリデーションを実行
-    if (
-      !validateCategoryName(
-        newParentCategory.trim(),
-        setParentCategoryNameError,
-      )
-    ) {
-      return
-    }
-
-    try {
-      const validName = newParentCategory.trim()
-
-      try {
-        const category = await onCreateParentCategory(validName)
-        if (!category || !category.id) {
-          throw new Error('作成された親カテゴリの情報が不正です')
-        }
-        setSelectedParentCategory(category.id)
-        try {
-          await onAssignToParentCategory(group.id, category.id)
-          setNewParentCategory('')
-          setParentCategoryNameError(null)
-          toast.success('親カテゴリを作成し、ドメインを割り当てました')
-        } catch (assignError) {
-          console.error('親カテゴリの割り当てに失敗:', assignError)
-          toast.error(
-            '親カテゴリは作成されましたが、ドメインの割り当てに失敗しました',
-          )
-        }
-      } catch (error) {
-        console.error('親カテゴリの作成に失敗:', error)
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : '親カテゴリの作成に失敗しました',
-        )
-      }
-    } catch (error) {
-      console.error('親カテゴリの作成処理エラー:', error)
-      toast.error('親カテゴリの作成に失敗しました')
-    }
   }
 
   // 子カテゴリ追加機能 - 修正版: 重複チェックと処理中フラグを追加
@@ -744,7 +600,7 @@ export const CategoryKeywordModal = ({
         >
           {/* 子カテゴリ追加セクション */}
           <div className='mb-4'>
-            <h4 className='text-md font-medium mb-2 text-gray-300'>
+            <h4 className='mb-2 font-medium text-gray-300 text-md'>
               新しい子カテゴリを追加
             </h4>
             <div className='flex flex-col'>
@@ -752,7 +608,7 @@ export const CategoryKeywordModal = ({
                 value={newSubCategory}
                 onChange={handleSubCategoryNameChange}
                 placeholder='新しい子カテゴリ名を入力 (25文字以内)'
-                className={`flex-grow p-2 border rounded ${subCategoryNameError ? 'border-red-500' : ''}`}
+                className={`flex-grow rounded border p-2 ${subCategoryNameError ? 'border-red-500' : ''}`}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
@@ -766,7 +622,7 @@ export const CategoryKeywordModal = ({
                 }}
               />
               {subCategoryNameError && (
-                <p className='text-red-500 text-xs mt-1'>
+                <p className='mt-1 text-red-500 text-xs'>
                   {subCategoryNameError}
                 </p>
               )}
@@ -777,7 +633,7 @@ export const CategoryKeywordModal = ({
           {group.subCategories && group.subCategories.length > 0 && (
             <>
               <div className='mb-4'>
-                <div className='flex justify-between items-center mb-2'>
+                <div className='mb-2 flex items-center justify-between'>
                   <Label htmlFor='category-select'>子カテゴリを選択</Label>
 
                   <div className='flex gap-2'>
@@ -788,17 +644,17 @@ export const CategoryKeywordModal = ({
                             variant='secondary'
                             size='sm'
                             onClick={handleStartRenaming}
-                            className='px-2 py-1 rounded flex items-center gap-1 cursor-pointer'
+                            className='flex cursor-pointer items-center gap-1 rounded px-2 py-1'
                             title='子カテゴリ名を変更'
                             disabled={!activeCategory}
                           >
                             <Edit size={14} />
-                            <span className='lg:inline hidden'>
+                            <span className='hidden lg:inline'>
                               子カテゴリ名を変更
                             </span>
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side='top' className='lg:hidden block'>
+                        <TooltipContent side='top' className='block lg:hidden'>
                           子カテゴリ名を変更
                         </TooltipContent>
                       </Tooltip>
@@ -810,17 +666,17 @@ export const CategoryKeywordModal = ({
                           variant='secondary'
                           size='sm'
                           onClick={() => setShowDeleteConfirm(true)}
-                          className='px-2 py-1 rounded flex items-center gap-1 cursor-pointer'
+                          className='flex cursor-pointer items-center gap-1 rounded px-2 py-1'
                           title='選択中の子カテゴリを削除'
                           disabled={!activeCategory}
                         >
                           <Trash2 size={14} />
-                          <span className='lg:inline hidden'>
+                          <span className='hidden lg:inline'>
                             選択中の子カテゴリを削除
                           </span>
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side='top' className='lg:hidden block'>
+                      <TooltipContent side='top' className='block lg:hidden'>
                         選択中の子カテゴリを削除
                       </TooltipContent>
                     </Tooltip>
@@ -829,11 +685,11 @@ export const CategoryKeywordModal = ({
 
                 {/* リネームフォーム */}
                 {isRenaming && (
-                  <div className='mt-2 p-3 border rounded mb-3'>
-                    <div className='text-gray-300 mb-2 text-sm'>
+                  <div className='mt-2 mb-3 rounded border p-3'>
+                    <div className='mb-2 text-gray-300 text-sm'>
                       「{activeCategory}」の新しい名前を入力してください
                       <br />
-                      <span className='text-xs text-gray-400'>
+                      <span className='text-gray-400 text-xs'>
                         入力後、フォーカスを外すかEnterキーで保存されます。キャンセルするにはEscを押してください
                       </span>
                     </div>
@@ -841,7 +697,7 @@ export const CategoryKeywordModal = ({
                       value={newCategoryName}
                       onChange={handleRenameCategoryNameChange}
                       placeholder='新しい子カテゴリ名 (25文字以内)'
-                      className={`w-full p-2 border rounded ${categoryRenameError ? 'border-red-500' : ''}`}
+                      className={`w-full rounded border p-2 ${categoryRenameError ? 'border-red-500' : ''}`}
                       autoFocus
                       data-rename-input='true'
                       onBlur={handleSaveRenaming}
@@ -856,7 +712,7 @@ export const CategoryKeywordModal = ({
                       }}
                     />
                     {categoryRenameError && (
-                      <p className='text-red-500 text-xs mt-1'>
+                      <p className='mt-1 text-red-500 text-xs'>
                         {categoryRenameError}
                       </p>
                     )}
@@ -865,8 +721,8 @@ export const CategoryKeywordModal = ({
 
                 {/* 削除確認UI */}
                 {showDeleteConfirm && (
-                  <div className='mt-2 p-3 border rounded mb-3'>
-                    <p className='text-gray-300 mb-2'>
+                  <div className='mt-2 mb-3 rounded border p-3'>
+                    <p className='mb-2 text-gray-300'>
                       「{activeCategory}」子カテゴリを削除しますか？
                       <br />
                       <span className='text-xs'>
@@ -878,7 +734,7 @@ export const CategoryKeywordModal = ({
                         variant='ghost'
                         size='sm'
                         onClick={() => setShowDeleteConfirm(false)}
-                        className='px-2 py-1 rounded cursor-pointer'
+                        className='cursor-pointer rounded px-2 py-1'
                       >
                         キャンセル
                       </Button>
@@ -886,10 +742,10 @@ export const CategoryKeywordModal = ({
                         variant='destructive'
                         size='sm'
                         onClick={handleDeleteCategory}
-                        className='flex items-center gap-1 cursor-pointer'
+                        className='flex cursor-pointer items-center gap-1'
                       >
                         <Trash size={14} />
-                        <span className='lg:inline hidden'>削除</span>
+                        <span className='hidden lg:inline'>削除</span>
                       </Button>
                     </div>
                   </div>
@@ -900,7 +756,7 @@ export const CategoryKeywordModal = ({
                   onValueChange={setActiveCategory}
                   disabled={isRenaming}
                 >
-                  <SelectTrigger className='w-full p-2 border rounded cursor-pointer'>
+                  <SelectTrigger className='w-full cursor-pointer rounded border p-2'>
                     <SelectValue placeholder='カテゴリを選択' />
                   </SelectTrigger>
                   <SelectContent>
@@ -921,11 +777,11 @@ export const CategoryKeywordModal = ({
               <div className='mb-4'>
                 <Label
                   htmlFor='keyword-input'
-                  className='block text-sm text-gray-400'
+                  className='block text-gray-400 text-sm'
                 >
                   「{activeCategory}」子カテゴリのキーワード
                 </Label>
-                <span className='text-xs text-gray-500 mb-1'>
+                <span className='mb-1 text-gray-500 text-xs'>
                   タイトルにキーワードが含まれていると自動的にこの子カテゴリに分類されます
                 </span>
 
@@ -935,7 +791,7 @@ export const CategoryKeywordModal = ({
                     value={newKeyword}
                     onChange={e => setNewKeyword(e.target.value)}
                     placeholder='新しいキーワードを入力'
-                    className='flex-grow p-2 border rounded'
+                    className='flex-grow rounded border p-2'
                     onKeyDown={e => {
                       if (e.key === 'Enter') {
                         e.preventDefault()
@@ -951,7 +807,7 @@ export const CategoryKeywordModal = ({
                   />
                 </div>
 
-                <div className='flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border rounded'>
+                <div className='flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded border p-2'>
                   {keywords.length === 0 ? (
                     <p className='text-gray-500'>キーワードがありません</p>
                   ) : (
@@ -959,14 +815,14 @@ export const CategoryKeywordModal = ({
                       <Badge
                         key={keyword}
                         variant='outline'
-                        className='px-2 py-1 rounded flex items-center gap-1'
+                        className='flex items-center gap-1 rounded px-2 py-1'
                       >
                         {keyword}
                         <Button
                           variant='ghost'
                           size='sm'
                           onClick={() => handleRemoveKeyword(keyword)}
-                          className='ml-1 text-gray-400 hover:text-gray-200 cursor-pointer'
+                          className='ml-1 cursor-pointer text-gray-400 hover:text-gray-200'
                           aria-label='キーワードを削除'
                           disabled={isRenaming}
                         >

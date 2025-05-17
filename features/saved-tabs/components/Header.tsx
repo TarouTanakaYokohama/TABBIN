@@ -24,7 +24,7 @@ type HeaderProps = {
   onModeChange: (mode: ViewMode) => void
   searchQuery: string
   onSearchChange: (query: string) => void
-  onOpenFilter: () => void
+  onOpenFilter?: () => void
   customProjects: CustomProject[]
   onAddCategory: (projectId: string, categoryName: string) => void
 }
@@ -35,7 +35,6 @@ export const Header = ({
   onModeChange,
   searchQuery,
   onSearchChange,
-  onOpenFilter,
   customProjects = [],
   onAddCategory = () => {},
 }: HeaderProps) => {
@@ -45,9 +44,9 @@ export const Header = ({
   const [newCategoryName, setNewCategoryName] = useState('')
 
   return (
-    <div className='flex items-center mb-4 gap-4'>
-      <div className='flex items-center gap-4 flex-1'>
-        <h1 className='text-3xl font-bold text-foreground whitespace-nowrap'>
+    <div className='mb-4 flex items-center gap-4'>
+      <div className='flex flex-1 items-center gap-4'>
+        <h1 className='whitespace-nowrap font-bold text-3xl text-foreground'>
           TABBIN
         </h1>
         <Input
@@ -58,7 +57,7 @@ export const Header = ({
           className='h-9 w-full'
         />
       </div>
-      <div className='flex items-center gap-1 whitespace-nowrap flex-shrink-0'>
+      <div className='flex flex-shrink-0 items-center gap-1 whitespace-nowrap'>
         {currentMode === 'domain' && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -66,14 +65,14 @@ export const Header = ({
                 variant='outline'
                 size='sm'
                 onClick={() => setIsModalOpen(true)}
-                className='flex items-center gap-2 cursor-pointer h-9'
+                className='flex h-9 cursor-pointer items-center gap-2'
                 title='親カテゴリ管理'
               >
                 <Plus size={16} />
-                <span className='lg:inline hidden'>親カテゴリ管理</span>
+                <span className='hidden lg:inline'>親カテゴリ管理</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='lg:hidden block'>
+            <TooltipContent side='top' className='block lg:hidden'>
               親カテゴリ管理
             </TooltipContent>
           </Tooltip>
@@ -85,14 +84,14 @@ export const Header = ({
                 variant='outline'
                 size='sm'
                 onClick={() => setIsCustomCategoryModalOpen(true)}
-                className='flex items-center gap-2 cursor-pointer h-9'
+                className='flex h-9 cursor-pointer items-center gap-2'
                 title='カテゴリ追加'
               >
                 <Plus size={16} />
-                <span className='lg:inline hidden'>カテゴリ追加</span>
+                <span className='hidden lg:inline'>カテゴリ追加</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='lg:hidden block'>
+            <TooltipContent side='top' className='block lg:hidden'>
               カテゴリ追加
             </TooltipContent>
           </Tooltip>
@@ -104,18 +103,18 @@ export const Header = ({
               variant='outline'
               size='sm'
               onClick={() => chrome.runtime.openOptionsPage()}
-              className='flex items-center gap-2 cursor-pointer h-9'
+              className='flex h-9 cursor-pointer items-center gap-2'
               title='設定'
             >
               <Wrench size={16} />
-              <span className='lg:inline hidden'>設定</span>
+              <span className='hidden lg:inline'>設定</span>
             </Button>
           </TooltipTrigger>
-          <TooltipContent side='top' className='lg:hidden block'>
+          <TooltipContent side='top' className='block lg:hidden'>
             設定
           </TooltipContent>
         </Tooltip>
-        <div className='text-sm text-muted-foreground space-x-4'>
+        <div className='space-x-4 text-muted-foreground text-sm'>
           <p>
             タブ:
             {tabGroups.reduce((sum, group) => sum + group.urls.length, 0)}
@@ -160,7 +159,7 @@ export const Header = ({
                 }
               }}
               placeholder='カテゴリ名'
-              className='w-full mb-2'
+              className='mb-2 w-full'
               autoFocus
             />
           </DialogContent>

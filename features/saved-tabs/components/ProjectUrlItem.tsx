@@ -36,20 +36,11 @@ const getCategoryLevel = (category?: string) => {
   return category.split('/').length - 1
 }
 
-// 親カテゴリ名を取得
-const getParentCategory = (category?: string) => {
-  if (!category || !category.includes('/')) return ''
-  const parts = category.split('/')
-  return parts[0]
-}
-
 export const ProjectUrlItem = ({
   item,
   projectId,
   handleOpenUrl,
   handleDeleteUrl,
-  handleSetCategory,
-  availableCategories = [],
   isInUncategorizedArea = false,
   parentType,
   settings,
@@ -101,8 +92,7 @@ export const ProjectUrlItem = ({
     <li
       ref={setNodeRef}
       style={style}
-      className={`border-b border-border pb-1 last:border-0 flex items-center relative overflow-hidden group min-w-0
-        ${isDragging ? 'opacity-50 bg-secondary/50' : ''}
+      className={`group relative flex min-w-0 items-center overflow-hidden border-border border-b pb-1 last:border-0 ${isDragging ? 'bg-secondary/50 opacity-50' : ''}
         ${isInSubcategory ? 'pl-2' : ''}
         ${item.category ? 'border-l-2 border-l-primary/30' : ''}
       `}
@@ -117,12 +107,12 @@ export const ProjectUrlItem = ({
       <div
         {...attributes}
         {...listeners}
-        className='cursor-grab active:cursor-grabbing p-1 opacity-30 group-hover:opacity-100'
+        className='cursor-grab p-1 opacity-30 active:cursor-grabbing group-hover:opacity-100'
       >
         <GripVertical size={16} className='text-muted-foreground' />
       </div>
       {/* タイトル＋バッジ部 */}
-      <div className='flex-1 min-w-0 flex items-center'>
+      <div className='flex min-w-0 flex-1 items-center'>
         <Button
           asChild
           variant='ghost'
@@ -142,13 +132,13 @@ export const ProjectUrlItem = ({
             {item.category?.includes('/') && (
               <ChevronRight
                 size={14}
-                className='text-primary mr-1 inline-block'
+                className='mr-1 inline-block text-primary'
               />
             )}
             <span className='flex-1 truncate'>{item.title || item.url}</span>
             {/* カテゴリ階層の視覚的な表示をシンプル化 */}
             {item.category?.includes('/') && (
-              <Badge variant='outline' className='ml-2 text-xs shrink-0'>
+              <Badge variant='outline' className='ml-2 shrink-0 text-xs'>
                 {getCategoryDisplayName(item.category)}
               </Badge>
             )}
@@ -156,7 +146,7 @@ export const ProjectUrlItem = ({
         </Button>
       </div>
       {/* ボタン群 */}
-      <div className='flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
+      <div className='flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100'>
         <Button
           variant='ghost'
           size='sm'
@@ -170,7 +160,7 @@ export const ProjectUrlItem = ({
               handleDeleteUrl(projectId, item.url)
             }
           }}
-          className='h-8 w-8 p-0 cursor-pointer'
+          className='h-8 w-8 cursor-pointer p-0'
           title='URLを削除'
           aria-label='URLを削除'
         >

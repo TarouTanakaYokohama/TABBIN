@@ -34,11 +34,6 @@ interface AvailableDomain {
   domain: string
 }
 
-interface CategoryGroup {
-  id: string
-  name: string
-}
-
 // TabGroup型の定義
 interface TabGroup {
   id: string
@@ -510,7 +505,7 @@ export const CategoryManagementModal = ({
         <div ref={modalContentRef} className='space-y-4'>
           {/* カテゴリ名変更セクション */}
           <div className='mb-4'>
-            <div className='flex justify-between items-center mb-2'>
+            <div className='mb-2 flex items-center justify-between'>
               <Label>親カテゴリ名</Label>
               {!isRenaming && (
                 <div className='flex items-center gap-2'>
@@ -518,7 +513,7 @@ export const CategoryManagementModal = ({
                     variant='secondary'
                     size='sm'
                     onClick={handleStartRenaming}
-                    className='px-2 py-1 rounded flex items-center gap-2 cursor-pointer'
+                    className='flex cursor-pointer items-center gap-2 rounded px-2 py-1'
                   >
                     <Edit size={14} />
                     <span className='hidden lg:inline'>親カテゴリ名を変更</span>
@@ -527,7 +522,7 @@ export const CategoryManagementModal = ({
                     variant='secondary'
                     size='sm'
                     onClick={() => setShowDeleteConfirm(true)}
-                    className='px-2 py-1 rounded flex items-center gap-2 cursor-pointer'
+                    className='flex cursor-pointer items-center gap-2 rounded px-2 py-1'
                     disabled={isProcessing}
                   >
                     <Trash2 size={14} />
@@ -538,8 +533,8 @@ export const CategoryManagementModal = ({
             </div>
 
             {isRenaming ? (
-              <div className='mt-2 p-3 border rounded w-full'>
-                <div className='text-gray-300 mb-2 text-sm'>
+              <div className='mt-2 w-full rounded border p-3'>
+                <div className='mb-2 text-gray-300 text-sm'>
                   「{localCategoryName}」の新しい親カテゴリ名を入力してください
                 </div>
                 <Input
@@ -547,7 +542,7 @@ export const CategoryManagementModal = ({
                   value={newCategoryName}
                   onChange={handleCategoryNameChange}
                   placeholder='新しいカテゴリ名 (25文字以内)'
-                  className={`w-full p-2 border rounded flex-1 ${categoryNameError ? 'border-red-500' : ''}`}
+                  className={`w-full flex-1 rounded border p-2 ${categoryNameError ? 'border-red-500' : ''}`}
                   autoFocus
                   onBlur={() => {
                     if (isProcessing) {
@@ -576,7 +571,7 @@ export const CategoryManagementModal = ({
                   }}
                 />
                 {categoryNameError && (
-                  <p className='text-red-500 text-xs mt-1'>
+                  <p className='mt-1 text-red-500 text-xs'>
                     {categoryNameError}
                   </p>
                 )}
@@ -585,19 +580,19 @@ export const CategoryManagementModal = ({
               <button
                 type='button'
                 onClick={handleStartRenaming}
-                className='flex p-2 w-full justify-start border rounded bg-secondary/20 cursor-pointer'
+                className='flex w-full cursor-pointer justify-start rounded border bg-secondary/20 p-2'
               >
                 {localCategoryName}
               </button>
             )}
           </div>
           {showDeleteConfirm && (
-            <div className='mt-1 p-3 border rounded mb-3'>
-              <p className='text-gray-700 dark:text-gray-300 mb-2'>
+            <div className='mt-1 mb-3 rounded border p-3'>
+              <p className='mb-2 text-gray-700 dark:text-gray-300'>
                 親カテゴリ「{localCategoryName}
                 」を削除しますか？この操作は取り消せません。
                 {domains.length ? (
-                  <span className='block text-xs mt-1'>
+                  <span className='mt-1 block text-xs'>
                     このカテゴリには {domains.length}{' '}
                     件のドメインが関連付けられています。
                     削除すると、ドメインと親カテゴリの関連付けも削除されます。
@@ -628,8 +623,8 @@ export const CategoryManagementModal = ({
 
           {/* 登録済みドメイン一覧 */}
           <div className='mb-4'>
-            <Label className='block mb-2'>登録済みドメイン</Label>
-            <div className='flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border rounded'>
+            <Label className='mb-2 block'>登録済みドメイン</Label>
+            <div className='flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded border p-2'>
               {domains.length === 0 ? (
                 <p className='text-gray-500'>
                   登録されているドメインがありません
@@ -639,14 +634,14 @@ export const CategoryManagementModal = ({
                   <Badge
                     key={domain.id}
                     variant='outline'
-                    className='px-2 py-1 rounded flex items-center gap-1'
+                    className='flex items-center gap-1 rounded px-2 py-1'
                   >
                     {domain.domain}
                     <Button
                       variant='ghost'
                       size='sm'
                       onClick={() => handleRemoveDomain(domain.id)}
-                      className='ml-1 text-gray-400 hover:text-gray-200 cursor-pointer'
+                      className='ml-1 cursor-pointer text-gray-400 hover:text-gray-200'
                       aria-label='ドメインを削除'
                       disabled={isProcessing}
                     >
@@ -660,7 +655,7 @@ export const CategoryManagementModal = ({
 
           {/* ドメイン追加セクション */}
           <div className='mb-4'>
-            <Label className='block mb-2'>新しいドメインを追加</Label>
+            <Label className='mb-2 block'>新しいドメインを追加</Label>
             {availableDomains.length > 0 ? (
               <div className='flex gap-2'>
                 <Select
@@ -668,7 +663,7 @@ export const CategoryManagementModal = ({
                   onValueChange={setSelectedDomain}
                   disabled={isProcessing}
                 >
-                  <SelectTrigger className='w-full p-2 border rounded cursor-pointer'>
+                  <SelectTrigger className='w-full cursor-pointer rounded border p-2'>
                     <SelectValue placeholder='ドメインを選択' />
                   </SelectTrigger>
                   <SelectContent>
