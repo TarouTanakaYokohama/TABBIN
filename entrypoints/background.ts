@@ -51,20 +51,39 @@ export default defineBackground(() => {
     const manifestVersion = chrome.runtime.getManifest().version
     if (details.reason === 'install') {
       chrome.tabs.create({ url: chrome.runtime.getURL('saved-tabs.html') })
-      chrome.storage.local.set({ seenVersion: manifestVersion })
-    } else if (details.reason === 'update') {
-      // バージョンアップ時に変更点を表示
-      chrome.storage.local.get({ seenVersion: '' }, items => {
-        // バージョンを解析して比較
-        const [oldMajor, oldMinor] = items.seenVersion.split('.').map(Number)
-        const [newMajor, newMinor] = manifestVersion.split('.').map(Number)
-
-        // メジャーバージョンまたはマイナーバージョンが変更された場合のみ表示
-        if (oldMajor !== newMajor || oldMinor !== newMinor) {
-          chrome.tabs.create({ url: chrome.runtime.getURL('changelog.html') })
-          chrome.storage.local.set({ seenVersion: manifestVersion })
-        }
+      chrome.storage.local.set({
+        seenVersion: manifestVersion,
+        changelogShown: true,
       })
+    } else if (details.reason === 'update') {
+      // バージョンアップ時に変更点を表示（一度だけ）
+      chrome.storage.local.get(
+        { seenVersion: '', changelogShown: false },
+        items => {
+          if (items.seenVersion !== manifestVersion) {
+            // 新しいバージョンの場合、changelogShownをリセット
+            if (!items.changelogShown) {
+              // まだ表示していない場合のみ開く
+              chrome.tabs.create({
+                url: chrome.runtime.getURL('changelog.html'),
+              })
+              chrome.storage.local.set({
+                seenVersion: manifestVersion,
+                changelogShown: true, // 表示したことをマークする
+              })
+              console.log(
+                `新バージョン ${manifestVersion} の変更履歴を表示しました`,
+              )
+            } else {
+              // ただしバージョンは更新する
+              chrome.storage.local.set({ seenVersion: manifestVersion })
+              console.log(
+                `新バージョン ${manifestVersion} に更新されましたが、変更履歴は既に表示済みです`,
+              )
+            }
+          }
+        },
+      )
     }
   })
 

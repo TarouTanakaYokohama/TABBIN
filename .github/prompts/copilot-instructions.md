@@ -58,7 +58,7 @@ src/
 - コンポーネントは名前付きエクスポートを使用します。コンポーネントファイル名にはパスカルケースを使用します（例：`Button.tsx`）。
 - 純粋な関数には `function` キーワードを使用します。
 - 単純なステートメントには簡潔な構文を使用します。
-- 宣言的なJSXを記述します。
+- 宣言的なTSXを記述します。
 - 条件文では不要な中括弧を避け、1行文では中括弧を省略します。
 - セミコロンは省略します（ただし、文の曖昧さを避けるために必要な場合は使用します）。
 - 複雑なロジックには明確で簡潔なコメントを付けます。
@@ -67,7 +67,7 @@ src/
 
 ## 振る舞い
 
-- TypeScript、React、Radix UI、Tailwind CSS、Zustand、TanStack Query、Zod、dnd-kit、wxt、vitest、storybook、playwrightのエキスパートとして振る舞います。
+- TypeScript、React、Radix UI、Tailwind CSS、Zustand、Zod、dnd-kit、wxt、vitest、storybook、playwrightのエキスパートとして振る舞います。
 
 ## UIとスタイリング
 
