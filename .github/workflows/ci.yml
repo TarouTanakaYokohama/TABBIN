@@ -24,9 +24,12 @@ jobs:
     
     - name: Run type checking
       run: npm run compile
+      
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps
     
     - name: Run unit tests
-      run: npm test
+      run: npm test -- --environment=node
     
     - name: Run E2E tests
       run: npm run e2e
