@@ -29,7 +29,7 @@ jobs:
       run: npx playwright install --with-deps
     
     - name: Run unit tests
-      run: npm test -- --environment=node
+      run: npx vitest run -c vitest.ci.config.ts
     
     - name: Run E2E tests
       run: npm run e2e
