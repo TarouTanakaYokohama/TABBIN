@@ -1608,7 +1608,7 @@ const SavedTabs = () => {
                   </DndContext>
 
                   {uncategorized.length > 0 && (
-                    <h2 className='mt-2 mb-1 font-bold text-foreground text-xl'>
+                    <h2 className='mt-6 font-bold text-foreground text-xl'>
                       未分類のドメイン
                     </h2>
                   )}
@@ -1629,7 +1629,7 @@ const SavedTabs = () => {
                     .map(group => group.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <div className='flex flex-col gap-1'>
+                  <div className='mt-2 flex flex-col gap-1'>
                     {uncategorized
                       .filter(group => group.urls.length > 0)
                       .map(group => (
