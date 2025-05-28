@@ -24,12 +24,17 @@ jobs:
     
     - name: Run type checking
       run: npm run compile
-      
+    
     - name: Install Playwright browsers
       run: npx playwright install --with-deps
+      
+    - name: Install native dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
     
     - name: Run unit tests
-      run: npx vitest run -c vitest.ci.config.ts
-    
+      run: npx vitest run --environment=jsdom
+      
     - name: Run E2E tests
       run: npm run e2e
