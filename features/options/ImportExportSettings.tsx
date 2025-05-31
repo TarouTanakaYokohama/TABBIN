@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   downloadAsJson,
   exportSettings,
@@ -166,69 +167,72 @@ export const ImportExportSettings: React.FC = () => {
       />
 
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className='sm:max-w-md'>
-          <DialogHeader>
+        <DialogContent className='flex max-h-[90vh] flex-col gap-3 p-4 sm:max-w-md'>
+          <DialogHeader className='flex-shrink-0'>
             <DialogTitle>設定とタブデータのインポート</DialogTitle>
             <DialogDescription className='text-left'>
               以前にエクスポートしたバックアップファイルから設定とタブデータを復元します。
             </DialogDescription>
           </DialogHeader>
 
-          {/* マージオプションを追加 */}
-          <div className='mb-4 flex items-center space-x-2'>
-            <Checkbox
-              id='merge-data'
-              checked={mergeData}
-              onCheckedChange={checked => setMergeData(checked === true)}
-            />
-            <Label htmlFor='merge-data' className='cursor-pointer'>
-              既存データとマージする（推奨）
-            </Label>
-          </div>
+          <ScrollArea className='flex-grow overflow-auto'>
+            <div className='pr-4'>
+              {/* マージオプションを追加 */}
+              <div className='mb-4 flex items-center space-x-2'>
+                <Checkbox
+                  id='merge-data'
+                  checked={mergeData}
+                  onCheckedChange={checked => setMergeData(checked === true)}
+                />
+                <Label htmlFor='merge-data' className='cursor-pointer'>
+                  既存データとマージする（推奨）
+                </Label>
+              </div>
 
-          <div className='mb-4 text-muted-foreground text-sm'>
-            <p>
-              {mergeData
-                ? '既存のデータを保持しつつ、新しいデータを追加・更新します。'
-                : '警告：既存のデータをすべて置き換えます。'}
-            </p>
-          </div>
+              <div className='mb-4 text-muted-foreground text-sm'>
+                <p>
+                  {mergeData
+                    ? '既存のデータを保持しつつ、新しいデータを追加・更新します。'
+                    : '警告：既存のデータをすべて置き換えます。'}
+                </p>
+              </div>
 
-          {/* ドラッグ&ドロップエリア */}
-          <div
-            {...getRootProps()}
-            className={`cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
-              isDragActive
-                ? 'border-primary bg-primary/5'
-                : 'border-muted-foreground/20'
-            }`}
-          >
-            <input {...getInputProps()} />
-            <Upload className='mx-auto mb-2 h-12 w-12 text-muted-foreground' />
-            <p className='mb-1 font-medium text-sm'>
-              {isDragActive
-                ? 'ファイルをドロップ'
-                : 'JSONファイルをドラッグ&ドロップ'}
-            </p>
-            <p className='text-muted-foreground text-xs'>
-              または、クリックしてファイルを選択
-            </p>
-          </div>
+              {/* ドラッグ&ドロップエリア */}
+              <div
+                {...getRootProps()}
+                className={`cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
+                  isDragActive
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted-foreground/20'
+                }`}
+              >
+                <input {...getInputProps()} />
+                <Upload className='mx-auto mb-2 h-12 w-12 text-muted-foreground' />
+                <p className='mb-1 font-medium text-sm'>
+                  {isDragActive
+                    ? 'ファイルをドロップ'
+                    : 'JSONファイルをドラッグ&ドロップ'}
+                </p>
+                <p className='text-muted-foreground text-xs'>
+                  または、クリックしてファイルを選択
+                </p>
+              </div>
 
-          <Alert
-            variant={mergeData ? 'default' : 'destructive'}
-            className='my-4'
-          >
-            <AlertCircle className='h-4 w-4' />
-            <AlertTitle>{mergeData ? '注意' : '警告'}</AlertTitle>
-            <AlertDescription>
-              {mergeData
-                ? 'マージの際、同じIDのデータは更新されます。'
-                : 'インポートすると現在の設定とタブデータがすべて上書きされます。この操作は元に戻せません。'}
-            </AlertDescription>
-          </Alert>
-
-          <DialogFooter className='flex flex-col gap-2 sm:flex-row sm:justify-between'>
+              <Alert
+                variant={mergeData ? 'default' : 'destructive'}
+                className='my-4'
+              >
+                <AlertCircle className='h-4 w-4' />
+                <AlertTitle>{mergeData ? '注意' : '警告'}</AlertTitle>
+                <AlertDescription>
+                  {mergeData
+                    ? 'マージの際、同じIDのデータは更新されます。'
+                    : 'インポートすると現在の設定とタブデータがすべて上書きされます。この操作は元に戻せません。'}
+                </AlertDescription>
+              </Alert>
+            </div>
+          </ScrollArea>
+          <DialogFooter className='flex flex-shrink-0 flex-col gap-2 sm:flex-row sm:justify-between'>
             <Button
               variant='secondary'
               onClick={() => setImportDialogOpen(false)}
