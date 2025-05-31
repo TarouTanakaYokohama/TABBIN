@@ -100,11 +100,13 @@ export const Header = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
+              type='button'
               variant='outline'
-              size='sm'
-              onClick={() => chrome.runtime.openOptionsPage()}
               className='flex h-9 cursor-pointer items-center gap-2'
               title='設定'
+              onClick={() =>
+                window.open(chrome.runtime.getURL('options.html'), '_blank')
+              }
             >
               <Wrench size={16} />
               <span className='hidden lg:inline'>設定</span>

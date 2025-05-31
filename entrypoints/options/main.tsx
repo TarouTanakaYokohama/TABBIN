@@ -132,11 +132,11 @@ const OptionsPage = () => {
   }
 
   return (
-    <div className='mx-auto min-h-screen bg-background pt-10'>
+    <div className='mx-auto min-h-screen bg-background px-10 pt-10'>
       {/* Toasterコンポーネントを追加 */}
       <Toaster position='top-right' />
 
-      <header className='mb-8 flex items-center justify-between px-6'>
+      <header className='mb-8 flex items-center justify-between'>
         <h1 className='font-bold text-3xl text-foreground'>オプション</h1>
 
         {/* テスト用の30秒設定ボタン - 確認表示するように変更 */}
@@ -477,27 +477,27 @@ const OptionsPage = () => {
       </div>
 
       {/* お問い合わせボタン */}
-      <div className='mt-4 text-center'>
+      <div className='mt-4'>
         <Button
           type='button'
-          variant='outline'
           onClick={() =>
             window.open('https://forms.gle/c9gBiF2TmgXaeU7J6', '_blank')
           }
+          className='w-full'
         >
           お問い合わせ
         </Button>
       </div>
-      <p className='mt-2 px-10 text-muted-foreground text-sm'>
+      <p className='mt-2 text-muted-foreground text-sm'>
         Google Formsを使用します。
         <br />
         ※画像アップロード可能な設定ですので、Googleアカウントでのログインが必要です。
       </p>
       {/* リリースノートへのリンク */}
-      <div className='mt-8 text-center'>
+      <div className='mt-8 mb-10 text-center'>
         <Button
           type='button'
-          variant='outline'
+          className='w-full'
           onClick={() =>
             window.open(chrome.runtime.getURL('changelog.html'), '_blank')
           }
