@@ -82,8 +82,8 @@ export const SortableCategorySection = ({
       // 確認ダイアログを削除し、直接削除処理を実行
       setIsDeleting(true)
 
-      // タイムアウトを使って処理を次のイベントループに移す
-      setTimeout(async () => {
+      // 非同期で処理を実行
+      Promise.resolve().then(async () => {
         try {
           // URLのコピーを作成
           const urlsToDelete = [...props.urls]
@@ -100,15 +100,16 @@ export const SortableCategorySection = ({
             }
           }
 
-          // 削除完了後は一定時間待ってからステートをリセット
-          setTimeout(() => {
+          // 削除完了後のステートリセット
+          Promise.resolve().then(async () => {
+            await new Promise(resolve => requestAnimationFrame(resolve))
             setIsDeleting(false)
-          }, 500)
+          })
         } catch (error) {
           console.error('削除処理中にエラーが発生しました:', error)
           setIsDeleting(false)
         }
-      }, 0)
+      })
     },
     [props.urls, handleDeleteAllTabs, isDeleting, settings, props.categoryName],
   )

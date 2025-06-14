@@ -428,7 +428,7 @@ export const CategoryKeywordModal = ({
     setNewCategoryName(activeCategory)
     setIsRenaming(true)
     // 入力フィールドにフォーカスが当たったら全選択状態にする
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       const inputElement = document.querySelector(
         'input[data-rename-input]',
       ) as HTMLInputElement
@@ -436,7 +436,7 @@ export const CategoryKeywordModal = ({
         inputElement.focus()
         inputElement.select() // テキスト全体を選択状態に
       }
-    }, 50)
+    })
   }
 
   // リネームをキャンセル
@@ -461,12 +461,12 @@ export const CategoryKeywordModal = ({
     // 先にバリデーションを実行
     if (!validateCategoryName(newCategoryName.trim(), setCategoryRenameError)) {
       // 入力フィールドにフォーカスを戻す
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         const inputElement = document.querySelector(
           'input[data-rename-input]',
         ) as HTMLInputElement
         if (inputElement) inputElement.focus()
-      }, 50)
+      })
       return
     }
 
@@ -475,12 +475,12 @@ export const CategoryKeywordModal = ({
       setCategoryRenameError('このカテゴリ名は既に存在しています')
       toast.error('このカテゴリ名は既に存在しています')
       // 入力フィールドにフォーカスを戻す
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         const inputElement = document.querySelector(
           'input[data-rename-input]',
         ) as HTMLInputElement
         if (inputElement) inputElement.focus()
-      }, 50)
+      })
       return
     }
 

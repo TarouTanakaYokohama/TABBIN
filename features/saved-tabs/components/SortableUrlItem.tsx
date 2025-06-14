@@ -28,9 +28,9 @@ export const SortableUrlItem = ({
 
   const [isDragging, setIsDragging] = useState(false)
   const [leftWindow, setLeftWindow] = useState(false)
-  const dragTimeoutRef = useRef<number | null>(null)
+  const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [isDeleteButtonVisible, setIsDeleteButtonVisible] = useState(false)
-  const buttonTimeoutRef = useRef<number | null>(null)
+  const buttonTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // ドラッグが開始されたとき
   const handleDragStart = (e: React.DragEvent<HTMLElement>, url: string) => {
@@ -100,12 +100,13 @@ export const SortableUrlItem = ({
 
     // windowに戻ってこなければ、タイムアウト後に外部ウィンドウへのドロップと判定
     if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current)
-    dragTimeoutRef.current = window.setTimeout(() => {
+    // ドラッグの外部ウィンドウタイムアウト検出（1秒）
+    dragTimeoutRef.current = setTimeout(() => {
       if (isDragging && leftWindow) {
         console.log('外部ウィンドウへのドラッグを検出:', url)
         handleExternalDrop()
       }
-    }, 1000) as unknown as number
+    }, 1000)
   }, [isDragging, leftWindow, url, handleExternalDrop])
 
   // コンポーネントのアンマウント時にクリーンアップ
@@ -130,9 +131,10 @@ export const SortableUrlItem = ({
 
   const handleUIMouseLeave = () => {
     // ボタンの非表示を少し遅らせて、ボタンへのマウス移動を可能にする
-    buttonTimeoutRef.current = window.setTimeout(() => {
+    // 削除ボタンの遅延非表示（300ms）
+    buttonTimeoutRef.current = setTimeout(() => {
       setIsDeleteButtonVisible(false)
-    }, 300) as unknown as number
+    }, 300)
   }
 
   // コンポーネントのアンマウント時にクリーンアップ
