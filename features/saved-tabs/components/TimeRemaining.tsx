@@ -1,4 +1,5 @@
 import type { CategorySectionProps } from '@/types/saved-tabs'
+import type { TabGroup } from '@/types/storage'
 import type { DragEndEvent } from '@dnd-kit/core'
 import {
   DndContext,

@@ -4,8 +4,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { safelyUpdateGroupUrls } from '@/features/saved-tabs/lib'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
-import { safelyUpdateGroupUrls } from '@/utils/tab-operations'
+import type { UserSettings } from '@/types/storage'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ExternalLink, GripVertical, Trash } from 'lucide-react'

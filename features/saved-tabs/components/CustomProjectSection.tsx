@@ -9,7 +9,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import type { CustomProject } from '@/utils/storage'
+import type { CustomProject } from '@/types/storage'
 // DnDのインポートを追加
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core'
 import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'

@@ -16,17 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Trash, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { z } from 'zod' // zodをインポート
-import type { ParentCategory, TabGroup } from '../../../utils/storage'
 import {
   assignDomainToCategory,
   createParentCategory,
   deleteParentCategory,
   getParentCategories,
-} from '../../../utils/storage'
+} from '@/lib/storage'
+import type { ParentCategory, TabGroup } from '@/types/storage'
+import { Trash, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+import { z } from 'zod' // zodをインポート
 
 // カテゴリ名のバリデーションスキーマ
 const categoryNameSchema = z

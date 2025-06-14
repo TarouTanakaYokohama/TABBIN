@@ -1,11 +1,11 @@
-import { defineBackground } from 'wxt/utils/define-background'
 import {
-  type SubCategoryKeyword,
   getParentCategories,
   getUserSettings,
   migrateParentCategoriesToDomainNames,
   saveTabsWithAutoCategory,
-} from '../utils/storage'
+} from '@/lib/storage'
+import type { SubCategoryKeyword } from '@/types/storage'
+import { defineBackground } from 'wxt/utils/define-background'
 
 // 型定義
 interface ProjectUrl {

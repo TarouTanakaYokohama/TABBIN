@@ -1,6 +1,6 @@
 import { colorOptions } from '@/constants/colorOptions'
-import type { UserSettings } from '@/utils/storage'
-import { saveUserSettings } from '@/utils/storage'
+import { saveUserSettings } from '@/lib/storage'
+import type { UserSettings } from '@/types/storage'
 // No useState needed here
 import { toast } from 'sonner'
 

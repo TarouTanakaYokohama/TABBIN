@@ -1,8 +1,8 @@
 import '@/assets/global.css'
+import type { UserSettings } from '@/types/storage'
 // lucide-reactからアイコンをインポート - AlertTriangleを追加
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { createRoot } from 'react-dom/client'
-import type { UserSettings } from '../../utils/storage'
 
 // UIコンポーネントのインポート
 import { Button } from '@/components/ui/button'

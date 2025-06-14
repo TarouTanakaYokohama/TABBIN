@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { CategoryKeywordModalProps } from '@/types/saved-tabs'
-import type { ParentCategory, TabGroup } from '@/utils/storage'
+import type { ParentCategory, TabGroup } from '@/types/storage'
 import { Edit, Trash, Trash2, X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'

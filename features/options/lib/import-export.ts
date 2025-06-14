@@ -1,12 +1,16 @@
-import { z } from 'zod'
-import { defaultSettings, getUserSettings, saveUserSettings } from './storage'
+import {
+  defaultSettings,
+  getUserSettings,
+  saveParentCategories,
+  saveUserSettings,
+} from '@/lib/storage'
 import type {
   ParentCategory,
   SubCategoryKeyword,
   TabGroup,
   UserSettings,
-} from './storage'
-import { saveParentCategories } from './storage'
+} from '@/types/storage'
+import { z } from 'zod'
 
 // バックアップデータの型定義
 export interface BackupData {

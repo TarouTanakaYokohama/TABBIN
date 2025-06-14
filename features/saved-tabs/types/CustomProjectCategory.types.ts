@@ -1,5 +1,5 @@
 // filepath: features/saved-tabs/types/CustomProjectCategory.types.ts
-import type { CustomProject, UserSettings } from '@/utils/storage'
+import type { CustomProject, UserSettings } from '@/types/storage'
 
 export interface CustomProjectCategoryProps {
   projectId: string

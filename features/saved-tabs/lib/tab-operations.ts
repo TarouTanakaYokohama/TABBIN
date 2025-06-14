@@ -1,10 +1,10 @@
-import type { TabGroup } from './storage'
 import {
   getParentCategories,
   saveParentCategories,
   updateDomainCategoryMapping,
   updateDomainCategorySettings,
-} from './storage'
+} from '@/lib/storage'
+import type { TabGroup } from '@/types/storage'
 
 /**
  * タブグループ削除前の処理関数

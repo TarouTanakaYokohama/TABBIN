@@ -11,10 +11,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import type { CustomProject, TabGroup, ViewMode } from '@/types/storage'
 import { Plus, Wrench } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import type { CustomProject, TabGroup, ViewMode } from '../../../utils/storage'
 import { CategoryModal } from './CategoryModal'
 import { ViewModeToggle } from './ViewModeToggle'
 
