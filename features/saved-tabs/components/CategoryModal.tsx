@@ -416,7 +416,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                 onChange={handleCategoryNameChange}
                 onKeyDown={handleKeyDown}
                 onBlur={handleBlur}
-                placeholder='カテゴリ名を入力 (25文字以内)'
+                placeholder='例: 仕事、趣味、学習'
                 className={nameError ? 'border-red-500' : ''}
               />
               {nameError && (
@@ -448,7 +448,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                   onValueChange={handleCategoryChange}
                 >
                   <SelectTrigger className='w-full' id='categorySelect'>
-                    <SelectValue placeholder='親カテゴリを選択' />
+                    <SelectValue placeholder='作成済みのカテゴリを選択してドメインを管理' />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map(category => (

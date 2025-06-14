@@ -160,7 +160,7 @@ export const Header = ({
                   setIsCustomCategoryModalOpen(false)
                 }
               }}
-              placeholder='カテゴリ名'
+              placeholder='例: ツール、ライブラリ、ドキュメント'
               className='mb-2 w-full'
               autoFocus
             />

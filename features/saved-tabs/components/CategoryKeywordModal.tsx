@@ -607,7 +607,7 @@ export const CategoryKeywordModal = ({
               <Input
                 value={newSubCategory}
                 onChange={handleSubCategoryNameChange}
-                placeholder='新しい子カテゴリ名を入力 (25文字以内)'
+                placeholder='例: ニュース、ブログ、コラム'
                 className={`flex-grow rounded border p-2 ${subCategoryNameError ? 'border-red-500' : ''}`}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
@@ -696,7 +696,7 @@ export const CategoryKeywordModal = ({
                     <Input
                       value={newCategoryName}
                       onChange={handleRenameCategoryNameChange}
-                      placeholder='新しい子カテゴリ名 (25文字以内)'
+                      placeholder='例: ニュース、ブログ、コラム'
                       className={`w-full rounded border p-2 ${categoryRenameError ? 'border-red-500' : ''}`}
                       autoFocus
                       data-rename-input='true'
@@ -757,7 +757,7 @@ export const CategoryKeywordModal = ({
                   disabled={isRenaming}
                 >
                   <SelectTrigger className='w-full cursor-pointer rounded border p-2'>
-                    <SelectValue placeholder='カテゴリを選択' />
+                    <SelectValue placeholder='管理する子カテゴリを選択' />
                   </SelectTrigger>
                   <SelectContent>
                     {group.subCategories.map(cat => (
@@ -790,7 +790,7 @@ export const CategoryKeywordModal = ({
                     id='keyword-input'
                     value={newKeyword}
                     onChange={e => setNewKeyword(e.target.value)}
-                    placeholder='新しいキーワードを入力'
+                    placeholder='例: 技術、新機能、チュートリアル'
                     className='flex-grow rounded border p-2'
                     onKeyDown={e => {
                       if (e.key === 'Enter') {

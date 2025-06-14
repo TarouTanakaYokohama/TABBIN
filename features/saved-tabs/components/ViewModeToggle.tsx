@@ -40,7 +40,7 @@ export const ViewModeToggle = ({
   return (
     <Select value={currentMode} onValueChange={onChange}>
       <SelectTrigger className='flex h-9 items-center gap-2'>
-        <SelectValue placeholder='表示モード'>
+        <SelectValue placeholder='ドメインまたはカスタムモードを選択'>
           {renderSelectedValue()}
         </SelectValue>
       </SelectTrigger>

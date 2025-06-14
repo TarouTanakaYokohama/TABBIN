@@ -307,7 +307,7 @@ export const CustomProjectSection = ({
                 id='name'
                 value={newProjectName}
                 onChange={handleNameChange}
-                placeholder='プロジェクト名'
+                placeholder='例: ウェブサイトリニューアル、ライブラリ調査'
                 className={`w-full ${nameError ? 'border-red-500' : ''}`}
               />
               {nameError && (
@@ -320,7 +320,7 @@ export const CustomProjectSection = ({
                 id='description'
                 value={newProjectDescription}
                 onChange={e => setNewProjectDescription(e.target.value)}
-                placeholder='プロジェクトの説明'
+                placeholder='例: ユーザーエクスペリエンスの改善とパフォーマンス最適化'
                 className='w-full'
               />
             </div>

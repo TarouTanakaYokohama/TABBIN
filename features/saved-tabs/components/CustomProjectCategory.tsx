@@ -448,7 +448,7 @@ export const CustomProjectCategory = ({
                 value={newCategoryName}
                 onChange={e => setNewCategoryName(e.target.value)}
                 onBlur={handleRename}
-                placeholder='新しいカテゴリ名 (25文字以内)'
+                placeholder='例: 開発資料、参考サイト'
                 className={`w-full rounded border p-2 ${renameError ? 'border-red-500' : ''}`}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {

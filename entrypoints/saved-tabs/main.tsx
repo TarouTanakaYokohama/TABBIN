@@ -1694,7 +1694,7 @@ const SavedTabs = () => {
               <Input
                 value={newSubCategory}
                 onChange={e => setNewSubCategory(e.target.value)}
-                placeholder='カテゴリ名を入力'
+                placeholder='例: 仕事、プライベート、学習'
                 className='mb-4 w-full rounded border p-2 text-foreground'
                 ref={inputRef}
               />
