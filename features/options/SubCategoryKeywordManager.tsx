@@ -330,7 +330,7 @@ export const SubCategoryKeywordManager = ({
             value={newSubCategory}
             onChange={e => setNewSubCategory(e.target.value)}
             onBlur={handleAddSubCategory}
-            placeholder='子カテゴリ名（入力後にフォーカスを外すと保存）'
+            placeholder='例: ニュース、ドキュメント'
             className='w-full rounded border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
             onKeyDown={e => {
               if (e.key === 'Enter') {
@@ -364,7 +364,7 @@ export const SubCategoryKeywordManager = ({
           value={newSubCategory}
           onChange={e => setNewSubCategory(e.target.value)}
           onBlur={handleAddSubCategory}
-          placeholder='子カテゴリ名（入力後にフォーカスを外すと保存）'
+          placeholder='例: ニュース、ドキュメント'
           className='w-full rounded border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
           onKeyDown={e => {
             if (e.key === 'Enter') {
@@ -504,7 +504,7 @@ export const SubCategoryKeywordManager = ({
                 type='text'
                 value={newKeyword}
                 onChange={e => setNewKeyword(e.target.value)}
-                placeholder='新しいキーワードを入力'
+                placeholder='例: 技術記事、GitHub、プログラミング'
                 className='flex-grow rounded-l border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
                 onKeyDown={e => {
                   if (e.key === 'Enter') {

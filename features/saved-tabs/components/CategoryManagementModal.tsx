@@ -541,7 +541,7 @@ export const CategoryManagementModal = ({
                   ref={inputRef}
                   value={newCategoryName}
                   onChange={handleCategoryNameChange}
-                  placeholder='新しいカテゴリ名 (25文字以内)'
+                  placeholder='例: ビジネスツール、技術情報'
                   className={`w-full flex-1 rounded border p-2 ${categoryNameError ? 'border-red-500' : ''}`}
                   autoFocus
                   onBlur={() => {
@@ -664,7 +664,7 @@ export const CategoryManagementModal = ({
                   disabled={isProcessing}
                 >
                   <SelectTrigger className='w-full cursor-pointer rounded border p-2'>
-                    <SelectValue placeholder='ドメインを選択' />
+                    <SelectValue placeholder='カテゴリに追加するドメインを選択' />
                   </SelectTrigger>
                   <SelectContent>
                     {availableDomains.map(domain => (

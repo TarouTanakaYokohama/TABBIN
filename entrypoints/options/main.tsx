@@ -175,7 +175,7 @@ const OptionsPage = () => {
                 id='click-behavior'
                 className='w-full bg-background'
               >
-                <SelectValue placeholder='クリック時の挙動を選択' />
+                <SelectValue placeholder='クリック時の挙動を選択してください' />
               </SelectTrigger>
               <SelectContent>
                 {clickBehaviorOptions.map(option => (
@@ -336,7 +336,7 @@ const OptionsPage = () => {
               onValueChange={handleAutoDeletePeriodChange}
             >
               <SelectTrigger id='auto-delete-period' className='w-full'>
-                <SelectValue placeholder='自動削除しない' />
+                <SelectValue placeholder='自動削除期間を選択' />
               </SelectTrigger>
               <SelectContent
                 onPointerDownOutside={e => {
@@ -467,7 +467,7 @@ const OptionsPage = () => {
                     value={settings.colors?.[key] || getDefaultColor(key)}
                     onChange={e => handleColorChange(key, e.target.value)}
                     className='w-full bg-background text-foreground'
-                    placeholder='HEX入力 (#FFFFFF)'
+                    placeholder='例: #FF5733, #3366CC'
                   />
                 </div>
               </div>
