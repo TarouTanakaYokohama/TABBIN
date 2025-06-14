@@ -140,6 +140,40 @@ const SavedTabs = () => {
         } else {
           setCategories(parentCategories)
         }
+
+        // TabGroupのparentCategoryId修復処理
+        let needsUpdate = false
+        const updatedTabGroups = savedTabs.map((group: TabGroup) => {
+          if (!group.parentCategoryId) {
+            // parentCategoryIdが設定されていない場合、適切なカテゴリを探す
+            for (const category of parentCategories) {
+              // IDベースで検索
+              if (category.domains?.includes(group.id)) {
+                console.log(
+                  `TabGroup ${group.domain} のparentCategoryIdを ${category.id} に修復しました (IDベース)`,
+                )
+                needsUpdate = true
+                return { ...group, parentCategoryId: category.id }
+              }
+              // ドメイン名ベースで検索
+              if (category.domainNames?.includes(group.domain)) {
+                console.log(
+                  `TabGroup ${group.domain} のparentCategoryIdを ${category.id} に修復しました (ドメイン名ベース)`,
+                )
+                needsUpdate = true
+                return { ...group, parentCategoryId: category.id }
+              }
+            }
+          }
+          return group
+        })
+
+        // 修復が必要な場合はストレージを更新
+        if (needsUpdate) {
+          await chrome.storage.local.set({ savedTabs: updatedTabGroups })
+          setTabGroups(updatedTabGroups)
+          console.log('TabGroupのparentCategoryId修復処理が完了しました')
+        }
       } catch (error) {
         console.error('保存されたタブの読み込みエラー:', error)
       } finally {
@@ -1138,15 +1172,78 @@ const SavedTabs = () => {
     const groupsToOrganize = tabGroups
       .map(g => {
         const filteredUrls = g.urls.filter(item => {
-          if (
-            searchQuery &&
-            !(
-              item.title.includes(searchQuery) ||
-              item.url.includes(searchQuery) ||
-              g.domain.includes(searchQuery)
-            )
-          )
-            return false
+          if (searchQuery) {
+            const query = searchQuery.toLowerCase()
+            const matchesBasicFields =
+              item.title.toLowerCase().includes(query) ||
+              item.url.toLowerCase().includes(query) ||
+              g.domain.toLowerCase().includes(query)
+
+            // 子カテゴリでの検索
+            const matchesSubCategory = item.subCategory
+              ?.toLowerCase()
+              .includes(query)
+
+            // 親カテゴリでの検索（このタブグループが属する親カテゴリ名で検索）
+            let matchesParentCategory = false
+
+            // まず、parentCategoryIdで検索
+            if (g.parentCategoryId) {
+              const parentCategory = categories.find(
+                cat => cat.id === g.parentCategoryId,
+              )
+              if (parentCategory) {
+                matchesParentCategory = parentCategory.name
+                  .toLowerCase()
+                  .includes(query)
+                console.log(
+                  `親カテゴリ検索デバッグ: ドメイン ${g.domain}, 親カテゴリ「${parentCategory.name}」, クエリ「${query}」, マッチ: ${matchesParentCategory}`,
+                )
+              } else {
+                console.log(
+                  `親カテゴリ検索デバッグ: ドメイン ${g.domain}, parentCategoryId ${g.parentCategoryId} に対応するカテゴリが見つかりません`,
+                )
+              }
+            }
+
+            // parentCategoryIdが未設定またはマッチしない場合、リアルタイムでカテゴリを探す
+            if (!matchesParentCategory) {
+              for (const category of categories) {
+                // IDベースまたはドメイン名ベースでカテゴリを探す
+                if (
+                  category.domains?.includes(g.id) ||
+                  category.domainNames?.includes(g.domain)
+                ) {
+                  const categoryMatches = category.name
+                    .toLowerCase()
+                    .includes(query)
+                  if (categoryMatches) {
+                    matchesParentCategory = true
+                    console.log(
+                      `親カテゴリ検索デバッグ（リアルタイム）: ドメイン ${g.domain}, 親カテゴリ「${category.name}」, クエリ「${query}」, マッチ: ${categoryMatches}`,
+                    )
+                    break
+                  }
+                }
+              }
+            }
+
+            if (!g.parentCategoryId && !matchesParentCategory) {
+              console.log(
+                `親カテゴリ検索デバッグ: ドメイン ${g.domain}, parentCategoryIdが未設定かつカテゴリマッチなし`,
+              )
+            }
+
+            if (
+              !(
+                matchesBasicFields ||
+                matchesSubCategory ||
+                matchesParentCategory
+              )
+            ) {
+              return false
+            }
+          }
           return true
         })
         return { ...g, urls: filteredUrls }
@@ -1165,6 +1262,34 @@ const SavedTabs = () => {
             categorizedGroups[category.id] = []
           }
           categorizedGroups[category.id].push(group)
+
+          // TabGroupのparentCategoryIdが設定されていない場合は設定
+          if (group.parentCategoryId !== category.id) {
+            group.parentCategoryId = category.id
+            console.log(
+              `ドメイン ${group.domain} のparentCategoryIdをIDベースで ${category.id} に更新しました`,
+            )
+
+            // TabGroupの変更を永続化
+            ;(async () => {
+              try {
+                const { savedTabs = [] } =
+                  await chrome.storage.local.get('savedTabs')
+                const updatedTabGroups = savedTabs.map((tab: TabGroup) =>
+                  tab.id === group.id
+                    ? { ...tab, parentCategoryId: category.id }
+                    : tab,
+                )
+                await chrome.storage.local.set({ savedTabs: updatedTabGroups })
+                console.log(
+                  `ドメイン ${group.domain} のTabGroupを永続化しました`,
+                )
+              } catch (err) {
+                console.error('TabGroup更新エラー:', err)
+              }
+            })()
+          }
+
           found = true
           console.log(
             `ドメイン ${group.domain} はIDベースで ${category.name} に分類されました`,
@@ -1191,6 +1316,12 @@ const SavedTabs = () => {
               `ドメイン ${group.domain} はドメイン名ベースで ${category.name} に分類されました`,
             )
 
+            // TabGroupのparentCategoryIdを更新
+            group.parentCategoryId = category.id
+            console.log(
+              `ドメイン ${group.domain} のparentCategoryIdを ${category.id} に設定しました`,
+            )
+
             // 見つかった場合、ドメインIDも更新して同期させる
             ;(async () => {
               try {
@@ -1204,8 +1335,19 @@ const SavedTabs = () => {
                     c.id === category.id ? updatedCategory : c,
                   ),
                 )
+
+                // TabGroupも永続化するために保存
+                const { savedTabs = [] } =
+                  await chrome.storage.local.get('savedTabs')
+                const updatedTabGroups = savedTabs.map((tab: TabGroup) =>
+                  tab.id === group.id
+                    ? { ...tab, parentCategoryId: category.id }
+                    : tab,
+                )
+                await chrome.storage.local.set({ savedTabs: updatedTabGroups })
+
                 console.log(
-                  `ドメイン ${group.domain} のIDを親カテゴリに同期しました`,
+                  `ドメイン ${group.domain} のIDを親カテゴリに同期し、TabGroupも更新しました`,
                 )
               } catch (err) {
                 console.error('カテゴリ同期エラー:', err)
@@ -1264,26 +1406,60 @@ const SavedTabs = () => {
   const filteredCustomProjects = useMemo(() => {
     const q = searchQuery.trim()
     if (!q) return customProjects
+
+    const query = q.toLowerCase()
+
     // プロジェクト名での曖昧検索
     const projectFuse = new Fuse(customProjects, {
       keys: ['name'],
       threshold: 0.4,
     })
     const matchedProjects = projectFuse.search(q).map(res => res.item)
-    // URLレベルでの曖昧検索
+
+    // カテゴリ名での検索
+    const categoryMatchedProjects = customProjects
+      .filter(proj => !matchedProjects.includes(proj))
+      .filter(proj =>
+        proj.categories.some(category =>
+          category.toLowerCase().includes(query),
+        ),
+      )
+
+    // URLレベルでの曖昧検索（カテゴリ名も含む）
     const urlFuseOptions = { keys: ['title', 'url'], threshold: 0.4 }
     const urlMatchedProjects = customProjects
-      .filter(proj => !matchedProjects.includes(proj))
+      .filter(
+        proj =>
+          !matchedProjects.includes(proj) &&
+          !categoryMatchedProjects.includes(proj),
+      )
       .map(proj => {
         const fuseUrls = new Fuse(proj.urls, urlFuseOptions)
-        const matches = fuseUrls.search(q).map(r => r.item)
-        return matches.length ? { ...proj, urls: matches } : null
+        const fuseMatches = fuseUrls.search(q).map(r => r.item)
+
+        // URL個別のカテゴリ名での検索も追加
+        const categoryMatches = proj.urls.filter(url =>
+          url.category?.toLowerCase().includes(query),
+        )
+
+        const allMatches = [...fuseMatches, ...categoryMatches]
+        // 重複を削除
+        const uniqueMatches = allMatches.filter(
+          (url, index, self) =>
+            self.findIndex(u => u.url === url.url) === index,
+        )
+
+        return uniqueMatches.length ? { ...proj, urls: uniqueMatches } : null
       })
       .filter(
         (proj: CustomProject | null): proj is CustomProject => proj !== null,
       ) // Filter out null entries with type guard
 
-    return [...matchedProjects, ...urlMatchedProjects]
+    return [
+      ...matchedProjects,
+      ...categoryMatchedProjects,
+      ...urlMatchedProjects,
+    ]
   }, [customProjects, searchQuery])
 
   // ストレージ変更検出時のリスナーを改善（ドメインモードとカスタムモード間の同期）
