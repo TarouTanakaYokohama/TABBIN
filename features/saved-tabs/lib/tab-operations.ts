@@ -144,9 +144,9 @@ export async function safelyUpdateGroupUrls(
 
     // 成功時にコールバックを実行 - 非同期で実行
     if (callback) {
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         Promise.resolve().then(callback)
-      })
+      }, 0)
     }
 
     return Promise.resolve()

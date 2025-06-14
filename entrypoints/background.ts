@@ -258,7 +258,7 @@ export default defineBackground(() => {
 
                   // 重複タブチェックを非同期で実行
                   Promise.resolve().then(async () => {
-                    await new Promise(resolve => requestAnimationFrame(resolve))
+                    await new Promise(resolve => setTimeout(resolve, 16))
                     try {
                       const checkTabs = await chrome.tabs.query({})
                       const savedTabsPages = checkTabs.filter(
@@ -665,7 +665,7 @@ export default defineBackground(() => {
 
       // 初回チェックを非同期で実行
       Promise.resolve().then(async () => {
-        await new Promise(resolve => requestAnimationFrame(resolve))
+        await new Promise(resolve => setTimeout(resolve, 100))
         checkAndRemoveExpiredTabs()
       })
     } catch (error: unknown) {
@@ -676,7 +676,7 @@ export default defineBackground(() => {
 
       // エラーが発生しても初回チェックは実行
       Promise.resolve().then(async () => {
-        await new Promise(resolve => requestAnimationFrame(resolve))
+        await new Promise(resolve => setTimeout(resolve, 100))
         checkAndRemoveExpiredTabs()
       })
     }
