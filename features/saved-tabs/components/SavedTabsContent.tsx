@@ -92,7 +92,10 @@ export const SortableCategorySection = ({
                   `カテゴリ「${categoryDisplayName}」から${urlsToRemove.length}件のURLを削除しました`,
                 )
                 // 削除処理が完了してからフラグをリセット
-                setTimeout(() => setIsDeleting(false), 500)
+                Promise.resolve().then(async () => {
+                  await new Promise(resolve => requestAnimationFrame(resolve))
+                  setIsDeleting(false)
+                })
               })
             }
           } catch (error) {

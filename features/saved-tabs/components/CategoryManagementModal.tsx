@@ -232,7 +232,11 @@ export const CategoryManagementModal = ({
         const maxAttempts = 5
 
         while (!isUpdateConfirmed && attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          await new Promise(resolve => {
+            requestAnimationFrame(() => {
+              setTimeout(() => resolve(void 0), 1000)
+            })
+          })
           const { parentCategories = [] } =
             await chrome.storage.local.get('parentCategories')
           const updatedCategory = parentCategories.find(

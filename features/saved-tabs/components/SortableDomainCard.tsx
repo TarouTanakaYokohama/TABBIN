@@ -397,10 +397,11 @@ export const SortableDomainCard = ({
     // 強制的にカテゴリデータを再計算するためのトリガー
     setCategoryUpdateTrigger(prev => prev + 1)
 
-    // 0.5秒後に再度更新して、データの反映を確認
-    setTimeout(() => {
+    // データの反映を確認するための重独更新
+    Promise.resolve().then(async () => {
+      await new Promise(resolve => requestAnimationFrame(resolve))
       setCategoryUpdateTrigger(prev => prev + 1)
-    }, 500)
+    })
   }
 
   // カテゴリ削除後の処理を追加
@@ -461,12 +462,12 @@ export const SortableDomainCard = ({
               }
 
               // カテゴリ表示を更新
-              setTimeout(() => {
+              requestAnimationFrame(() => {
                 const newActiveIds = getActiveCategoryIds()
                 setAllCategoryIds(newActiveIds)
                 setCategoryUpdateTrigger(prev => prev + 1)
                 resolve()
-              }, 100)
+              })
             })
           })
         })

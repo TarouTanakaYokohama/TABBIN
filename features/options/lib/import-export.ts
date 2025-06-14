@@ -136,10 +136,10 @@ export const downloadAsJson = (data: BackupData, filename: string): void => {
   a.click()
 
   // クリーンアップ
-  setTimeout(() => {
+  requestAnimationFrame(() => {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-  }, 100)
+  })
 }
 
 /**
