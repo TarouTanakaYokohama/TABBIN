@@ -92,6 +92,7 @@ export default defineBackground(() => {
     url: string
     timestamp: number
     processed: boolean // 処理済みフラグを追加
+    timeoutId?: NodeJS.Timeout // タイムアウトIDを追加
   } | null = null
 
   // タブ作成を制御するためのフラグ (新規追加)
@@ -188,7 +189,7 @@ export default defineBackground(() => {
                     const iconUrl = chrome.runtime.getURL('icon/128.png')
                     console.log('通知アイコンURL:', iconUrl)
 
-                    await chrome.notifications.create({
+                    chrome.notifications.create({
                       type: 'basic',
                       iconUrl: iconUrl,
                       title: 'タブ保存',
@@ -239,7 +240,7 @@ export default defineBackground(() => {
                     const iconUrl = chrome.runtime.getURL('icon/128.png')
                     console.log('通知アイコンURL:', iconUrl)
 
-                    await chrome.notifications.create({
+                    chrome.notifications.create({
                       type: 'basic',
                       iconUrl: iconUrl,
                       title: 'タブ保存',
@@ -255,8 +256,9 @@ export default defineBackground(() => {
                   const savedTabsTabId = await openSavedTabsPage()
                   console.log(`saved-tabsページID: ${savedTabsTabId}`)
 
-                  // 少し待機してから重複タブをチェック (安全対策)
-                  setTimeout(async () => {
+                  // 重複タブチェックを非同期で実行
+                  Promise.resolve().then(async () => {
+                    await new Promise(resolve => requestAnimationFrame(resolve))
                     try {
                       const checkTabs = await chrome.tabs.query({})
                       const savedTabsPages = checkTabs.filter(
@@ -284,7 +286,7 @@ export default defineBackground(() => {
                     } catch (e) {
                       console.error('追加タブチェック中にエラー:', e)
                     }
-                  }, 500)
+                  })
                 } else if (
                   info.menuItemId === 'saveSameDomainTabs' &&
                   tab &&
@@ -327,7 +329,7 @@ export default defineBackground(() => {
                   // 通知を表示
                   try {
                     const iconUrl = chrome.runtime.getURL('icon/128.png')
-                    await chrome.notifications.create({
+                    chrome.notifications.create({
                       type: 'basic',
                       iconUrl: iconUrl,
                       title: 'タブ保存',
@@ -375,7 +377,7 @@ export default defineBackground(() => {
                   // 通知を表示
                   try {
                     const iconUrl = chrome.runtime.getURL('icon/128.png')
-                    await chrome.notifications.create({
+                    chrome.notifications.create({
                       type: 'basic',
                       iconUrl: iconUrl,
                       title: 'タブ保存',
@@ -661,10 +663,11 @@ export default defineBackground(() => {
         }
       })
 
-      // 初回チェックは即時実行
-      setTimeout(() => {
+      // 初回チェックを非同期で実行
+      Promise.resolve().then(async () => {
+        await new Promise(resolve => requestAnimationFrame(resolve))
         checkAndRemoveExpiredTabs()
-      }, 1000)
+      })
     } catch (error: unknown) {
       console.error(
         'アラーム設定エラー:',
@@ -672,9 +675,10 @@ export default defineBackground(() => {
       )
 
       // エラーが発生しても初回チェックは実行
-      setTimeout(() => {
+      Promise.resolve().then(async () => {
+        await new Promise(resolve => requestAnimationFrame(resolve))
         checkAndRemoveExpiredTabs()
-      }, 1000)
+      })
     }
   }
 
@@ -1281,17 +1285,19 @@ export default defineBackground(() => {
         processed: false,
       }
 
-      // 10秒後に情報を自動消去（タイムアウト）
-      setTimeout(() => {
-        if (
-          draggedUrlInfo &&
-          draggedUrlInfo.timestamp === Date.now() &&
-          !draggedUrlInfo.processed
-        ) {
+      // ドラッグ情報の自動タイムアウト（10秒）
+      // このケースではsetTimeoutが最適な実装です
+      const dragTimeout = setTimeout(() => {
+        if (draggedUrlInfo && !draggedUrlInfo.processed) {
           console.log('ドラッグ情報のタイムアウト:', draggedUrlInfo.url)
           draggedUrlInfo = null
         }
       }, 10000)
+
+      // タイムアウトIDを保存しておくことで、必要に応じてキャンセル可能
+      if (draggedUrlInfo) {
+        draggedUrlInfo.timeoutId = dragTimeout
+      }
 
       sendResponse({ status: 'ok' })
       return true

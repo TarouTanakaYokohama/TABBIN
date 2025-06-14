@@ -204,13 +204,13 @@ export const SubCategoryKeywordManager = ({
     setIsRenamingSubCategory(true)
     setNewCategoryName(activeCategory)
 
-    // 入力フィールドにフォーカスを当てる（遅延実行）
-    setTimeout(() => {
+    // 入力フィールドにフォーカスを当てる
+    requestAnimationFrame(() => {
       if (renameInputRef.current) {
         renameInputRef.current.focus()
         renameInputRef.current.select()
       }
-    }, 50)
+    })
   }
 
   // リネームを完了する関数

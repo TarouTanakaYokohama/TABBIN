@@ -102,7 +102,9 @@ export async function safelyUpdateGroupUrls(
     const targetGroup = savedTabs.find((tab: TabGroup) => tab.id === groupId)
     if (!targetGroup) {
       console.log(`グループID ${groupId} が見つかりません`)
-      if (callback) setTimeout(callback, 100)
+      if (callback) {
+        Promise.resolve().then(callback)
+      }
       return Promise.resolve()
     }
 
@@ -140,9 +142,11 @@ export async function safelyUpdateGroupUrls(
       )
     }
 
-    // 成功時にコールバックを実行 - タイミングを遅らせる
+    // 成功時にコールバックを実行 - 非同期で実行
     if (callback) {
-      setTimeout(callback, 200)
+      requestAnimationFrame(() => {
+        Promise.resolve().then(callback)
+      })
     }
 
     return Promise.resolve()
