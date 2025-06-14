@@ -1,4 +1,4 @@
-import type { ParentCategory, TabGroup, UserSettings } from '../utils/storage'
+import type { ParentCategory, TabGroup, UserSettings } from './storage'
 
 // カテゴリグループコンポーネント
 export interface CategoryGroupProps {

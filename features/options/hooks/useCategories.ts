@@ -1,5 +1,5 @@
-import type { ParentCategory } from '@/utils/storage'
-import { createParentCategory, getParentCategories } from '@/utils/storage'
+import { createParentCategory, getParentCategories } from '@/lib/storage'
+import type { ParentCategory } from '@/types/storage'
 import { useEffect, useState } from 'react'
 import { z } from 'zod'
 

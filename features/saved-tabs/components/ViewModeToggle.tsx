@@ -5,7 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { ViewMode } from '@/utils/storage'
+import type { ViewMode } from '@/types/storage'
 import { Folder, Globe } from 'lucide-react'
 
 interface ViewModeToggleProps {

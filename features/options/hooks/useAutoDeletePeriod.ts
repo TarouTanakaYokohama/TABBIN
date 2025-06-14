@@ -1,6 +1,6 @@
 import { autoDeleteOptions } from '@/constants/autoDeleteOptions'
+import type { UserSettings } from '@/types/storage'
 import { isPeriodShortening } from '@/utils/isPeriodShortening'
-import type { UserSettings } from '@/utils/storage'
 import { useState } from 'react'
 import { toast } from 'sonner'
 

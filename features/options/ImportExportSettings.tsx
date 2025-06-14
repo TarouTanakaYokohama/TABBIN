@@ -15,7 +15,7 @@ import {
   downloadAsJson,
   exportSettings,
   importSettings,
-} from '@/utils/importExport'
+} from '@/features/options/lib'
 import { AlertCircle, Download, Upload } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { useDropzone } from 'react-dropzone'

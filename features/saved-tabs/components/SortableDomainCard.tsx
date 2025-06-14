@@ -6,13 +6,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import type { SortableDomainCardProps } from '@/types/saved-tabs'
-import { handleSaveKeywords } from '@/utils/handleSaveKeywords'
+import { handleSaveKeywords } from '@/features/saved-tabs/lib'
 import {
   assignDomainToCategory,
   createParentCategory,
   getParentCategories,
-} from '@/utils/storage'
+} from '@/lib/storage'
+import type { SortableDomainCardProps } from '@/types/saved-tabs'
+import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
 import {
   DndContext,
   KeyboardSensor,

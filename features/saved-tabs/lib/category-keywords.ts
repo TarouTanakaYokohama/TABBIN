@@ -1,3 +1,5 @@
+import { setCategoryKeywords } from '@/lib/storage'
+
 // キーワードの保存を処理する関数
 export const handleSaveKeywords = async (
   groupId: string,

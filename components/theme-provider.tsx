@@ -1,5 +1,5 @@
+import type { UserSettings } from '@/types/storage'
 import { createContext, useContext, useEffect, useState } from 'react'
-import type { UserSettings } from '../utils/storage'
 
 type Theme = 'dark' | 'light' | 'system' | 'user'
 

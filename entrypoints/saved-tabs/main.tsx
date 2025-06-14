@@ -1,12 +1,5 @@
 import '@/assets/global.css'
-import Fuse from 'fuse.js'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createRoot } from 'react-dom/client'
-import type {
-  ParentCategory,
-  TabGroup,
-  UserSettings,
-} from '../../utils/storage'
+import { handleTabGroupRemoval } from '@/features/saved-tabs/lib'
 import {
   addSubCategoryToGroup,
   getParentCategories,
@@ -14,10 +7,12 @@ import {
   migrateParentCategoriesToDomainNames,
   saveParentCategories,
   updateDomainCategorySettings,
-} from '../../utils/storage'
-import { defaultSettings } from '../../utils/storage'
-// 追加: 新しいユーティリティファイルからのインポート
-import { handleTabGroupRemoval } from '../../utils/tab-operations'
+} from '@/lib/storage'
+import { defaultSettings } from '@/lib/storage'
+import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
+import Fuse from 'fuse.js'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
 
 import {
   DndContext,
@@ -60,8 +55,6 @@ import { CustomProjectSection } from '@/features/saved-tabs/components/CustomPro
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
 import { SortableDomainCard } from '@/features/saved-tabs/components/SortableDomainCard'
 import {
-  type CustomProject,
-  type ViewMode,
   addUrlToCustomProject,
   createCustomProject,
   deleteCustomProject,
@@ -72,7 +65,8 @@ import {
   saveViewMode,
   updateCustomProjectName,
   updateProjectOrder,
-} from '@/utils/storage'
+} from '@/lib/storage'
+import type { CustomProject, ViewMode } from '@/types/storage'
 import { toast } from 'sonner'
 
 import {
@@ -83,7 +77,7 @@ import {
   setUrlCategory,
   updateCategoryOrder,
   // ...other imports...
-} from '@/utils/storage'
+} from '@/lib/storage'
 
 const SavedTabs = () => {
   const [tabGroups, setTabGroups] = useState<TabGroup[]>([])

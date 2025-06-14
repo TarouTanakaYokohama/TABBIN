@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { ParentCategory } from '@/utils/storage'
+import type { ParentCategory } from '@/types/storage'
 import { Edit, Plus, Trash, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'

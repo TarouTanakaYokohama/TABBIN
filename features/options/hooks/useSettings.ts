@@ -1,9 +1,9 @@
-import type { UserSettings } from '@/utils/storage'
 import {
   defaultSettings,
   getUserSettings,
   saveUserSettings,
-} from '@/utils/storage'
+} from '@/lib/storage'
+import type { UserSettings } from '@/types/storage'
 import { useEffect, useState } from 'react'
 
 export const useSettings = () => {

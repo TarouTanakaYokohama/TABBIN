@@ -1,5 +1,4 @@
-// filepath: features/saved-tabs/types/CustomProjectCard.types.ts
-import type { CustomProject, UserSettings } from '@/utils/storage'
+import type { CustomProject, UserSettings } from '@/types/storage'
 
 export interface CustomProjectCardProps {
   project: CustomProject

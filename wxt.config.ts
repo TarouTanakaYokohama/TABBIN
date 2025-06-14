@@ -7,7 +7,7 @@ export default defineConfig({
 		name: "TABBIN",
 		description:
 			"TABBIN(タビン)はブラウザのタブを整理・分類する拡張機能です。散らかりがちなタブをスマートに管理し、快適なブラウジング体験を実現します。",
-		version: "1.1.6",
+		version: "1.1.8",
 		permissions: ["alarms", "tabs", "storage", "contextMenus", "notifications"],
 		action: {
 			default_title: "TABBIN",
