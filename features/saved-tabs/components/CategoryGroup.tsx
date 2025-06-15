@@ -347,7 +347,7 @@ export const CategoryGroup = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <CardHeader className='my-2 flex-row items-baseline justify-between'>
+        <CardHeader className='sticky top-0 z-50 my-2 flex-row items-baseline justify-between bg-card'>
           <div className='flex flex-grow items-center gap-2'>
             {/* 折りたたみ切り替えボタン */}
             <Tooltip>

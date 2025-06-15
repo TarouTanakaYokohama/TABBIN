@@ -52,6 +52,7 @@ export interface CategorySectionProps {
 export interface SortableCategorySectionProps extends CategorySectionProps {
   id: string // ソート用の一意のID
   handleOpenAllTabs: (urls: { url: string; title: string }[]) => void // すべて開く処理
+  stickyTop?: string // sticky位置のクラス名（オプション）
 }
 
 // URL項目用のソータブルコンポーネント
