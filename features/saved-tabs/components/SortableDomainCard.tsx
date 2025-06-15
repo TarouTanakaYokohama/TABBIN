@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { CardContent } from '@/components/ui/card'
 import {
   Tooltip,
   TooltipContent,
@@ -552,20 +552,18 @@ export const SortableDomainCard = ({
   }, [isDraggingGlobal])
 
   // 親カテゴリの有無に応じてsticky位置を動的に設定
-  const stickyTop = categoryId ? 'top-8' : 'top-0'
-  const categorySectionStickyTop = categoryId ? 'top-20' : 'top-12'
+  const stickyTop = categoryId ? 'top-8' : 'top-6'
+  const categorySectionStickyTop = categoryId ? 'top-20' : 'top-18'
 
   return (
-    <Card
+    <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-lg shadow-md ${
-        isDraggingOver ? 'border-2 border-ring' : 'border-border'
-      }`}
+      className='shadow-md'
       data-category-id={categoryId}
       data-urls-count={group.urls.length}
     >
-      <CardHeader className={`sticky ${stickyTop} z-40 w-full bg-card p-2`}>
+      <div className={`sticky ${stickyTop} z-40 w-full bg-card p-2`}>
         <div className='flex w-full items-center justify-between gap-2'>
           {/* 折りたたみ切り替えボタン */}
           <Tooltip>
@@ -751,7 +749,7 @@ export const SortableDomainCard = ({
             )}
           </div>
         </div>
-      </CardHeader>
+      </div>
 
       {/* カード展開部 */}
       {!isCollapsed && (
@@ -812,6 +810,6 @@ export const SortableDomainCard = ({
           )}
         </CardContent>
       )}
-    </Card>
+    </div>
   )
 }

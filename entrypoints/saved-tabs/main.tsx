@@ -1791,7 +1791,7 @@ const SavedTabs = () => {
                   </DndContext>
 
                   {uncategorized.length > 0 && (
-                    <h2 className='mt-6 font-bold text-foreground text-xl'>
+                    <h2 className='sticky top-0 z-50 mt-6 bg-card font-bold text-foreground text-xl'>
                       未分類のドメイン
                     </h2>
                   )}

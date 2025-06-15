@@ -148,7 +148,7 @@ export const SortableCategorySection = ({
         }
       >
         <div
-          className={`category-header sticky ${stickyTop} z-30 mb-0.5 flex items-center justify-between gap-2 border-border border-b bg-background pb-0.5`}
+          className={`category-header sticky ${stickyTop} z-30 mb-0.5 flex items-center justify-between gap-2 bg-background pb-0.5`}
         >
           {/* 折りたたみ切り替えボタン */}
           <Tooltip>
