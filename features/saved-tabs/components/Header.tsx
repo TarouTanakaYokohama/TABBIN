@@ -20,6 +20,7 @@ import { ViewModeToggle } from './ViewModeToggle'
 
 type HeaderProps = {
   tabGroups: TabGroup[]
+  filteredTabGroups?: TabGroup[]
   currentMode: ViewMode
   onModeChange: (mode: ViewMode) => void
   searchQuery: string
@@ -31,6 +32,7 @@ type HeaderProps = {
 
 export const Header = ({
   tabGroups,
+  filteredTabGroups,
   currentMode,
   onModeChange,
   searchQuery,
@@ -119,9 +121,12 @@ export const Header = ({
         <div className='space-x-4 text-muted-foreground text-sm'>
           <p>
             タブ:
-            {tabGroups.reduce((sum, group) => sum + group.urls.length, 0)}
+            {(filteredTabGroups || tabGroups).reduce(
+              (sum, group) => sum + group.urls.length,
+              0,
+            )}
           </p>
-          <p>ドメイン: {tabGroups.length}</p>
+          <p>ドメイン: {(filteredTabGroups || tabGroups).length}</p>
         </div>
       </div>
 
