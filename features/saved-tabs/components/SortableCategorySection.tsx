@@ -29,6 +29,7 @@ export const SortableCategorySection = ({
   handleOpenAllTabs,
   handleDeleteAllTabs, // 削除ハンドラを追加
   settings,
+  stickyTop = 'top-16', // デフォルト値を設定
   ...props
 }: SortableCategorySectionProps & {
   settings: UserSettings
@@ -146,7 +147,9 @@ export const SortableCategorySection = ({
             : 'category-section mb-1'
         }
       >
-        <div className='category-header mb-0.5 flex items-center justify-between gap-2 border-border border-b pb-0.5'>
+        <div
+          className={`category-header sticky ${stickyTop} z-30 mb-0.5 flex items-center justify-between gap-2 border-border border-b bg-background pb-0.5`}
+        >
           {/* 折りたたみ切り替えボタン */}
           <Tooltip>
             <TooltipTrigger asChild>

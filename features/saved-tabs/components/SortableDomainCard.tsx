@@ -551,6 +551,10 @@ export const SortableDomainCard = ({
     }
   }, [isDraggingGlobal])
 
+  // 親カテゴリの有無に応じてsticky位置を動的に設定
+  const stickyTop = categoryId ? 'top-8' : 'top-0'
+  const categorySectionStickyTop = categoryId ? 'top-20' : 'top-12'
+
   return (
     <Card
       ref={setNodeRef}
@@ -561,7 +565,7 @@ export const SortableDomainCard = ({
       data-category-id={categoryId}
       data-urls-count={group.urls.length}
     >
-      <CardHeader className='w-full p-2'>
+      <CardHeader className={`sticky ${stickyTop} z-40 w-full bg-card p-2`}>
         <div className='flex w-full items-center justify-between gap-2'>
           {/* 折りたたみ切り替えボタン */}
           <Tooltip>
@@ -781,6 +785,7 @@ export const SortableDomainCard = ({
                           handleDeleteAllTabsInCategory(categoryName, urls)
                         }
                         settings={settings}
+                        stickyTop={categorySectionStickyTop}
                       />
                     )
                   })}
