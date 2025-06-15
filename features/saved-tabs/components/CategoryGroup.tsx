@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { CardContent, CardHeader } from '@/components/ui/card'
 import type { CategoryGroupProps } from '@/types/saved-tabs'
 import { CategoryManagementModal } from '../components/CategoryManagementModal'
 
@@ -339,10 +339,9 @@ export const CategoryGroup = ({
 
   return (
     <>
-      <Card
+      <div
         ref={setNodeRef}
         style={style}
-        className={`${isDraggingOver ? 'border-primary' : 'border-border'}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -559,7 +558,7 @@ export const CategoryGroup = ({
             </DndContext>
           </CardContent>
         )}
-      </Card>
+      </div>
 
       {/* カテゴリ管理モーダル */}
       <CategoryManagementModal
