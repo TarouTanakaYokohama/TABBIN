@@ -1714,6 +1714,19 @@ const SavedTabs = () => {
       <div className='container mx-auto min-h-screen px-4 py-2'>
         <Header
           tabGroups={tabGroups}
+          filteredTabGroups={
+            viewMode === 'domain'
+              ? hasContentTabGroups
+              : // カスタムモードの場合、filteredCustomProjectsからTabGroup形式に変換
+                filteredCustomProjects.map(
+                  proj =>
+                    ({
+                      id: proj.id,
+                      domain: proj.name, // プロジェクト名をドメインとして使用
+                      urls: proj.urls,
+                    }) as TabGroup,
+                )
+          }
           customProjects={customProjects}
           onAddCategory={handleAddCategory}
           currentMode={viewMode}
