@@ -683,7 +683,7 @@ export const SortableDomainCard = ({
                 className='flex cursor-pointer items-center gap-1'
                 aria-label={
                   sortOrder === 'default'
-                    ? '保存日時のデフォルト'
+                    ? 'デフォルト'
                     : sortOrder === 'asc'
                       ? '保存日時の昇順'
                       : '保存日時の降順'
@@ -700,7 +700,7 @@ export const SortableDomainCard = ({
             </TooltipTrigger>
             <TooltipContent side='top' className='block lg:hidden'>
               {sortOrder === 'default'
-                ? '保存日時のデフォルト'
+                ? 'デフォルト'
                 : sortOrder === 'asc'
                   ? '保存日時の昇順'
                   : '保存日時の降順'}
