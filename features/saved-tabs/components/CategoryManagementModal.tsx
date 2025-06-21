@@ -15,6 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import type { ParentCategory } from '@/types/storage'
 import { Edit, Plus, Trash, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -513,25 +518,43 @@ export const CategoryManagementModal = ({
               <Label>親カテゴリ名</Label>
               {!isRenaming && (
                 <div className='flex items-center gap-2'>
-                  <Button
-                    variant='secondary'
-                    size='sm'
-                    onClick={handleStartRenaming}
-                    className='flex cursor-pointer items-center gap-2 rounded px-2 py-1'
-                  >
-                    <Edit size={14} />
-                    <span className='hidden lg:inline'>親カテゴリ名を変更</span>
-                  </Button>
-                  <Button
-                    variant='secondary'
-                    size='sm'
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className='flex cursor-pointer items-center gap-2 rounded px-2 py-1'
-                    disabled={isProcessing}
-                  >
-                    <Trash2 size={14} />
-                    <span className='hidden lg:inline'>親カテゴリを削除</span>
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant='secondary'
+                        size='sm'
+                        onClick={handleStartRenaming}
+                        className='flex cursor-pointer items-center gap-2 rounded px-2 py-1'
+                      >
+                        <Edit size={14} />
+                        <span className='hidden lg:inline'>
+                          親カテゴリ名を変更
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side='top' className='block lg:hidden'>
+                      親カテゴリ名を変更
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant='secondary'
+                        size='sm'
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className='flex cursor-pointer items-center gap-2 rounded px-2 py-1'
+                        disabled={isProcessing}
+                      >
+                        <Trash2 size={14} />
+                        <span className='hidden lg:inline'>
+                          親カテゴリを削除
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side='top' className='block lg:hidden'>
+                      親カテゴリを削除
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               )}
             </div>
@@ -615,23 +638,37 @@ export const CategoryManagementModal = ({
                 ) : null}
               </p>
               <div className='flex justify-end gap-2'>
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  onClick={() => setShowDeleteConfirm(false)}
-                  disabled={isProcessing}
-                >
-                  キャンセル
-                </Button>
-                <Button
-                  variant='destructive'
-                  size='sm'
-                  onClick={handleDeleteCategory}
-                  disabled={isProcessing}
-                >
-                  <Trash size={14} />
-                  <span className='hidden lg:inline'>削除</span>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => setShowDeleteConfirm(false)}
+                      disabled={isProcessing}
+                    >
+                      キャンセル
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side='top' className='block lg:hidden'>
+                    キャンセル
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant='destructive'
+                      size='sm'
+                      onClick={handleDeleteCategory}
+                      disabled={isProcessing}
+                    >
+                      <Trash size={14} />
+                      <span className='hidden lg:inline'>削除</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side='top' className='block lg:hidden'>
+                    親カテゴリを削除
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
           )}
@@ -652,16 +689,23 @@ export const CategoryManagementModal = ({
                     className='flex items-center gap-1 rounded px-2 py-1'
                   >
                     {domain.domain}
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={() => handleRemoveDomain(domain.id)}
-                      className='ml-1 cursor-pointer text-gray-400 hover:text-gray-200'
-                      aria-label='ドメインを削除'
-                      disabled={isProcessing}
-                    >
-                      <X size={14} />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={() => handleRemoveDomain(domain.id)}
+                          className='ml-1 cursor-pointer text-gray-400 hover:text-gray-200'
+                          aria-label='ドメインを削除'
+                          disabled={isProcessing}
+                        >
+                          <X size={14} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side='top' className='block lg:hidden'>
+                        削除
+                      </TooltipContent>
+                    </Tooltip>
                   </Badge>
                 ))
               )}
@@ -693,20 +737,27 @@ export const CategoryManagementModal = ({
                     ))}
                   </SelectContent>
                 </Select>
-                <Button
-                  variant='default'
-                  size='icon'
-                  onClick={e => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    if (!selectedDomain || isProcessing) return
-                    handleAddDomain()
-                  }}
-                  className='cursor-pointer'
-                  disabled={!selectedDomain || isProcessing}
-                >
-                  <Plus size={18} />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant='default'
+                      size='icon'
+                      onClick={e => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if (!selectedDomain || isProcessing) return
+                        handleAddDomain()
+                      }}
+                      className='cursor-pointer'
+                      disabled={!selectedDomain || isProcessing}
+                    >
+                      <Plus size={18} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side='top' className='block lg:hidden'>
+                    選択したドメインを親カテゴリに追加
+                  </TooltipContent>
+                </Tooltip>
               </div>
             ) : (
               <p className='text-gray-500'>追加できるドメインがありません。</p>
