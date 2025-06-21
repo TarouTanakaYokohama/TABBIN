@@ -120,11 +120,11 @@ export const Header = ({
               }
             >
               <Wrench size={16} />
-              <span className='hidden lg:inline'>設定</span>
+              <span className='hidden lg:inline'>オプション</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent side='top' className='block lg:hidden'>
-            設定
+            オプション
           </TooltipContent>
         </Tooltip>
         <div className='space-x-4 text-muted-foreground text-sm'>
