@@ -568,7 +568,18 @@ export const CategoryManagementModal = ({
                     }
                   }}
                   onKeyDown={e => {
-                    if (e.key === 'Escape') {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const trimmedName = newCategoryName.trim()
+                      if (
+                        trimmedName &&
+                        trimmedName !== localCategoryName &&
+                        !categoryNameError &&
+                        !isProcessing
+                      ) {
+                        handleSaveRenaming()
+                      }
+                    } else if (e.key === 'Escape') {
                       e.preventDefault()
                       handleCancelRenaming()
                     }
