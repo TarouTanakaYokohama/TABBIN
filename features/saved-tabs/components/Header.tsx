@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { CustomProject, TabGroup, ViewMode } from '@/types/storage'
-import { Plus, Wrench } from 'lucide-react'
+import { Plus, Wrench, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { CategoryModal } from './CategoryModal'
@@ -51,13 +51,25 @@ export const Header = ({
         <h1 className='whitespace-nowrap font-bold text-3xl text-foreground'>
           TABBIN
         </h1>
-        <Input
-          type='text'
-          placeholder='検索'
-          value={searchQuery}
-          onChange={e => onSearchChange(e.target.value)}
-          className='h-9 w-full'
-        />
+        <div className='relative w-full'>
+          <Input
+            type='text'
+            placeholder='検索'
+            value={searchQuery}
+            onChange={e => onSearchChange(e.target.value)}
+            className='h-9 w-full'
+          />
+          {searchQuery && (
+            <Button
+              type='button'
+              variant='ghost'
+              onClick={() => onSearchChange('')}
+              className='absolute inset-y-0 right-0 flex h-9 w-9 cursor-pointer items-center justify-center'
+            >
+              <X size={16} />
+            </Button>
+          )}
+        </div>
       </div>
       <div className='flex flex-shrink-0 items-center gap-1 whitespace-nowrap'>
         {currentMode === 'domain' && (
