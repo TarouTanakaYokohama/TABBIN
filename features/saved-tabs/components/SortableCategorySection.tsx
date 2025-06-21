@@ -30,6 +30,7 @@ export const SortableCategorySection = ({
   handleDeleteAllTabs, // 削除ハンドラを追加
   settings,
   stickyTop = 'top-16', // デフォルト値を設定
+  isReorderMode = false, // 並び替えモード状態
   ...props
 }: SortableCategorySectionProps & {
   settings: UserSettings
@@ -116,25 +117,36 @@ export const SortableCategorySection = ({
   )
 
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [userCollapsedState, setUserCollapsedState] = useState(false)
   const [isDraggingGlobal, setIsDraggingGlobal] = useState(false)
+
   useDndMonitor({
     onDragStart: () => {
       setIsDraggingGlobal(true)
     },
     onDragEnd: () => {
       setIsDraggingGlobal(false)
-      setIsCollapsed(false)
+      if (!isReorderMode) {
+        setIsCollapsed(false)
+      }
     },
     onDragCancel: () => {
       setIsDraggingGlobal(false)
-      setIsCollapsed(false)
+      if (!isReorderMode) {
+        setIsCollapsed(false)
+      }
     },
   })
+
   useEffect(() => {
-    if (isDraggingGlobal) {
+    // ドラッグ中または並び替えモード中は折りたたむ
+    if (isDraggingGlobal || isReorderMode) {
       setIsCollapsed(true)
+    } else if (!isDraggingGlobal && !isReorderMode) {
+      // ドラッグもモードも終了したらユーザーが設定した状態に戻す
+      setIsCollapsed(userCollapsedState)
     }
-  }, [isDraggingGlobal])
+  }, [isDraggingGlobal, isReorderMode, userCollapsedState])
 
   return (
     <div>
@@ -158,10 +170,19 @@ export const SortableCategorySection = ({
                 size='sm'
                 onClick={e => {
                   e.stopPropagation()
-                  setIsCollapsed(prev => !prev)
+                  if (!isReorderMode) {
+                    const newState = !isCollapsed
+                    setIsCollapsed(newState)
+                    setUserCollapsedState(newState)
+                  }
                 }}
-                className='flex cursor-pointer items-center gap-1'
+                className={`flex items-center gap-1 ${
+                  isReorderMode
+                    ? 'cursor-not-allowed opacity-50'
+                    : 'cursor-pointer'
+                }`}
                 aria-label={isCollapsed ? '展開' : '折りたたむ'}
+                disabled={isReorderMode}
               >
                 {isCollapsed ? (
                   <ChevronDown size={14} />
@@ -171,7 +192,11 @@ export const SortableCategorySection = ({
               </Button>
             </TooltipTrigger>
             <TooltipContent side='top' className='block lg:hidden'>
-              {isCollapsed ? '展開' : '折りたたむ'}
+              {isReorderMode
+                ? '並び替えモード中'
+                : isCollapsed
+                  ? '展開'
+                  : '折りたたむ'}
             </TooltipContent>
           </Tooltip>
           {/* ソート順切り替え */}

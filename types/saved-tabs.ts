@@ -20,6 +20,7 @@ export interface CategoryGroupProps {
   ) => void
   handleDeleteCategory?: (groupId: string, categoryName: string) => void
   settings: UserSettings
+  isCategoryReorderMode?: boolean // 親カテゴリ並び替えモード状態
 }
 
 // ドメインカード用のソータブルコンポーネントの型
@@ -34,6 +35,7 @@ export interface SortableDomainCardProps {
   categoryId?: string // 親カテゴリID
   isDraggingOver?: boolean // ドラッグオーバー状態
   settings?: UserSettings // 設定プロパティ
+  isReorderMode?: boolean // 並び替えモード状態
 }
 
 // カテゴリセクションコンポーネント
@@ -53,6 +55,7 @@ export interface SortableCategorySectionProps extends CategorySectionProps {
   id: string // ソート用の一意のID
   handleOpenAllTabs: (urls: { url: string; title: string }[]) => void // すべて開く処理
   stickyTop?: string // sticky位置のクラス名（オプション）
+  isReorderMode?: boolean // 並び替えモード状態
 }
 
 // URL項目用のソータブルコンポーネント
