@@ -1,19 +1,24 @@
+import { useTheme } from '@/components/theme-provider'
 import { colorOptions } from '@/constants/colorOptions'
 import { saveUserSettings } from '@/lib/storage'
 import type { UserSettings } from '@/types/storage'
-// No useState needed here
 import { toast } from 'sonner'
 
 export const useColorSettings = (
   settings: UserSettings,
   setSettings: React.Dispatch<React.SetStateAction<UserSettings>>,
 ) => {
+  const { setTheme } = useTheme()
   // カラー設定ハンドラ
   const handleColorChange = async (key: string, value: string) => {
     try {
       const newColors = { ...(settings.colors || {}), [key]: value }
       const newSettings = { ...settings, colors: newColors }
       setSettings(newSettings)
+
+      // カラー変更時に自動的にユーザー設定モードに切り替え
+      setTheme('user')
+
       // ライブプレビュー: 即座にCSS変数を更新
       document.documentElement.style.setProperty(`--${key}`, value)
       await saveUserSettings(newSettings)
