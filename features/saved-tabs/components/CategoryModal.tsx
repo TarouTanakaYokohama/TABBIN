@@ -446,7 +446,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                             disabled={isLoading}
                             className='cursor-pointer'
                           >
-                            <Trash2 size={16} className='mr-1' />
+                            <Trash2 size={16} />
                             <span className='hidden lg:inline'>
                               選択中の親カテゴリを削除
                             </span>
