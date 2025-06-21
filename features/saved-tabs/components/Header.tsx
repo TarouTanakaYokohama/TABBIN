@@ -135,7 +135,7 @@ export const Header = ({
               0,
             )}
           </p>
-          <p>ドメイン: {(filteredTabGroups || tabGroups).length}</p>
+          <p>ドメイン:{(filteredTabGroups || tabGroups).length}</p>
         </div>
       </div>
 
