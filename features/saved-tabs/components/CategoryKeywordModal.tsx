@@ -573,7 +573,7 @@ export const CategoryKeywordModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className='max-h-[80vh] overflow-y-auto'
+        className='max-h-[90vh] overflow-y-auto'
         // モーダル全体のクリックイベント伝播を停止
         onClick={e => e.stopPropagation()}
         onPointerDown={e => e.stopPropagation()}

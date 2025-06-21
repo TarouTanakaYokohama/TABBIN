@@ -501,7 +501,7 @@ export const CategoryManagementModal = ({
         onClose()
       }}
     >
-      <DialogContent className='overflow-y-auto'>
+      <DialogContent className='max-h-[90vh] overflow-y-auto'>
         <DialogHeader className='text-left'>
           <DialogTitle>「{localCategoryName}」の親カテゴリ管理</DialogTitle>
         </DialogHeader>
