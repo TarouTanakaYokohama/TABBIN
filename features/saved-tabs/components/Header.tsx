@@ -64,7 +64,7 @@ export const Header = ({
               type='button'
               variant='ghost'
               onClick={() => onSearchChange('')}
-              className='absolute inset-y-0 right-0 flex h-9 w-9 cursor-pointer items-center justify-center'
+              className='-translate-y-1/2 absolute top-1/2 right-0 mr-0.5 flex size-8 cursor-pointer items-center justify-center'
             >
               <X size={16} />
             </Button>
