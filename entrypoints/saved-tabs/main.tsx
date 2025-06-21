@@ -1895,7 +1895,6 @@ const SavedTabs = () => {
                       size='sm'
                       onClick={() => setShowSubCategoryModal(false)}
                       className='cursor-pointer rounded px-2 py-1 text-secondary-foreground'
-                      title='キャンセル'
                     >
                       キャンセル
                     </Button>
@@ -1912,7 +1911,6 @@ const SavedTabs = () => {
                       size='sm'
                       onClick={handleAddSubCategory}
                       className='flex cursor-pointer items-center gap-1 rounded text-primary-foreground'
-                      title='追加'
                     >
                       <Plus size={14} />
                       <span className='hidden lg:inline'>追加</span>

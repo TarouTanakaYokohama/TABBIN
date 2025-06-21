@@ -576,7 +576,6 @@ export const SortableDomainCard = ({
                   setIsCollapsed(prev => !prev)
                 }}
                 className='flex cursor-pointer items-center gap-1'
-                title={isCollapsed ? '展開' : '折りたたむ'}
                 aria-label={isCollapsed ? '展開' : '折りたたむ'}
               >
                 {isCollapsed ? (
@@ -604,13 +603,6 @@ export const SortableDomainCard = ({
                   )
                 }}
                 className='flex cursor-pointer items-center gap-1'
-                title={
-                  sortOrder === 'default'
-                    ? '保存日時のデフォルト'
-                    : sortOrder === 'asc'
-                      ? '保存日時の昇順'
-                      : '保存日時の降順'
-                }
                 aria-label={
                   sortOrder === 'default'
                     ? '保存日時のデフォルト'
@@ -663,7 +655,6 @@ export const SortableDomainCard = ({
                   size='sm'
                   onClick={() => setShowKeywordModal(!showKeywordModal)}
                   className='flex cursor-pointer items-center gap-1'
-                  title='子カテゴリを管理'
                   aria-label='子カテゴリを管理'
                 >
                   <Settings size={14} />
@@ -692,7 +683,6 @@ export const SortableDomainCard = ({
                     handleOpenAllTabs(group.urls)
                   }}
                   className='flex cursor-pointer items-center gap-1'
-                  title='すべてのタブを開く'
                   aria-label='すべてのタブを開く'
                 >
                   <ExternalLink size={14} />
@@ -721,7 +711,6 @@ export const SortableDomainCard = ({
                     }
                   }}
                   className='flex cursor-pointer items-center gap-1'
-                  title='すべてのタブを削除'
                   aria-label='すべてのタブを削除'
                 >
                   <Trash size={14} />

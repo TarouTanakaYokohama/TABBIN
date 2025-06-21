@@ -645,7 +645,6 @@ export const CategoryKeywordModal = ({
                             size='sm'
                             onClick={handleStartRenaming}
                             className='flex cursor-pointer items-center gap-1 rounded px-2 py-1'
-                            title='子カテゴリ名を変更'
                             disabled={!activeCategory}
                           >
                             <Edit size={14} />
@@ -667,7 +666,6 @@ export const CategoryKeywordModal = ({
                           size='sm'
                           onClick={() => setShowDeleteConfirm(true)}
                           className='flex cursor-pointer items-center gap-1 rounded px-2 py-1'
-                          title='選択中の子カテゴリを削除'
                           disabled={!activeCategory}
                         >
                           <Trash2 size={14} />

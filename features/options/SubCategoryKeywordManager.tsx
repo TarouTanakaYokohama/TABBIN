@@ -389,7 +389,6 @@ export const SubCategoryKeywordManager = ({
                   ? 'bg-secondary text-secondary-foreground'
                   : 'bg-muted text-foreground hover:bg-secondary/80'
               }`}
-              title={category} // 長い名前の場合はホバーでフル表示
             >
               {category}
             </Button>
@@ -399,7 +398,6 @@ export const SubCategoryKeywordManager = ({
               variant='outline'
               size='sm'
               className='flex-shrink-0 cursor-pointer rounded-l-none'
-              title='カテゴリを削除'
               aria-label={`カテゴリ ${category} を削除`}
             >
               <X size={14} />
@@ -444,7 +442,6 @@ export const SubCategoryKeywordManager = ({
                     variant='secondary'
                     size='icon'
                     className='rounded-none bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                    title='変更を保存'
                   >
                     <Check size={16} />
                   </Button>
@@ -454,7 +451,6 @@ export const SubCategoryKeywordManager = ({
                     variant='ghost'
                     size='icon'
                     className='rounded-l-none'
-                    title='キャンセル'
                   >
                     <X size={16} />
                   </Button>
@@ -479,7 +475,6 @@ export const SubCategoryKeywordManager = ({
                   variant='outline'
                   size='sm'
                   className='flex-shrink-0 bg-muted text-foreground text-xs hover:bg-muted/70'
-                  title='カテゴリ名を変更'
                 >
                   リネーム
                 </Button>

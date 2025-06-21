@@ -359,7 +359,6 @@ export const CategoryGroup = ({
                     setIsCollapsed(prev => !prev)
                   }}
                   className='flex cursor-pointer items-center gap-1'
-                  title={isCollapsed ? '展開' : '折りたたむ'}
                   aria-label={isCollapsed ? '展開' : '折りたたむ'}
                 >
                   {isCollapsed ? (
@@ -390,13 +389,6 @@ export const CategoryGroup = ({
                     )
                   }}
                   className='flex cursor-pointer items-center gap-1'
-                  title={
-                    sortOrder === 'default'
-                      ? 'デフォルト'
-                      : sortOrder === 'asc'
-                        ? '昇順'
-                        : '降順'
-                  }
                   aria-label={
                     sortOrder === 'default'
                       ? 'デフォルト'
@@ -455,7 +447,6 @@ export const CategoryGroup = ({
                     setIsModalOpen(true)
                   }}
                   className='flex cursor-pointer items-center gap-1'
-                  title='親カテゴリを管理'
                   aria-label='親カテゴリを管理'
                 >
                   <Settings size={14} />
@@ -483,7 +474,6 @@ export const CategoryGroup = ({
                     handleOpenAllTabs(allUrls)
                   }}
                   className='flex cursor-pointer items-center gap-1'
-                  title='すべてのタブを開く'
                   aria-label='すべてのタブを開く'
                 >
                   <ExternalLink size={14} />
@@ -514,7 +504,6 @@ export const CategoryGroup = ({
                     }
                   }}
                   className='flex cursor-pointer items-center gap-1'
-                  title='すべてのタブを削除'
                   aria-label='すべてのタブを削除'
                 >
                   <Trash size={14} />

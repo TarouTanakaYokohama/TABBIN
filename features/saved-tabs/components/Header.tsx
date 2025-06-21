@@ -68,7 +68,6 @@ export const Header = ({
                 size='sm'
                 onClick={() => setIsModalOpen(true)}
                 className='flex h-9 cursor-pointer items-center gap-2'
-                title='親カテゴリ管理'
               >
                 <Plus size={16} />
                 <span className='hidden lg:inline'>親カテゴリ管理</span>
@@ -87,7 +86,6 @@ export const Header = ({
                 size='sm'
                 onClick={() => setIsCustomCategoryModalOpen(true)}
                 className='flex h-9 cursor-pointer items-center gap-2'
-                title='カテゴリ追加'
               >
                 <Plus size={16} />
                 <span className='hidden lg:inline'>カテゴリ追加</span>
@@ -105,7 +103,6 @@ export const Header = ({
               type='button'
               variant='outline'
               className='flex h-9 cursor-pointer items-center gap-2'
-              title='設定'
               onClick={() =>
                 window.open(chrome.runtime.getURL('options.html'), '_blank')
               }

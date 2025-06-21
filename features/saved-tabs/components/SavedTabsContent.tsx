@@ -157,7 +157,6 @@ export const SortableCategorySection = ({
                   handleOpenAllTabs(props.urls)
                 }}
                 className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
-                title={`${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}のタブをすべて開く`}
                 style={{ position: 'relative' }} // ボタンを確実に上に表示
               >
                 <ExternalLink size={14} />
@@ -178,7 +177,6 @@ export const SortableCategorySection = ({
                   size='sm'
                   onClick={onDeleteAllTabs}
                   className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
-                  title={`${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}のタブをすべて削除する`}
                   style={{ position: 'relative' }}
                   disabled={isDeleting}
                 >
