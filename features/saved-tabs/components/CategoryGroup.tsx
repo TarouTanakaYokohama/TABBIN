@@ -505,18 +505,32 @@ export const CategoryGroup = ({
               </TooltipContent>
             </Tooltip>
             <div
-              className='flex w-full cursor-grab items-center gap-1 text-foreground hover:cursor-grab active:cursor-grabbing'
+              className='flex w-full cursor-grab items-center gap-2 text-foreground hover:cursor-grab active:cursor-grabbing'
               {...attributes}
               {...listeners}
             >
               <GripVertical size={16} aria-hidden='true' />
-              <div className='flex items-center gap-1'>
+              <div className='flex items-center gap-2'>
                 <h2 className='font-bold text-foreground text-xl'>
                   {category.name}
                 </h2>
                 <span className='flex gap-2 text-muted-foreground'>
-                  <Badge variant='secondary'>{allUrls.length}</Badge>
-                  <Badge variant='secondary'>{domains.length}</Badge>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant='secondary'>{allUrls.length}</Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side='top' className='block lg:hidden'>
+                      タブ数
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant='secondary'>{domains.length}</Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side='top' className='block lg:hidden'>
+                      ドメイン数
+                    </TooltipContent>
+                  </Tooltip>
                 </span>
               </div>
             </div>

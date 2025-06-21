@@ -720,7 +720,14 @@ export const SortableDomainCard = ({
               {group.domain}
             </h2>
             <span className='text-muted-foreground text-sm'>
-              <Badge variant='secondary'>{group.urls.length}</Badge>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant='secondary'>{group.urls.length}</Badge>
+                </TooltipTrigger>
+                <TooltipContent side='top' className='block lg:hidden'>
+                  タブ数
+                </TooltipContent>
+              </Tooltip>
             </span>
           </div>
 
