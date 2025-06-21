@@ -54,7 +54,7 @@ export async function handleExtensionActionClick(): Promise<void> {
 /**
  * 現在のタブのみを保存
  */
-async function handleSaveCurrentTab(): Promise<
+export async function handleSaveCurrentTab(): Promise<
   { url: string; title: string }[]
 > {
   // 現在アクティブなタブのみを保存
@@ -97,7 +97,7 @@ async function handleSaveCurrentTab(): Promise<
 /**
  * 現在のドメインのタブをすべて保存
  */
-async function handleSaveSameDomainTabs(): Promise<
+export async function handleSaveSameDomainTabs(): Promise<
   { url: string; title: string }[]
 > {
   const currentTabs = await chrome.tabs.query({
@@ -177,7 +177,7 @@ async function handleSaveSameDomainTabs(): Promise<
 /**
  * すべてのウィンドウのタブを保存
  */
-async function handleSaveAllWindowsTabs(): Promise<
+export async function handleSaveAllWindowsTabs(): Promise<
   { url: string; title: string }[]
 > {
   try {
@@ -232,7 +232,7 @@ async function handleSaveAllWindowsTabs(): Promise<
 /**
  * 現在のウィンドウのタブをすべて保存（デフォルト）
  */
-async function handleSaveWindowTabs(): Promise<
+export async function handleSaveWindowTabs(): Promise<
   { url: string; title: string }[]
 > {
   const allTabs = await chrome.tabs.query({ currentWindow: true })
@@ -308,7 +308,7 @@ async function handleSaveWindowTabs(): Promise<
 /**
  * カスタムプロジェクトに同期保存
  */
-async function syncToCustomProjects(
+export async function syncToCustomProjects(
   savedUrls: { url: string; title: string }[],
 ): Promise<void> {
   try {
