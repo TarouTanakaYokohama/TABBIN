@@ -44,14 +44,16 @@ import {
   ArrowUpDown,
   ArrowUpNarrowWide,
   ArrowUpWideNarrow,
+  Check,
   ChevronDown,
   ChevronUp,
   ExternalLink,
   GripVertical,
   Settings,
   Trash,
+  X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useSortOrder } from '../hooks/useSortOrder'
 import { SortableDomainCard } from './SortableDomainCard'
@@ -69,14 +71,22 @@ export const CategoryGroup = ({
   handleMoveDomainToCategory,
   handleDeleteCategory,
   settings,
+  isCategoryReorderMode = false, // 親カテゴリ並び替えモード状態
 }: CategoryGroupProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const [userCollapsedState, setUserCollapsedState] = useState(false) // ユーザーが手動設定した状態
+  const [_isDraggingOver, setIsDraggingOver] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   // Track when a domain card is being dragged
   const [isDraggingDomains, setIsDraggingDomains] = useState(false)
   // Track global drag state
   const [isDraggingGlobal, setIsDraggingGlobal] = useState<boolean>(false)
+  // 並び替えモード状態管理
+  const [isReorderMode, setIsReorderMode] = useState(false)
+  const [_originalDomainOrder, setOriginalDomainOrder] = useState<TabGroup[]>(
+    [],
+  )
+  const [tempDomainOrder, setTempDomainOrder] = useState<TabGroup[]>([])
   // ドメインの状態とソート順を共通フックで管理
   const [localDomains, setLocalDomains] = useState<TabGroup[]>(domains)
   const {
@@ -243,23 +253,44 @@ export const CategoryGroup = ({
     },
     onDragEnd: () => {
       setIsDraggingGlobal(false)
-      // ドロップ時に展開する
-      setIsCollapsed(false)
+      // 並び替えモード中（ドメイン並び替えまたは親カテゴリ並び替え）でなければドロップ時に展開する
+      if (!isReorderMode && !isCategoryReorderMode) {
+        setIsCollapsed(false)
+      }
     },
     onDragCancel: () => {
       setIsDraggingGlobal(false)
-      // ドラッグキャンセル時も展開する
-      setIsCollapsed(false)
+      // 並び替えモード中（ドメイン並び替えまたは親カテゴリ並び替え）でなければドラッグキャンセル時も展開する
+      if (!isReorderMode && !isCategoryReorderMode) {
+        setIsCollapsed(false)
+      }
     },
   })
 
   // Update collapse state when dragging the category itself
   useEffect(() => {
     // カテゴリ自体がドラッグされている場合のみ折りたたむ
-    if (isDraggingGlobal) {
+    // ドメイン並び替えモード中はカテゴリ自体は折りたたまない
+    // 親カテゴリ並び替えモード中は既に折りたたまれているので追加処理は不要
+    if (isDraggingGlobal && !isCategoryReorderMode) {
       setIsCollapsed(true)
     }
-  }, [isDraggingGlobal])
+  }, [isDraggingGlobal, isCategoryReorderMode])
+
+  // 親カテゴリ並び替えモード中の折りたたみ状態管理
+  const prevReorderModeRef = useRef<boolean>(false)
+  useEffect(() => {
+    if (isCategoryReorderMode && !prevReorderModeRef.current) {
+      // 並び替えモード開始時：現在のユーザー設定状態を保存し、折りたたむ
+      setUserCollapsedState(isCollapsed)
+      setIsCollapsed(true)
+      prevReorderModeRef.current = true
+    } else if (!isCategoryReorderMode && prevReorderModeRef.current) {
+      // 並び替えモード終了時：ユーザー設定状態に復元
+      setIsCollapsed(userCollapsedState)
+      prevReorderModeRef.current = false
+    }
+  }, [isCategoryReorderMode, isCollapsed, userCollapsedState])
 
   // ドメインの変更を検知して更新
   useEffect(() => {
@@ -313,28 +344,74 @@ export const CategoryGroup = ({
     const { active, over } = event
 
     if (over && active.id !== over.id) {
-      // ドメインの並び順を更新
-      const oldIndex = localDomains.findIndex(domain => domain.id === active.id)
-      const newIndex = localDomains.findIndex(domain => domain.id === over.id)
+      // ドメインの並び順を一時的に更新（まだストレージには保存しない）
+      const currentOrder = isReorderMode ? tempDomainOrder : localDomains
+      const oldIndex = currentOrder.findIndex(domain => domain.id === active.id)
+      const newIndex = currentOrder.findIndex(domain => domain.id === over.id)
 
       if (oldIndex !== -1 && newIndex !== -1) {
-        const updatedDomains = arrayMove(localDomains, oldIndex, newIndex)
-        // ローカル状態を更新
-        setLocalDomains(updatedDomains)
-        // 親コンポーネントに通知してストレージに保存
-        if (handleUpdateDomainsOrder) {
-          handleUpdateDomainsOrder(category.id, updatedDomains)
+        const updatedDomains = arrayMove(currentOrder, oldIndex, newIndex)
+
+        if (!isReorderMode) {
+          // 初回の並び替え時：並び替えモードを開始
+          setIsReorderMode(true)
+          setOriginalDomainOrder([...localDomains])
+          setTempDomainOrder(updatedDomains)
+          // カテゴリ自体は折りたたまない（個々のドメインが折りたたまれる）
+        } else {
+          // 既に並び替えモード中：一時的な順序を更新
+          setTempDomainOrder(updatedDomains)
         }
       }
     }
-    // ドラッグ終了時に展開する
+    // ドラッグ終了時の処理
     setIsDraggingDomains(false)
-    setIsCollapsed(false)
+    // 並び替えモード中でない場合のみ展開状態に戻す
+    // 並び替えモード中は折りたたみ状態を維持
   }
 
   // Collapse all domain cards at drag start
   const handleDragStart = () => {
     setIsDraggingDomains(true)
+  }
+
+  // 並び替えを確定する
+  const handleConfirmReorder = async () => {
+    if (!isReorderMode) return
+
+    try {
+      // 親コンポーネントに通知してストレージに保存
+      if (handleUpdateDomainsOrder) {
+        await handleUpdateDomainsOrder(category.id, tempDomainOrder)
+      }
+
+      // ローカル状態を更新
+      setLocalDomains(tempDomainOrder)
+
+      // 並び替えモードを終了
+      setIsReorderMode(false)
+      setOriginalDomainOrder([])
+      setTempDomainOrder([])
+
+      toast.success('ドメインの順序を変更しました')
+    } catch (error) {
+      console.error('ドメイン順序の更新に失敗しました:', error)
+      toast.error('ドメイン順序の更新に失敗しました')
+    }
+  }
+
+  // 並び替えをキャンセルする
+  const handleCancelReorder = () => {
+    if (!isReorderMode) return
+
+    // 元の順序に戻す
+    setTempDomainOrder([])
+
+    // 並び替えモードを終了
+    setIsReorderMode(false)
+    setOriginalDomainOrder([])
+
+    toast.info('並び替えをキャンセルしました')
   }
 
   return (
@@ -356,10 +433,19 @@ export const CategoryGroup = ({
                   size='sm'
                   onClick={e => {
                     e.stopPropagation()
-                    setIsCollapsed(prev => !prev)
+                    if (!isCategoryReorderMode) {
+                      const newState = !isCollapsed
+                      setIsCollapsed(newState)
+                      setUserCollapsedState(newState)
+                    }
                   }}
-                  className='flex cursor-pointer items-center gap-1'
+                  className={`flex items-center gap-1 ${
+                    isCategoryReorderMode
+                      ? 'cursor-not-allowed opacity-50'
+                      : 'cursor-pointer'
+                  }`}
                   aria-label={isCollapsed ? '展開' : '折りたたむ'}
+                  disabled={isCategoryReorderMode}
                 >
                   {isCollapsed ? (
                     <ChevronDown size={14} />
@@ -369,7 +455,11 @@ export const CategoryGroup = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side='top' className='block lg:hidden'>
-                {isCollapsed ? '展開' : '折りたたむ'}
+                {isCategoryReorderMode
+                  ? '親カテゴリ並び替えモード中'
+                  : isCollapsed
+                    ? '展開'
+                    : '折りたたむ'}
               </TooltipContent>
             </Tooltip>
             {/* ソート順切り替え */}
@@ -431,6 +521,48 @@ export const CategoryGroup = ({
               </div>
             </div>
           </div>
+
+          {/* 並び替えモード中の確定・キャンセルボタン */}
+          {isReorderMode && (
+            <div className='pointer-events-auto ml-2 flex flex-shrink-0 gap-2'>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={handleCancelReorder}
+                    className='flex cursor-pointer items-center gap-1'
+                    aria-label='並び替えをキャンセル'
+                  >
+                    <X size={14} />
+                    <span className='hidden lg:inline'>キャンセル</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side='top' className='block lg:hidden'>
+                  並び替えをキャンセル
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant='default'
+                    size='sm'
+                    onClick={handleConfirmReorder}
+                    className='flex cursor-pointer items-center gap-1'
+                    aria-label='並び替えを確定'
+                  >
+                    <Check size={14} />
+                    <span className='hidden lg:inline'>確定</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side='top' className='block lg:hidden'>
+                  並び替えを確定
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+
           <div className='pointer-events-auto ml-2 flex flex-shrink-0 gap-2'>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -525,24 +657,29 @@ export const CategoryGroup = ({
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={sortedDomains.map(domain => domain.id)}
+                items={(isReorderMode ? tempDomainOrder : sortedDomains).map(
+                  domain => domain.id,
+                )}
                 strategy={verticalListSortingStrategy}
               >
-                {sortedDomains.map(group => (
-                  <SortableDomainCard
-                    key={group.id}
-                    group={group}
-                    handleOpenAllTabs={handleOpenAllTabs}
-                    handleDeleteGroup={handleDeleteGroup}
-                    handleDeleteUrl={handleDeleteUrl}
-                    handleOpenTab={handleOpenTab}
-                    handleUpdateUrls={handleUpdateUrls}
-                    handleDeleteCategory={handleDeleteCategory}
-                    categoryId={category.id} // 親カテゴリIDを渡す
-                    isDraggingOver={isDraggingDomains}
-                    settings={settings} // settingsを渡す
-                  />
-                ))}
+                {(isReorderMode ? tempDomainOrder : sortedDomains).map(
+                  group => (
+                    <SortableDomainCard
+                      key={group.id}
+                      group={group}
+                      handleOpenAllTabs={handleOpenAllTabs}
+                      handleDeleteGroup={handleDeleteGroup}
+                      handleDeleteUrl={handleDeleteUrl}
+                      handleOpenTab={handleOpenTab}
+                      handleUpdateUrls={handleUpdateUrls}
+                      handleDeleteCategory={handleDeleteCategory}
+                      categoryId={category.id} // 親カテゴリIDを渡す
+                      isDraggingOver={isDraggingDomains}
+                      settings={settings} // settingsを渡す
+                      isReorderMode={isReorderMode} // 並び替えモード状態を渡す
+                    />
+                  ),
+                )}
               </SortableContext>
             </DndContext>
           </CardContent>

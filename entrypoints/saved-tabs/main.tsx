@@ -30,7 +30,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 // lucide-reactからのアイコンインポート
-import { Plus } from 'lucide-react'
+import { Check, Plus, X } from 'lucide-react'
 
 import { ThemeProvider } from '@/components/theme-provider'
 // UIコンポーネントのインポート
@@ -52,6 +52,7 @@ import {
 } from '@/components/ui/tooltip'
 import { CategoryGroup } from '@/features/saved-tabs/components/CategoryGroup'
 import { CustomProjectSection } from '@/features/saved-tabs/components/CustomProjectSection'
+import { Footer } from '@/features/saved-tabs/components/Footer' // フッターコンポーネントをインポート
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
 import { SortableDomainCard } from '@/features/saved-tabs/components/SortableDomainCard'
 import {
@@ -91,6 +92,22 @@ const SavedTabs = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('domain')
   const [customProjects, setCustomProjects] = useState<CustomProject[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  // 親カテゴリの並び替えモード状態管理
+  const [isCategoryReorderMode, setIsCategoryReorderMode] = useState(false)
+  const [_originalCategoryOrder, setOriginalCategoryOrder] = useState<string[]>(
+    [],
+  )
+  const [tempCategoryOrder, setTempCategoryOrder] = useState<string[]>([])
+
+  // 未分類ドメインの並び替えモード状態管理
+  const [isUncategorizedReorderMode, setIsUncategorizedReorderMode] =
+    useState(false)
+  const [_originalUncategorizedOrder, setOriginalUncategorizedOrder] = useState<
+    TabGroup[]
+  >([])
+  const [tempUncategorizedOrder, setTempUncategorizedOrder] = useState<
+    TabGroup[]
+  >([])
 
   useEffect(() => {
     if (showSubCategoryModal && inputRef.current) {
@@ -1026,6 +1043,36 @@ const SavedTabs = () => {
     }
   }
 
+  // 未分類ドメインのドラッグエンド処理（並び替えモード対応）
+  const handleUncategorizedDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      // 現在の未分類ドメインリストを取得
+      const { uncategorized } = organizeTabGroups()
+      const currentOrder = isUncategorizedReorderMode
+        ? tempUncategorizedOrder
+        : uncategorized
+
+      const oldIndex = currentOrder.findIndex(group => group.id === active.id)
+      const newIndex = currentOrder.findIndex(group => group.id === over.id)
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const updatedOrder = arrayMove(currentOrder, oldIndex, newIndex)
+
+        if (!isUncategorizedReorderMode) {
+          // 初回の並び替え時：並び替えモードを開始
+          setIsUncategorizedReorderMode(true)
+          setOriginalUncategorizedOrder([...uncategorized])
+          setTempUncategorizedOrder(updatedOrder)
+        } else {
+          // 既に並び替えモード中：一時的な順序を更新
+          setTempUncategorizedOrder(updatedOrder)
+        }
+      }
+    }
+  }
+
   // カテゴリの削除を処理する関数 - 改善版
   const handleDeleteCategory = async (
     groupId: string,
@@ -1089,25 +1136,113 @@ const SavedTabs = () => {
     const { active, over } = event
 
     if (over && active.id !== over.id) {
-      // カテゴリの順序を更新
-      const oldIndex = categories.findIndex(cat => cat.id === active.id)
-      const newIndex = categories.findIndex(cat => cat.id === over.id)
+      // カテゴリの順序を一時的に更新（まだストレージには保存しない）
+      const currentOrder = isCategoryReorderMode
+        ? tempCategoryOrder
+        : categoryOrder
+      const oldIndex = currentOrder.findIndex(id => id === active.id)
+      const newIndex = currentOrder.findIndex(id => id === over.id)
 
       if (oldIndex !== -1 && newIndex !== -1) {
-        // 新しい順序を作成
-        const newOrder = arrayMove(categoryOrder, oldIndex, newIndex)
-        setCategoryOrder(newOrder)
+        const newOrder = arrayMove(currentOrder, oldIndex, newIndex)
 
-        // 新しい順序に基づいてカテゴリを並び替え
-        const orderedCategories = [...categories].sort(
-          (a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id),
-        )
-
-        // ストレージに保存
-        await saveParentCategories(orderedCategories)
-        setCategories(orderedCategories)
+        if (!isCategoryReorderMode) {
+          // 初回の並び替え時：並び替えモードを開始
+          setIsCategoryReorderMode(true)
+          setOriginalCategoryOrder([...categoryOrder])
+          setTempCategoryOrder(newOrder)
+        } else {
+          // 既に並び替えモード中：一時的な順序を更新
+          setTempCategoryOrder(newOrder)
+        }
       }
     }
+  }
+
+  // 親カテゴリの並び替えを確定する
+  const handleConfirmCategoryReorder = async () => {
+    if (!isCategoryReorderMode) return
+
+    try {
+      // カテゴリ順序を更新
+      setCategoryOrder(tempCategoryOrder)
+
+      // 新しい順序に基づいてカテゴリを並び替え
+      const orderedCategories = [...categories].sort(
+        (a, b) =>
+          tempCategoryOrder.indexOf(a.id) - tempCategoryOrder.indexOf(b.id),
+      )
+
+      // ストレージに保存
+      await saveParentCategories(orderedCategories)
+      setCategories(orderedCategories)
+
+      // 並び替えモードを終了
+      setIsCategoryReorderMode(false)
+      setOriginalCategoryOrder([])
+      setTempCategoryOrder([])
+
+      toast.success('親カテゴリの順序を変更しました')
+    } catch (error) {
+      console.error('親カテゴリ順序の更新に失敗しました:', error)
+      toast.error('親カテゴリ順序の更新に失敗しました')
+    }
+  }
+
+  // 親カテゴリの並び替えをキャンセルする
+  const handleCancelCategoryReorder = () => {
+    if (!isCategoryReorderMode) return
+
+    // 元の順序に戻す
+    setTempCategoryOrder([])
+
+    // 並び替えモードを終了
+    setIsCategoryReorderMode(false)
+    setOriginalCategoryOrder([])
+
+    toast.info('親カテゴリの並び替えをキャンセルしました')
+  }
+
+  // 未分類ドメインの並び替えを確定する
+  const handleConfirmUncategorizedReorder = async () => {
+    if (!isUncategorizedReorderMode) return
+
+    try {
+      // 並び替えた順序で tabGroups を更新
+      const { categorized } = organizeTabGroups()
+      const categorizedDomains = Object.values(categorized).flat()
+
+      // 新しい順序：カテゴリ分類されたドメイン + 並び替えた未分類ドメイン
+      const newTabGroups = [...categorizedDomains, ...tempUncategorizedOrder]
+
+      // ストレージに保存
+      await chrome.storage.local.set({ savedTabs: newTabGroups })
+      setTabGroups(newTabGroups)
+
+      // 並び替えモードを終了
+      setIsUncategorizedReorderMode(false)
+      setOriginalUncategorizedOrder([])
+      setTempUncategorizedOrder([])
+
+      toast.success('未分類ドメインの順序を変更しました')
+    } catch (error) {
+      console.error('未分類ドメイン順序の更新に失敗しました:', error)
+      toast.error('未分類ドメイン順序の更新に失敗しました')
+    }
+  }
+
+  // 未分類ドメインの並び替えをキャンセルする
+  const handleCancelUncategorizedReorder = () => {
+    if (!isUncategorizedReorderMode) return
+
+    // 元の順序に戻す
+    setTempUncategorizedOrder([])
+
+    // 並び替えモードを終了
+    setIsUncategorizedReorderMode(false)
+    setOriginalUncategorizedOrder([])
+
+    toast.info('未分類ドメインの並び替えをキャンセルしました')
   }
 
   // カテゴリ内のドメイン順序更新関数を改善
@@ -1751,12 +1886,19 @@ const SavedTabs = () => {
                     onDragEnd={handleCategoryDragEnd}
                   >
                     <SortableContext
-                      items={categoryOrder}
+                      items={
+                        isCategoryReorderMode
+                          ? tempCategoryOrder
+                          : categoryOrder
+                      }
                       strategy={verticalListSortingStrategy}
                     >
                       <div className='flex flex-col gap-1'>
-                        {/* カテゴリ順序に基づいて表示 */}
-                        {categoryOrder.map(categoryId => {
+                        {/* カテゴリ順序に基づいて表示（並び替えモード中は一時的な順序を使用） */}
+                        {(isCategoryReorderMode
+                          ? tempCategoryOrder
+                          : categoryOrder
+                        ).map(categoryId => {
                           if (!categoryId) return null
                           const category = categories.find(
                             c => c.id === categoryId,
@@ -1783,6 +1925,7 @@ const SavedTabs = () => {
                               }
                               handleDeleteCategory={handleDeleteCategory}
                               settings={settings}
+                              isCategoryReorderMode={isCategoryReorderMode}
                             />
                           )
                         })}
@@ -1791,9 +1934,60 @@ const SavedTabs = () => {
                   </DndContext>
 
                   {uncategorized.length > 0 && (
-                    <h2 className='sticky top-0 z-50 mt-6 bg-card font-bold text-foreground text-xl'>
-                      未分類のドメイン
-                    </h2>
+                    <div className='sticky top-0 z-50 mt-6 flex items-center justify-between bg-card'>
+                      <h2 className='font-bold text-foreground text-xl'>
+                        未分類のドメイン
+                      </h2>
+
+                      {/* 未分類ドメイン並び替えモード中の確定・キャンセルボタン */}
+                      {isUncategorizedReorderMode && (
+                        <div className='pointer-events-auto ml-2 flex flex-shrink-0 gap-2'>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant='outline'
+                                size='sm'
+                                onClick={handleCancelUncategorizedReorder}
+                                className='flex cursor-pointer items-center gap-1'
+                                aria-label='並び替えをキャンセル'
+                              >
+                                <X size={14} />
+                                <span className='hidden lg:inline'>
+                                  キャンセル
+                                </span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side='top'
+                              className='block lg:hidden'
+                            >
+                              並び替えをキャンセル
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant='default'
+                                size='sm'
+                                onClick={handleConfirmUncategorizedReorder}
+                                className='flex cursor-pointer items-center gap-1'
+                                aria-label='並び替えを確定'
+                              >
+                                <Check size={14} />
+                                <span className='hidden lg:inline'>確定</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side='top'
+                              className='block lg:hidden'
+                            >
+                              並び替えを確定
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </>
               )}
@@ -1804,16 +1998,22 @@ const SavedTabs = () => {
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
+                onDragEnd={handleUncategorizedDragEnd}
               >
                 <SortableContext
-                  items={uncategorized
+                  items={(isUncategorizedReorderMode
+                    ? tempUncategorizedOrder
+                    : uncategorized
+                  )
                     .filter(group => group.urls.length > 0)
                     .map(group => group.id)}
                   strategy={verticalListSortingStrategy}
                 >
                   <div className='mt-2 flex flex-col gap-1'>
-                    {uncategorized
+                    {(isUncategorizedReorderMode
+                      ? tempUncategorizedOrder
+                      : uncategorized
+                    )
                       .filter(group => group.urls.length > 0)
                       .map(group => (
                         <SortableDomainCard
@@ -1825,7 +2025,8 @@ const SavedTabs = () => {
                           handleOpenTab={handleOpenTab}
                           handleUpdateUrls={handleUpdateUrls}
                           handleDeleteCategory={handleDeleteCategory}
-                          settings={settings} // settingsを渡す
+                          settings={settings}
+                          isReorderMode={isUncategorizedReorderMode}
                         />
                       ))}
                   </div>
@@ -1924,6 +2125,14 @@ const SavedTabs = () => {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* フッターコンポーネント */}
+        <Footer
+          currentMode={viewMode}
+          isCategoryReorderMode={isCategoryReorderMode}
+          onConfirmCategoryReorder={handleConfirmCategoryReorder}
+          onCancelCategoryReorder={handleCancelCategoryReorder}
+        />
       </div>
     </>
   )
