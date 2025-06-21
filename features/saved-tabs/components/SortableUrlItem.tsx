@@ -176,7 +176,7 @@ export const SortableUrlItem = ({
     <li
       ref={setNodeRef}
       style={style}
-      className='relative flex items-center overflow-hidden border-border border-b pb-1 last:border-0 last:pb-0'
+      className='relative flex items-center overflow-hidden pb-1 last:border-0 last:pb-0'
       data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
     >
       <div
@@ -191,7 +191,7 @@ export const SortableUrlItem = ({
           asChild
           variant='ghost'
           size='sm'
-          className='flex h-full cursor-pointer items-center justify-start gap-1 overflow-hidden bg-transparent px-1 py-2 pr-8 text-foreground hover:text-foreground'
+          className='ml-2 flex h-full cursor-pointer items-center justify-start gap-1 overflow-hidden bg-transparent px-1 py-2 pr-8 text-foreground hover:text-foreground'
         >
           <a
             href={url as string}
