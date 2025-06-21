@@ -240,8 +240,8 @@ export const CustomProjectCategory = ({
                   sortOrder === 'default'
                     ? 'デフォルト'
                     : sortOrder === 'asc'
-                      ? '昇順'
-                      : '降順'
+                      ? '保存日時の昇順'
+                      : '保存日時の降順'
                 }
               >
                 {sortOrder === 'default' ? (
@@ -257,8 +257,8 @@ export const CustomProjectCategory = ({
               {sortOrder === 'default'
                 ? 'デフォルト'
                 : sortOrder === 'asc'
-                  ? '昇順'
-                  : '降順'}
+                  ? '保存日時の昇順'
+                  : '保存日時の降順'}
             </TooltipContent>
           </Tooltip>
           <div className='flex-shrink-0 text-muted-foreground'>
