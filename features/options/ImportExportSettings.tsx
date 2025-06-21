@@ -141,7 +141,7 @@ export const ImportExportSettings: React.FC = () => {
           onClick={handleExport}
           disabled={isExporting}
           variant='outline'
-          className='flex w-full items-center justify-start gap-2'
+          className='flex w-full cursor-pointer items-center justify-start gap-2'
         >
           <Download size={16} />
           {isExporting ? 'エクスポート中...' : '設定とタブデータをエクスポート'}
@@ -151,7 +151,7 @@ export const ImportExportSettings: React.FC = () => {
           onClick={handleOpenImportDialog}
           disabled={isImporting}
           variant='outline'
-          className='flex w-full items-center justify-start gap-2'
+          className='flex w-full cursor-pointer items-center justify-start gap-2'
         >
           <Upload size={16} />
           {isImporting ? 'インポート中...' : '設定とタブデータをインポート'}
@@ -237,6 +237,7 @@ export const ImportExportSettings: React.FC = () => {
               variant='secondary'
               onClick={() => setImportDialogOpen(false)}
               disabled={isImporting}
+              className='cursor-pointer w-full'
             >
               キャンセル
             </Button>

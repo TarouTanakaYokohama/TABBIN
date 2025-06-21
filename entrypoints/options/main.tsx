@@ -173,7 +173,7 @@ const OptionsPage = () => {
             >
               <SelectTrigger
                 id='click-behavior'
-                className='w-full bg-background'
+                className='w-full cursor-pointer bg-background'
               >
                 <SelectValue placeholder='クリック時の挙動を選択してください' />
               </SelectTrigger>
@@ -335,7 +335,10 @@ const OptionsPage = () => {
               }
               onValueChange={handleAutoDeletePeriodChange}
             >
-              <SelectTrigger id='auto-delete-period' className='w-full'>
+              <SelectTrigger
+                id='auto-delete-period'
+                className='w-full cursor-pointer'
+              >
                 <SelectValue placeholder='自動削除期間を選択' />
               </SelectTrigger>
               <SelectContent
@@ -361,6 +364,7 @@ const OptionsPage = () => {
               type='button'
               variant='outline'
               onClick={prepareAutoDeletePeriod}
+              className='cursor-pointer'
             >
               設定する
             </Button>
@@ -437,7 +441,7 @@ const OptionsPage = () => {
             variant='outline'
             size='sm'
             onClick={handleResetColors}
-            className='flex items-center gap-1'
+            className='flex cursor-pointer items-center gap-1'
           >
             <RotateCcw size={16} />
             リセット
@@ -458,7 +462,7 @@ const OptionsPage = () => {
                   type='color'
                   value={settings.colors?.[key] || getDefaultColor(key)}
                   onChange={e => handleColorChange(key, e.target.value)}
-                  className='h-8 w-8 flex-shrink-0 border-0 p-0'
+                  className='h-8 w-8 flex-shrink-0 cursor-pointer border-0 p-0'
                 />
                 <div className='min-w-0 flex-1'>
                   <Input
@@ -483,7 +487,7 @@ const OptionsPage = () => {
           onClick={() =>
             window.open('https://forms.gle/c9gBiF2TmgXaeU7J6', '_blank')
           }
-          className='w-full'
+          className='w-full cursor-pointer'
         >
           お問い合わせ
         </Button>
@@ -497,7 +501,7 @@ const OptionsPage = () => {
       <div className='mt-8 mb-10 text-center'>
         <Button
           type='button'
-          className='w-full'
+          className='w-full cursor-pointer'
           onClick={() =>
             window.open(chrome.runtime.getURL('changelog.html'), '_blank')
           }

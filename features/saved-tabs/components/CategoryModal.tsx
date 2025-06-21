@@ -444,6 +444,7 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                             size='sm'
                             onClick={handleDeleteClick}
                             disabled={isLoading}
+                            className='cursor-pointer'
                           >
                             <Trash2 size={16} className='mr-1' />
                             <span className='hidden lg:inline'>
@@ -461,7 +462,10 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                   value={selectedCategoryId || ''}
                   onValueChange={handleCategoryChange}
                 >
-                  <SelectTrigger className='w-full' id='categorySelect'>
+                  <SelectTrigger
+                    className='w-full cursor-pointer'
+                    id='categorySelect'
+                  >
                     <SelectValue placeholder='作成済みのカテゴリを選択してドメインを管理' />
                   </SelectTrigger>
                   <SelectContent>
