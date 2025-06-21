@@ -209,7 +209,6 @@ export const CustomProjectCategory = ({
                   setIsCollapsed(prev => !prev)
                 }}
                 className='flex cursor-pointer items-center gap-1'
-                title={isCollapsed ? '展開' : '折りたたむ'}
                 aria-label={isCollapsed ? '展開' : '折りたたむ'}
               >
                 {isCollapsed ? (
@@ -237,13 +236,6 @@ export const CustomProjectCategory = ({
                   )
                 }}
                 className='flex cursor-pointer items-center gap-1'
-                title={
-                  sortOrder === 'default'
-                    ? 'デフォルト'
-                    : sortOrder === 'asc'
-                      ? '昇順'
-                      : '降順'
-                }
                 aria-label={
                   sortOrder === 'default'
                     ? 'デフォルト'
@@ -292,7 +284,6 @@ export const CustomProjectCategory = ({
                   size='sm'
                   className='flex cursor-pointer items-center gap-1'
                   onClick={() => setShowManageDialog(true)}
-                  title='カテゴリ管理'
                   aria-label='カテゴリ管理'
                 >
                   <Settings size={14} />
@@ -327,7 +318,6 @@ export const CustomProjectCategory = ({
                       }
                     }
                   }}
-                  title='すべて開く'
                   aria-label='すべて開く'
                 >
                   <ExternalLink size={14} />
@@ -359,7 +349,6 @@ export const CustomProjectCategory = ({
                       }
                     }
                   }}
-                  title='すべて削除'
                   aria-label='すべて削除'
                 >
                   <Trash2 size={14} />

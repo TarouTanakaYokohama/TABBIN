@@ -161,7 +161,6 @@ export const SortableCategorySection = ({
                   setIsCollapsed(prev => !prev)
                 }}
                 className='flex cursor-pointer items-center gap-1'
-                title={isCollapsed ? '展開' : '折りたたむ'}
                 aria-label={isCollapsed ? '展開' : '折りたたむ'}
               >
                 {isCollapsed ? (
@@ -188,13 +187,6 @@ export const SortableCategorySection = ({
                   )
                 }}
                 className='flex cursor-pointer items-center gap-1'
-                title={
-                  sortOrder === 'default'
-                    ? 'デフォルト'
-                    : sortOrder === 'asc'
-                      ? '昇順'
-                      : '降順'
-                }
                 aria-label={
                   sortOrder === 'default'
                     ? 'デフォルト'
@@ -258,7 +250,6 @@ export const SortableCategorySection = ({
                     handleOpenAllTabs(props.urls)
                   }}
                   className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
-                  title={`${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}のタブをすべて開く`}
                   style={{ position: 'relative' }} // ボタンを確実に上に表示
                 >
                   <ExternalLink size={14} />
@@ -279,7 +270,6 @@ export const SortableCategorySection = ({
                     size='sm'
                     onClick={onDeleteAllTabs}
                     className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
-                    title={`${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}のタブをすべて削除する`}
                     style={{ position: 'relative' }}
                     disabled={isDeleting}
                   >
