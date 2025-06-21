@@ -206,7 +206,6 @@ export const SortableUrlItem = ({
             }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleUIMouseLeave}
-            title={title}
           >
             <div className='flex w-full flex-col truncate'>
               <span className='truncate'>{title}</span>
