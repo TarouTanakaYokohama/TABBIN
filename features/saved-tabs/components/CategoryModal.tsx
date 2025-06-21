@@ -17,6 +17,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   assignDomainToCategory,
   createParentCategory,
   deleteParentCategory,
@@ -432,15 +437,24 @@ export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
                   {categories.length > 0 &&
                     selectedCategoryId &&
                     selectedCategoryId !== 'uncategorized' && (
-                      <Button
-                        variant='secondary'
-                        size='sm'
-                        onClick={handleDeleteClick}
-                        disabled={isLoading}
-                      >
-                        <Trash2 size={16} className='mr-1' />
-                        選択中の親カテゴリを削除
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant='secondary'
+                            size='sm'
+                            onClick={handleDeleteClick}
+                            disabled={isLoading}
+                          >
+                            <Trash2 size={16} className='mr-1' />
+                            <span className='hidden lg:inline'>
+                              選択中の親カテゴリを削除
+                            </span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side='top' className='block lg:hidden'>
+                          選択中の親カテゴリを削除
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                 </div>
                 <Select
