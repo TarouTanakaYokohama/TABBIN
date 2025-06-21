@@ -5,6 +5,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import type { ViewMode } from '@/types/storage'
 import { Folder, Globe } from 'lucide-react'
 
@@ -38,26 +43,35 @@ export const ViewModeToggle = ({
   }
 
   return (
-    <Select value={currentMode} onValueChange={onChange}>
-      <SelectTrigger className='flex h-9 items-center gap-2'>
-        <SelectValue placeholder='ドメインまたはカスタムモードを選択'>
-          {renderSelectedValue()}
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value='domain'>
-          <div className='flex items-center gap-2'>
-            <Globe size={16} />
-            <span>ドメインモード</span>
-          </div>
-        </SelectItem>
-        <SelectItem value='custom'>
-          <div className='flex items-center gap-2'>
-            <Folder size={16} />
-            <span>(preview)カスタムモード</span>
-          </div>
-        </SelectItem>
-      </SelectContent>
-    </Select>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div>
+          <Select value={currentMode} onValueChange={onChange}>
+            <SelectTrigger className='flex h-9 cursor-pointer items-center gap-2'>
+              <SelectValue placeholder='ドメインまたはカスタムモードを選択'>
+                {renderSelectedValue()}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='domain'>
+                <div className='flex items-center gap-2'>
+                  <Globe size={16} />
+                  <span>ドメインモード</span>
+                </div>
+              </SelectItem>
+              <SelectItem value='custom'>
+                <div className='flex items-center gap-2'>
+                  <Folder size={16} />
+                  <span>(preview)カスタムモード</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side='top' className='block lg:hidden'>
+        表示モード切り替え
+      </TooltipContent>
+    </Tooltip>
   )
 }
