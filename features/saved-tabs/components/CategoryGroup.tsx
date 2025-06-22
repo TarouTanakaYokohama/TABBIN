@@ -72,6 +72,7 @@ export const CategoryGroup = ({
   handleDeleteCategory,
   settings,
   isCategoryReorderMode = false, // 親カテゴリ並び替えモード状態
+  searchQuery = '', // 検索クエリ
 }: CategoryGroupProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [userCollapsedState, setUserCollapsedState] = useState(false) // ユーザーが手動設定した状態
@@ -436,6 +437,22 @@ export const CategoryGroup = ({
     toast.info('並び替えをキャンセルしました')
   }
 
+  // 検索でヒットしないカテゴリは非表示
+  const hasSearchQuery = searchQuery.trim().length > 0
+  const hasVisibleDomains = domains.some(
+    domain => (domain.urls?.length || 0) > 0,
+  )
+
+  // 検索結果に応じたドメイン数を計算
+  const visibleDomainsCount = hasSearchQuery
+    ? domains.filter(domain => (domain.urls?.length || 0) > 0).length
+    : domains.length
+
+  // 検索クエリがあり、かつ表示可能なドメインがない場合は非表示
+  if (hasSearchQuery && !hasVisibleDomains) {
+    return null
+  }
+
   return (
     <>
       <div
@@ -547,7 +564,7 @@ export const CategoryGroup = ({
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Badge variant='secondary'>{domains.length}</Badge>
+                      <Badge variant='secondary'>{visibleDomainsCount}</Badge>
                     </TooltipTrigger>
                     <TooltipContent side='top' className='block lg:hidden'>
                       ドメイン数
@@ -713,6 +730,7 @@ export const CategoryGroup = ({
                       isDraggingOver={isDraggingDomains}
                       settings={settings} // settingsを渡す
                       isReorderMode={isReorderMode} // 並び替えモード状態を渡す
+                      searchQuery={searchQuery} // 検索クエリを渡す
                     />
                   ),
                 )}

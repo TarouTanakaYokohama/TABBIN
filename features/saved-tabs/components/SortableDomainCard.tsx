@@ -45,7 +45,7 @@ import {
   Trash,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { CategoryKeywordModal } from './CategoryKeywordModal'
 import { SortableCategorySection } from './SortableCategorySection'
@@ -64,6 +64,7 @@ export const SortableDomainCard = ({
   isDraggingOver: _isDraggingOver,
   settings, // 追加: settingsを受け取る
   isReorderMode = false, // 並び替えモード状態
+  searchQuery = '', // 検索クエリを受け取る
 }: SortableDomainCardProps & { settings: UserSettings }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: group.id })
@@ -85,8 +86,8 @@ export const SortableDomainCard = ({
   )
   const [tempCategoryOrder, setTempCategoryOrder] = useState<string[]>([])
 
-  // カード内のタブをサブカテゴリごとに整理
-  const organizeUrlsByCategory = () => {
+  // カード内のタブをサブカテゴリごとに整理 - useMemoで最適化
+  const categorizedUrls = useMemo(() => {
     type UrlType = {
       url: string
       title: string
@@ -122,11 +123,9 @@ export const SortableDomainCard = ({
     }
 
     return categorizedUrls
-  }
+  }, [group.urls, group.subCategories, sortOrder])
 
-  const categorizedUrls = organizeUrlsByCategory()
-
-  // 空でないカテゴリのみを表示に含める（修正版）
+  // 空でないカテゴリのみを表示に含める（最適化版）
   const getActiveCategoryIds = useCallback(() => {
     console.log('getActiveCategoryIds 関数実行...')
 
@@ -192,23 +191,11 @@ export const SortableDomainCard = ({
   }, [
     group.subCategories,
     group.urls,
-    categorizedUrls,
     group.subCategoryOrderWithUncategorized,
+    categorizedUrls,
   ])
 
-  // アクティブカテゴリの初期化
-  useEffect(() => {
-    const initializeCategories = () => {
-      const activeIds = getActiveCategoryIds()
-      console.log('初期カテゴリID設定:', activeIds)
-      setAllCategoryIds(activeIds)
-    }
-
-    // 初期化が必要な場合のみ実行
-    if (allCategoryIds.length === 0) {
-      initializeCategories()
-    }
-  }, [allCategoryIds.length, getActiveCategoryIds]) // 依存関係を正しく指定
+  // 削除：重複する初期化ロジックを統合
 
   // コンポーネントの外部に移動
   const arraysEqual = (a: string[], b: string[]) => {
@@ -219,45 +206,31 @@ export const SortableDomainCard = ({
     return true
   }
 
-  // カテゴリ順序の初期化と更新
+  // 保存済みカテゴリ順序の初期化（一度だけ実行）
   useEffect(() => {
-    // subCategoryOrderWithUncategorizedがあればそれを使用
-    if (group.subCategoryOrderWithUncategorized) {
+    if (
+      group.subCategoryOrderWithUncategorized &&
+      allCategoryIds.length === 0
+    ) {
       const savedOrder = [...group.subCategoryOrderWithUncategorized]
       if (savedOrder.length > 0) {
         console.log('保存済みの順序を読み込み:', savedOrder)
         setAllCategoryIds(savedOrder)
       }
     }
-  }, [group.subCategoryOrderWithUncategorized])
+  }, [group.subCategoryOrderWithUncategorized, allCategoryIds.length])
 
-  // アクティブカテゴリの更新とallCategoryIdsの初期化
+  // 新規カテゴリ順序の自動保存（初期化時のみ）
   useEffect(() => {
-    const updateCategoryOrder = (activeIds: string[]) => {
-      if (
-        !group.subCategoryOrderWithUncategorized &&
-        activeIds.includes('__uncategorized')
-      ) {
-        const regularOrder = activeIds.filter(id => id !== '__uncategorized')
-        handleUpdateCategoryOrder(regularOrder, activeIds)
-      }
+    if (
+      allCategoryIds.length > 0 &&
+      !group.subCategoryOrderWithUncategorized &&
+      allCategoryIds.includes('__uncategorized')
+    ) {
+      const regularOrder = allCategoryIds.filter(id => id !== '__uncategorized')
+      handleUpdateCategoryOrder(regularOrder, allCategoryIds)
     }
-
-    // すでに読み込んでいる場合はスキップ
-    if (allCategoryIds.length > 0) {
-      return
-    }
-
-    const activeIds = getActiveCategoryIds()
-
-    // allCategoryIdsが空の場合は初期化
-    if (activeIds.length > 0) {
-      console.log('初期カテゴリ順序の設定:', activeIds)
-      setAllCategoryIds(activeIds)
-      // 新たに生成した順序を永続化するため保存
-      updateCategoryOrder(activeIds)
-    }
-  }, [group, getActiveCategoryIds, allCategoryIds.length])
+  }, [allCategoryIds, group.subCategoryOrderWithUncategorized])
 
   // カテゴリ順序の更新を保存する関数
   const handleUpdateCategoryOrder = async (
@@ -390,46 +363,40 @@ export const SortableDomainCard = ({
     transition,
   }
 
-  // allCategoryIds の依存関係と更新ロジックを修正
-  // 初回ロード時または変更検出時の効果
-  // biome-ignore lint/correctness/useExhaustiveDependencies: arraysEqual is a stable function
+  // 実際のカテゴリIDsを計算（再レンダリング時に安定）
+  const computedCategoryIds = useMemo(() => {
+    return getActiveCategoryIds()
+  }, [getActiveCategoryIds])
+
+  // カテゴリ表示の初期化（一度だけ実行）
   useEffect(() => {
-    const activeIds = getActiveCategoryIds()
-    console.log('カテゴリ状態を再計算 - 有効カテゴリ:', activeIds)
-
-    // アクティブなカテゴリが見つかり、現在の表示と異なる場合に更新
-    if (activeIds.length > 0 && !arraysEqual(activeIds, allCategoryIds)) {
-      console.log('カテゴリ表示を更新:', activeIds)
-      setAllCategoryIds(activeIds)
+    if (allCategoryIds.length === 0 && computedCategoryIds.length > 0) {
+      console.log('初期カテゴリID設定:', computedCategoryIds)
+      setAllCategoryIds(computedCategoryIds)
     }
-  }, [getActiveCategoryIds, allCategoryIds, categoryUpdateTrigger])
+  }, [allCategoryIds.length, computedCategoryIds])
 
-  // カテゴリ設定やキーワードの変更を監視して表示を更新
-  // biome-ignore lint/correctness/useExhaustiveDependencies: arraysEqual is a stable function
+  // カテゴリ設定やキーワードの変更を監視して表示を更新（最適化版）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: arraysEqualは安定した関数のため除外
   useEffect(() => {
-    // サブカテゴリまたはキーワード設定の変更を検知
-    if (group.subCategories || group.categoryKeywords) {
-      const activeIds = getActiveCategoryIds()
-      if (activeIds.length > 0 && !arraysEqual(activeIds, allCategoryIds)) {
-        console.log('カテゴリ設定変更を検知 - 表示を更新:', activeIds)
-        setAllCategoryIds(activeIds)
-      }
+    // カテゴリ更新トリガーまたは設定変更時のみ更新
+    if (
+      categoryUpdateTrigger > 0 &&
+      !arraysEqual(computedCategoryIds, allCategoryIds)
+    ) {
+      console.log('カテゴリ設定変更を検知 - 表示を更新:', computedCategoryIds)
+      setAllCategoryIds(computedCategoryIds)
     }
-  }, [
-    group.subCategories,
-    group.categoryKeywords,
-    getActiveCategoryIds,
-    allCategoryIds,
-  ])
+  }, [categoryUpdateTrigger, computedCategoryIds, allCategoryIds])
 
-  // タブの変更を検知して強制的に表示を更新する追加のロジック
+  // タブの変更を検知して必要時のみ表示を更新
   const prevUrlsRef = useRef<TabGroup['urls']>([])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: arraysEqualは安定した関数のため除外
   useEffect(() => {
-    // タブのサブカテゴリに変更があった場合のみ再計算
     const prevUrls = prevUrlsRef.current
     const currentUrls = group.urls
 
-    // サブカテゴリの変更を検出
+    // サブカテゴリに実際の変更があった場合のみ再計算
     const hasSubCategoryChanges =
       (prevUrls?.length || 0) > 0 &&
       ((prevUrls?.length || 0) !== (currentUrls?.length || 0) ||
@@ -439,15 +406,17 @@ export const SortableDomainCard = ({
             prevUrl.subCategory !== currentUrls?.[i]?.subCategory,
         ))
 
-    if (hasSubCategoryChanges) {
+    if (
+      hasSubCategoryChanges &&
+      !arraysEqual(computedCategoryIds, allCategoryIds)
+    ) {
       console.log('タブのサブカテゴリ変更を検出 - 表示を更新')
-      const activeIds = getActiveCategoryIds()
-      setAllCategoryIds(activeIds)
+      setAllCategoryIds(computedCategoryIds)
     }
 
     // 参照を更新
     prevUrlsRef.current = [...(currentUrls || [])]
-  }, [group.urls, getActiveCategoryIds])
+  }, [group.urls, computedCategoryIds, allCategoryIds])
 
   // モーダルを閉じる際に強制更新する処理を追加
   const handleCloseKeywordModal = () => {
@@ -463,12 +432,9 @@ export const SortableDomainCard = ({
   }
 
   // カテゴリ削除後の処理を追加
-  const handleCategoryDelete = async (
-    groupId: string,
-    categoryName: string,
-  ) => {
+  const handleCategoryDelete = (groupId: string, categoryName: string) => {
     if (handleDeleteCategory) {
-      await handleDeleteCategory(groupId, categoryName)
+      handleDeleteCategory(groupId, categoryName)
       // 削除後に強制更新
       setCategoryUpdateTrigger(prev => prev + 1)
     }
@@ -593,6 +559,15 @@ export const SortableDomainCard = ({
       setIsCollapsed(userCollapsedState)
     }
   }, [isDraggingGlobal, isReorderMode, userCollapsedState])
+
+  // 検索でヒットしない場合はコンポーネント全体を非表示
+  const hasSearchQuery = searchQuery.trim().length > 0
+  const totalUrls = group.urls?.length || 0
+
+  // 検索クエリがあり、かつタブが0個の場合は非表示
+  if (hasSearchQuery && totalUrls === 0) {
+    return null
+  }
 
   // 親カテゴリの有無に応じてsticky位置を動的に設定
   const stickyTop = categoryId ? 'top-8' : 'top-6'

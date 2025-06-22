@@ -1980,6 +1980,7 @@ const SavedTabs = () => {
                               handleDeleteCategory={handleDeleteCategory}
                               settings={settings}
                               isCategoryReorderMode={isCategoryReorderMode}
+                              searchQuery={searchQuery}
                             />
                           )
                         })}
@@ -1987,7 +1988,21 @@ const SavedTabs = () => {
                     </SortableContext>
                   </DndContext>
 
-                  {uncategorized.length > 0 && (
+                  {(() => {
+                    // 検索でヒットしないカテゴリは非表示
+                    const hasSearchQuery = searchQuery.trim().length > 0
+                    const visibleUncategorizedGroups = uncategorized.filter(
+                      group => (group.urls || group.urlIds || []).length > 0,
+                    )
+
+                    // 検索なしの場合：未分類ドメインが存在すれば表示
+                    // 検索ありの場合：検索でヒットしたドメインがあれば表示
+                    const shouldShowTitle = hasSearchQuery
+                      ? visibleUncategorizedGroups.length > 0
+                      : uncategorized.length > 0
+
+                    return shouldShowTitle
+                  })() && (
                     <div className='sticky top-0 z-50 mt-6 flex items-center justify-between bg-card'>
                       <h2 className='font-bold text-foreground text-xl'>
                         未分類のドメイン
@@ -2086,6 +2101,7 @@ const SavedTabs = () => {
                           handleDeleteCategory={handleDeleteCategory}
                           settings={settings}
                           isReorderMode={isUncategorizedReorderMode}
+                          searchQuery={searchQuery}
                         />
                       ))}
                   </div>
