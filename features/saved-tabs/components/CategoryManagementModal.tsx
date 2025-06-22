@@ -20,7 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import type { ParentCategory } from '@/types/storage'
+import type { ParentCategory, TabGroup } from '@/types/storage'
 import { Edit, Plus, Trash, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -37,14 +37,6 @@ const categoryNameSchema = z
 interface AvailableDomain {
   id: string
   domain: string
-}
-
-// TabGroup型の定義
-interface TabGroup {
-  id: string
-  domain: string
-  urls: Array<{ url: string; title: string; subCategory?: string }>
-  subCategories?: string[]
 }
 
 // 親カテゴリ管理モーダルの型定義
