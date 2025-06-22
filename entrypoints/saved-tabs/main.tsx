@@ -865,11 +865,13 @@ const SavedTabs = () => {
         focused: true, // 新ウィンドウを常に前面に表示
       })
     }
-    // ②通常モード: タブ単位で開く
+    // ②通常モード: タブを一括で開く（Promise.allで並列処理）
     else {
-      for (const { url } of urls) {
-        await chrome.tabs.create({ url, active: !settings.openUrlInBackground })
-      }
+      await Promise.all(
+        urls.map(({ url }) =>
+          chrome.tabs.create({ url, active: !settings.openUrlInBackground }),
+        ),
+      )
     }
 
     // ③開いた後に削除設定が有効ならグループ/プロジェクトを更新（新形式対応）

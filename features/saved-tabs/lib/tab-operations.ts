@@ -144,9 +144,7 @@ export async function safelyUpdateGroupUrls(
 
     // 成功時にコールバックを実行 - 非同期で実行
     if (callback) {
-      setTimeout(() => {
-        Promise.resolve().then(callback)
-      }, 0)
+      Promise.resolve().then(callback)
     }
 
     return Promise.resolve()
