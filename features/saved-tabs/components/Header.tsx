@@ -131,7 +131,7 @@ export const Header = ({
           <p>
             タブ:
             {(filteredTabGroups || tabGroups).reduce(
-              (sum, group) => sum + group.urls.length,
+              (sum, group) => sum + (group.urls?.length || 0),
               0,
             )}
           </p>

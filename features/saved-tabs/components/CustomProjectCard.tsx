@@ -1,4 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card'
+import { getProjectUrls } from '@/lib/storage'
+import type { UrlRecord } from '@/types/storage'
 import { useEffect, useState } from 'react'
 import { useCategoryDnD } from '../hooks/useCategoryDnD'
 import type { CustomProjectCardProps } from '../types/CustomProjectCard.types'
@@ -45,6 +47,12 @@ export const CustomProjectCard = ({
   draggedItem,
   isDropTarget = false,
 }: CustomProjectCardProps) => {
+  // 新形式対応: プロジェクトのURLデータを管理
+  const [projectUrls, setProjectUrls] = useState<
+    Array<UrlRecord & { notes?: string; category?: string }>
+  >([])
+  const [isLoadingUrls, setIsLoadingUrls] = useState(true)
+
   // プロジェクト全体をドラッグ可能にするためのsortable設定
   const { setNodeRef, transform, transition, isDragging } = useSortable({
     id: project.id,
@@ -60,7 +68,6 @@ export const CustomProjectCard = ({
     transition,
     opacity: isDragging ? 0.5 : 1,
   }
-  const [newCategoryName, setNewCategoryName] = useState('')
 
   // DnD状態管理をカスタムフックで共通化
   const {
@@ -101,6 +108,24 @@ export const CustomProjectCard = ({
     setNodeRef(node)
     setProjectDroppableRef(node)
   }
+
+  // 新形式対応: プロジェクトのURLデータを取得
+  useEffect(() => {
+    const loadProjectUrls = async () => {
+      setIsLoadingUrls(true)
+      try {
+        const urls = await getProjectUrls(project)
+        setProjectUrls(urls)
+      } catch (error) {
+        console.error('プロジェクトURLの取得エラー:', error)
+        setProjectUrls([])
+      } finally {
+        setIsLoadingUrls(false)
+      }
+    }
+
+    loadProjectUrls()
+  }, [project])
 
   // DND用のセンサー
   const sensors = useSensors(
@@ -163,13 +188,6 @@ export const CustomProjectCard = ({
     (isProjectOver || isDropTarget) &&
     draggedItem &&
     draggedItem.projectId !== project.id
-
-  const _handleAddCategoryClick = () => {
-    if (newCategoryName.trim()) {
-      handleAddCategory(project.id, newCategoryName.trim())
-      setNewCategoryName('')
-    }
-  }
 
   // URLアイテムのドラッグ終了時
   const handleUrlDragEnd = (event: DragEndEvent) => {
@@ -275,7 +293,7 @@ export const CustomProjectCard = ({
         (!dragSourceCategory && !overCategory) ||
         (dragSourceCategory && dragSourceCategory === overCategory)
       ) {
-        const urlsInTarget = project.urls.filter(
+        const urlsInTarget = projectUrls.filter(
           u => u.category === dragSourceCategory,
         )
         const oldIndex = urlsInTarget.findIndex(u => u.url === actualUrl)
@@ -283,11 +301,11 @@ export const CustomProjectCard = ({
         if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
           const moved = arrayMove(urlsInTarget, oldIndex, newIndex)
           // 全体のurls配列を新順序に反映
-          let newUrls: typeof project.urls
+          let newUrls: typeof projectUrls
           if (!dragSourceCategory) {
             // 未分類の場合: moved items in place using movedIndex
             let movedIndex = 0
-            newUrls = project.urls.map(u => {
+            newUrls = projectUrls.map(u => {
               if (!u.category) {
                 return moved[movedIndex++]
               }
@@ -296,7 +314,7 @@ export const CustomProjectCard = ({
           } else {
             // カテゴリ内の場合: moved items in place using movedIndex
             let movedIndex = 0
-            newUrls = project.urls.map(u => {
+            newUrls = projectUrls.map(u => {
               if (u.category === dragSourceCategory) {
                 return moved[movedIndex++]
               }
@@ -304,6 +322,7 @@ export const CustomProjectCard = ({
             })
           }
           handleReorderUrls(project.id, newUrls)
+          setProjectUrls(newUrls) // ローカル状態も即座に更新
           toast.success('URLの順序を変更しました')
           setDraggedOverCategory(null)
           return
@@ -312,6 +331,12 @@ export const CustomProjectCard = ({
         // カテゴリ間、未分類⇔カテゴリ間の移動
         if (dragSourceCategory !== overCategory) {
           handleSetUrlCategory(project.id, actualUrl, overCategory)
+          // ローカル状態も即座に更新
+          setProjectUrls(prev =>
+            prev.map(u =>
+              u.url === actualUrl ? { ...u, category: overCategory } : u,
+            ),
+          )
           toast.success(
             overCategory
               ? `URLを「${overCategory}」に移動しました`
@@ -374,7 +399,7 @@ export const CustomProjectCard = ({
   }
 
   // カテゴリに属さないURL
-  const uncategorizedUrls = project.urls.filter(url => !url.category)
+  const uncategorizedUrls = projectUrls.filter(url => !url.category)
 
   // カテゴリ表示順を設定
   const categoryOrder = project.categoryOrder || project.categories
@@ -394,7 +419,7 @@ export const CustomProjectCard = ({
             targetElement.getAttribute('data-url') ||
             targetElement.closest('[data-url]')?.getAttribute('data-url')
 
-          if (urlAttr && project.urls.some(u => u.url === urlAttr)) {
+          if (urlAttr && projectUrls.some(u => u.url === urlAttr)) {
             console.log('Alt+クリックでカテゴリを解除:', urlAttr)
             handleSetUrlCategory(project.id, urlAttr, undefined)
             toast.success('URLのカテゴリを解除しました（Alt+クリック）')
@@ -406,7 +431,7 @@ export const CustomProjectCard = ({
     document.addEventListener('click', handleManualCategoryReset)
     return () =>
       document.removeEventListener('click', handleManualCategoryReset)
-  }, [project.id, project.urls, handleSetUrlCategory])
+  }, [project.id, projectUrls, handleSetUrlCategory])
 
   return (
     <Card
@@ -448,7 +473,7 @@ export const CustomProjectCard = ({
                   <CustomProjectCategory
                     projectId={project.id}
                     category={categoryName}
-                    urls={project.urls}
+                    urls={projectUrls}
                     handleOpenUrl={handleOpenUrl}
                     handleDeleteUrl={handleDeleteUrl}
                     handleDeleteCategory={handleDeleteCategory}
@@ -469,7 +494,7 @@ export const CustomProjectCard = ({
           )}
 
           {/* 未分類URL表示部分 */}
-          {project.urls.length > 0 && uncategorizedUrls.length > 0 && (
+          {projectUrls.length > 0 && uncategorizedUrls.length > 0 && (
             <div
               className={`uncategorized-area uncategorized-drop-zone mt-4 overflow-x-hidden p-4 ${
                 isUncategorizedOver
@@ -532,7 +557,7 @@ export const CustomProjectCard = ({
           )}
 
           {/* 空の未分類エリアも表示して、ドロップ可能にする */}
-          {project.urls.length > 0 &&
+          {projectUrls.length > 0 &&
             uncategorizedUrls.length === 0 &&
             project.categories.length > 0 && (
               <button
@@ -555,7 +580,7 @@ export const CustomProjectCard = ({
                   const selectedUrl = window.getSelection()?.toString()
                   if (
                     selectedUrl &&
-                    project.urls.some(u => u.url === selectedUrl)
+                    projectUrls.some(u => u.url === selectedUrl)
                   ) {
                     handleSetUrlCategory(project.id, selectedUrl, undefined)
                     toast.success('URLを未分類に移動しました')
@@ -580,13 +605,13 @@ export const CustomProjectCard = ({
           {/* ドラッグ中のオーバーレイ */}
           {activeId && (
             <DragOverlay style={{ pointerEvents: 'none' }}>
-              {project.urls.find(
+              {projectUrls.find(
                 u =>
                   u.url === activeId.id ||
                   u.url === activeId.data?.current?.url,
               ) && (
                 <div className='rounded border bg-secondary p-2'>
-                  {project.urls.find(
+                  {projectUrls.find(
                     u =>
                       u.url === activeId.id ||
                       u.url === activeId.data?.current?.url,
@@ -597,8 +622,15 @@ export const CustomProjectCard = ({
           )}
         </DndContext>
 
+        {/* ローディング状態 */}
+        {isLoadingUrls && (
+          <div className='py-4 text-center text-muted-foreground'>
+            URLを読み込み中...
+          </div>
+        )}
+
         {/* プロジェクトが空の場合 */}
-        {project.urls.length === 0 && !isExternalItemOver && (
+        {projectUrls.length === 0 && !isExternalItemOver && !isLoadingUrls && (
           <div className='py-4 text-center text-muted-foreground'>
             このプロジェクトにはURLがありません。
             <br />

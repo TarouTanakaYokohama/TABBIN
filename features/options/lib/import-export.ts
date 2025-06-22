@@ -4,6 +4,8 @@ import {
   saveParentCategories,
   saveUserSettings,
 } from '@/lib/storage'
+import { migrateToUrlsStorage } from '@/lib/storage/migration'
+import { createOrUpdateUrlRecord } from '@/lib/storage/urls'
 import type {
   ParentCategory,
   SubCategoryKeyword,
@@ -91,6 +93,46 @@ const backupDataSchema = z.object({
 })
 
 /**
+ * インポートされたURLデータを新形式に変換する
+ * @param urls インポートされたURL配列
+ * @returns 新形式のTabGroup（urlIdsとurlSubCategoriesを含む）
+ */
+async function convertImportedUrlsToNewFormat(
+  urls: ImportedUrlData[],
+): Promise<{ urlIds: string[]; urlSubCategories?: Record<string, string> }> {
+  const urlIds: string[] = []
+  const urlSubCategories: Record<string, string> = {}
+
+  for (const urlData of urls) {
+    try {
+      // URLレコードを作成または更新
+      const urlRecord = await createOrUpdateUrlRecord(
+        urlData.url,
+        urlData.title || '',
+        urlData.favIconUrl,
+      )
+
+      urlIds.push(urlRecord.id)
+
+      // サブカテゴリ情報があれば保存
+      if (urlData.subCategory) {
+        urlSubCategories[urlRecord.id] = urlData.subCategory
+      }
+
+      console.log(`URL変換完了: ${urlData.url} -> ${urlRecord.id}`)
+    } catch (error) {
+      console.error(`URL変換エラー: ${urlData.url}`, error)
+    }
+  }
+
+  return {
+    urlIds,
+    urlSubCategories:
+      Object.keys(urlSubCategories).length > 0 ? urlSubCategories : undefined,
+  }
+}
+
+/**
  * 現在の設定とタブデータをエクスポートする
  * @returns エクスポートされたデータを含むJSONオブジェクト
  */
@@ -153,6 +195,9 @@ export const importSettings = async (
   mergeData = true, // デフォルトでマージを有効に
 ): Promise<{ success: boolean; message: string }> => {
   try {
+    // まずマイグレーションを実行（既存データがある場合）
+    await migrateToUrlsStorage()
+
     // JSON形式をパース
     const parsedData = JSON.parse(jsonData)
 
@@ -245,16 +290,12 @@ export const importSettings = async (
 
         if (existingTab) {
           // 同じドメインが既に存在する場合、URLをマージ（重複を避ける）
+          console.log(`マージ処理: 既存ドメイン ${importedTab.domain}`)
 
-          // URLのマッピング関数 - 型の変換を行う
-          const convertUrls = (urls: ImportedUrlData[]): TabGroup['urls'] => {
-            return urls.map(url => ({
-              url: url.url,
-              title: url.title || '',
-              subCategory: url.subCategory,
-              savedAt: url.savedAt || url.timestamp,
-            }))
-          }
+          // インポートされたURLを新形式に変換
+          const convertedUrlData = await convertImportedUrlsToNewFormat(
+            importedTab.urls,
+          )
 
           // カテゴリキーワードの変換 - 適切な型に変換
           const convertCategoryKeywords = (
@@ -285,23 +326,25 @@ export const importSettings = async (
               })
           }
 
-          // 既存のタブとインポートされたタブのURLをマージ
-          const existingUrls = existingTab.urls || []
-          const importedUrls = convertUrls(importedTab.urls)
-
-          // URLをマージ (url をキーとして重複を避ける)
-          const urlMap = new Map<string, TabGroup['urls'][0]>()
-
-          // 既存のURLを追加
-          for (const u of existingUrls) {
-            urlMap.set(u.url, u)
+          // 新形式でのURLマージ処理
+          const mergedUrlIds = [...(existingTab.urlIds || [])]
+          const mergedUrlSubCategories = {
+            ...(existingTab.urlSubCategories || {}),
           }
 
-          // インポートされたURLを追加 (既存のURLがある場合は上書きしない)
-          for (const u of importedUrls) {
-            if (!urlMap.has(u.url)) {
-              urlMap.set(u.url, u)
+          // インポートされたURLIDsを重複チェックしてマージ
+          for (const urlId of convertedUrlData.urlIds) {
+            if (!mergedUrlIds.includes(urlId)) {
+              mergedUrlIds.push(urlId)
             }
+          }
+
+          // サブカテゴリ情報をマージ
+          if (convertedUrlData.urlSubCategories) {
+            Object.assign(
+              mergedUrlSubCategories,
+              convertedUrlData.urlSubCategories,
+            )
           }
 
           // categoryKeywordsをマージ
@@ -404,12 +447,18 @@ export const importSettings = async (
             return result
           }
 
-          // 既存のタブを更新
+          // 既存のタブを新形式で更新
           tabMapByDomain.set(importedTab.domain, {
             // 既存のIDを保持して一貫性を確保
             id: existingTab.id,
             domain: existingTab.domain,
-            urls: Array.from(urlMap.values()),
+            // 新形式のURL管理
+            urlIds: mergedUrlIds,
+            urlSubCategories:
+              Object.keys(mergedUrlSubCategories).length > 0
+                ? mergedUrlSubCategories
+                : undefined,
+            // 旧形式のurlsプロパティは削除（新形式のみ使用）
             // インポートされたタブに親カテゴリIDがあれば優先、なければ既存を使用
             parentCategoryId:
               importedTab.parentCategoryId || existingTab.parentCategoryId,
@@ -425,15 +474,13 @@ export const importSettings = async (
                 : existingTab.savedAt || importedTab.savedAt,
           })
         } else {
-          // 新しいドメインの場合は、そのままタブグループを追加
-          const convertUrls = (urls: ImportedUrlData[]): TabGroup['urls'] => {
-            return urls.map(url => ({
-              url: url.url,
-              title: url.title || '',
-              subCategory: url.subCategory,
-              savedAt: url.savedAt || url.timestamp,
-            }))
-          }
+          // 新しいドメインの場合は、新形式でタブグループを追加
+          console.log(`マージ処理: 新規ドメイン ${importedTab.domain}`)
+
+          // インポートされたURLを新形式に変換
+          const convertedUrlData = await convertImportedUrlsToNewFormat(
+            importedTab.urls,
+          )
 
           // カテゴリキーワードの変換
           const convertCategoryKeywords = (
@@ -498,11 +545,14 @@ export const importSettings = async (
             return result
           }
 
-          // 新しいタブグループを作成
+          // 新しいタブグループを新形式で作成
           tabMapByDomain.set(importedTab.domain, {
             id: importedTab.id,
             domain: importedTab.domain,
-            urls: convertUrls(importedTab.urls),
+            // 新形式のURL管理
+            urlIds: convertedUrlData.urlIds,
+            urlSubCategories: convertedUrlData.urlSubCategories,
+            // 旧形式のurlsプロパティは使用しない
             parentCategoryId: importedTab.parentCategoryId,
             categoryKeywords: convertCategoryKeywords(
               importedTab.categoryKeywords,
@@ -520,6 +570,9 @@ export const importSettings = async (
       await saveUserSettings(mergedSettings)
       await saveParentCategories(mergedCategories)
       await chrome.storage.local.set({ savedTabs: mergedTabs })
+
+      // 新形式に変換済みのためマイグレーション不要
+      console.log('マージ完了: 新形式URLデータで保存済み')
 
       // 追加された項目の数をカウント
       const addedCategories = importedData.parentCategories.filter(
@@ -553,72 +606,74 @@ export const importSettings = async (
         return rest
       })
 
-    // 2. タブグループのURLsとcategoryKeywordsを適切な型に変換
-    const cleanTabGroups: TabGroup[] = importedData.savedTabs.map(tab => {
-      // URLsを変換
-      const convertedUrls = tab.urls.map(url => ({
-        url: url.url,
-        title: url.title || '', // title を必須のstringに変換
-        subCategory: url.subCategory,
-        savedAt: url.savedAt || url.timestamp,
-      }))
+    // 2. タブグループのURLsを新形式に変換
+    const cleanTabGroups: TabGroup[] = await Promise.all(
+      importedData.savedTabs.map(async tab => {
+        console.log(`上書きモード: ${tab.domain} を新形式に変換中...`)
 
-      // categoryKeywordsを型安全に変換
-      const convertedKeywords: SubCategoryKeyword[] = []
-      if (tab.categoryKeywords && Array.isArray(tab.categoryKeywords)) {
-        for (const k of tab.categoryKeywords) {
-          if (
-            typeof k === 'object' &&
-            k !== null &&
-            'categoryName' in k &&
-            typeof k.categoryName === 'string'
-          ) {
-            // k の型を明示的に拡張
-            const keywordData = k as {
-              categoryName: string
-              keywords?: unknown
+        // URLsを新形式に変換
+        const convertedUrlData = await convertImportedUrlsToNewFormat(tab.urls)
+
+        // categoryKeywordsを型安全に変換
+        const convertedKeywords: SubCategoryKeyword[] = []
+        if (tab.categoryKeywords && Array.isArray(tab.categoryKeywords)) {
+          for (const k of tab.categoryKeywords) {
+            if (
+              typeof k === 'object' &&
+              k !== null &&
+              'categoryName' in k &&
+              typeof k.categoryName === 'string'
+            ) {
+              // k の型を明示的に拡張
+              const keywordData = k as {
+                categoryName: string
+                keywords?: unknown
+              }
+              convertedKeywords.push({
+                categoryName: k.categoryName,
+                // keywords プロパティが配列かどうか安全にチェック
+                keywords: Array.isArray(keywordData.keywords)
+                  ? keywordData.keywords
+                  : [],
+              })
             }
-            convertedKeywords.push({
-              categoryName: k.categoryName,
-              // keywords プロパティが配列かどうか安全にチェック
-              keywords: Array.isArray(keywordData.keywords)
-                ? keywordData.keywords
-                : [],
-            })
           }
         }
-      }
 
-      // サブカテゴリを型安全に変換
-      const convertedSubCategories: string[] = []
-      if (tab.subCategories && Array.isArray(tab.subCategories)) {
-        for (const item of tab.subCategories) {
-          // オブジェクトでnameプロパティがある場合
-          if (
-            typeof item === 'object' &&
-            item !== null &&
-            'name' in item &&
-            typeof item.name === 'string'
-          ) {
-            convertedSubCategories.push(item.name)
-          }
-          // 文字列の場合
-          else if (typeof item === 'string') {
-            convertedSubCategories.push(item)
+        // サブカテゴリを型安全に変換
+        const convertedSubCategories: string[] = []
+        if (tab.subCategories && Array.isArray(tab.subCategories)) {
+          for (const item of tab.subCategories) {
+            // オブジェクトでnameプロパティがある場合
+            if (
+              typeof item === 'object' &&
+              item !== null &&
+              'name' in item &&
+              typeof item.name === 'string'
+            ) {
+              convertedSubCategories.push(item.name)
+            }
+            // 文字列の場合
+            else if (typeof item === 'string') {
+              convertedSubCategories.push(item)
+            }
           }
         }
-      }
 
-      return {
-        id: tab.id,
-        domain: tab.domain,
-        urls: convertedUrls,
-        parentCategoryId: tab.parentCategoryId,
-        subCategories: convertedSubCategories,
-        categoryKeywords: convertedKeywords,
-        savedAt: tab.savedAt,
-      }
-    })
+        return {
+          id: tab.id,
+          domain: tab.domain,
+          // 新形式のURL管理
+          urlIds: convertedUrlData.urlIds,
+          urlSubCategories: convertedUrlData.urlSubCategories,
+          // 旧形式のurlsプロパティは使用しない
+          parentCategoryId: tab.parentCategoryId,
+          subCategories: convertedSubCategories,
+          categoryKeywords: convertedKeywords,
+          savedAt: tab.savedAt,
+        }
+      }),
+    )
 
     // ユーザー設定を保存（不足キーはデフォルトで補完）
     await saveUserSettings({ ...defaultSettings, ...importedData.userSettings })
@@ -628,6 +683,9 @@ export const importSettings = async (
 
     // 保存されたタブを保存
     await chrome.storage.local.set({ savedTabs: cleanTabGroups })
+
+    // インポート後にマイグレーションを実行（旧形式データがインポートされた場合に対応）
+    await migrateToUrlsStorage()
 
     return {
       success: true,

@@ -3,10 +3,12 @@ import { handleTabGroupRemoval } from '@/features/saved-tabs/lib'
 import {
   addSubCategoryToGroup,
   getParentCategories,
+  getProjectUrls,
+  getTabGroupUrls,
   getUserSettings,
   migrateParentCategoriesToDomainNames,
+  migrateToUrlsStorage,
   saveParentCategories,
-  updateDomainCategorySettings,
 } from '@/lib/storage'
 import { defaultSettings } from '@/lib/storage'
 import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
@@ -62,7 +64,6 @@ import {
   getCustomProjects,
   getViewMode,
   removeUrlFromCustomProject,
-  saveCustomProjects,
   saveViewMode,
   updateCustomProjectName,
   updateProjectOrder,
@@ -92,6 +93,8 @@ const SavedTabs = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('domain')
   const [customProjects, setCustomProjects] = useState<CustomProject[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  // 新形式対応: URLデータを取得済みのタブグループ
+  const [tabGroupsWithUrls, setTabGroupsWithUrls] = useState<TabGroup[]>([])
   // 親カテゴリの並び替えモード状態管理
   const [isCategoryReorderMode, setIsCategoryReorderMode] = useState(false)
   const [_originalCategoryOrder, setOriginalCategoryOrder] = useState<string[]>(
@@ -128,13 +131,51 @@ const SavedTabs = () => {
           console.error('親カテゴリ移行エラー:', error)
         }
 
+        // URL管理のマイグレーションも実行
+        try {
+          console.log('URL管理マイグレーションを開始...')
+          await migrateToUrlsStorage()
+          console.log('URL管理マイグレーションが完了しました')
+        } catch (error) {
+          console.error('URL管理マイグレーションエラー:', error)
+        }
+
         // データ読み込み
         const storageResult = await chrome.storage.local.get('savedTabs')
         const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
           ? storageResult.savedTabs
           : []
         console.log('読み込まれたタブ:', savedTabs)
+        console.log('タブグループ数:', savedTabs.length)
+
+        // 各タブグループの詳細を確認
+        for (const group of savedTabs) {
+          console.log(`グループ ${group.domain}:`, {
+            id: group.id,
+            urlIds: group.urlIds?.length || 0,
+            urls: group.urls?.length || 0,
+            urlSubCategories: group.urlSubCategories
+              ? Object.keys(group.urlSubCategories).length
+              : 0,
+          })
+        }
+
+        // もしタブグループが空の場合、テストデータを追加
+        if (savedTabs.length === 0) {
+          console.log('タブグループが空です。テストデータの有無を確認...')
+        }
+
         setTabGroups(savedTabs)
+
+        // URLストレージの内容を確認
+        const { urls = [] } = await chrome.storage.local.get('urls')
+        console.log('URLストレージ内容:', urls)
+        console.log('URLレコード数:', urls.length)
+
+        // 全ストレージ内容を確認
+        const allStorage = await chrome.storage.local.get()
+        console.log('全ストレージ内容:', allStorage)
+        console.log('ストレージキー一覧:', Object.keys(allStorage))
 
         // ユーザー設定を読み込み
         const userSettings = await getUserSettings()
@@ -215,6 +256,48 @@ const SavedTabs = () => {
     })
   }, [])
 
+  // 新形式対応: タブグループが更新されたらURLデータを取得
+  useEffect(() => {
+    const loadUrlsForTabGroups = async () => {
+      if (tabGroups.length === 0) {
+        setTabGroupsWithUrls([])
+        return
+      }
+
+      console.log('タブグループのURL取得を開始...')
+      const groupsWithUrls = await Promise.all(
+        tabGroups.map(async group => {
+          try {
+            if (group.urlIds && group.urlIds.length > 0) {
+              // 新形式: getTabGroupUrlsを使用してURLデータを取得
+              const urls = await getTabGroupUrls(group)
+              console.log(
+                `グループ ${group.domain}: ${urls.length}個のURLを取得`,
+              )
+              return { ...group, urls }
+            }
+            if (group.urls && group.urls.length > 0) {
+              // 旧形式: そのまま使用
+              console.log(`グループ ${group.domain}: 旧形式のまま使用`)
+              return group
+            }
+            // URLがない場合
+            console.log(`グループ ${group.domain}: URLなし`)
+            return { ...group, urls: [] }
+          } catch (error) {
+            console.error(`グループ ${group.domain} のURL取得エラー:`, error)
+            return { ...group, urls: [] }
+          }
+        }),
+      )
+
+      console.log('URL取得完了、状態を更新...')
+      setTabGroupsWithUrls(groupsWithUrls)
+    }
+
+    loadUrlsForTabGroups()
+  }, [tabGroups])
+
   useEffect(() => {
     if (categories.length > 0) {
       setCategoryOrder(categories.map(cat => cat.id))
@@ -248,10 +331,11 @@ const SavedTabs = () => {
             'カスタムプロジェクトが存在しないため、デフォルトプロジェクトを作成します',
           )
 
-          // ドメインモードのURLsを収集
+          // ドメインモードのURLsを収集（新形式対応）
           const allDomainUrls: { url: string; title: string }[] = []
           for (const group of savedTabs) {
-            for (const urlItem of group.urls) {
+            const groupUrls = await getTabGroupUrls(group)
+            for (const urlItem of groupUrls) {
               allDomainUrls.push({
                 url: urlItem.url,
                 title: urlItem.title,
@@ -281,101 +365,49 @@ const SavedTabs = () => {
           )
         }
 
-        // 各プロジェクトごとに処理
-        const updatedProjects = projects.map(project => {
-          // 安全なチェックを追加: urls配列が存在するか確認
-          if (!project.urls || !Array.isArray(project.urls)) {
-            console.warn(`プロジェクト ${project.id} のURLsが不正です`)
-            // urls配列がなければ初期化して返す
-            return {
-              ...project,
-              urls: [],
-              updatedAt: Date.now(),
-            }
-          }
+        // 各プロジェクトごとに処理（新形式対応）
+        const updatedProjects = await Promise.all(
+          projects.map(async project => {
+            try {
+              // 新形式でURLを取得
+              const projectUrls = await getProjectUrls(project)
 
-          // 既存のURLを把握（削除済みのURLを検出するため）
-          // エラー修正: nullチェックと配列チェックを追加
-          const existingUrls = new Set(project.urls.map(u => u.url))
-          const updatedUrls = [...project.urls]
-          let hasChanges = false
+              // 既存のURLを把握（削除済みのURLを検出するため）
+              const existingUrls = new Set(projectUrls.map(u => u.url))
 
-          // ドメインモードのすべてのURLをチェック
-          let urlsProcessed = 0
-          for (const group of savedTabs) {
-            for (const tabUrl of group.urls) {
-              urlsProcessed++
-              // このURLがカスタムプロジェクトに存在するか
-              const urlIndex = updatedUrls.findIndex(u => u.url === tabUrl.url)
-
-              if (urlIndex >= 0) {
-                // 存在する場合は、タイトルなどを最新の状態に更新
-                if (
-                  updatedUrls[urlIndex].title !== tabUrl.title &&
-                  tabUrl.title
-                ) {
-                  updatedUrls[urlIndex] = {
-                    ...updatedUrls[urlIndex],
-                    title: tabUrl.title,
-                  }
-                  hasChanges = true
+              // ドメインモードのすべてのURLをチェック
+              let urlsProcessed = 0
+              for (const group of savedTabs) {
+                const groupUrls = await getTabGroupUrls(group)
+                for (const tabUrl of groupUrls) {
+                  urlsProcessed++
+                  // URLが存在していることをマーク
+                  existingUrls.delete(tabUrl.url)
                 }
               }
 
-              // URLが存在していることをマーク
-              existingUrls.delete(tabUrl.url)
+              console.log(`処理したURL数: ${urlsProcessed}`)
+              console.log(
+                `プロジェクト ${project.name}: ${projectUrls.length}個のURL`,
+              )
+
+              // 新形式では個別の同期処理は不要（共通URLストレージで管理）
+              return project
+            } catch (error) {
+              console.error(
+                `プロジェクト ${project.id} の処理中にエラー:`,
+                error,
+              )
+              return project
             }
-          }
-          console.log(`処理したURL数: ${urlsProcessed}`)
+          }),
+        )
 
-          // ドメインモードに存在しないURLの数
-          const missingUrlsCount = existingUrls.size
-          console.log(`ドメインモードに存在しないURL数: ${missingUrlsCount}`)
-
-          // 削除対象のURLがあればログに出力
-          if (missingUrlsCount > 0) {
-            console.log(`削除対象のURL: ${Array.from(existingUrls).join(', ')}`)
-            hasChanges = true
-          }
-
-          // ドメインモードに存在しないURL（削除されたURL）をカスタムプロジェクトからも削除
-          const filteredUrls = updatedUrls.filter(
-            url => !existingUrls.has(url.url),
-          )
-
-          // 変更があった場合のみ更新
-          if (hasChanges || filteredUrls.length !== updatedUrls.length) {
-            return {
-              ...project,
-              urls: filteredUrls,
-              updatedAt: Date.now(),
-            }
-          }
-          return project
-        })
-
-        // 何らかの変更があれば保存
-        let hasUpdates = false
-        for (let i = 0; i < projects.length; i++) {
-          if (
-            JSON.stringify(projects[i]) !== JSON.stringify(updatedProjects[i])
-          ) {
-            hasUpdates = true
-            break
-          }
-        }
-
-        if (hasUpdates) {
-          await saveCustomProjects(updatedProjects)
-          setCustomProjects(updatedProjects)
-          console.log(
-            'カスタムプロジェクトとドメインモードのデータを同期しました',
-          )
-        } else {
-          console.log('同期の必要はありません、データは最新です')
-          // UIを更新するために状態を更新
-          setCustomProjects([...updatedProjects])
-        }
+        // 新形式では自動同期は不要（共通URLストレージで管理済み）
+        setCustomProjects(updatedProjects)
+        console.log(
+          'プロジェクトデータを確認しました。新形式URL管理で同期は不要です',
+        )
 
         return updatedProjects
       } catch (error) {
@@ -415,11 +447,12 @@ const SavedTabs = () => {
             )
             setCustomProjects([defaultProject])
 
-            // ドメインモードのURLsをコピー
+            // ドメインモードのURLsをコピー（新形式対応）
             const { savedTabs = [] } =
               await chrome.storage.local.get('savedTabs')
             for (const group of savedTabs) {
-              for (const urlItem of group.urls) {
+              const groupUrls = await getTabGroupUrls(group)
+              for (const urlItem of groupUrls) {
                 await addUrlToCustomProject(
                   defaultProject.id,
                   urlItem.url,
@@ -565,21 +598,8 @@ const SavedTabs = () => {
     try {
       await addUrlToCustomProject(projectId, url, title)
 
-      // プロジェクトリストを更新
-      const updatedProjects = customProjects.map(p => {
-        if (p.id === projectId) {
-          return {
-            ...p,
-            urls: [
-              ...p.urls.filter(item => item.url !== url), // 既存の同じURLを除外
-              { url, title, savedAt: Date.now() },
-            ],
-            updatedAt: Date.now(),
-          }
-        }
-        return p
-      })
-
+      // プロジェクトリストを再取得（新形式で管理されているため）
+      const updatedProjects = await getCustomProjects()
       setCustomProjects(updatedProjects)
       toast.success('URLを追加しました')
     } catch (error) {
@@ -590,44 +610,13 @@ const SavedTabs = () => {
 
   const handleDeleteUrlFromProject = async (projectId: string, url: string) => {
     try {
-      // カスタムプロジェクトからURLを削除
+      // カスタムプロジェクトからURLを削除（新形式は自動でドメインモードと同期）
       await removeUrlFromCustomProject(projectId, url)
 
-      // ドメインモードからも同じURLを削除
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      // プロジェクトリストを再取得して更新
+      const updatedProjects = await getCustomProjects()
+      setCustomProjects(updatedProjects)
 
-      // ドメインモードのデータを更新
-      const updatedGroups = savedTabs
-        .map((group: TabGroup) => {
-          const updatedUrls = group.urls.filter(
-            (item: { url: string }) => item.url !== url,
-          )
-          if (updatedUrls.length === 0) {
-            return null // URLが0になったらグループを削除
-          }
-          return {
-            ...group,
-            urls: updatedUrls,
-          }
-        })
-        .filter((proj: TabGroup | null): proj is TabGroup => proj !== null) // Filter out null entries with type guard
-
-      // ドメインモードのデータを保存
-      await chrome.storage.local.set({ savedTabs: updatedGroups })
-      console.log(`URL "${url}" をドメインモードからも削除しました`)
-
-      // プロジェクトリストを更新（functional updateで最新状態を使用）
-      setCustomProjects(prev =>
-        prev.map(p =>
-          p.id === projectId
-            ? {
-                ...p,
-                urls: p.urls.filter(item => item.url !== url),
-                updatedAt: Date.now(),
-              }
-            : p,
-        ),
-      )
       toast.success('URLを削除しました')
     } catch (error) {
       console.error('URL削除エラー:', error)
@@ -671,24 +660,8 @@ const SavedTabs = () => {
     try {
       await removeCategoryFromProject(projectId, categoryName)
 
-      // プロジェクトリストを更新
-      const updatedProjects = customProjects.map(p => {
-        if (p.id === projectId) {
-          return {
-            ...p,
-            categories: p.categories.filter(c => c !== categoryName),
-            categoryOrder: p.categoryOrder
-              ? p.categoryOrder.filter(c => c !== categoryName)
-              : undefined,
-            urls: p.urls.map(u =>
-              u.category === categoryName ? { ...u, category: undefined } : u,
-            ),
-            updatedAt: Date.now(),
-          }
-        }
-        return p
-      })
-
+      // プロジェクトリストを再取得（新形式で管理されているため）
+      const updatedProjects = await getCustomProjects()
       setCustomProjects(updatedProjects)
       toast.success(`カテゴリ「${categoryName}」を削除しました`)
     } catch (error) {
@@ -705,18 +678,8 @@ const SavedTabs = () => {
     try {
       await setUrlCategory(projectId, url, category)
 
-      // プロジェクトリストを更新
-      const updatedProjects = customProjects.map(p => {
-        if (p.id === projectId) {
-          return {
-            ...p,
-            urls: p.urls.map(u => (u.url === url ? { ...u, category } : u)),
-            updatedAt: Date.now(),
-          }
-        }
-        return p
-      })
-
+      // プロジェクトリストを再取得（新形式で管理されているため）
+      const updatedProjects = await getCustomProjects()
       setCustomProjects(updatedProjects)
     } catch (error) {
       console.error('URL分類エラー:', error)
@@ -820,7 +783,7 @@ const SavedTabs = () => {
                     cat === oldCategoryName ? newCategoryName : cat,
                   )
                 : project.categoryOrder,
-              urls: project.urls.map(item => ({
+              urls: project.urls?.map(item => ({
                 ...item,
                 category:
                   item.category === oldCategoryName
@@ -843,39 +806,57 @@ const SavedTabs = () => {
     // 設定に基づきバックグラウンド(active: false)またはフォアグラウンド(active: true)で開く
     chrome.tabs.create({ url, active: !settings.openUrlInBackground })
 
-    // 設定に基づいて、開いたタブを削除するかどうかを決定
+    // 設定に基づいて、開いたタブを削除するかどうかを決定（新形式対応）
     if (settings.removeTabAfterOpen) {
-      // タブを開いた後に削除する処理
-      const updatedGroups = tabGroups
-        .map(group => ({
-          ...group,
-          urls: group.urls.filter(item => item.url !== url),
-        }))
-        // 空のグループを削除
-        .filter((proj: TabGroup | null): proj is TabGroup => proj !== null) // Filter out null entries with type guard
-
-      setTabGroups(updatedGroups)
-      await chrome.storage.local.set({ savedTabs: updatedGroups })
-
-      // カスタムモードも同期して更新
-      // URLが開かれた場合、両方のモードから削除する
       try {
-        // カスタムプロジェクトから該当URLを削除
-        const updatedProjects = customProjects.map(project => ({
-          ...project,
-          urls: project.urls.filter(item => item.url !== url),
-        }))
-        // 空のプロジェクトは削除しない（ユーザーが明示的に削除するまで残す）
+        // すべてのタブグループからこのURLを削除
+        const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+        const { removeUrlFromTabGroup } = await import('@/lib/storage/tabs')
 
+        for (const group of savedTabs) {
+          if (group.urlIds && group.urlIds.length > 0) {
+            const urls = await getTabGroupUrls(group)
+            if (urls.some(urlItem => urlItem.url === url)) {
+              await removeUrlFromTabGroup(group.id, url)
+            }
+          }
+        }
+
+        // カスタムプロジェクトからも削除
+        const projects = await getCustomProjects()
+        for (const project of projects) {
+          const projectUrls = await getProjectUrls(project)
+          if (projectUrls.some(urlItem => urlItem.url === url)) {
+            await removeUrlFromCustomProject(project.id, url)
+          }
+        }
+
+        // データを再取得してUIを更新
+        const updatedTabs = await chrome.storage.local.get('savedTabs')
+        setTabGroups(updatedTabs.savedTabs || [])
+
+        const groupsWithUrls = await Promise.all(
+          (updatedTabs.savedTabs || []).map(async (group: TabGroup) => {
+            if (group.urlIds && group.urlIds.length > 0) {
+              const urls = await getTabGroupUrls(group)
+              return { ...group, urls }
+            }
+            return { ...group, urls: [] }
+          }),
+        )
+        setTabGroupsWithUrls(groupsWithUrls)
+
+        const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        await saveCustomProjects(updatedProjects)
+
+        console.log(
+          `URL ${url} を開いた後、すべてのグループとプロジェクトから削除しました`,
+        )
       } catch (error) {
-        console.error('カスタムモードの同期エラー:', error)
+        console.error('タブ削除後のデータ更新エラー:', error)
       }
     }
   }
-
-  // handleOpenAllTabs関数も同様に修正
   const handleOpenAllTabs = async (urls: { url: string; title: string }[]) => {
     // ①新しいウィンドウでまとめて開くモード
     if (settings.openAllInNewWindow) {
@@ -891,43 +872,57 @@ const SavedTabs = () => {
       }
     }
 
-    // ③開いた後に削除設定が有効ならグループ/プロジェクトを更新
+    // ③開いた後に削除設定が有効ならグループ/プロジェクトを更新（新形式対応）
     if (settings.removeTabAfterOpen) {
-      const urlSet = new Set(urls.map(u => u.url))
-
-      // カテゴリ設定を保存
-      for (const group of tabGroups) {
-        const remaining = group.urls.filter(item => !urlSet.has(item.url))
-        if (remaining.length === 0) {
-          await updateDomainCategorySettings(
-            group.domain,
-            group.subCategories || [],
-            group.categoryKeywords || [],
-          )
-        }
-      }
-
-      // グループをフィルタリング
-      const updatedGroups = tabGroups
-        .map(g => {
-          const rem = g.urls.filter(item => !urlSet.has(item.url))
-          return rem.length === 0 ? null : { ...g, urls: rem }
-        })
-        .filter((proj: TabGroup | null): proj is TabGroup => proj !== null) // Filter out null entries with type guard
-
-      setTabGroups(updatedGroups)
-      await chrome.storage.local.set({ savedTabs: updatedGroups })
-
-      // カスタムプロジェクトも同期
       try {
-        const updatedProjects = customProjects.map(p => ({
-          ...p,
-          urls: p.urls.filter(item => !urlSet.has(item.url)),
-        }))
+        const { removeUrlFromTabGroup } = await import('@/lib/storage/tabs')
+        const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+
+        // 各URLを削除
+        for (const { url } of urls) {
+          // すべてのタブグループからこのURLを削除
+          for (const group of savedTabs) {
+            if (group.urlIds && group.urlIds.length > 0) {
+              const groupUrls = await getTabGroupUrls(group)
+              if (groupUrls.some(urlItem => urlItem.url === url)) {
+                await removeUrlFromTabGroup(group.id, url)
+              }
+            }
+          }
+
+          // カスタムプロジェクトからも削除
+          const projects = await getCustomProjects()
+          for (const project of projects) {
+            const projectUrls = await getProjectUrls(project)
+            if (projectUrls.some(urlItem => urlItem.url === url)) {
+              await removeUrlFromCustomProject(project.id, url)
+            }
+          }
+        }
+
+        // データを再取得してUIを更新
+        const updatedTabs = await chrome.storage.local.get('savedTabs')
+        setTabGroups(updatedTabs.savedTabs || [])
+
+        const groupsWithUrls = await Promise.all(
+          (updatedTabs.savedTabs || []).map(async (group: TabGroup) => {
+            if (group.urlIds && group.urlIds.length > 0) {
+              const urls = await getTabGroupUrls(group)
+              return { ...group, urls }
+            }
+            return { ...group, urls: [] }
+          }),
+        )
+        setTabGroupsWithUrls(groupsWithUrls)
+
+        const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        await saveCustomProjects(updatedProjects)
+
+        console.log(
+          `${urls.length}個のURLを開いた後、すべてのグループとプロジェクトから削除しました`,
+        )
       } catch (e) {
-        console.error('カスタムプロジェクト同期エラー:', e)
+        console.error('タブ削除後のデータ更新エラー:', e)
       }
     }
   }
@@ -967,42 +962,59 @@ const SavedTabs = () => {
   }
 
   const handleDeleteUrl = async (groupId: string, url: string) => {
-    const updatedGroups = tabGroups
-      .map(group => {
-        if (group.id === groupId) {
-          const updatedUrls = group.urls.filter(item => item.url !== url)
-          if (updatedUrls.length === 0) {
-            return null // URLが0になったらグループを削除
-          }
-          return {
-            ...group,
-            urls: updatedUrls,
-          }
-        }
-        return group
-      })
-      .filter((proj: TabGroup | null): proj is TabGroup => proj !== null) // Filter out null entries with type guard
+    try {
+      // 新形式のURL削除関数を呼び出し
+      const { removeUrlFromTabGroup } = await import('@/lib/storage/tabs')
+      await removeUrlFromTabGroup(groupId, url)
 
-    setTabGroups(updatedGroups)
-    await chrome.storage.local.set({ savedTabs: updatedGroups })
+      // タブグループを再取得してUIを更新
+      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      setTabGroups(savedTabs)
+
+      // URLデータも再取得して更新
+      const groupsWithUrls = await Promise.all(
+        savedTabs.map(async (group: TabGroup) => {
+          if (group.urlIds && group.urlIds.length > 0) {
+            const urls = await getTabGroupUrls(group)
+            return { ...group, urls }
+          }
+          return { ...group, urls: [] }
+        }),
+      )
+      setTabGroupsWithUrls(groupsWithUrls)
+
+      console.log(`URL ${url} をグループ ${groupId} から削除しました`)
+    } catch (error) {
+      console.error('URL削除エラー:', error)
+    }
   }
 
   const handleUpdateUrls = async (
     groupId: string,
-    updatedUrls: TabGroup['urls'],
+    _updatedUrls: TabGroup['urls'],
   ) => {
-    const updatedGroups = tabGroups.map(group => {
-      if (group.id === groupId) {
-        return {
-          ...group,
-          urls: updatedUrls,
-        }
-      }
-      return group
-    })
+    try {
+      // 新形式では直接URL更新は不要（共通URLストレージで管理）
+      // タブグループを再取得してUIを更新
+      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      setTabGroups(savedTabs)
 
-    setTabGroups(updatedGroups)
-    await chrome.storage.local.set({ savedTabs: updatedGroups })
+      // URLデータも再取得して更新
+      const groupsWithUrls = await Promise.all(
+        savedTabs.map(async (group: TabGroup) => {
+          if (group.urlIds && group.urlIds.length > 0) {
+            const urls = await getTabGroupUrls(group)
+            return { ...group, urls }
+          }
+          return { ...group, urls: [] }
+        }),
+      )
+      setTabGroupsWithUrls(groupsWithUrls)
+
+      console.log(`グループ ${groupId} のURL更新後のデータを更新しました`)
+    } catch (error) {
+      console.error('URL更新後のデータ更新エラー:', error)
+    }
   }
 
   // 子カテゴリを追加
@@ -1025,23 +1037,23 @@ const SavedTabs = () => {
     }),
   )
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
+  // const handleDragEnd = (event: DragEndEvent) => {
+  //   const { active, over } = event
 
-    if (over && active.id !== over.id) {
-      setTabGroups((groups: TabGroup[]) => {
-        const oldIndex = groups.findIndex(group => group.id === active.id)
-        const newIndex = groups.findIndex(group => group.id === over.id)
+  //   if (over && active.id !== over.id) {
+  //     setTabGroups((groups: TabGroup[]) => {
+  //       const oldIndex = groups.findIndex(group => group.id === active.id)
+  //       const newIndex = groups.findIndex(group => group.id === over.id)
 
-        const newGroups = arrayMove(groups, oldIndex, newIndex)
+  //       const newGroups = arrayMove(groups, oldIndex, newIndex)
 
-        // ストレージに保存
-        chrome.storage.local.set({ savedTabs: newGroups })
+  //       // ストレージに保存
+  //       chrome.storage.local.set({ savedTabs: newGroups })
 
-        return newGroups
-      })
-    }
-  }
+  //       return newGroups
+  //     })
+  //   }
+  // }
 
   // 未分類ドメインのドラッグエンド処理（並び替えモード対応）
   const handleUncategorizedDragEnd = (event: DragEndEvent) => {
@@ -1102,6 +1114,18 @@ const SavedTabs = () => {
 
           console.log('削除後のサブカテゴリ:', updatedSubCategories)
 
+          // 新形式ではサブカテゴリ情報はurlSubCategoriesで管理
+          const updatedUrlSubCategories = { ...group.urlSubCategories }
+
+          // 指定されたカテゴリのサブカテゴリを削除
+          if (updatedUrlSubCategories) {
+            for (const urlId in updatedUrlSubCategories) {
+              if (updatedUrlSubCategories[urlId] === categoryName) {
+                delete updatedUrlSubCategories[urlId]
+              }
+            }
+          }
+
           return {
             ...group,
             subCategories: updatedSubCategories,
@@ -1109,11 +1133,7 @@ const SavedTabs = () => {
               group.categoryKeywords?.filter(
                 ck => ck.categoryName !== categoryName,
               ) || [],
-            urls: group.urls.map(url =>
-              url.subCategory === categoryName
-                ? { ...url, subCategory: undefined }
-                : url,
-            ),
+            urlSubCategories: updatedUrlSubCategories,
           }
         }
         return group
@@ -1289,24 +1309,27 @@ const SavedTabs = () => {
   }
 
   // タブグループをカテゴリごとに整理する関数を強化
-  const organizeTabGroups = (): {
+  const organizeTabGroups = useCallback((): {
     categorized: Record<string, TabGroup[]>
     uncategorized: TabGroup[]
   } => {
     if (!settings.enableCategories) {
-      return { categorized: {}, uncategorized: tabGroups }
+      return { categorized: {}, uncategorized: tabGroupsWithUrls }
     }
 
     console.log('親カテゴリ一覧:', categories)
-    console.log('タブグループ:', tabGroups)
+    console.log('organizeTabGroups開始:')
+    console.log('- tabGroupsWithUrls:', tabGroupsWithUrls)
+    console.log('- tabGroupsWithUrls.length:', tabGroupsWithUrls.length)
 
     // カテゴリに属するドメインとカテゴリに属さないドメインに分ける
     const categorizedGroups: Record<string, TabGroup[]> = {}
     const uncategorizedGroups: TabGroup[] = []
 
-    const groupsToOrganize = tabGroups
+    const groupsToOrganize = tabGroupsWithUrls
       .map(g => {
-        const filteredUrls = g.urls.filter(item => {
+        // 一時的な対応: 旧形式のurlsがなければ空配列を使用
+        const filteredUrls = (g.urls || []).filter(item => {
           if (searchQuery) {
             const query = searchQuery.toLowerCase()
             const matchesBasicFields =
@@ -1383,7 +1406,18 @@ const SavedTabs = () => {
         })
         return { ...g, urls: filteredUrls }
       })
-      .filter(g => g.urls.length > 0)
+      .filter(g => {
+        // 新形式対応: urlIdsがあるか、旧形式のurlsがあるかをチェック
+        const hasNewUrls = g.urlIds && g.urlIds.length > 0
+        const hasOldUrls = g.urls && g.urls.length > 0
+        console.log(
+          `フィルタチェック ${g.domain}: urlIds=${g.urlIds?.length || 0}, urls=${g.urls?.length || 0}, 表示=${hasNewUrls || hasOldUrls}`,
+        )
+        return hasNewUrls || hasOldUrls
+      })
+
+    console.log('groupsToOrganize:', groupsToOrganize)
+    console.log('groupsToOrganize.length:', groupsToOrganize.length)
 
     for (const group of groupsToOrganize) {
       // このグループが属するカテゴリを探す
@@ -1523,19 +1557,33 @@ const SavedTabs = () => {
       }
     }
 
+    console.log('organizeTabGroups結果:')
+    console.log('- categorizedGroups:', categorizedGroups)
+    console.log('- uncategorizedGroups:', uncategorizedGroups)
+    console.log('- uncategorizedGroups.length:', uncategorizedGroups.length)
+
     return {
       categorized: categorizedGroups,
       uncategorized: uncategorizedGroups,
     }
-  }
+  }, [tabGroupsWithUrls, categories, settings.enableCategories, searchQuery])
 
-  // 検索・フィルタ適用後のグループを整理
-  const { categorized, uncategorized } = organizeTabGroups()
-  // コンテンツがあるグループリスト（カテゴリと未分類を結合）
+  // 検索・フィルタ適用後のグループを整理（メモ化）
+  const { categorized, uncategorized } = useMemo(
+    () => organizeTabGroups(),
+    [organizeTabGroups],
+  )
+  // コンテンツがあるグループリスト（カテゴリと未分類を結合、URLがあるもののみ）
   const hasContentTabGroups = [
     ...Object.values(categorized).flat(),
     ...uncategorized,
-  ]
+  ].filter(group => (group.urls || group.urlIds || []).length > 0)
+
+  console.log('表示判定デバッグ:')
+  console.log('- categorized:', categorized)
+  console.log('- uncategorized:', uncategorized)
+  console.log('- hasContentTabGroups:', hasContentTabGroups)
+  console.log('- hasContentTabGroups.length:', hasContentTabGroups.length)
 
   // カスタムモード検索用にプロジェクトとURLをフィルタリング
   const filteredCustomProjects = useMemo(() => {
@@ -1569,11 +1617,12 @@ const SavedTabs = () => {
           !categoryMatchedProjects.includes(proj),
       )
       .map(proj => {
-        const fuseUrls = new Fuse(proj.urls, urlFuseOptions)
+        const projectUrls = proj.urls || []
+        const fuseUrls = new Fuse(projectUrls, urlFuseOptions)
         const fuseMatches = fuseUrls.search(q).map(r => r.item)
 
         // URL個別のカテゴリ名での検索も追加
-        const categoryMatches = proj.urls.filter(url =>
+        const categoryMatches = projectUrls.filter(url =>
           url.category?.toLowerCase().includes(query),
         )
 
@@ -1700,13 +1749,14 @@ const SavedTabs = () => {
         return null
       }
       // 移動するURLを見つける
-      const urlItem = sourceProject.urls.find(item => item.url === url)
+      const urlItem = sourceProject.urls?.find(item => item.url === url)
       if (!urlItem) {
         console.error('移動するURLが見つかりません')
         return null
       }
       // 移動先に既に同じURLが存在していないか確認
-      const existsInTarget = targetProject.urls.some(item => item.url === url)
+      const existsInTarget =
+        targetProject.urls?.some(item => item.url === url) || false
       if (existsInTarget) {
         console.log('移動先に既にURLが存在するため、移動をスキップします')
         toast.info('移動先のプロジェクトに既にこのURLが存在します')
@@ -1729,7 +1779,7 @@ const SavedTabs = () => {
         if (project.id === sourceProjectId) {
           return {
             ...project,
-            urls: project.urls.filter(item => item.url !== url),
+            urls: project.urls?.filter(item => item.url !== url) || [],
             updatedAt: Date.now(),
           }
         }
@@ -1737,7 +1787,7 @@ const SavedTabs = () => {
           return {
             ...project,
             urls: [
-              ...project.urls,
+              ...(project.urls || []),
               { ...urlItem, category: originalCategory, savedAt: Date.now() },
             ],
             updatedAt: Date.now(),
@@ -1772,14 +1822,13 @@ const SavedTabs = () => {
         return
       }
       // 移動元カテゴリに属するURLを特定
-      const urlsToMove = project.urls.filter(
-        item => item.category === sourceCategoryName,
-      )
+      const urlsToMove =
+        project.urls?.filter(item => item.category === sourceCategoryName) || []
       console.log(
         `カテゴリ "${sourceCategoryName}" のURL数: ${urlsToMove.length}`,
       )
       console.log(
-        `カテゴリ "${targetCategoryName}" のURL数: ${project.urls.filter(item => item.category === targetCategoryName).length}`,
+        `カテゴリ "${targetCategoryName}" のURL数: ${project.urls?.filter(item => item.category === targetCategoryName).length || 0}`,
       )
       // カテゴリを統合するか、URLを移動するかを判断
       if (urlsToMove.length === 0) {
@@ -1819,12 +1868,13 @@ const SavedTabs = () => {
         if (p.id === projectId) {
           return {
             ...p,
-            urls: p.urls.map(item => {
-              if (item.category === sourceCategoryName) {
-                return { ...item, category: targetCategoryName }
-              }
-              return item
-            }),
+            urls:
+              p.urls?.map(item => {
+                if (item.category === sourceCategoryName) {
+                  return { ...item, category: targetCategoryName }
+                }
+                return item
+              }) || [],
             updatedAt: Date.now(),
           }
         }
@@ -1853,14 +1903,18 @@ const SavedTabs = () => {
             viewMode === 'domain'
               ? hasContentTabGroups
               : // カスタムモードの場合、filteredCustomProjectsからTabGroup形式に変換
-                filteredCustomProjects.map(
-                  proj =>
-                    ({
-                      id: proj.id,
-                      domain: proj.name, // プロジェクト名をドメインとして使用
-                      urls: proj.urls,
-                    }) as TabGroup,
-                )
+                filteredCustomProjects
+                  .filter(
+                    (proj): proj is NonNullable<typeof proj> => proj !== null,
+                  )
+                  .map(
+                    proj =>
+                      ({
+                        id: proj.id,
+                        domain: proj.name, // プロジェクト名をドメインとして使用
+                        urls: proj.urls || [],
+                      }) as TabGroup,
+                  )
           }
           customProjects={customProjects}
           onAddCategory={handleAddCategory}
@@ -1993,8 +2047,9 @@ const SavedTabs = () => {
               )}
 
             {/* 未分類タブを表示する部分 */}
-            {uncategorized.filter(group => group.urls.length > 0).length >
-              0 && (
+            {uncategorized.filter(
+              group => (group.urls || group.urlIds || []).length > 0,
+            ).length > 0 && (
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -2005,7 +2060,9 @@ const SavedTabs = () => {
                     ? tempUncategorizedOrder
                     : uncategorized
                   )
-                    .filter(group => group.urls.length > 0)
+                    .filter(
+                      group => (group.urls || group.urlIds || []).length > 0,
+                    )
                     .map(group => group.id)}
                   strategy={verticalListSortingStrategy}
                 >
@@ -2014,7 +2071,9 @@ const SavedTabs = () => {
                       ? tempUncategorizedOrder
                       : uncategorized
                     )
-                      .filter(group => group.urls.length > 0)
+                      .filter(
+                        group => (group.urls || group.urlIds || []).length > 0,
+                      )
                       .map(group => (
                         <SortableDomainCard
                           key={group.id}
@@ -2049,7 +2108,9 @@ const SavedTabs = () => {
         ) : (
           // カスタムモード表示
           <CustomProjectSection
-            projects={filteredCustomProjects}
+            projects={filteredCustomProjects.filter(
+              (proj): proj is NonNullable<typeof proj> => proj !== null,
+            )}
             handleOpenUrl={handleOpenTab}
             handleDeleteUrl={handleDeleteUrlFromProject}
             handleAddUrl={handleAddUrlToProject}

@@ -65,8 +65,8 @@ export const SortableCategorySection = ({
   )
   // derive sorted urls by savedAt (default = original order)
   const sortedUrls = useMemo(() => {
-    if (sortOrder === 'default') return props.urls
-    const arr = [...props.urls]
+    if (sortOrder === 'default') return props.urls || []
+    const arr = [...(props.urls || [])]
     arr.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
     if (sortOrder === 'desc') arr.reverse()
     return arr
@@ -88,7 +88,7 @@ export const SortableCategorySection = ({
       Promise.resolve().then(async () => {
         try {
           // URLのコピーを作成
-          const urlsToDelete = [...props.urls]
+          const urlsToDelete = [...(props.urls || [])]
 
           // まず削除フラグを設定して安全にUIを更新
           if (handleDeleteAllTabs) {
@@ -252,7 +252,7 @@ export const SortableCategorySection = ({
                 : props.categoryName}
             </h3>
             <span className='text-muted-foreground text-sm'>
-              <Badge variant='secondary'>{props.urls.length}</Badge>
+              <Badge variant='secondary'>{props.urls?.length || 0}</Badge>
             </span>
           </div>
 
@@ -265,14 +265,14 @@ export const SortableCategorySection = ({
                   size='sm'
                   onClick={e => {
                     if (
-                      props.urls.length >= 10 &&
+                      (props.urls?.length || 0) >= 10 &&
                       !window.confirm(
                         '10個以上のタブを開こうとしています。続行しますか？',
                       )
                     )
                       return
                     e.stopPropagation() // ドラッグイベントの伝播を防止
-                    handleOpenAllTabs(props.urls)
+                    handleOpenAllTabs(props.urls || [])
                   }}
                   className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
                   style={{ position: 'relative' }} // ボタンを確実に上に表示

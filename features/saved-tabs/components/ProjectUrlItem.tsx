@@ -6,7 +6,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { ChevronRight, GripVertical, X } from 'lucide-react'
 
 export interface ProjectUrlItemProps {
-  item: CustomProject['urls'][0]
+  item: NonNullable<CustomProject['urls']>[0]
   projectId: string
   handleOpenUrl: (url: string) => void
   handleDeleteUrl: (projectId: string, url: string) => void

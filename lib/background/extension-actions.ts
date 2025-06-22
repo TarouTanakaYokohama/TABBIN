@@ -3,7 +3,11 @@
  */
 
 import { getUserSettings, saveTabsWithAutoCategory } from '@/lib/storage'
-import type { Project, ProjectUrl } from '@/types/background'
+import {
+  addUrlToCustomProject,
+  createCustomProject,
+  getCustomProjects,
+} from '@/lib/storage'
 import { openSavedTabsPage } from './saved-tabs-page'
 import { filterTabsByUserSettings, showNotification } from './utils'
 
@@ -306,15 +310,14 @@ export async function handleSaveWindowTabs(): Promise<
 }
 
 /**
- * カスタムプロジェクトに同期保存
+ * カスタムプロジェクトに同期保存（新形式対応）
  */
 export async function syncToCustomProjects(
   savedUrls: { url: string; title: string }[],
 ): Promise<void> {
   try {
-    // カスタムプロジェクトを取得
-    const { customProjects = [] } =
-      await chrome.storage.local.get('customProjects')
+    // 新形式でカスタムプロジェクトを取得
+    const customProjects = await getCustomProjects()
 
     // プロジェクトが存在しなければデフォルトプロジェクトを作成
     if (customProjects.length === 0) {
@@ -322,57 +325,29 @@ export async function syncToCustomProjects(
         'カスタムプロジェクトが存在しないため、デフォルトプロジェクトを作成します',
       )
 
-      const defaultProject: Project = {
-        id: crypto.randomUUID
-          ? crypto.randomUUID()
-          : Math.random().toString(36).substring(2, 15),
-        name: 'デフォルトプロジェクト',
-        description: '自動的に作成されたプロジェクト',
-        urls: [],
-        categories: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      }
+      // 新形式でデフォルトプロジェクトを作成
+      const defaultProject = await createCustomProject(
+        'デフォルトプロジェクト',
+        '自動的に作成されたプロジェクト',
+      )
 
-      // URLsを追加
+      // URLsを新形式で追加
       for (const item of savedUrls) {
-        defaultProject.urls.push({
-          url: item.url,
-          title: item.title,
-          savedAt: Date.now(),
-        })
+        await addUrlToCustomProject(defaultProject.id, item.url, item.title)
       }
 
-      // 保存
-      await chrome.storage.local.set({ customProjects: [defaultProject] })
       console.log('デフォルトプロジェクトを作成し、URLを追加しました')
     } else {
       // 最初のプロジェクトに追加
-      const firstProject = customProjects[0] as Project
+      const firstProject = customProjects[0]
       console.log(`既存プロジェクト「${firstProject.name}」にURLを追加します`)
 
-      // 重複を避けるため既存URLをチェック
-      const existingUrls = new Set(
-        firstProject.urls.map((u: ProjectUrl) => u.url),
-      )
-
+      // 新形式でURLを追加（重複チェックは addUrlToCustomProject 内で実行）
       for (const item of savedUrls) {
-        if (!existingUrls.has(item.url)) {
-          firstProject.urls.push({
-            url: item.url,
-            title: item.title,
-            savedAt: Date.now(),
-          })
-        }
+        await addUrlToCustomProject(firstProject.id, item.url, item.title)
       }
 
-      firstProject.updatedAt = Date.now()
-
-      // 保存
-      await chrome.storage.local.set({ customProjects })
-      console.log(
-        `既存プロジェクトにURLを追加しました (合計: ${firstProject.urls.length} URLs)`,
-      )
+      console.log('既存プロジェクトにURLを追加しました')
     }
   } catch (syncError) {
     console.error(

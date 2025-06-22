@@ -237,7 +237,7 @@ export const ImportExportSettings: React.FC = () => {
               variant='secondary'
               onClick={() => setImportDialogOpen(false)}
               disabled={isImporting}
-              className='cursor-pointer w-full'
+              className='w-full cursor-pointer'
             >
               キャンセル
             </Button>

@@ -218,11 +218,11 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
       } else {
         console.log(`新しいドメインを処理: ${domain}`)
 
-        // 新しいグループを作成
+        // 新しいグループを作成（新形式）
         const newGroup: TabGroup = {
           id: uuidv4(),
           domain,
-          urls: [],
+          urlIds: [], // 新形式のURLIDs
           subCategories: [],
           savedAt: Date.now(), // グループ全体の保存時刻を追加
         }
@@ -318,21 +318,23 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
         groupedTabs.set(domain, restoredGroup)
       }
 
-      // グループにURLを追加
+      // グループにURLを追加（新形式対応）
       const group = groupedTabs.get(domain)
       if (!group) continue
 
+      // URLレコードを作成または取得
+      const { createOrUpdateUrlRecord } = await import('./urls')
+      const urlRecord = await createOrUpdateUrlRecord(tab.url, tab.title || '')
+
+      // URLIDsが存在しない場合は初期化
+      if (!group.urlIds) {
+        group.urlIds = []
+      }
+
       // URLが既に存在するかチェック
-      const urlExists = group.urls.some(
-        existingUrl => existingUrl.url === tab.url,
-      )
+      const urlExists = group.urlIds.includes(urlRecord.id)
       if (!urlExists) {
-        group.urls.push({
-          url: tab.url,
-          title: tab.title || '',
-          subCategory: undefined,
-          savedAt: Date.now(), // 個別のURL保存時刻を追加
-        })
+        group.urlIds.push(urlRecord.id)
       }
     } catch (error) {
       console.error(`Invalid URL: ${tab.url}`, error)
@@ -426,4 +428,191 @@ async function updateCategoryDomains(category: ParentCategory): Promise<void> {
 async function getTabGroupById(groupId: string): Promise<TabGroup | null> {
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
   return savedTabs.find((group: TabGroup) => group.id === groupId) || null
+}
+
+/**
+ * URL管理の正規化マイグレーション
+ * SavedTabsとCustomProjectsのURLsを共通のUrlsストレージに移行する
+ */
+export async function migrateToUrlsStorage(): Promise<void> {
+  try {
+    console.log('URL管理正規化マイグレーションを開始します')
+
+    // 既にマイグレーション済みかチェック
+    const { urlsMigrationCompleted } = await chrome.storage.local.get(
+      'urlsMigrationCompleted',
+    )
+    if (urlsMigrationCompleted) {
+      console.log('URL管理マイグレーションは既に完了済みです')
+      return
+    }
+
+    // 既存のURLsストレージをチェック
+    const { urls: existingUrls = [] } = await chrome.storage.local.get('urls')
+    const urlMap = new Map<
+      string,
+      { id: string; record: import('@/types/storage').UrlRecord }
+    >()
+
+    // 既存のURLレコードをマップに追加
+    for (const record of existingUrls) {
+      urlMap.set(record.url, { id: record.id, record })
+    }
+
+    console.log(`既存のURLレコード: ${existingUrls.length}個`)
+
+    // SavedTabsのマイグレーション
+    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+    console.log(`SavedTabsの処理開始: ${savedTabs.length}個のタブグループ`)
+
+    for (const tabGroup of savedTabs) {
+      if (
+        tabGroup.urls &&
+        Array.isArray(tabGroup.urls) &&
+        tabGroup.urls.length > 0
+      ) {
+        const urlIds: string[] = []
+        const urlSubCategories: Record<string, string> = {}
+
+        for (const urlItem of tabGroup.urls) {
+          // URLからレコードを検索または作成
+          let urlEntry = urlMap.get(urlItem.url)
+
+          if (!urlEntry) {
+            // 新しいURLレコードを作成
+            const { v4: uuidv4 } = await import('uuid')
+            const newRecord: import('@/types/storage').UrlRecord = {
+              id: uuidv4(),
+              url: urlItem.url,
+              title: urlItem.title || '',
+              savedAt: urlItem.savedAt || Date.now(),
+              favIconUrl: undefined,
+            }
+
+            urlEntry = { id: newRecord.id, record: newRecord }
+            urlMap.set(urlItem.url, urlEntry)
+          } else {
+            // 既存レコードのタイトルを更新（より詳細な情報があれば）
+            if (
+              urlItem.title &&
+              urlItem.title.length > urlEntry.record.title.length
+            ) {
+              urlEntry.record.title = urlItem.title
+            }
+          }
+
+          urlIds.push(urlEntry.id)
+
+          // サブカテゴリ情報を保存
+          if (urlItem.subCategory) {
+            urlSubCategories[urlEntry.id] = urlItem.subCategory
+          }
+        }
+
+        // TabGroupを新形式に更新
+        tabGroup.urlIds = urlIds
+        if (Object.keys(urlSubCategories).length > 0) {
+          tabGroup.urlSubCategories = urlSubCategories
+        }
+
+        // 旧形式のurlsプロパティを削除
+        tabGroup.urls = undefined
+
+        console.log(
+          `TabGroup ${tabGroup.domain}: ${urlIds.length}個のURLを移行`,
+        )
+      }
+    }
+
+    // CustomProjectsのマイグレーション
+    const { customProjects = [] } =
+      await chrome.storage.local.get('customProjects')
+    console.log(
+      `CustomProjectsの処理開始: ${customProjects.length}個のプロジェクト`,
+    )
+
+    for (const project of customProjects) {
+      if (
+        project.urls &&
+        Array.isArray(project.urls) &&
+        project.urls.length > 0
+      ) {
+        const urlIds: string[] = []
+        const urlMetadata: Record<
+          string,
+          { notes?: string; category?: string }
+        > = {}
+
+        for (const urlItem of project.urls) {
+          // URLからレコードを検索または作成
+          let urlEntry = urlMap.get(urlItem.url)
+
+          if (!urlEntry) {
+            // 新しいURLレコードを作成
+            const { v4: uuidv4 } = await import('uuid')
+            const newRecord: import('@/types/storage').UrlRecord = {
+              id: uuidv4(),
+              url: urlItem.url,
+              title: urlItem.title || '',
+              savedAt: urlItem.savedAt || Date.now(),
+              favIconUrl: undefined,
+            }
+
+            urlEntry = { id: newRecord.id, record: newRecord }
+            urlMap.set(urlItem.url, urlEntry)
+          } else {
+            // 既存レコードのタイトルを更新（より詳細な情報があれば）
+            if (
+              urlItem.title &&
+              urlItem.title.length > urlEntry.record.title.length
+            ) {
+              urlEntry.record.title = urlItem.title
+            }
+          }
+
+          urlIds.push(urlEntry.id)
+
+          // メタデータを保存
+          const metadata: { notes?: string; category?: string } = {}
+          if (urlItem.notes) metadata.notes = urlItem.notes
+          if (urlItem.category) metadata.category = urlItem.category
+
+          if (Object.keys(metadata).length > 0) {
+            urlMetadata[urlEntry.id] = metadata
+          }
+        }
+
+        // CustomProjectを新形式に更新
+        project.urlIds = urlIds
+        if (Object.keys(urlMetadata).length > 0) {
+          project.urlMetadata = urlMetadata
+        }
+
+        // 旧形式のurlsプロパティを削除
+        project.urls = undefined
+
+        console.log(`Project ${project.name}: ${urlIds.length}個のURLを移行`)
+      }
+    }
+
+    // 更新されたデータを保存
+    const allUrlRecords = Array.from(urlMap.values()).map(entry => entry.record)
+    await chrome.storage.local.set({
+      urls: allUrlRecords,
+      savedTabs,
+      customProjects,
+      urlsMigrationCompleted: true,
+    })
+
+    console.log(
+      `URL管理マイグレーション完了: ${allUrlRecords.length}個のURLレコードを作成`,
+    )
+    console.log(`SavedTabs: ${savedTabs.length}個のタブグループを更新`)
+    console.log(
+      `CustomProjects: ${customProjects.length}個のプロジェクトを更新`,
+    )
+  } catch (error) {
+    console.error('URL管理マイグレーション中にエラーが発生しました:', error)
+    throw error
+  }
 }

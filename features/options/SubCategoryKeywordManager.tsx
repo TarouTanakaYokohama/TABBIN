@@ -270,7 +270,7 @@ export const SubCategoryKeywordManager = ({
           }) || []
 
         // 3. 各URLのサブカテゴリ参照を更新
-        const updatedUrls = tab.urls.map(url => {
+        const updatedUrls = (tab.urls || []).map(url => {
           if (url.subCategory === oldName) {
             return { ...url, subCategory: newName }
           }

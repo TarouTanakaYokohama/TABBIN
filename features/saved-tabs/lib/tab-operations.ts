@@ -120,7 +120,7 @@ export async function safelyUpdateGroupUrls(
     await chrome.storage.local.set({ savedTabs: updatedTabs })
 
     // URLsが空の場合はコンソールにその旨を出力
-    if (urls.length === 0) {
+    if ((urls?.length || 0) === 0) {
       console.log(
         `グループ ${groupId} (${targetGroup.domain}) のURLがすべて削除されました。表示から除外されます。`,
       )
@@ -138,7 +138,7 @@ export async function safelyUpdateGroupUrls(
       }
     } else {
       console.log(
-        `グループ ${groupId} のURLを更新しました。残り: ${urls.length}件`,
+        `グループ ${groupId} のURLを更新しました。残り: ${urls?.length || 0}件`,
       )
     }
 
