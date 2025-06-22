@@ -153,18 +153,22 @@ export async function handleSaveSameDomainTabs(): Promise<
 
     const settings = await getUserSettings()
 
-    // 保存したタブを閉じる
-    for (const tab of filteredTabs) {
-      if (
-        tab.id &&
-        !settings.excludePatterns.some(pattern => tab.url?.includes(pattern))
-      ) {
-        try {
-          await chrome.tabs.remove(tab.id)
-          console.log(`タブ ${tab.id} を閉じました`)
-        } catch (error) {
-          console.error('タブを閉じる際にエラー:', error)
-        }
+    // 保存したタブを閉じる（一括処理）
+    const tabIdsToClose = filteredTabs
+      .filter(
+        tab =>
+          tab.id &&
+          !settings.excludePatterns.some(pattern => tab.url?.includes(pattern)),
+      )
+      .map(tab => tab.id)
+      .filter((id): id is number => id !== undefined)
+
+    if (tabIdsToClose.length > 0) {
+      try {
+        await chrome.tabs.remove(tabIdsToClose)
+        console.log(`${tabIdsToClose.length}個のタブを一括で閉じました`)
+      } catch (error) {
+        console.error('タブを閉じる際にエラー:', error)
       }
     }
 
@@ -212,14 +216,18 @@ export async function handleSaveAllWindowsTabs(): Promise<
     // saved-tabsページを開く
     const savedTabsTabId = await openSavedTabsPage()
 
-    // タブを閉じる
-    for (const tab of filteredTabs) {
-      if (tab.id && tab.id !== savedTabsTabId) {
-        try {
-          await chrome.tabs.remove(tab.id)
-        } catch (error) {
-          console.error(`タブ ${tab.id} を閉じる際にエラー:`, error)
-        }
+    // タブを閉じる（一括処理）
+    const tabIdsToClose = filteredTabs
+      .filter(tab => tab.id && tab.id !== savedTabsTabId)
+      .map(tab => tab.id)
+      .filter((id): id is number => id !== undefined)
+
+    if (tabIdsToClose.length > 0) {
+      try {
+        await chrome.tabs.remove(tabIdsToClose)
+        console.log(`${tabIdsToClose.length}個のタブを一括で閉じました`)
+      } catch (error) {
+        console.error('タブを閉じる際にエラー:', error)
       }
     }
 
@@ -282,23 +290,19 @@ export async function handleSaveWindowTabs(): Promise<
     }
   }
 
-  // タブを閉じる
+  // タブを閉じる（一括処理）
   if (tabIdsToClose.length > 0) {
     console.log(`${tabIdsToClose.length}個のタブを閉じます:`, tabIdsToClose)
 
-    for (const tabId of tabIdsToClose) {
-      try {
-        await chrome.tabs.remove(tabId)
-        console.log(`タブID ${tabId} を閉じました`)
-      } catch (error: unknown) {
-        console.error(
-          `タブID ${tabId} を閉じる際にエラーが発生しました:`,
-          error instanceof Error ? error.message : error,
-        )
-      }
+    try {
+      await chrome.tabs.remove(tabIdsToClose)
+      console.log(`${tabIdsToClose.length}個のタブを一括で閉じました`)
+    } catch (error: unknown) {
+      console.error(
+        'タブを閉じる際にエラーが発生しました:',
+        error instanceof Error ? error.message : error,
+      )
     }
-
-    console.log('すべてのタブを閉じました')
   } else {
     console.log('閉じるべきタブはありません')
   }

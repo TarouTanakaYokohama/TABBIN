@@ -163,7 +163,6 @@ export const CategoryGroup = ({
       const maxRetries = 3
 
       while (retryCount < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 500))
         const checkResult = await chrome.storage.local.get('parentCategories')
         const savedCategory = checkResult.parentCategories?.find(
           (cat: ParentCategory) => cat.id === categoryId,
@@ -201,11 +200,9 @@ export const CategoryGroup = ({
       })
 
       // 保存が完了したことを通知
-      await new Promise(resolve => setTimeout(resolve, 500)) // 更新が反映されるまで待機
 
-      // 更新の反映を待機してから処理を完了
-      console.log('CategoryGroup - 更新完了を待機中...')
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // 更新の反映を確認
+      console.log('CategoryGroup - 更新完了を確認中...')
 
       // 最終確認
       const finalCheck = await chrome.storage.local.get('parentCategories')
@@ -685,6 +682,8 @@ export const CategoryGroup = ({
                     ) {
                       for (const { id } of domains) {
                         await handleDeleteGroup(id)
+                        // Chrome Storage APIの制限を回避するため短い待機時間を追加
+                        await new Promise(resolve => setTimeout(resolve, 10))
                       }
                     }
                   }}

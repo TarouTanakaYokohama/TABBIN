@@ -453,9 +453,11 @@ export const SortableDomainCard = ({
         // 新形式のURL削除関数をインポート
         const { removeUrlFromTabGroup } = await import('@/lib/storage/tabs')
 
-        // 各URLを削除
+        // 各URLを順次削除（ストレージ競合を避けるため）
         for (const url of urlsToRemove) {
           await removeUrlFromTabGroup(group.id, url)
+          // Chrome Storage APIの制限を回避するため短い待機時間を追加
+          await new Promise(resolve => setTimeout(resolve, 10))
         }
 
         // 削除完了後にUIを更新
