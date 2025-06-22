@@ -69,7 +69,7 @@ export const SortableCategorySection = ({
         ;(async () => {
           try {
             // URLのコピーを作成
-            const urlsToDelete = [...props.urls]
+            const urlsToDelete = [...(props.urls || [])]
             const urlsToRemove = urlsToDelete.map(item => item.url)
 
             // 親から渡された保存済み全URL
@@ -133,7 +133,7 @@ export const SortableCategorySection = ({
               ? '未分類'
               : props.categoryName}{' '}
             <span className='text-muted-foreground text-sm'>
-              ({props.urls.length})
+              ({props.urls?.length || 0})
             </span>
           </h3>
         </div>
@@ -147,14 +147,14 @@ export const SortableCategorySection = ({
                 size='sm'
                 onClick={e => {
                   if (
-                    props.urls.length >= 10 &&
+                    (props.urls?.length || 0) >= 10 &&
                     !window.confirm(
                       '10個以上のタブを開こうとしています。続行しますか？',
                     )
                   )
                     return
                   e.stopPropagation() // ドラッグイベントの伝播を防止
-                  handleOpenAllTabs(props.urls)
+                  handleOpenAllTabs(props.urls || [])
                 }}
                 className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
                 style={{ position: 'relative' }} // ボタンを確実に上に表示

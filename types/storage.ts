@@ -1,3 +1,12 @@
+// URLレコードのインターフェース（共通URL管理用）
+export interface UrlRecord {
+  id: string
+  url: string
+  title: string
+  savedAt: number
+  favIconUrl?: string
+}
+
 // 親カテゴリのインターフェース
 export interface ParentCategory {
   id: string
@@ -16,12 +25,17 @@ export interface TabGroup {
   id: string
   domain: string
   parentCategoryId?: string // 親カテゴリのID
-  urls: {
+  // 新形式: URLのIDを参照
+  urlIds?: string[]
+  // 旧形式: 既存データとの互換性のため残す（マイグレーション用）
+  urls?: {
     url: string
     title: string
     subCategory?: string // 子カテゴリ名
     savedAt?: number // 個別のURL保存時刻を追加
   }[]
+  // URLのサブカテゴリ情報
+  urlSubCategories?: Record<string, string> // URLのID -> サブカテゴリ名のマッピング
   subCategories?: string[] // このドメインで利用可能な子カテゴリのリスト
   categoryKeywords?: SubCategoryKeyword[] // 子カテゴリのキーワード設定
   subCategoryOrder?: string[] // 子カテゴリの表示順序
@@ -66,13 +80,24 @@ export interface CustomProject {
   id: string
   name: string
   description?: string
-  urls: {
+  // 新形式: URLのIDを参照
+  urlIds?: string[]
+  // 旧形式: 既存データとの互換性のため残す（マイグレーション用）
+  urls?: {
     url: string
     title: string
     notes?: string
     savedAt?: number // 個別のURL保存時刻
     category?: string // プロジェクト内でのカテゴリ分類
   }[]
+  // URLのメタデータ
+  urlMetadata?: Record<
+    string,
+    {
+      notes?: string
+      category?: string
+    }
+  > // URLのID -> メタデータのマッピング
   categories: string[] // このプロジェクトで利用可能なカテゴリリスト
   categoryOrder?: string[] // カテゴリの表示順序
   createdAt: number

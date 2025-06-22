@@ -1,9 +1,41 @@
-import type { CustomProject, TabGroup, ViewMode } from '@/types/storage'
+import type {
+  CustomProject,
+  TabGroup,
+  UrlRecord,
+  ViewMode,
+} from '@/types/storage'
 import { v4 as uuidv4 } from 'uuid'
+import { migrateToUrlsStorage } from './migration'
+import { createOrUpdateUrlRecord, getUrlRecordsByIds } from './urls'
+
+/**
+ * CustomProjectからURLデータを取得する（新旧形式対応）
+ */
+export async function getProjectUrls(
+  project: CustomProject,
+): Promise<Array<UrlRecord & { notes?: string; category?: string }>> {
+  // マイグレーションを実行（未実行の場合）
+  await migrateToUrlsStorage()
+
+  // 新形式のみサポート: URLIDsから参照して取得
+  if (project.urlIds && project.urlIds.length > 0) {
+    const urlRecords = await getUrlRecordsByIds(project.urlIds)
+    return urlRecords.map(record => ({
+      ...record,
+      notes: project.urlMetadata?.[record.id]?.notes,
+      category: project.urlMetadata?.[record.id]?.category,
+    }))
+  }
+
+  return []
+}
 
 // カスタムプロジェクト一覧を取得する関数
 export async function getCustomProjects(): Promise<CustomProject[]> {
   try {
+    // マイグレーションを実行（未実行の場合）
+    await migrateToUrlsStorage()
+
     // プロジェクトとプロジェクト順序を同時に取得
     const data = await chrome.storage.local.get([
       'customProjects',
@@ -27,9 +59,9 @@ export async function getCustomProjects(): Promise<CustomProject[]> {
           'name' in project,
       )
       .map((project: CustomProject) => {
-        // URLsが配列でない場合は初期化
-        if (!project.urls || !Array.isArray(project.urls)) {
-          project.urls = []
+        // 新形式のURLIDsが存在しない場合は初期化
+        if (!project.urlIds || !Array.isArray(project.urlIds)) {
+          project.urlIds = []
         }
 
         // 必須フィールドの確認と修正
@@ -122,7 +154,7 @@ export async function createCustomProject(
     id: uuidv4(),
     name,
     description,
-    urls: [],
+    urlIds: [], // 新形式のURL IDリスト
     categories: [], // 空のカテゴリリストで初期化
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -132,7 +164,7 @@ export async function createCustomProject(
   return newProject
 }
 
-// URLをカスタムプロジェクトに追加する関数 (既存データ活用版)
+// URLをカスタムプロジェクトに追加する関数（新形式対応）
 export async function addUrlToCustomProject(
   projectId: string,
   url: string,
@@ -141,6 +173,9 @@ export async function addUrlToCustomProject(
   category?: string,
 ): Promise<void> {
   try {
+    // マイグレーションを実行（未実行の場合）
+    await migrateToUrlsStorage()
+
     const projects = await getCustomProjects()
     const projectIndex = projects.findIndex(p => p.id === projectId)
 
@@ -150,33 +185,34 @@ export async function addUrlToCustomProject(
 
     const project = projects[projectIndex]
 
-    // URLsが配列でなければ初期化
-    if (!project.urls || !Array.isArray(project.urls)) {
-      console.warn(`プロジェクト ${project.id} のURLs配列が不正、初期化します`)
-      project.urls = []
+    // URLレコードを作成または更新
+    const urlRecord = await createOrUpdateUrlRecord(url, title)
+
+    // URLIDsが存在しない場合は初期化
+    if (!project.urlIds) {
+      project.urlIds = []
     }
 
     let isNewUrl = false
 
-    // URLが既に存在するかチェック
-    if (project.urls.some(item => item.url === url)) {
-      // 既存のURLを更新
-      project.urls = project.urls.map(item =>
-        item.url === url
-          ? { ...item, title, notes, category, savedAt: Date.now() }
-          : item,
-      )
-    } else {
+    // URLが既にプロジェクトに存在するかチェック
+    if (!project.urlIds.includes(urlRecord.id)) {
       isNewUrl = true
-      // 新しいURLを追加
-      project.urls.push({
-        url,
-        title,
+      project.urlIds.push(urlRecord.id)
+    }
+
+    // メタデータを設定
+    if (notes || category) {
+      if (!project.urlMetadata) {
+        project.urlMetadata = {}
+      }
+      project.urlMetadata[urlRecord.id] = {
         notes,
         category,
-        savedAt: Date.now(),
-      })
+      }
+    }
 
+    if (isNewUrl) {
       // URLがドメインモードにまだなければ追加
       const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
 
@@ -190,29 +226,27 @@ export async function addUrlToCustomProject(
       )
 
       if (!domainGroup) {
-        // ドメイングループが存在しなければ作成
+        // ドメイングループが存在しなければ作成（新形式のみ）
         domainGroup = {
           id: uuidv4(),
           domain,
-          urls: [],
+          urlIds: [urlRecord.id],
           savedAt: Date.now(),
         }
         savedTabs.push(domainGroup)
+      } else {
+        // 既存のドメイングループに追加（新形式のみ）
+        if (!domainGroup.urlIds) {
+          domainGroup.urlIds = []
+        }
+        if (!domainGroup.urlIds.includes(urlRecord.id)) {
+          domainGroup.urlIds.push(urlRecord.id)
+        }
       }
 
-      // URLが既に存在するか確認
-      if (!domainGroup.urls.some((item: { url: string }) => item.url === url)) {
-        // 存在しなければ追加
-        domainGroup.urls.push({
-          url,
-          title,
-          savedAt: Date.now(),
-        })
-
-        // 保存
-        await chrome.storage.local.set({ savedTabs })
-        console.log(`URL ${url} をドメインモードのデータにも追加しました`)
-      }
+      // 保存
+      await chrome.storage.local.set({ savedTabs })
+      console.log(`URL ${url} をドメインモードのデータにも追加しました`)
     }
 
     project.updatedAt = Date.now()
@@ -228,11 +262,14 @@ export async function addUrlToCustomProject(
   }
 }
 
-// URLをカスタムプロジェクトから削除する関数
+// URLをカスタムプロジェクトから削除する関数（新形式対応）
 export async function removeUrlFromCustomProject(
   projectId: string,
   url: string,
 ): Promise<void> {
+  // マイグレーションを実行（未実行の場合）
+  await migrateToUrlsStorage()
+
   const projects = await getCustomProjects()
   const projectIndex = projects.findIndex(p => p.id === projectId)
 
@@ -241,7 +278,22 @@ export async function removeUrlFromCustomProject(
   }
 
   const project = projects[projectIndex]
-  project.urls = project.urls.filter(item => item.url !== url)
+
+  // 新形式のみサポート: URLIDsからURLを削除
+  if (project.urlIds && project.urlIds.length > 0) {
+    const urlRecords = await getUrlRecordsByIds(project.urlIds)
+    const urlRecord = urlRecords.find(record => record.url === url)
+
+    if (urlRecord) {
+      project.urlIds = project.urlIds.filter(id => id !== urlRecord.id)
+
+      // メタデータも削除
+      if (project.urlMetadata?.[urlRecord.id]) {
+        delete project.urlMetadata[urlRecord.id]
+      }
+    }
+  }
+
   project.updatedAt = Date.now()
   projects[projectIndex] = project
 
@@ -251,23 +303,32 @@ export async function removeUrlFromCustomProject(
   try {
     const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
 
-    const updatedGroups = savedTabs
-      .map((group: TabGroup) => {
-        const updatedUrls = group.urls.filter(
-          (item: TabGroup['urls'][number]) => item.url !== url,
-        )
-        if (updatedUrls.length === 0) {
-          return null // URLが0になったらグループを削除
-        }
-        return {
-          ...group,
-          urls: updatedUrls,
-        }
-      })
-      .filter(Boolean)
+    // URLレコードを取得
+    const urlRecords = await getUrlRecordsByIds(
+      savedTabs.flatMap((group: TabGroup) => group.urlIds || []),
+    )
+    const urlRecord = urlRecords.find(record => record.url === url)
 
-    await chrome.storage.local.set({ savedTabs: updatedGroups })
-    console.log(`URL ${url} はドメインモードからも削除されました`)
+    if (urlRecord) {
+      const updatedGroups = savedTabs
+        .map((group: TabGroup) => {
+          if (group.urlIds) {
+            const updatedUrlIds = group.urlIds.filter(id => id !== urlRecord.id)
+            if (updatedUrlIds.length === 0) {
+              return null // URLが0になったらグループを削除
+            }
+            return {
+              ...group,
+              urlIds: updatedUrlIds,
+            }
+          }
+          return group
+        })
+        .filter((group: TabGroup | null): group is TabGroup => group !== null)
+
+      await chrome.storage.local.set({ savedTabs: updatedGroups })
+      console.log(`URL ${url} はドメインモードからも削除されました`)
+    }
   } catch (syncError) {
     console.error('ドメインモードの同期中にエラーが発生しました:', syncError)
     // エラーをスローしないで続行 - カスタムプロジェクトの削除は成功している
@@ -375,25 +436,29 @@ export async function removeCategoryFromProject(
     )
   }
 
-  // このカテゴリに所属するURLのカテゴリをnullに設定
-  project.urls = project.urls.map(item => {
-    if (item.category === categoryName) {
-      return { ...item, category: undefined }
+  // このカテゴリに所属するURLのカテゴリをnullに設定（新形式対応）
+  if (project.urlMetadata) {
+    for (const urlId in project.urlMetadata) {
+      if (project.urlMetadata[urlId]?.category === categoryName) {
+        project.urlMetadata[urlId].category = undefined
+      }
     }
-    return item
-  })
+  }
 
   project.updatedAt = Date.now()
   projects[projectIndex] = project
   await saveCustomProjects(projects)
 }
 
-// URLにカテゴリを設定する関数
+// URLにカテゴリを設定する関数（新形式対応）
 export async function setUrlCategory(
   projectId: string,
   url: string,
   category?: string,
 ): Promise<void> {
+  // マイグレーションを実行（未実行の場合）
+  await migrateToUrlsStorage()
+
   const projects = await getCustomProjects()
   const projectIndex = projects.findIndex(p => p.id === projectId)
 
@@ -403,13 +468,23 @@ export async function setUrlCategory(
 
   const project = projects[projectIndex]
 
-  // URLのカテゴリを更新
-  project.urls = project.urls.map(item => {
-    if (item.url === url) {
-      return { ...item, category }
+  // 新形式のみサポート: URLIDsからURLレコードを探してカテゴリを設定
+  if (project.urlIds && project.urlIds.length > 0) {
+    const urlRecords = await getUrlRecordsByIds(project.urlIds)
+    const urlRecord = urlRecords.find(record => record.url === url)
+
+    if (urlRecord) {
+      if (!project.urlMetadata) {
+        project.urlMetadata = {}
+      }
+
+      if (!project.urlMetadata[urlRecord.id]) {
+        project.urlMetadata[urlRecord.id] = {}
+      }
+
+      project.urlMetadata[urlRecord.id].category = category
     }
-    return item
-  })
+  }
 
   project.updatedAt = Date.now()
   projects[projectIndex] = project
@@ -505,11 +580,14 @@ export async function renameCategoryInProject(
       cat === oldCategoryName ? newCategoryName : cat,
     )
   }
-  project.urls = project.urls.map(item => ({
-    ...item,
-    category:
-      item.category === oldCategoryName ? newCategoryName : item.category,
-  }))
+  // URLメタデータのカテゴリ名を更新（新形式対応）
+  if (project.urlMetadata) {
+    for (const urlId in project.urlMetadata) {
+      if (project.urlMetadata[urlId]?.category === oldCategoryName) {
+        project.urlMetadata[urlId].category = newCategoryName
+      }
+    }
+  }
   project.updatedAt = Date.now()
   projects[projectIndex] = project
   await saveCustomProjects(projects)

@@ -1,5 +1,4 @@
 import type { CategorySectionProps } from '@/types/saved-tabs'
-import type { TabGroup } from '@/types/storage'
 import type { DragEndEvent } from '@dnd-kit/core'
 import {
   DndContext,
@@ -35,31 +34,27 @@ export const CategorySection = ({
     }),
   )
 
-  // カテゴリ内でのドラッグ&ドロップハンドラ
+  // カテゴリ内でのドラッグ&ドロップハンドラ（新形式対応）
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
 
     if (over && active.id !== over.id) {
-      // このカテゴリ内のURLsを取得
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-      const currentGroup = savedTabs.find(
-        (group: TabGroup) => group.id === groupId,
-      )
-
-      if (!currentGroup) return
-
-      // 現在のグループのすべてのURLを取得
-      const allUrls = [...currentGroup.urls]
-
-      // ドラッグ元とドラッグ先のインデックスを特定
-      const oldIndex = allUrls.findIndex(item => item.url === active.id)
-      const newIndex = allUrls.findIndex(item => item.url === over.id)
+      // 現在のURL配列から新しい順序を作成
+      const oldIndex = urls.findIndex(item => item.url === active.id)
+      const newIndex = urls.findIndex(item => item.url === over.id)
 
       if (oldIndex !== -1 && newIndex !== -1) {
         // 並び替えた新しい配列を作成
-        const newUrls = arrayMove(allUrls, oldIndex, newIndex)
+        const newUrls = arrayMove(urls, oldIndex, newIndex)
 
-        // 親コンポーネント経由でストレージに保存
+        // 新形式のURL並び替え関数を呼び出し
+        const { reorderTabGroupUrls } = await import('@/lib/storage/tabs')
+        await reorderTabGroupUrls(
+          groupId,
+          newUrls.map(item => item.url),
+        )
+
+        // 親コンポーネントに通知してUIを更新
         handleUpdateUrls(groupId, newUrls)
       }
     }

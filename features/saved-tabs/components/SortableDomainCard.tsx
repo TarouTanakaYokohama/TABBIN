@@ -94,9 +94,9 @@ export const SortableDomainCard = ({
       savedAt?: number
     }
     // default では手動順保持、それ以外は日時でソート
-    let urlsToGroup = group.urls
+    let urlsToGroup = group.urls || []
     if (sortOrder !== 'default') {
-      urlsToGroup = [...group.urls]
+      urlsToGroup = [...(group.urls || [])]
       urlsToGroup.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
       if (sortOrder === 'desc') urlsToGroup.reverse()
     }
@@ -113,7 +113,7 @@ export const SortableDomainCard = ({
     }
 
     // URLを適切なカテゴリに振り分け
-    for (const url of urlsToGroup) {
+    for (const url of urlsToGroup || []) {
       if (url.subCategory && group.subCategories?.includes(url.subCategory)) {
         categorizedUrls[url.subCategory].push(url)
       } else {
@@ -132,7 +132,7 @@ export const SortableDomainCard = ({
 
     // URLごとのサブカテゴリを調べて、実際に使用されているカテゴリをリストアップ
     const usedCategories = new Set<string>()
-    for (const url of group.urls) {
+    for (const url of group.urls || []) {
       if (url.subCategory) {
         usedCategories.add(url.subCategory)
       }
@@ -431,12 +431,12 @@ export const SortableDomainCard = ({
 
     // サブカテゴリの変更を検出
     const hasSubCategoryChanges =
-      prevUrls.length > 0 &&
-      (prevUrls.length !== currentUrls.length ||
-        prevUrls.some(
+      (prevUrls?.length || 0) > 0 &&
+      ((prevUrls?.length || 0) !== (currentUrls?.length || 0) ||
+        (prevUrls || []).some(
           (prevUrl, i) =>
-            i >= currentUrls.length ||
-            prevUrl.subCategory !== currentUrls[i].subCategory,
+            i >= (currentUrls?.length || 0) ||
+            prevUrl.subCategory !== currentUrls?.[i]?.subCategory,
         ))
 
     if (hasSubCategoryChanges) {
@@ -446,7 +446,7 @@ export const SortableDomainCard = ({
     }
 
     // 参照を更新
-    prevUrlsRef.current = [...currentUrls]
+    prevUrlsRef.current = [...(currentUrls || [])]
   }, [group.urls, getActiveCategoryIds])
 
   // モーダルを閉じる際に強制更新する処理を追加
@@ -474,7 +474,7 @@ export const SortableDomainCard = ({
     }
   }
 
-  // カテゴリ内の全タブを削除する関数を修正
+  // カテゴリ内の全タブを削除する関数を修正（新形式対応）
   const handleDeleteAllTabsInCategory = useCallback(
     async (categoryName: string, urlsToDelete: Array<{ url: string }>) => {
       try {
@@ -484,51 +484,29 @@ export const SortableDomainCard = ({
           `「${categoryName}」から${urlsToRemove.length}件のタブを削除します`,
         )
 
-        return new Promise<void>(resolve => {
-          // ストレージから現在の状態を取得
-          chrome.storage.local.get('savedTabs', ({ savedTabs = [] }) => {
-            // 対象グループを特定
-            const targetGroup = savedTabs.find(
-              (tab: TabGroup) => tab.id === group.id,
-            )
-            if (!targetGroup) {
-              console.error('削除対象のグループが見つかりません')
-              resolve()
-              return
-            }
+        // 新形式のURL削除関数をインポート
+        const { removeUrlFromTabGroup } = await import('@/lib/storage/tabs')
 
-            // 残りのURLを計算
-            const remainingUrls = targetGroup.urls.filter(
-              (urlItem: { url: string; title: string; subCategory?: string }) =>
-                !urlsToRemove.includes(urlItem.url),
-            )
+        // 各URLを削除
+        for (const url of urlsToRemove) {
+          await removeUrlFromTabGroup(group.id, url)
+        }
 
-            // 更新されたグループ
-            const updatedGroups = savedTabs.map((tab: TabGroup) =>
-              tab.id === group.id ? { ...tab, urls: remainingUrls } : tab,
-            )
+        // 削除完了後にUIを更新
+        if (handleUpdateUrls) {
+          handleUpdateUrls(group.id, [])
+        }
 
-            // ストレージに保存
-            chrome.storage.local.set({ savedTabs: updatedGroups }, () => {
-              console.log(
-                `「${categoryName}」カテゴリのタブ削除完了。残り: ${remainingUrls.length}件`,
-              )
-
-              // URL数が0になったら親コンポーネントに通知
-              if (remainingUrls.length === 0 && handleUpdateUrls) {
-                handleUpdateUrls(group.id, [])
-              }
-
-              // カテゴリ表示を更新
-              requestAnimationFrame(() => {
-                const newActiveIds = getActiveCategoryIds()
-                setAllCategoryIds(newActiveIds)
-                setCategoryUpdateTrigger(prev => prev + 1)
-                resolve()
-              })
-            })
-          })
+        // カテゴリ表示を更新
+        requestAnimationFrame(() => {
+          const newActiveIds = getActiveCategoryIds()
+          setAllCategoryIds(newActiveIds)
+          setCategoryUpdateTrigger(prev => prev + 1)
         })
+
+        console.log(
+          `「${categoryName}」カテゴリから${urlsToRemove.length}件のタブを削除完了`,
+        )
       } catch (error) {
         console.error('カテゴリ内タブ削除エラー:', error)
       }
@@ -626,7 +604,7 @@ export const SortableDomainCard = ({
       style={style}
       className='shadow-md'
       data-category-id={categoryId}
-      data-urls-count={group.urls.length}
+      data-urls-count={group.urls?.length || 0}
     >
       <div className={`sticky ${stickyTop} z-40 w-full bg-card p-2`}>
         <div className='flex w-full items-center justify-between gap-2'>
@@ -722,7 +700,7 @@ export const SortableDomainCard = ({
             <span className='text-muted-foreground text-sm'>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge variant='secondary'>{group.urls.length}</Badge>
+                  <Badge variant='secondary'>{group.urls?.length || 0}</Badge>
                 </TooltipTrigger>
                 <TooltipContent side='top' className='block lg:hidden'>
                   タブ数
@@ -799,14 +777,14 @@ export const SortableDomainCard = ({
                   size='sm'
                   onClick={e => {
                     if (
-                      group.urls.length >= 10 &&
+                      (group.urls?.length || 0) >= 10 &&
                       !window.confirm(
                         '10個以上のタブを開こうとしています。続行しますか？',
                       )
                     )
                       return
                     e.stopPropagation()
-                    handleOpenAllTabs(group.urls)
+                    handleOpenAllTabs(group.urls || [])
                   }}
                   className='flex cursor-pointer items-center gap-1'
                   aria-label='すべてのタブを開く'
@@ -869,7 +847,7 @@ export const SortableDomainCard = ({
       {/* カード展開部 */}
       {!isCollapsed && (
         <CardContent className='space-y-1 p-2'>
-          {group.urls.length > 0 ? (
+          {(group.urls?.length || 0) > 0 ? (
             allCategoryIds.length > 1 ? (
               <DndContext
                 sensors={sensors}
@@ -924,7 +902,7 @@ export const SortableDomainCard = ({
             )
           ) : (
             <div className='py-4 text-center text-gray-400'>
-              {group.urls.length === 0
+              {(group.urls?.length || 0) === 0
                 ? 'このドメインにはタブがありません'
                 : 'カテゴリを追加するにはカテゴリ管理から行ってください'}
             </div>

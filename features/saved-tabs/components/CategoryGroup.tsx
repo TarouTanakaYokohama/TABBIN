@@ -86,9 +86,9 @@ export const CategoryGroup = ({
   const [_originalDomainOrder, setOriginalDomainOrder] = useState<TabGroup[]>(
     [],
   )
-  const [tempDomainOrder, setTempDomainOrder] = useState<TabGroup[]>([])
+  const [tempDomainOrder, setTempDomainOrder] = useState<typeof domains>([])
   // ドメインの状態とソート順を共通フックで管理
-  const [localDomains, setLocalDomains] = useState<TabGroup[]>(domains)
+  const [localDomains, setLocalDomains] = useState<typeof domains>(domains)
   const {
     sortOrder,
     setSortOrder,
@@ -297,8 +297,19 @@ export const CategoryGroup = ({
     setLocalDomains(domains)
   }, [domains])
 
-  // このカテゴリ内のすべてのURLを取得
-  const allUrls = domains.flatMap(group => group.urls)
+  // このカテゴリ内のすべてのURLを取得（新形式対応）
+  const allUrls = domains.flatMap(group => group.urls || [])
+
+  // デバッグ: URLsの内容を確認
+  console.log(`CategoryGroup ${category.name} - allUrls:`, allUrls)
+  console.log(
+    `CategoryGroup ${category.name} - domains:`,
+    domains.map(d => ({
+      domain: d.domain,
+      urlsCount: d.urls?.length || 0,
+      urls: d.urls,
+    })),
+  )
 
   // ドラッグ&ドロップのためのセンサー
   const sensors = useSensors(
@@ -355,8 +366,19 @@ export const CategoryGroup = ({
         if (!isReorderMode) {
           // 初回の並び替え時：並び替えモードを開始
           setIsReorderMode(true)
-          setOriginalDomainOrder([...localDomains])
-          setTempDomainOrder(updatedDomains)
+          setOriginalDomainOrder(
+            localDomains.map(domain => {
+              // urls プロパティが undefined の場合は空配列にする
+              const { urls, ...rest } = domain
+              return { ...rest, urls: urls ?? [] }
+            }),
+          )
+          setTempDomainOrder(
+            updatedDomains.map(domain => {
+              const { urls, ...rest } = domain
+              return { ...rest, urls: urls ?? [] }
+            }),
+          )
           // カテゴリ自体は折りたたまない（個々のドメインが折りたたまれる）
         } else {
           // 既に並び替えモード中：一時的な順序を更新
@@ -712,7 +734,7 @@ export const CategoryGroup = ({
           setIsModalOpen(false)
         }}
         category={category}
-        domains={localDomains}
+        domains={localDomains as TabGroup[]}
         onCategoryUpdate={handleCategoryUpdate}
       />
     </>

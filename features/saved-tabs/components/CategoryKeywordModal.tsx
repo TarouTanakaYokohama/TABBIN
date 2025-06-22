@@ -283,7 +283,7 @@ export const CategoryKeywordModal = ({
                   ? { ...ck, keywords: updatedKeywords }
                   : ck,
               ),
-              urls: g.urls.map(item =>
+              urls: (g.urls || []).map(item =>
                 item.subCategory === activeCategory
                   ? { ...item, subCategory: undefined }
                   : item,
@@ -511,7 +511,7 @@ export const CategoryKeywordModal = ({
             }) || []
 
           // URLのサブカテゴリも更新
-          const updatedUrls = tab.urls.map(url => {
+          const updatedUrls = (tab.urls || []).map(url => {
             if (url.subCategory === activeCategory) {
               return { ...url, subCategory: validName }
             }

@@ -92,7 +92,7 @@ export const CustomProjectCategory = ({
   }
 
   const categoryUrls = useMemo(
-    () => urls.filter(u => u.category === category),
+    () => (urls || []).filter(u => u.category === category),
     [urls, category],
   )
   const [localCategoryUrls, setLocalCategoryUrls] = useState(categoryUrls)
