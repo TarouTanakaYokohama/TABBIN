@@ -950,6 +950,17 @@ const SavedTabs = () => {
       setTabGroups(updatedGroups)
       await chrome.storage.local.set({ savedTabs: updatedGroups })
 
+      // 並び替えモード中の削除処理：一時的な順序からも削除
+      if (isUncategorizedReorderMode) {
+        const filteredTempOrder = tempUncategorizedOrder.filter(
+          group => group.id !== id,
+        )
+        setTempUncategorizedOrder(filteredTempOrder)
+        console.log(
+          `並び替えモード中にドメイン ${groupToDelete.domain} を一時順序からも削除しました`,
+        )
+      }
+
       // 親カテゴリからはドメインIDのみを削除（ドメイン名は保持）
       const updatedCategories = categories.map(category => ({
         ...category,
@@ -957,6 +968,19 @@ const SavedTabs = () => {
       }))
 
       await saveParentCategories(updatedCategories)
+
+      // URLデータも再取得して更新（並び替えモード中でも確実に反映）
+      const groupsWithUrls = await Promise.all(
+        updatedGroups.map(async (group: TabGroup) => {
+          if (group.urlIds && group.urlIds.length > 0) {
+            const urls = await getTabGroupUrls(group)
+            return { ...group, urls }
+          }
+          return { ...group, urls: [] }
+        }),
+      )
+      setTabGroupsWithUrls(groupsWithUrls)
+
       console.log('グループ削除処理が完了しました')
     } catch (error) {
       console.error('グループ削除エラー:', error)

@@ -1,27 +1,13 @@
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CardContent, CardHeader } from '@/components/ui/card'
-import type { CategoryGroupProps } from '@/types/saved-tabs'
-import { CategoryManagementModal } from '../components/CategoryManagementModal'
-
-interface TabGroup {
-  id: string
-  domain: string
-  urls: Array<{ url: string; title: string; subCategory?: string }>
-  subCategories?: string[]
-}
-
-interface ParentCategory {
-  id: string
-  name: string
-  domains: string[]
-  domainNames: string[]
-}
-import { Badge } from '@/components/ui/badge'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import type { CategoryGroupProps } from '@/types/saved-tabs'
+import type { ParentCategory, TabGroup } from '@/types/storage'
 import {
   DndContext,
   KeyboardSensor,
@@ -55,6 +41,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { CategoryManagementModal } from '../components/CategoryManagementModal'
 import { useSortOrder } from '../hooks/useSortOrder'
 import { SortableDomainCard } from './SortableDomainCard'
 
@@ -434,6 +421,29 @@ export const CategoryGroup = ({
     toast.info('並び替えをキャンセルしました')
   }
 
+  // 個別ドメイン削除のラッパー関数（並び替えモードを考慮）
+  const handleDeleteSingleDomain = async (domainId: string) => {
+    // 元のhandleDeleteGroupを呼び出し
+    await handleDeleteGroup(domainId)
+
+    // 並び替えモード中の場合は一時順序からも削除
+    if (isReorderMode) {
+      const filteredTempOrder = tempDomainOrder.filter(
+        domain => domain.id !== domainId,
+      )
+      setTempDomainOrder(filteredTempOrder)
+
+      // もし一時順序が空になった場合は並び替えモードを終了
+      if (filteredTempOrder.length === 0) {
+        setIsReorderMode(false)
+        setOriginalDomainOrder([])
+        console.log(
+          '並び替えモード中にすべてのドメインが削除されたため、並び替えモードを終了しました',
+        )
+      }
+    }
+  }
+
   // 検索でヒットしないカテゴリは非表示
   const hasSearchQuery = searchQuery.trim().length > 0
   const hasVisibleDomains = domains.some(
@@ -646,14 +656,29 @@ export const CategoryGroup = ({
                   variant='secondary'
                   size='sm'
                   onClick={() => {
+                    // 並び替えモード中の場合は一時順序を使用
+                    const domainsToOpen = isReorderMode
+                      ? tempDomainOrder
+                      : domains
+                    const urlsToOpen = domainsToOpen.flatMap(
+                      group => group.urls || [],
+                    )
+
                     if (
-                      allUrls.length >= 10 &&
+                      urlsToOpen.length >= 10 &&
                       !window.confirm(
                         '10個以上のタブを開こうとしています。続行しますか？',
                       )
                     )
                       return
-                    handleOpenAllTabs(allUrls)
+                    handleOpenAllTabs(urlsToOpen)
+
+                    // 並び替えモード中の開く処理ログ
+                    if (isReorderMode) {
+                      console.log(
+                        `並び替えモード中にカテゴリ ${category.name} のタブをすべて開きました`,
+                      )
+                    }
                   }}
                   className='flex cursor-pointer items-center gap-1'
                   aria-label='すべてのタブを開く'
@@ -680,10 +705,23 @@ export const CategoryGroup = ({
                         'カテゴリ内のすべてのドメインを削除しますか？',
                       )
                     ) {
-                      for (const { id } of domains) {
+                      // 並び替えモード中の削除処理を考慮
+                      const domainsToDelete = isReorderMode
+                        ? tempDomainOrder
+                        : domains
+                      for (const { id } of domainsToDelete) {
                         await handleDeleteGroup(id)
                         // Chrome Storage APIの制限を回避するため短い待機時間を追加
                         await new Promise(resolve => setTimeout(resolve, 10))
+                      }
+                      // 並び替えモード中であれば、削除後に一時順序もクリア
+                      if (isReorderMode) {
+                        setTempDomainOrder([])
+                        setIsReorderMode(false)
+                        setOriginalDomainOrder([])
+                        console.log(
+                          `並び替えモード中にカテゴリ ${category.name} のすべてのドメインを削除しました`,
+                        )
                       }
                     }
                   }}
@@ -720,7 +758,7 @@ export const CategoryGroup = ({
                       key={group.id}
                       group={group}
                       handleOpenAllTabs={handleOpenAllTabs}
-                      handleDeleteGroup={handleDeleteGroup}
+                      handleDeleteGroup={handleDeleteSingleDomain}
                       handleDeleteUrl={handleDeleteUrl}
                       handleOpenTab={handleOpenTab}
                       handleUpdateUrls={handleUpdateUrls}
@@ -751,7 +789,7 @@ export const CategoryGroup = ({
           setIsModalOpen(false)
         }}
         category={category}
-        domains={localDomains as TabGroup[]}
+        domains={localDomains}
         onCategoryUpdate={handleCategoryUpdate}
       />
     </>

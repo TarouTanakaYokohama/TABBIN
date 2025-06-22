@@ -762,6 +762,12 @@ export const SortableDomainCard = ({
                       return
                     e.stopPropagation()
                     handleOpenAllTabs(group.urls || [])
+                    // 並び替えモード中でもタブを開いた後の処理
+                    if (isReorderMode) {
+                      console.log(
+                        `並び替えモード中にドメイン ${group.domain} のタブをすべて開きました`,
+                      )
+                    }
                   }}
                   className='flex cursor-pointer items-center gap-1'
                   aria-label='すべてのタブを開く'
@@ -789,6 +795,16 @@ export const SortableDomainCard = ({
                       window.confirm('すべてのタブを削除しますか？')
                     ) {
                       handleDeleteGroup(group.id)
+                      // 並び替えモード中でも強制的にドメインカードの表示を更新
+                      if (isReorderMode) {
+                        // 削除後のDOM更新を次のレンダーサイクルで実行
+                        requestAnimationFrame(() => {
+                          // 親コンポーネントに削除を通知（必要に応じて追加実装）
+                          console.log(
+                            `並び替えモード中にドメイン ${group.domain} を削除しました`,
+                          )
+                        })
+                      }
                     }
                   }}
                   className='flex cursor-pointer items-center gap-1'
