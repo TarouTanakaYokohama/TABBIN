@@ -21,6 +21,7 @@ export interface CategoryGroupProps {
   handleDeleteCategory?: (groupId: string, categoryName: string) => void
   settings: UserSettings
   isCategoryReorderMode?: boolean // 親カテゴリ並び替えモード状態
+  searchQuery?: string // 検索クエリ
 }
 
 // ドメインカード用のソータブルコンポーネントの型
@@ -36,6 +37,7 @@ export interface SortableDomainCardProps {
   isDraggingOver?: boolean // ドラッグオーバー状態
   settings?: UserSettings // 設定プロパティ
   isReorderMode?: boolean // 並び替えモード状態
+  searchQuery?: string // 検索クエリ
 }
 
 // カテゴリセクションコンポーネント
