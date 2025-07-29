@@ -47,7 +47,7 @@ export const Header = ({
 
   return (
     <div className='mb-4 flex items-center gap-4'>
-      <div className='flex flex-1 items-center gap-4'>
+      <div className='flex flex-1 items-center gap-1'>
         <h1 className='whitespace-nowrap font-bold text-3xl text-foreground'>
           TABBIN
         </h1>
