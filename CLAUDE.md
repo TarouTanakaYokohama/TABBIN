@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 このファイルは、このリポジトリでコードを作業する際にClaude Code (claude.ai/code) にガイダンスを提供します。
 
 ## 基本原則
@@ -20,18 +22,22 @@ TABBIN（タビン）は、React、TypeScript、WXTフレームワークを使�
 ## 開発コマンド
 
 ### コア開発
-- `npm run dev` - ホットリロード付き開発サーバーを起動
-- `npm run build` - プロダクション拡張機能をビルド
-- `npm run zip` - 配布可能な拡張機能zipを作成
+- `npm run dev` - Chrome向けホットリロード付き開発サーバーを起動
+- `npm run dev:firefox` - Firefox向け開発サーバーを起動
+- `npm run build` - Chrome向けプロダクション拡張機能をビルド
+- `npm run build:firefox` - Firefox向けプロダクション拡張機能をビルド
+- `npm run zip` - Chrome向け配布可能な拡張機能zipを作成
+- `npm run zip:firefox` - Firefox向け配布可能な拡張機能zipを作成
 
 ### コード品質とテスト
 - `npm run format` - Biomeでコードをフォーマット（コミット前に必須）
-- `npm run test` - Vitestでユニットテストを実行
-- `npm run e2e` - PlaywrightでE2Eテストを実行
-- `npm run compile` - TypeScript型チェック
+- `npm run test` - Vitestでentrypoints配下のユニットテストを実行（Node環境）
+- `npm run e2e` - PlaywrightでE2Eテストを実行（Chromium、Firefox、Webkit対応）
+- `npm run compile` - TypeScript型チェック（noEmitモード）
 
 ### コンポーネント開発
-- `npm run storybook` - コンポーネント開発用Storybookを起動
+- `npm run storybook` - コンポーネント開発用Storybookをポート6006で起動
+- `npm run build-storybook` - Storybookの静的ビルドを作成
 
 ## アーキテクチャ概要
 
@@ -70,9 +76,11 @@ TABBIN（タビン）は、React、TypeScript、WXTフレームワークを使�
 ### フォーマット（Biome）
 - 2スペースインデント
 - JS/TSにシングルクォート
-- 必要に応じてセミコロン
+- セミコロンは必要な場合のみ（asNeeded）
 - 80文字行幅
 - import整理有効
+- 対象ファイル: `*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}`
+- 除外ディレクトリ: `.output`, `.wxt`, `node_modules`
 
 ### TypeScript
 - ストリクトモード有効 (`strict: true`)
@@ -91,15 +99,16 @@ TABBIN（タビン）は、React、TypeScript、WXTフレームワークを使�
 - 関数・コンポーネントには JSDoc コメントを必ず付与し、目的・引数・戻り値を明示
 
 ### テスト
-- **ユニットテスト**: ビジネスロジックとユーティリティにVitest
-- **E2Eテスト**: 拡張機能の機能にPlaywright
-- **コンポーネントテスト**: UIコンポーネントにStorybook
+- **ユニットテスト**: Vitest（Node環境、`entrypoints/**/*.test.ts`対象、モック各テスト後リセット）
+- **E2Eテスト**: Playwright（Chromium/Firefox/WebKit対応、CI環境で2回リトライ、HTMLレポート）
+- **コンポーネントテスト**: Storybookを使用したUIコンポーネント開発・テスト
 
 ## 開発ワークフロー
 
 ### Git フック（Lefthook）
-- **Pre-commit**: 自動Biomeフォーマットとリント
-- **Pre-push**: 最終コード品質チェック
+- **Pre-commit**: Biomeによる自動フォーマットと修正、ステージング
+- **Pre-push**: Biomeによる最終コード品質チェック
+- **対象ファイル**: `*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}`
 
 ### 品質ゲート
 1. Biomeフォーマットが通過する必要
@@ -129,9 +138,12 @@ TABBIN（タビン）は、React、TypeScript、WXTフレームワークを使�
 
 ## 主要な開発注意事項
 
-- 拡張機能はWXTフレームワーク抽象化でmanifest v3を使用
+- WXT 0.20.5フレームワーク使用、manifest v3対応
+- React 19 + TypeScript + Tailwind CSS 4.x構成
+- Chrome/Firefox両対応のクロスブラウザ拡張機能
 - 国際化構造を持つ日本語中心のUI
-- デュアル表示モードアーキテクチャにはデータ同期が必要
+- デュアル表示モードアーキテクチャ（ドメイン/カスタム）にはデータ同期が必要
 - 自動分類はドメインパターンマッチングに依存
-- コンポーネントアーキテクチャはshadcn/uiパターンに従う
+- shadcn/ui + Radix UIコンポーネントパターンに従う
 - React 19フックとメモ化でパフォーマンス最適化
+- Biome 1.9.4による高速ツールチェーン

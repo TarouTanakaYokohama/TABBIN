@@ -51,13 +51,13 @@ export const Header = ({
         <h1 className='whitespace-nowrap font-bold text-3xl text-foreground'>
           TABBIN
         </h1>
-        <div className='relative w-full'>
+        <div className='relative w-full min-w-24'>
           <Input
             type='text'
             placeholder='検索'
             value={searchQuery}
             onChange={e => onSearchChange(e.target.value)}
-            className='h-9 w-full'
+            className='h-9 w-full pr-9'
           />
           {searchQuery && (
             <Button
