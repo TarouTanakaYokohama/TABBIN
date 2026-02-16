@@ -1,0 +1,35 @@
+// @vitest-environment jsdom
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from './dialog'
+
+describe('Dialog', () => {
+  it('renders trigger and close wrappers with slot attributes', () => {
+    render(
+      <Dialog open>
+        <DialogTrigger>Open Dialog</DialogTrigger>
+        <DialogContent>
+          <DialogTitle>Dialog Title</DialogTitle>
+          <DialogDescription>Dialog Description</DialogDescription>
+          <DialogClose>Close Dialog</DialogClose>
+        </DialogContent>
+      </Dialog>,
+    )
+
+    const trigger = screen.getByRole('button', {
+      name: 'Open Dialog',
+      hidden: true,
+    })
+    expect(trigger.getAttribute('data-slot')).toBe('dialog-trigger')
+
+    const close = screen.getByRole('button', { name: 'Close Dialog' })
+    expect(close.getAttribute('data-slot')).toBe('dialog-close')
+  })
+})

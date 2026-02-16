@@ -371,20 +371,10 @@ export const importSettings = async (
               // 既存のキーワードとマージ
               const existingItem = keywordMap.get(k.categoryName)
               if (existingItem) {
-                // k の型を明示的にキャスト
-                const keywordData = k as {
-                  categoryName: string
-                  keywords?: string[]
-                }
                 keywordMap.set(k.categoryName, {
                   categoryName: k.categoryName,
                   keywords: [
-                    ...new Set([
-                      ...existingItem.keywords,
-                      ...(Array.isArray(keywordData.keywords)
-                        ? keywordData.keywords
-                        : []),
-                    ]),
+                    ...new Set([...existingItem.keywords, ...k.keywords]),
                   ],
                 })
               }

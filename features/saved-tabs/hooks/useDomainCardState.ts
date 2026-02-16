@@ -6,6 +6,7 @@ import {
   getParentCategories,
 } from '@/lib/storage/categories'
 import { assignDomainToCategory } from '@/lib/storage/migration'
+import { removeUrlFromTabGroup } from '@/lib/storage/tabs'
 import type { ParentCategory, TabGroup } from '@/types/storage'
 
 /** useDomainCardState フックの引数 */
@@ -377,8 +378,6 @@ export function useDomainCardState({
         console.log(
           `「${categoryName}」から${urlsToRemove.length}件のタブを削除します`,
         )
-
-        const { removeUrlFromTabGroup } = await import('@/lib/storage/tabs')
 
         for (const url of urlsToRemove) {
           await removeUrlFromTabGroup(group.id, url)

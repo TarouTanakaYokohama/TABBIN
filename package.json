@@ -17,10 +17,12 @@
     "lint": "biome lint .",
     "check": "biome check .",
     "check:write": "biome check --write .",
-    "test": "vitest run entrypoints/**/*.test.ts --environment=node",
+    "quality": "npm run format && npm run lint && npm run check && npm run test",
+    "test": "vitest run --config vitest.ci.config.ts",
+    "test:coverage": "vitest run --coverage --config vitest.ci.config.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "e2e": "playwright test"
+    "e2e": "playwright test e2e"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
