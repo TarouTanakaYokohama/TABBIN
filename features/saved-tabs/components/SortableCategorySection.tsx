@@ -1,12 +1,3 @@
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import type { SortableCategorySectionProps } from '@/types/saved-tabs'
-import type { UserSettings } from '@/types/storage'
 import { useDndMonitor } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -21,6 +12,15 @@ import {
   Trash,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import type { SortableCategorySectionProps } from '@/types/saved-tabs'
+import type { UserSettings } from '@/types/storage'
 import { CategorySection } from './TimeRemaining'
 
 // 並び替え可能なカテゴリセクションコンポーネント

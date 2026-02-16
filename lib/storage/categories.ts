@@ -1,10 +1,10 @@
+import { v4 as uuidv4 } from 'uuid'
 import type {
   DomainCategorySettings,
   DomainParentCategoryMapping,
   ParentCategory,
   SubCategoryKeyword,
 } from '@/types/storage'
-import { v4 as uuidv4 } from 'uuid'
 
 // 親カテゴリを取得する関数
 export async function getParentCategories(): Promise<ParentCategory[]> {

@@ -1,9 +1,9 @@
 import '@/assets/global.css'
-import { ThemeProvider } from '@/components/theme-provider'
-import { Card } from '@/components/ui/card'
 import { Check } from 'lucide-react'
 import type React from 'react'
 import { createRoot } from 'react-dom/client'
+import { ThemeProvider } from '@/components/theme-provider'
+import { Card } from '@/components/ui/card'
 
 interface ChangelogFeature {
   text: string

@@ -3,18 +3,15 @@
  * リファクタリング後のモジュラー構造
  */
 
-import {
-  getParentCategories,
-  migrateParentCategoriesToDomainNames,
-} from '@/lib/storage'
 import { defineBackground } from 'wxt/utils/define-background'
-
 import { setupExpiredTabsCheckAlarm } from '@/lib/background/alarm-notification'
 // 分離したモジュールをインポート
 import { createContextMenus } from '@/lib/background/context-menu'
 import { handleExtensionActionClick } from '@/lib/background/extension-actions'
 import { setupMessageListener } from '@/lib/background/message-handler'
 import { handleTabCreated } from '@/lib/background/url-storage'
+import { getParentCategories } from '@/lib/storage/categories'
+import { migrateParentCategoriesToDomainNames } from '@/lib/storage/migration'
 
 export default defineBackground(() => {
   // 拡張機能インストール・更新時の処理

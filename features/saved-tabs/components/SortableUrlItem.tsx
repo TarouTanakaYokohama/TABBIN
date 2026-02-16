@@ -1,9 +1,9 @@
-import { Button } from '@/components/ui/button'
-import type { SortableUrlItemProps } from '@/types/saved-tabs'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import type { SortableUrlItemProps } from '@/types/saved-tabs'
 
 // URL項目用のソータブルコンポーネント - 型定義を修正
 export const SortableUrlItem = ({

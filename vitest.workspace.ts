@@ -1,9 +1,8 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-
-import { defineWorkspace } from 'vitest/config'
-
-import { storybookTest } from '@storybook/experimental-addon-test/vitest-plugin'
+import { storybookTest } from '@storybook/addon-vitest/vitest-plugin'
+import { playwright } from '@vitest/browser-playwright'
+import { defineProject } from 'vitest/config'
 
 const dirname =
   typeof __dirname !== 'undefined'
@@ -11,9 +10,9 @@ const dirname =
     : path.dirname(fileURLToPath(import.meta.url))
 
 // More info at: https://storybook.js.org/docs/writing-tests/test-addon
-export default defineWorkspace([
+export default [
   'vitest.config.ts',
-  {
+  defineProject({
     plugins: [
       // The plugin will run tests for the stories defined in your Storybook config
       // See options at: https://storybook.js.org/docs/writing-tests/test-addon#storybooktest
@@ -24,10 +23,10 @@ export default defineWorkspace([
       browser: {
         enabled: true,
         headless: true,
-        provider: 'playwright',
+        provider: playwright(),
         instances: [{ browser: 'chromium' }],
       },
       setupFiles: ['.storybook/vitest.setup.ts'],
     },
-  },
-])
+  }),
+]

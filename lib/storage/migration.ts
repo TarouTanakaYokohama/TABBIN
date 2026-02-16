@@ -1,9 +1,9 @@
+import { v4 as uuidv4 } from 'uuid'
 import type {
   DomainParentCategoryMapping,
   ParentCategory,
   TabGroup,
 } from '@/types/storage'
-import { v4 as uuidv4 } from 'uuid'
 import {
   getDomainCategoryMappings,
   getParentCategories,
@@ -17,8 +17,10 @@ export async function assignDomainToCategory(
   domainId: string,
   categoryId: string,
 ): Promise<void> {
-  const categories = await getParentCategories()
-  const tabGroup = await getTabGroupById(domainId)
+  const [categories, tabGroup] = await Promise.all([
+    getParentCategories(),
+    getTabGroupById(domainId),
+  ])
 
   // ドメイン-カテゴリのマッピングも更新
   if (tabGroup) {
@@ -63,11 +65,14 @@ export async function assignDomainToCategory(
 export async function migrateParentCategoriesToDomainNames(): Promise<void> {
   try {
     console.log('親カテゴリのdomainNames移行を緊急実行します')
-    const categories = await getParentCategories()
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-    const { domainCategoryMappings = [] } = await chrome.storage.local.get(
-      'domainCategoryMappings',
-    )
+    const [categories, savedTabsResult, domainCategoryMappingsResult] =
+      await Promise.all([
+        getParentCategories(),
+        chrome.storage.local.get('savedTabs'),
+        chrome.storage.local.get('domainCategoryMappings'),
+      ])
+    const { savedTabs = [] } = savedTabsResult
+    const { domainCategoryMappings = [] } = domainCategoryMappingsResult
 
     console.log('現在の親カテゴリ:', categories)
     console.log('現在のタブグループ数:', savedTabs.length)
@@ -164,7 +169,18 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 
   // 既存のタブグループを取得
   const groupedTabs = new Map<string, TabGroup>()
-  const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+  const [
+    savedTabsResult,
+    domainCategoryMappings,
+    parentCategories,
+    { createOrUpdateUrlRecord },
+  ] = await Promise.all([
+    chrome.storage.local.get('savedTabs'),
+    getDomainCategoryMappings(),
+    getParentCategories(),
+    import('./urls'),
+  ])
+  const { savedTabs = [] } = savedTabsResult
 
   // 既存のタブグループをIDではなくドメインをキーにしてMapに保存
   for (const group of savedTabs) {
@@ -175,12 +191,8 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
   console.log('既存タブグループ数:', savedTabs.length)
   console.log('重複除外済みタブグループ数:', groupedTabs.size)
 
-  // ドメインカテゴリマッピングを取得
-  const domainCategoryMappings = await getDomainCategoryMappings()
   console.log('ドメインマッピング:', domainCategoryMappings)
 
-  // 親カテゴリを取得
-  const parentCategories = await getParentCategories()
   console.log('親カテゴリ一覧:', parentCategories)
 
   // デバッグ用にカテゴリのdomainNamesを出力
@@ -300,12 +312,11 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
             ]
           }
 
-          // 親カテゴリを更新
-          await updateCategoryDomains(updatedCategory)
-          console.log(`親カテゴリ「${foundCategory.name}」を更新しました`)
-
-          // ドメインカテゴリのマッピングも更新
-          await updateDomainCategoryMapping(domain, foundCategory.id)
+          // 親カテゴリ更新とマッピング更新は独立しているため並列化
+          await Promise.all([
+            updateCategoryDomains(updatedCategory),
+            updateDomainCategoryMapping(domain, foundCategory.id),
+          ])
           console.log(
             `ドメイン ${domain} と親カテゴリのマッピングを更新しました`,
           )
@@ -323,7 +334,6 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
       if (!group) continue
 
       // URLレコードを作成または取得
-      const { createOrUpdateUrlRecord } = await import('./urls')
       const urlRecord = await createOrUpdateUrlRecord(tab.url, tab.title || '')
 
       // URLIDsが存在しない場合は初期化
@@ -447,8 +457,17 @@ export async function migrateToUrlsStorage(): Promise<void> {
       return
     }
 
-    // 既存のURLsストレージをチェック
-    const { urls: existingUrls = [] } = await chrome.storage.local.get('urls')
+    // 既存データを並列に取得
+    const [existingUrlsResult, savedTabsResult, customProjectsResult] =
+      await Promise.all([
+        chrome.storage.local.get('urls'),
+        chrome.storage.local.get('savedTabs'),
+        chrome.storage.local.get('customProjects'),
+      ])
+    const { urls: existingUrls = [] } = existingUrlsResult
+    const { savedTabs = [] } = savedTabsResult
+    const { customProjects = [] } = customProjectsResult
+
     const urlMap = new Map<
       string,
       { id: string; record: import('@/types/storage').UrlRecord }
@@ -462,7 +481,6 @@ export async function migrateToUrlsStorage(): Promise<void> {
     console.log(`既存のURLレコード: ${existingUrls.length}個`)
 
     // SavedTabsのマイグレーション
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
     console.log(`SavedTabsの処理開始: ${savedTabs.length}個のタブグループ`)
 
     for (const tabGroup of savedTabs) {
@@ -480,7 +498,6 @@ export async function migrateToUrlsStorage(): Promise<void> {
 
           if (!urlEntry) {
             // 新しいURLレコードを作成
-            const { v4: uuidv4 } = await import('uuid')
             const newRecord: import('@/types/storage').UrlRecord = {
               id: uuidv4(),
               url: urlItem.url,
@@ -525,8 +542,6 @@ export async function migrateToUrlsStorage(): Promise<void> {
     }
 
     // CustomProjectsのマイグレーション
-    const { customProjects = [] } =
-      await chrome.storage.local.get('customProjects')
     console.log(
       `CustomProjectsの処理開始: ${customProjects.length}個のプロジェクト`,
     )
@@ -549,7 +564,6 @@ export async function migrateToUrlsStorage(): Promise<void> {
 
           if (!urlEntry) {
             // 新しいURLレコードを作成
-            const { v4: uuidv4 } = await import('uuid')
             const newRecord: import('@/types/storage').UrlRecord = {
               id: uuidv4(),
               url: urlItem.url,

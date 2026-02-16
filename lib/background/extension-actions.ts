@@ -2,12 +2,13 @@
  * 拡張機能アクション管理モジュール
  */
 
-import { getUserSettings, saveTabsWithAutoCategory } from '@/lib/storage'
+import { saveTabsWithAutoCategory } from '@/lib/storage/migration'
 import {
   addUrlToCustomProject,
   createCustomProject,
   getCustomProjects,
-} from '@/lib/storage'
+} from '@/lib/storage/projects'
+import { getUserSettings } from '@/lib/storage/settings'
 import { openSavedTabsPage } from './saved-tabs-page'
 import { filterTabsByUserSettings, showNotification } from './utils'
 
@@ -145,13 +146,13 @@ export async function handleSaveSameDomainTabs(): Promise<
     // タブを保存
     await saveTabsWithAutoCategory(filteredTabs)
 
-    // 通知を表示
-    await showNotification(
-      'タブ保存',
-      `${currentDomain}の${filteredTabs.length}個のタブを保存しました`,
-    )
-
-    const settings = await getUserSettings()
+    const [settings] = await Promise.all([
+      getUserSettings(),
+      showNotification(
+        'タブ保存',
+        `${currentDomain}の${filteredTabs.length}個のタブを保存しました`,
+      ),
+    ])
 
     // 保存したタブを閉じる（一括処理）
     const tabIdsToClose = filteredTabs
@@ -207,14 +208,13 @@ export async function handleSaveAllWindowsTabs(): Promise<
     // タブを保存
     await saveTabsWithAutoCategory(filteredTabs)
 
-    // 通知を表示
-    await showNotification(
-      'タブ保存',
-      `すべてのウィンドウから${filteredTabs.length}個のタブを保存しました`,
-    )
-
-    // saved-tabsページを開く
-    const savedTabsTabId = await openSavedTabsPage()
+    const [, savedTabsTabId] = await Promise.all([
+      showNotification(
+        'タブ保存',
+        `すべてのウィンドウから${filteredTabs.length}個のタブを保存しました`,
+      ),
+      openSavedTabsPage(),
+    ])
 
     // タブを閉じる（一括処理）
     const tabIdsToClose = filteredTabs
@@ -266,17 +266,16 @@ export async function handleSaveWindowTabs(): Promise<
 
   console.log('タブの保存と自動カテゴライズが完了しました')
 
-  // 保存完了通知を表示
-  await showNotification(
-    'タブ保存',
-    `${filteredTabs.length}個のタブが保存されました。タブを閉じます。`,
-  )
-
-  // saved-tabsページを開く
-  const savedTabsTabId = await openSavedTabsPage()
+  const [savedTabsTabId, settings] = await Promise.all([
+    openSavedTabsPage(),
+    getUserSettings(),
+    showNotification(
+      'タブ保存',
+      `${filteredTabs.length}個のタブが保存されました。タブを閉じます。`,
+    ),
+  ])
 
   // 閉じるタブを収集
-  const settings = await getUserSettings()
   const tabIdsToClose: number[] = []
 
   for (const tab of filteredTabs) {

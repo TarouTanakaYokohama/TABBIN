@@ -1,9 +1,9 @@
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import type { CustomProject, UserSettings } from '@/types/storage'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronRight, GripVertical, X } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import type { CustomProject, UserSettings } from '@/types/storage'
 
 export interface ProjectUrlItemProps {
   item: NonNullable<CustomProject['urls']>[0]

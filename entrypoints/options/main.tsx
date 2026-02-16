@@ -1,8 +1,8 @@
 import '@/assets/global.css'
-import type { UserSettings } from '@/types/storage'
 // lucide-reactからアイコンをインポート - AlertTriangleを追加
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { createRoot } from 'react-dom/client'
+import { ThemeProvider } from '@/components/theme-provider'
 
 // UIコンポーネントのインポート
 import { Button } from '@/components/ui/button'
@@ -19,23 +19,18 @@ import {
 } from '@/components/ui/select'
 import { Toaster } from '@/components/ui/sonner'
 import { Textarea } from '@/components/ui/textarea'
-
-import { ThemeProvider } from '@/components/theme-provider'
-import { ImportExportSettings } from '@/features/options/ImportExportSettings'
-
 import { autoDeleteOptions } from '@/constants/autoDeleteOptions'
 // 定数をインポート
 import { clickBehaviorOptions } from '@/constants/clickBehaviorOptions'
 import { colorOptions } from '@/constants/colorOptions'
 import { getDefaultColor } from '@/constants/defaultColors'
-
 // Hooksのインポート
-import {
-  useAutoDeletePeriod,
-  useCategories,
-  useColorSettings,
-  useSettings,
-} from '@/features/options/hooks'
+import { useAutoDeletePeriod } from '@/features/options/hooks/useAutoDeletePeriod'
+import { useCategories } from '@/features/options/hooks/useCategories'
+import { useColorSettings } from '@/features/options/hooks/useColorSettings'
+import { useSettings } from '@/features/options/hooks/useSettings'
+import { ImportExportSettings } from '@/features/options/ImportExportSettings'
+import type { UserSettings } from '@/types/storage'
 
 const OptionsPage = () => {
   // カスタムhooksを使用

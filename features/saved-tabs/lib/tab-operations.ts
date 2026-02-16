@@ -3,7 +3,7 @@ import {
   saveParentCategories,
   updateDomainCategoryMapping,
   updateDomainCategorySettings,
-} from '@/lib/storage'
+} from '@/lib/storage/categories'
 import type { TabGroup } from '@/types/storage'
 
 /**

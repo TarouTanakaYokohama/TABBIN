@@ -1,5 +1,5 @@
-import type { UrlRecord } from '@/types/storage'
 import { v4 as uuidv4 } from 'uuid'
+import type { UrlRecord } from '@/types/storage'
 
 /**
  * すべてのURLレコードを取得する
@@ -125,8 +125,15 @@ export async function deleteUrlRecord(id: string): Promise<boolean> {
  */
 export async function isUrlRecordReferenced(urlId: string): Promise<boolean> {
   try {
+    // SavedTabsとCustomProjectsは独立しているため並列取得
+    const [savedTabsResult, customProjectsResult] = await Promise.all([
+      chrome.storage.local.get('savedTabs'),
+      chrome.storage.local.get('customProjects'),
+    ])
+    const { savedTabs = [] } = savedTabsResult
+    const { customProjects = [] } = customProjectsResult
+
     // SavedTabsで参照されているかチェック
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
     for (const tabGroup of savedTabs) {
       if (tabGroup.urlIds?.includes(urlId)) {
         return true
@@ -134,8 +141,6 @@ export async function isUrlRecordReferenced(urlId: string): Promise<boolean> {
     }
 
     // CustomProjectsで参照されているかチェック
-    const { customProjects = [] } =
-      await chrome.storage.local.get('customProjects')
     for (const project of customProjects) {
       if (project.urlIds?.includes(urlId)) {
         return true
@@ -154,11 +159,18 @@ export async function isUrlRecordReferenced(urlId: string): Promise<boolean> {
  */
 export async function cleanupUnreferencedUrls(): Promise<number> {
   try {
-    const urlRecords = await getUrlRecords()
+    const [urlRecords, savedTabsResult, customProjectsResult] =
+      await Promise.all([
+        getUrlRecords(),
+        chrome.storage.local.get('savedTabs'),
+        chrome.storage.local.get('customProjects'),
+      ])
+    const { savedTabs = [] } = savedTabsResult
+    const { customProjects = [] } = customProjectsResult
+
     const referencedIds = new Set<string>()
 
     // SavedTabsから参照されているURLIDを収集
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
     for (const tabGroup of savedTabs) {
       if (tabGroup.urlIds) {
         for (const id of tabGroup.urlIds) {
@@ -168,8 +180,6 @@ export async function cleanupUnreferencedUrls(): Promise<number> {
     }
 
     // CustomProjectsから参照されているURLIDを収集
-    const { customProjects = [] } =
-      await chrome.storage.local.get('customProjects')
     for (const project of customProjects) {
       if (project.urlIds) {
         for (const id of project.urlIds) {

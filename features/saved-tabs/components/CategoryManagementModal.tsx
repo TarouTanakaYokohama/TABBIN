@@ -1,3 +1,7 @@
+import { Edit, Plus, Trash, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { z } from 'zod/v3' // zodをインポート
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,10 +25,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { ParentCategory, TabGroup } from '@/types/storage'
-import { Edit, Plus, Trash, Trash2, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
-import { z } from 'zod' // zodをインポート
 
 // カテゴリ名のバリデーションスキーマ
 const categoryNameSchema = z
@@ -88,20 +88,8 @@ export const CategoryManagementModal = ({
     }
   }
 
-  // モーダルが開いたときの初期化
-  useEffect(() => {
-    if (isOpen) {
-      setNewCategoryName(category.name)
-      setLocalCategoryName(category.name)
-      setIsRenaming(false)
-      setIsProcessing(false)
-      setCategoryNameError(null) // エラー状態をリセット
-      loadAvailableDomains()
-    }
-  }, [isOpen, category])
-
   // 追加可能なドメイン一覧を取得
-  const loadAvailableDomains = async () => {
+  const loadAvailableDomains = useCallback(async () => {
     try {
       const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
       const { parentCategories = [] } =
@@ -128,7 +116,19 @@ export const CategoryManagementModal = ({
     } catch (error) {
       console.error('利用可能なドメインの取得に失敗しました:', error)
     }
-  }
+  }, [category.id])
+
+  // モーダルが開いたときの初期化
+  useEffect(() => {
+    if (isOpen) {
+      setNewCategoryName(category.name)
+      setLocalCategoryName(category.name)
+      setIsRenaming(false)
+      setIsProcessing(false)
+      setCategoryNameError(null) // エラー状態をリセット
+      loadAvailableDomains()
+    }
+  }, [isOpen, category.name, loadAvailableDomains])
 
   // カテゴリのリネーム処理を開始
   const handleStartRenaming = () => {

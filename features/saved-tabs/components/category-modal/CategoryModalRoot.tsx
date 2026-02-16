@@ -1,0 +1,53 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import type { TabGroup } from '@/types/storage'
+import { useCategoryModal } from '../../hooks/useCategoryModal'
+import {
+  CategoryModalContext,
+  type CategoryModalContextType,
+} from './CategoryModalContext'
+
+/** CategoryModalRoot の props */
+type CategoryModalRootProps = {
+  /** モーダルを閉じるハンドラ */
+  onClose: () => void
+  /** タブグループ一覧 */
+  tabGroups: TabGroup[]
+  /** 子コンポーネント */
+  children: React.ReactNode
+}
+
+/**
+ * CategoryModal の複合コンポーネントルート
+ * Dialog + useCategoryModal を提供する
+ * @param props CategoryModalRootProps
+ */
+export const CategoryModalRoot = ({
+  onClose,
+  tabGroups,
+  children,
+}: CategoryModalRootProps) => {
+  const state = useCategoryModal({ tabGroups })
+
+  const contextValue: CategoryModalContextType = {
+    state,
+    tabGroups,
+  }
+
+  return (
+    <CategoryModalContext value={contextValue}>
+      <Dialog open={true} onOpenChange={() => onClose()}>
+        <DialogContent className='flex max-h-[90vh] flex-col overflow-hidden sm:max-w-[500px]'>
+          <DialogHeader>
+            <DialogTitle>親カテゴリ管理</DialogTitle>
+          </DialogHeader>
+          <div className='grid gap-4 overflow-y-auto py-4 pr-1'>{children}</div>
+        </DialogContent>
+      </Dialog>
+    </CategoryModalContext>
+  )
+}

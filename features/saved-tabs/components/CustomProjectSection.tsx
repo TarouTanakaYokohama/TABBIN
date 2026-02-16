@@ -1,3 +1,12 @@
+import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
+// DnDのインポートを追加
+import { closestCenter, DndContext, DragOverlay } from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -10,18 +19,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { CustomProject } from '@/types/storage'
-// DnDのインポートを追加
-import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core'
-import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
-import {
-  SortableContext,
-  arrayMove,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { useState } from 'react'
-import { CustomProjectCard } from './CustomProjectCard'
-
 import type { CustomProjectSectionProps } from '../types/CustomProjectSection.types'
+import { CustomProjectCard } from './CustomProjectCard'
 
 export const CustomProjectSection = ({
   projects,

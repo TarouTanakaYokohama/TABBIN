@@ -1,4 +1,4 @@
-export * from './useSettings'
-export * from './useColorSettings'
-export * from './useCategories'
 export * from './useAutoDeletePeriod'
+export * from './useCategories'
+export * from './useColorSettings'
+export * from './useSettings'

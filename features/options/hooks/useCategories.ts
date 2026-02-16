@@ -1,7 +1,10 @@
-import { createParentCategory, getParentCategories } from '@/lib/storage'
-import type { ParentCategory } from '@/types/storage'
 import { useEffect, useState } from 'react'
-import { z } from 'zod'
+import { z } from 'zod/v3'
+import {
+  createParentCategory,
+  getParentCategories,
+} from '@/lib/storage/categories'
+import type { ParentCategory } from '@/types/storage'
 
 // Zodによるカテゴリ名のバリデーションスキーマを定義
 const categoryNameSchema = z
@@ -31,7 +34,12 @@ export const useCategories = () => {
     ) => {
       if (areaName === 'local') {
         if (changes.parentCategories) {
-          setParentCategories(changes.parentCategories.newValue || [])
+          const nextParentCategories = Array.isArray(
+            changes.parentCategories.newValue,
+          )
+            ? (changes.parentCategories.newValue as ParentCategory[])
+            : []
+          setParentCategories(nextParentCategories)
         }
       }
     }

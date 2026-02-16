@@ -1,19 +1,19 @@
-import type { CategorySectionProps } from '@/types/saved-tabs'
 import type { DragEndEvent } from '@dnd-kit/core'
 import {
+  closestCenter,
   DndContext,
   KeyboardSensor,
   PointerSensor,
-  closestCenter,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import {
-  SortableContext,
   arrayMove,
+  SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import type { CategorySectionProps } from '@/types/saved-tabs'
 import { SortableUrlItem } from './SortableUrlItem'
 
 // 新しく追加: カテゴリセクションコンポーネント

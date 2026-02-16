@@ -1,5 +1,12 @@
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import type { UserSettings } from '@/types/storage'
-import { createContext, useContext, useEffect, useState } from 'react'
 
 type Theme = 'dark' | 'light' | 'system' | 'user'
 
@@ -27,13 +34,13 @@ export function ThemeProvider({
   storageKey = 'tab-manager-theme',
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme)
+  const [theme, setThemeState] = useState<Theme>(defaultTheme)
 
   // 初期化時にChrome Storageから設定を読み込む
   useEffect(() => {
     chrome.storage.local.get(storageKey).then(result => {
       if (result[storageKey]) {
-        setTheme(result[storageKey] as Theme)
+        setThemeState(result[storageKey] as Theme)
       }
     })
 
@@ -43,7 +50,7 @@ export function ThemeProvider({
       areaName: string,
     ) => {
       if (areaName === 'local' && changes[storageKey]) {
-        setTheme(changes[storageKey].newValue as Theme)
+        setThemeState(changes[storageKey].newValue as Theme)
       }
     }
 
@@ -110,14 +117,22 @@ export function ThemeProvider({
     }
   }, [theme])
 
-  const value = {
-    theme,
-    setTheme: (theme: Theme) => {
+  const setTheme = useCallback(
+    (nextTheme: Theme) => {
       // Chrome Storageに保存
-      chrome.storage.local.set({ [storageKey]: theme })
-      setTheme(theme)
+      chrome.storage.local.set({ [storageKey]: nextTheme })
+      setThemeState(nextTheme)
     },
-  }
+    [storageKey],
+  )
+
+  const value = useMemo(
+    () => ({
+      theme,
+      setTheme,
+    }),
+    [theme, setTheme],
+  )
 
   return (
     <ThemeProviderContext.Provider {...props} value={value}>
@@ -126,8 +141,12 @@ export function ThemeProvider({
   )
 }
 
-export const useTheme = () => {
-  const context = useContext(ThemeProviderContext)
+/**
+ * テーマコンテキストにアクセスするためのカスタムフック
+ * @returns テーマ状態と設定関数
+ */
+export const useTheme = (): ThemeProviderState => {
+  const context = use(ThemeProviderContext)
 
   if (context === undefined)
     throw new Error('useTheme must be used within a ThemeProvider')

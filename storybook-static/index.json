@@ -1,0 +1,49 @@
+{
+  "v": 5,
+  "entries": {
+    "example-button--primary": {
+      "type": "story",
+      "subtype": "story",
+      "id": "example-button--primary",
+      "name": "Primary",
+      "title": "Example/Button",
+      "importPath": "./stories/Button.stories.ts",
+      "componentPath": "./stories/Button.tsx",
+      "tags": ["dev", "test", "manifest", "autodocs"],
+      "exportName": "Primary"
+    },
+    "example-button--secondary": {
+      "type": "story",
+      "subtype": "story",
+      "id": "example-button--secondary",
+      "name": "Secondary",
+      "title": "Example/Button",
+      "importPath": "./stories/Button.stories.ts",
+      "componentPath": "./stories/Button.tsx",
+      "tags": ["dev", "test", "manifest", "autodocs"],
+      "exportName": "Secondary"
+    },
+    "example-button--large": {
+      "type": "story",
+      "subtype": "story",
+      "id": "example-button--large",
+      "name": "Large",
+      "title": "Example/Button",
+      "importPath": "./stories/Button.stories.ts",
+      "componentPath": "./stories/Button.tsx",
+      "tags": ["dev", "test", "manifest", "autodocs"],
+      "exportName": "Large"
+    },
+    "example-button--small": {
+      "type": "story",
+      "subtype": "story",
+      "id": "example-button--small",
+      "name": "Small",
+      "title": "Example/Button",
+      "importPath": "./stories/Button.stories.ts",
+      "componentPath": "./stories/Button.tsx",
+      "tags": ["dev", "test", "manifest", "autodocs"],
+      "exportName": "Small"
+    }
+  }
+}

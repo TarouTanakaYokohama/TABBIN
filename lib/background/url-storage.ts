@@ -2,12 +2,9 @@
  * URL・ストレージ操作モジュール
  */
 
-import { getUserSettings } from '@/lib/storage'
-import type {
-  DraggedUrlInfo,
-  ParentCategory,
-  TabGroup,
-} from '@/types/background'
+import { getUserSettings } from '@/lib/storage/settings'
+import type { DraggedUrlInfo } from '@/types/background'
+import type { ParentCategory, TabGroup } from '@/types/storage'
 
 // ドラッグされたURL情報を一時保存するためのストア
 let draggedUrlInfo: DraggedUrlInfo | null = null
@@ -54,17 +51,15 @@ export async function removeUrlFromStorage(url: string): Promise<void> {
     const savedTabs: TabGroup[] = storageResult.savedTabs || []
 
     // URLを含むグループを更新
-    const updatedGroups = savedTabs
-      .map((group: TabGroup) => {
-        const updatedUrls = group.urls.filter(item => item.url !== url)
-        if (updatedUrls.length === 0) {
-          // グループが空になる場合は専用の処理関数を呼び出し
-          handleTabGroupRemoval(group.id)
-          return null // 空グループを削除
-        }
-        return { ...group, urls: updatedUrls }
-      })
-      .filter(Boolean)
+    const updatedGroups: TabGroup[] = savedTabs.flatMap((group: TabGroup) => {
+      const updatedUrls = (group.urls ?? []).filter(item => item.url !== url)
+      if (updatedUrls.length === 0) {
+        // グループが空になる場合は専用の処理関数を呼び出し
+        handleTabGroupRemoval(group.id)
+        return [] // 空グループを削除
+      }
+      return [{ ...group, urls: updatedUrls }]
+    })
 
     // 更新したグループをストレージに保存
     await chrome.storage.local.set({ savedTabs: updatedGroups })
@@ -89,13 +84,13 @@ async function handleTabGroupRemoval(groupId: string): Promise<void> {
  */
 async function removeFromParentCategories(groupId: string): Promise<void> {
   try {
-    const storageResult = await chrome.storage.local.get('parentCategories')
+    const [categoriesStorage, tabsStorage] = await Promise.all([
+      chrome.storage.local.get('parentCategories'),
+      chrome.storage.local.get('savedTabs'),
+    ])
     const parentCategories: ParentCategory[] =
-      storageResult.parentCategories || []
-
-    // 削除対象のドメイン名を取得
-    const storageResult2 = await chrome.storage.local.get('savedTabs')
-    const savedTabs: TabGroup[] = storageResult2.savedTabs || []
+      categoriesStorage.parentCategories || []
+    const savedTabs: TabGroup[] = tabsStorage.savedTabs || []
     const groupToRemove = savedTabs.find(
       (group: TabGroup) => group.id === groupId,
     )
