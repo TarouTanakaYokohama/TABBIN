@@ -1,3 +1,7 @@
+import { AlertCircle, Download, Upload } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
+import { useDropzone } from 'react-dropzone'
+import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -15,11 +19,7 @@ import {
   downloadAsJson,
   exportSettings,
   importSettings,
-} from '@/features/options/lib'
-import { AlertCircle, Download, Upload } from 'lucide-react'
-import { useCallback, useRef, useState } from 'react'
-import { useDropzone } from 'react-dropzone'
-import { toast } from 'sonner'
+} from '@/features/options/lib/import-export'
 
 export const ImportExportSettings: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false)

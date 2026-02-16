@@ -1,10 +1,10 @@
+import { v4 as uuidv4 } from 'uuid'
 import type {
   CustomProject,
   TabGroup,
   UrlRecord,
   ViewMode,
 } from '@/types/storage'
-import { v4 as uuidv4 } from 'uuid'
 import { migrateToUrlsStorage } from './migration'
 import { createOrUpdateUrlRecord, getUrlRecordsByIds } from './urls'
 

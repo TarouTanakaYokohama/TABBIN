@@ -1,31 +1,20 @@
+import { Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import type { ViewMode } from '@/types/storage'
-import { Check, X } from 'lucide-react'
 
-type FooterProps = {
-  currentMode: ViewMode
-  // 親カテゴリ並び替え関連
-  isCategoryReorderMode?: boolean
+type CategoryReorderFooterProps = {
   onConfirmCategoryReorder?: () => void
   onCancelCategoryReorder?: () => void
 }
 
-export const Footer = ({
-  currentMode,
-  isCategoryReorderMode = false,
+export const CategoryReorderFooter = ({
   onConfirmCategoryReorder = () => {},
   onCancelCategoryReorder = () => {},
-}: FooterProps) => {
-  // 親カテゴリ並び替えモード中のみフッターを表示
-  if (!isCategoryReorderMode || currentMode !== 'domain') {
-    return null
-  }
-
+}: CategoryReorderFooterProps) => {
   return (
     <div className='fixed right-0 bottom-0 left-0 z-50 border-border border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'>
       <div className='container mx-auto flex items-center justify-center gap-4 px-4 py-3'>

@@ -32,3 +32,6 @@ web-ext.config.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+.agents
+.claude/

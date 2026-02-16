@@ -1,3 +1,6 @@
+import { Plus, Wrench, X } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,9 +15,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { CustomProject, TabGroup, ViewMode } from '@/types/storage'
-import { Plus, Wrench, X } from 'lucide-react'
-import { useState } from 'react'
-import { toast } from 'sonner'
 import { CategoryModal } from './CategoryModal'
 import { ViewModeToggle } from './ViewModeToggle'
 
@@ -64,7 +64,7 @@ export const Header = ({
               type='button'
               variant='ghost'
               onClick={() => onSearchChange('')}
-              className='-translate-y-1/2 absolute top-1/2 right-0 mr-0.5 flex size-8 cursor-pointer items-center justify-center'
+              className='absolute top-1/2 right-0 mr-0.5 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center'
             >
               <X size={16} />
             </Button>

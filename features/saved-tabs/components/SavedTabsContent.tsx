@@ -1,16 +1,16 @@
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { ExternalLink, GripVertical, Trash } from 'lucide-react'
+import { useCallback, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { safelyUpdateGroupUrls } from '@/features/saved-tabs/lib'
+import { safelyUpdateGroupUrls } from '@/features/saved-tabs/lib/tab-operations'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
-import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { ExternalLink, GripVertical, Trash } from 'lucide-react'
-import { useCallback, useState } from 'react'
 import { CategorySection } from './TimeRemaining'
 
 // 並び替え可能なカテゴリセクションコンポーネント
@@ -80,8 +80,10 @@ export const SortableCategorySection = ({
             )
 
             if (currentGroup) {
+              const existingUrls = currentGroup.urls ?? []
+
               // 削除対象以外のURLだけを残す
-              const remainingUrls = currentGroup.urls.filter(
+              const remainingUrls = existingUrls.filter(
                 (urlItem: { url: string }) =>
                   !urlsToRemove.includes(urlItem.url),
               )

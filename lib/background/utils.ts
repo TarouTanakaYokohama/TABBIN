@@ -2,7 +2,7 @@
  * Background script用ユーティリティ関数
  */
 
-import { getUserSettings } from '@/lib/storage'
+import { getUserSettings } from '@/lib/storage/settings'
 import { showNotification } from './alarm-notification'
 
 /**

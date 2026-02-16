@@ -1,3 +1,4 @@
+import { Folder, Globe } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -11,7 +12,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { ViewMode } from '@/types/storage'
-import { Folder, Globe } from 'lucide-react'
 
 interface ViewModeToggleProps {
   currentMode: ViewMode

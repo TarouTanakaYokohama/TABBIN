@@ -1,15 +1,14 @@
+import { useEffect, useState } from 'react'
 import {
   defaultSettings,
   getUserSettings,
   saveUserSettings,
-} from '@/lib/storage'
+} from '@/lib/storage/settings'
 import type { UserSettings } from '@/types/storage'
-import { useEffect, useState } from 'react'
 
 export const useSettings = () => {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [isLoading, setIsLoading] = useState(true)
-  const [excludePatterns, setExcludePatterns] = useState<string[]>([])
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -17,7 +16,6 @@ export const useSettings = () => {
       try {
         const userSettings = await getUserSettings()
         setSettings(userSettings)
-        setExcludePatterns(userSettings.excludePatterns)
       } catch (error) {
         console.error('設定の読み込みエラー:', error)
         setSettings(defaultSettings) // エラー時はデフォルト設定を適用
@@ -91,7 +89,6 @@ export const useSettings = () => {
   ) => {
     // 空の行も含めて全ての行を保持
     const patterns = e.target.value.split('\n')
-    setExcludePatterns(patterns)
     setSettings(prev => ({
       ...prev,
       excludePatterns: patterns,
@@ -106,7 +103,6 @@ export const useSettings = () => {
     settings,
     setSettings,
     isLoading,
-    excludePatterns,
     updateSetting,
     handleSaveSettings,
     handleExcludePatternsChange,

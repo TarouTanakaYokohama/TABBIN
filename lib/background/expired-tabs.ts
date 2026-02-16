@@ -2,7 +2,25 @@
  * 期限切れタブ管理モジュール
  */
 
-import type { AutoDeletePeriod, TabGroup } from '@/types/background'
+import type { AutoDeletePeriod } from '@/types/background'
+import type { TabGroup } from '@/types/storage'
+
+const AUTO_DELETE_PERIODS: AutoDeletePeriod[] = [
+  'never',
+  '30sec',
+  '1min',
+  '1hour',
+  '1day',
+  '7days',
+  '14days',
+  '30days',
+  '180days',
+  '365days',
+]
+
+function isAutoDeletePeriod(period: string): period is AutoDeletePeriod {
+  return AUTO_DELETE_PERIODS.includes(period as AutoDeletePeriod)
+}
 
 /**
  * 期限の文字列を対応するミリ秒に変換
@@ -46,20 +64,25 @@ export async function checkAndRemoveExpiredTabs(): Promise<void> {
 
     // ストレージから直接取得する - より単純化した取得方法
     const data = await chrome.storage.local.get(['userSettings'])
-    const settings = data.userSettings || { autoDeletePeriod: 'never' }
+    const autoDeletePeriod = data.userSettings?.autoDeletePeriod ?? 'never'
 
     // デバッグログを追加
     console.log('ストレージから直接取得した設定:', data)
-    console.log('使用する自動削除期間:', settings.autoDeletePeriod)
+    console.log('使用する自動削除期間:', autoDeletePeriod)
 
     // 自動削除が無効な場合は何もしない
-    if (!settings.autoDeletePeriod || settings.autoDeletePeriod === 'never') {
+    if (autoDeletePeriod === 'never') {
       console.log('自動削除は無効です')
       return
     }
 
+    if (!isAutoDeletePeriod(autoDeletePeriod)) {
+      console.log('無効な自動削除期間です')
+      return
+    }
+
     // 期限をミリ秒で計算
-    const expirationPeriod = getExpirationPeriodMs(settings.autoDeletePeriod)
+    const expirationPeriod = getExpirationPeriodMs(autoDeletePeriod)
     if (!expirationPeriod) {
       console.log('有効な期限が設定されていません')
       return
@@ -82,15 +105,16 @@ export async function checkAndRemoveExpiredTabs(): Promise<void> {
 
     // チェック対象のURL数を計算
     const totalUrlCount: number = savedTabs.reduce(
-      (acc: number, g: TabGroup) => acc + g.urls.length,
+      (acc: number, g: TabGroup) => acc + (g.urls?.length ?? 0),
       0,
     )
 
     // URL単位で期限切れをフィルタリング
     const updatedTabs = savedTabs
       .map((group: TabGroup) => {
-        const originalUrlCount = group.urls.length
-        const filteredUrls = group.urls.filter(urlEntry => {
+        const originalUrls = group.urls ?? []
+        const originalUrlCount = originalUrls.length
+        const filteredUrls = originalUrls.filter(urlEntry => {
           const urlSavedAt = urlEntry.savedAt ?? group.savedAt ?? currentTime
           const isUrlExpired = urlSavedAt < cutoffTime
           if (isUrlExpired) {
@@ -104,14 +128,16 @@ export async function checkAndRemoveExpiredTabs(): Promise<void> {
             `グループ ${group.domain}: ${originalUrlCount - filteredUrls.length} 件のURLを削除`,
           )
         }
-        group.urls = filteredUrls
-        return group
+        return {
+          ...group,
+          urls: filteredUrls,
+        }
       })
-      .filter(group => group.urls.length > 0)
+      .filter(group => (group.urls?.length ?? 0) > 0)
 
     // 更新後のURL数を計算
     const updatedUrlCount: number = updatedTabs.reduce(
-      (acc: number, g: TabGroup) => acc + g.urls.length,
+      (acc: number, g: TabGroup) => acc + (g.urls?.length ?? 0),
       0,
     )
 

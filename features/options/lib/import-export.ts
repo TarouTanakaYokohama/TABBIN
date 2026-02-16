@@ -1,10 +1,11 @@
+import { z } from 'zod/v3'
+import { saveParentCategories } from '@/lib/storage/categories'
+import { migrateToUrlsStorage } from '@/lib/storage/migration'
 import {
   defaultSettings,
   getUserSettings,
-  saveParentCategories,
   saveUserSettings,
-} from '@/lib/storage'
-import { migrateToUrlsStorage } from '@/lib/storage/migration'
+} from '@/lib/storage/settings'
 import { createOrUpdateUrlRecord } from '@/lib/storage/urls'
 import type {
   ParentCategory,
@@ -12,7 +13,6 @@ import type {
   TabGroup,
   UserSettings,
 } from '@/types/storage'
-import { z } from 'zod'
 
 // バックアップデータの型定義
 export interface BackupData {
@@ -138,12 +138,11 @@ async function convertImportedUrlsToNewFormat(
  */
 export const exportSettings = async (): Promise<BackupData> => {
   try {
-    // 現在のユーザー設定を取得
-    const userSettings = await getUserSettings()
-
-    // ローカルストレージからカテゴリとタブデータを取得
-    const { parentCategories = [], savedTabs = [] } =
-      await chrome.storage.local.get(['parentCategories', 'savedTabs'])
+    const [userSettings, storageData] = await Promise.all([
+      getUserSettings(),
+      chrome.storage.local.get(['parentCategories', 'savedTabs']),
+    ])
+    const { parentCategories = [], savedTabs = [] } = storageData
 
     // バックアップデータを作成
     const backupData: BackupData = {
@@ -218,8 +217,20 @@ export const importSettings = async (
     if (mergeData) {
       // === マージモード: 既存データと新データをマージ ===
 
+      const [currentSettings, storageData] = await Promise.all([
+        getUserSettings(),
+        chrome.storage.local.get(['parentCategories', 'savedTabs']),
+      ])
+      const currentCategories: ParentCategory[] = Array.isArray(
+        storageData.parentCategories,
+      )
+        ? storageData.parentCategories
+        : []
+      const currentTabs: TabGroup[] = Array.isArray(storageData.savedTabs)
+        ? storageData.savedTabs
+        : []
+
       // 1. 現在のユーザー設定を取得してマージ
-      const currentSettings = await getUserSettings()
       const mergedSettings: UserSettings = {
         ...currentSettings,
         ...importedData.userSettings,
@@ -233,8 +244,6 @@ export const importSettings = async (
       }
 
       // 2. 親カテゴリをマージ - keywordsプロパティを削除
-      const { parentCategories: currentCategories = [] } =
-        await chrome.storage.local.get('parentCategories')
       const categoryMap = new Map<string, ParentCategory>()
 
       // 既存のカテゴリをMapに追加
@@ -273,8 +282,6 @@ export const importSettings = async (
       const mergedCategories = Array.from(categoryMap.values())
 
       // 3. タブデータをマージ - ID ではなく、ドメイン名をキーとして使用するように変更
-      const { savedTabs: currentTabs = [] } =
-        await chrome.storage.local.get('savedTabs')
 
       // ドメイン名をキーとするマップを作成
       const tabMapByDomain = new Map<string, TabGroup>()
@@ -567,9 +574,11 @@ export const importSettings = async (
       const mergedTabs = Array.from(tabMapByDomain.values())
 
       // データを保存
-      await saveUserSettings(mergedSettings)
-      await saveParentCategories(mergedCategories)
-      await chrome.storage.local.set({ savedTabs: mergedTabs })
+      await Promise.all([
+        saveUserSettings(mergedSettings),
+        saveParentCategories(mergedCategories),
+        chrome.storage.local.set({ savedTabs: mergedTabs }),
+      ])
 
       // 新形式に変換済みのためマイグレーション不要
       console.log('マージ完了: 新形式URLデータで保存済み')
@@ -675,14 +684,11 @@ export const importSettings = async (
       }),
     )
 
-    // ユーザー設定を保存（不足キーはデフォルトで補完）
-    await saveUserSettings({ ...defaultSettings, ...importedData.userSettings })
-
-    // カテゴリを保存
-    await saveParentCategories(cleanParentCategories)
-
-    // 保存されたタブを保存
-    await chrome.storage.local.set({ savedTabs: cleanTabGroups })
+    await Promise.all([
+      saveUserSettings({ ...defaultSettings, ...importedData.userSettings }),
+      saveParentCategories(cleanParentCategories),
+      chrome.storage.local.set({ savedTabs: cleanTabGroups }),
+    ])
 
     // インポート後にマイグレーションを実行（旧形式データがインポートされた場合に対応）
     await migrateToUrlsStorage()

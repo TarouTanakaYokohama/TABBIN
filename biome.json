@@ -1,13 +1,27 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.0/schema.json",
   "extends": [],
-  "files": { "ignoreUnknown": true },
-  "organizeImports": {
-    "enabled": true
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!**/.output",
+      "!**/.wxt",
+      "!**/node_modules",
+      "!**/storybook-static"
+    ]
   },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
-    "ignore": [".output", ".wxt", "wxt.config.ts", "node_modules"],
+    "includes": [
+      "**",
+      "!**/.output",
+      "!**/.wxt",
+      "!**/wxt.config.ts",
+      "!**/node_modules",
+      "!**/storybook-static"
+    ],
     "rules": {
       "recommended": true,
       "nursery": { "useSortedClasses": "warn" },
@@ -20,7 +34,14 @@
   "formatter": {
     "enabled": true,
     "formatWithErrors": true,
-    "ignore": [".output", ".wxt", "wxt.config.ts", "node_modules"],
+    "includes": [
+      "**",
+      "!**/.output",
+      "!**/.wxt",
+      "!**/wxt.config.ts",
+      "!**/node_modules",
+      "!**/storybook-static"
+    ],
     "indentWidth": 2,
     "indentStyle": "space",
     "lineWidth": 80
@@ -34,6 +55,11 @@
       "jsxQuoteStyle": "single",
       "semicolons": "asNeeded",
       "arrowParentheses": "asNeeded"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
   },
   "json": {

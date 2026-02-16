@@ -1,8 +1,8 @@
+import { useState } from 'react'
+import { toast } from 'sonner'
 import { autoDeleteOptions } from '@/constants/autoDeleteOptions'
 import type { UserSettings } from '@/types/storage'
 import { isPeriodShortening } from '@/utils/isPeriodShortening'
-import { useState } from 'react'
-import { toast } from 'sonner'
 
 type ConfirmationState = {
   isVisible: boolean

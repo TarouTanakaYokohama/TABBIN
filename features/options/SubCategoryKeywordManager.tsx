@@ -1,14 +1,16 @@
+import { Check, Plus, X } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { setCategoryKeywords } from '@/lib/storage'
+import { setCategoryKeywords } from '@/lib/storage/tabs'
 import type { TabGroup } from '@/types/storage'
-import { Check, Plus, X } from 'lucide-react'
-import { useRef, useState } from 'react'
 
 export const SubCategoryKeywordManager = ({
   tabGroup,
-}: { tabGroup: TabGroup }) => {
+}: {
+  tabGroup: TabGroup
+}) => {
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [keywords, setKeywords] = useState<string[]>([])
   const [newKeyword, setNewKeyword] = useState('')

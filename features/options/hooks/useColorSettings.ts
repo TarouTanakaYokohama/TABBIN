@@ -1,8 +1,8 @@
+import { toast } from 'sonner'
 import { useTheme } from '@/components/theme-provider'
 import { colorOptions } from '@/constants/colorOptions'
-import { saveUserSettings } from '@/lib/storage'
+import { saveUserSettings } from '@/lib/storage/settings'
 import type { UserSettings } from '@/types/storage'
-import { toast } from 'sonner'
 
 export const useColorSettings = (
   settings: UserSettings,

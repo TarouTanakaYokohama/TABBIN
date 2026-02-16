@@ -1,0 +1,16 @@
+import { createCompoundContext } from '@/lib/ui/createCompoundContext'
+import type { TabGroup } from '@/types/storage'
+import type { useCategoryKeywordModal } from '../../hooks/useCategoryKeywordModal'
+
+/** KeywordModal のコンテキスト型 */
+export type KeywordModalContextType = {
+  /** フック戻り値 */
+  state: ReturnType<typeof useCategoryKeywordModal>
+  /** タブグループデータ */
+  group: TabGroup
+}
+
+export const {
+  Context: KeywordModalContext,
+  useCompoundContext: useKeywordModal,
+} = createCompoundContext<KeywordModalContextType>('KeywordModal')
