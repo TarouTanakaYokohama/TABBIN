@@ -11,6 +11,7 @@ import {
   updateDomainCategoryMapping,
 } from './categories'
 import { autoCategorizeTabs, restoreCategorySettings } from './tabs'
+import { createOrUpdateUrlRecord } from './urls'
 
 // ドメインを親カテゴリに割り当てる関数
 export async function assignDomainToCategory(
@@ -169,17 +170,12 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 
   // 既存のタブグループを取得
   const groupedTabs = new Map<string, TabGroup>()
-  const [
-    savedTabsResult,
-    domainCategoryMappings,
-    parentCategories,
-    { createOrUpdateUrlRecord },
-  ] = await Promise.all([
-    chrome.storage.local.get('savedTabs'),
-    getDomainCategoryMappings(),
-    getParentCategories(),
-    import('./urls'),
-  ])
+  const [savedTabsResult, domainCategoryMappings, parentCategories] =
+    await Promise.all([
+      chrome.storage.local.get('savedTabs'),
+      getDomainCategoryMappings(),
+      getParentCategories(),
+    ])
   const { savedTabs = [] } = savedTabsResult
 
   // 既存のタブグループをIDではなくドメインをキーにしてMapに保存

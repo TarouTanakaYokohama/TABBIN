@@ -13,6 +13,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { reorderTabGroupUrls } from '@/lib/storage/tabs'
 import type { CategorySectionProps } from '@/types/saved-tabs'
 import { SortableUrlItem } from './SortableUrlItem'
 
@@ -48,7 +49,6 @@ export const CategorySection = ({
         const newUrls = arrayMove(urls, oldIndex, newIndex)
 
         // 新形式のURL並び替え関数を呼び出し
-        const { reorderTabGroupUrls } = await import('@/lib/storage/tabs')
         await reorderTabGroupUrls(
           groupId,
           newUrls.map(item => item.url),

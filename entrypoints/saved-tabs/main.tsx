@@ -79,7 +79,11 @@ import {
   updateProjectOrder,
 } from '@/lib/storage/projects'
 import { defaultSettings, getUserSettings } from '@/lib/storage/settings'
-import { addSubCategoryToGroup, getTabGroupUrls } from '@/lib/storage/tabs'
+import {
+  addSubCategoryToGroup,
+  getTabGroupUrls,
+  removeUrlFromTabGroup,
+} from '@/lib/storage/tabs'
 import type {
   CustomProject,
   ParentCategory,
@@ -857,7 +861,6 @@ const SavedTabs = () => {
       }
 
       const uniqueUrls = [...new Set(urlsToRemove)]
-      const { removeUrlFromTabGroup } = await import('@/lib/storage/tabs')
       const storageResult = await chrome.storage.local.get('savedTabs')
       const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
         ? storageResult.savedTabs
@@ -1014,7 +1017,6 @@ const SavedTabs = () => {
     async (groupId: string, url: string) => {
       try {
         // 新形式のURL削除関数を呼び出し
-        const { removeUrlFromTabGroup } = await import('@/lib/storage/tabs')
         await removeUrlFromTabGroup(groupId, url)
         await refreshTabGroupsWithUrls()
         console.log(`URL ${url} をグループ ${groupId} から削除しました`)

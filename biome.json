@@ -8,6 +8,10 @@
       "!**/.output",
       "!**/.wxt",
       "!**/node_modules",
+      "!**/coverage",
+      "!**/test-results",
+      "!**/playwright-report",
+      "!**/blob-report",
       "!**/storybook-static"
     ]
   },
@@ -20,6 +24,10 @@
       "!**/.wxt",
       "!**/wxt.config.ts",
       "!**/node_modules",
+      "!**/coverage",
+      "!**/test-results",
+      "!**/playwright-report",
+      "!**/blob-report",
       "!**/storybook-static"
     ],
     "rules": {
@@ -40,6 +48,10 @@
       "!**/.wxt",
       "!**/wxt.config.ts",
       "!**/node_modules",
+      "!**/coverage",
+      "!**/test-results",
+      "!**/playwright-report",
+      "!**/blob-report",
       "!**/storybook-static"
     ],
     "indentWidth": 2,

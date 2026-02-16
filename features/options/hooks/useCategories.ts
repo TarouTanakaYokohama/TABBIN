@@ -55,14 +55,13 @@ export const useCategories = () => {
   const handleAddCategory = async () => {
     if (newCategoryName.trim()) {
       // バリデーションチェック
-      try {
-        categoryNameSchema.parse(newCategoryName.trim())
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          setCategoryError(error.errors[0].message)
-          setTimeout(() => setCategoryError(null), 3000)
-          return false
-        }
+      const validationResult = categoryNameSchema.safeParse(
+        newCategoryName.trim(),
+      )
+      if (!validationResult.success) {
+        setCategoryError(validationResult.error.errors[0].message)
+        setTimeout(() => setCategoryError(null), 3000)
+        return false
       }
 
       // 重複をチェック
