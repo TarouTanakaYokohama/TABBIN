@@ -50,7 +50,7 @@ class MockFileReader {
 
     if (readerMode === 'error') {
       dispatch(() => {
-        this.onerror?.(new ProgressEvent('error'))
+        this.onerror?.(new ProgressEvent('error') as ProgressEvent<FileReader>)
       })
       return
     }
@@ -122,6 +122,11 @@ describe('ImportExportSettings', () => {
         enableCategories: true,
         showSavedTime: false,
         clickBehavior: 'saveWindowTabs',
+        excludePinnedTabs: true,
+        openUrlInBackground: true,
+        openAllInNewWindow: false,
+        confirmDeleteAll: false,
+        confirmDeleteEach: false,
       },
       parentCategories: [],
       savedTabs: [],

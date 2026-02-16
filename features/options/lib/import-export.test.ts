@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { UserSettings } from '@/types/storage'
 
 vi.mock('@/lib/storage/categories', () => ({
   saveParentCategories: vi.fn(),
@@ -10,7 +11,7 @@ vi.mock('@/lib/storage/migration', () => ({
 }))
 
 vi.mock('@/lib/storage/settings', () => {
-  const defaultSettings = {
+  const defaultSettings: UserSettings = {
     removeTabAfterOpen: true,
     excludePatterns: ['chrome-extension://', 'chrome://'],
     enableCategories: true,
@@ -108,7 +109,9 @@ const createChromeMock = (
   return { store, get, set }
 }
 
-const buildFullUserSettings = (override: Record<string, unknown> = {}) => ({
+const buildFullUserSettings = (
+  override: Partial<UserSettings> = {},
+): UserSettings => ({
   removeTabAfterOpen: true,
   excludePatterns: ['existing-pattern'],
   enableCategories: true,
