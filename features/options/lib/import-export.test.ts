@@ -164,7 +164,115 @@ describe('import-export utilities', () => {
       userSettings,
       parentCategories,
       savedTabs,
+      urls: [],
     })
+  })
+
+  it('exportSettings rebuilds urls from urlIds for portable backup data', async () => {
+    const userSettings = buildFullUserSettings()
+    createChromeMock({
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'group-1',
+          domain: 'https://portable.example.com',
+          urlIds: ['url-1', 'url-2'],
+          urlSubCategories: { 'url-2': 'Docs' },
+        },
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          url: 'https://portable.example.com/home',
+          title: 'Home',
+          savedAt: 1,
+        },
+        {
+          id: 'url-2',
+          url: 'https://portable.example.com/docs',
+          title: 'Docs',
+          savedAt: 2,
+        },
+      ],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(userSettings)
+
+    const result = await exportSettings()
+
+    expect(result.savedTabs[0]).toEqual(
+      expect.objectContaining({
+        id: 'group-1',
+        domain: 'https://portable.example.com',
+        urls: [
+          {
+            url: 'https://portable.example.com/home',
+            title: 'Home',
+            savedAt: 1,
+            subCategory: undefined,
+          },
+          {
+            url: 'https://portable.example.com/docs',
+            title: 'Docs',
+            savedAt: 2,
+            subCategory: 'Docs',
+          },
+        ],
+      }),
+    )
+    expect(result.urls).toHaveLength(2)
+  })
+
+  it('exportSettings adds placeholder URLs when urlIds cannot be resolved', async () => {
+    const userSettings = buildFullUserSettings()
+    createChromeMock({
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'missing-group',
+          domain: 'https://missing-export.example.com',
+          urlIds: ['missing-id-1', 'missing-id-2'],
+          urlSubCategories: { 'missing-id-2': 'RecoveredSub' },
+          savedAt: 100,
+        },
+      ],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(userSettings)
+
+    const result = await exportSettings()
+
+    expect(result.savedTabs[0]).toEqual(
+      expect.objectContaining({
+        id: 'missing-group',
+        domain: 'https://missing-export.example.com',
+        urls: [
+          {
+            url: 'https://missing-export.example.com/#tabbin-export-missing-missing-id-1',
+            title: '復元データ（元URL欠損）',
+            savedAt: 100,
+            subCategory: undefined,
+          },
+          {
+            url: 'https://missing-export.example.com/#tabbin-export-missing-missing-id-2',
+            title: '復元データ（元URL欠損）',
+            savedAt: 101,
+            subCategory: 'RecoveredSub',
+          },
+        ],
+      }),
+    )
+    expect(result.urls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'missing-id-1',
+          url: 'https://missing-export.example.com/#tabbin-export-missing-missing-id-1',
+        }),
+        expect.objectContaining({
+          id: 'missing-id-2',
+          url: 'https://missing-export.example.com/#tabbin-export-missing-missing-id-2',
+        }),
+      ]),
+    )
   })
 
   it('exportSettings throws normalized error when storage access fails', async () => {
@@ -270,6 +378,187 @@ describe('import-export utilities', () => {
     expect(result).toEqual({
       success: false,
       message: 'データのインポート中にエラーが発生しました',
+    })
+  })
+
+  it('importSettings restores urlIds-only tabs when backup includes url records', async () => {
+    const { set } = createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecord).mockResolvedValue({
+      id: 'restored-url-id',
+      url: 'https://restored.example.com/path',
+      title: 'Restored',
+      savedAt: 1,
+    })
+
+    const imported = {
+      version: '6.0.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'restored-group',
+          domain: 'https://restored.example.com',
+          urlIds: ['backup-url-1'],
+          urlSubCategories: { 'backup-url-1': 'FromBackup' },
+        },
+      ],
+      urls: [
+        {
+          id: 'backup-url-1',
+          url: 'https://restored.example.com/path',
+          title: 'Restored',
+          savedAt: 10,
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    expect(createOrUpdateUrlRecord).toHaveBeenCalledWith(
+      'https://restored.example.com/path',
+      'Restored',
+      undefined,
+    )
+
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
+      Record<string, unknown>
+    >
+    expect(savedTabsArg[0]).toEqual(
+      expect.objectContaining({
+        id: 'restored-group',
+        domain: 'https://restored.example.com',
+        urlIds: ['restored-url-id'],
+        urlSubCategories: { 'restored-url-id': 'FromBackup' },
+      }),
+    )
+  })
+
+  it('importSettings generates placeholder URLs when URL records are missing', async () => {
+    const { set } = createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const imported = {
+      version: '6.0.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'missing-group',
+          domain: 'https://missing.example.com',
+          urlIds: ['missing-url-id'],
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), true)
+
+    expect(result.success).toBe(true)
+    expect(result.message).toContain('代替URLを生成しました')
+    expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
+    expect(saveUserSettings).toHaveBeenCalledTimes(1)
+    expect(saveParentCategories).toHaveBeenCalledTimes(1)
+    expect(set).toHaveBeenCalledWith({
+      savedTabs: [
+        {
+          id: 'missing-group',
+          domain: 'https://missing.example.com',
+          urlIds: ['missing-url-id'],
+          urlSubCategories: undefined,
+          parentCategoryId: undefined,
+          categoryKeywords: [],
+          subCategories: [],
+          savedAt: undefined,
+        },
+      ],
+    })
+    expect(set).toHaveBeenCalledWith({
+      urls: [
+        expect.objectContaining({
+          id: 'missing-url-id',
+          title: '復元データ（元URL欠損）',
+        }),
+      ],
+    })
+  })
+
+  it('overwrite mode generates placeholder URLs when URL records are missing', async () => {
+    const { set } = createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const imported = {
+      version: '6.0.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'missing-overwrite-group',
+          domain: 'https://missing-overwrite.example.com',
+          urlIds: ['missing-overwrite-url-id'],
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    expect(result.message).toContain('代替URLを生成しました')
+    expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
+    expect(set).toHaveBeenCalledWith({
+      savedTabs: [
+        {
+          id: 'missing-overwrite-group',
+          domain: 'https://missing-overwrite.example.com',
+          urlIds: ['missing-overwrite-url-id'],
+          urlSubCategories: undefined,
+          parentCategoryId: undefined,
+          subCategories: [],
+          categoryKeywords: [],
+          savedAt: undefined,
+        },
+      ],
+    })
+    expect(set).toHaveBeenCalledWith({
+      urls: [
+        expect.objectContaining({
+          id: 'missing-overwrite-url-id',
+          title: '復元データ（元URL欠損）',
+        }),
+      ],
     })
   })
 
