@@ -191,7 +191,7 @@ async function loadBackground(
 
   const harness = createChromeHarness(options.initialStorage ?? {})
 
-  await import('./background')
+  await import('@/entrypoints/background')
   await flushMicrotasks()
 
   // 初期化IIFE由来の呼び出しは以降の検証から除外する
