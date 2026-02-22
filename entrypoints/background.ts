@@ -9,48 +9,70 @@ import { setupExpiredTabsCheckAlarm } from '@/lib/background/alarm-notification'
 import { createContextMenus } from '@/lib/background/context-menu'
 import { handleExtensionActionClick } from '@/lib/background/extension-actions'
 import { setupMessageListener } from '@/lib/background/message-handler'
+import { openSavedTabsPage } from '@/lib/background/saved-tabs-page'
 import { handleTabCreated } from '@/lib/background/url-storage'
 import { getParentCategories } from '@/lib/storage/categories'
 import { migrateParentCategoriesToDomainNames } from '@/lib/storage/migration'
 
 export default defineBackground(() => {
   // 拡張機能インストール・更新時の処理
-  chrome.runtime.onInstalled.addListener(details => {
+  chrome.runtime.onInstalled.addListener(async details => {
     const manifestVersion = chrome.runtime.getManifest().version
-    if (details.reason === 'install') {
-      chrome.tabs.create({ url: chrome.runtime.getURL('saved-tabs.html') })
-      chrome.storage.local.set({
-        seenVersion: manifestVersion,
-        changelogShown: true,
-      })
-    } else if (details.reason === 'update') {
-      // バージョンアップ時に変更点を表示（一度だけ）
-      chrome.storage.local.get(
-        { seenVersion: '', changelogShown: false },
-        items => {
-          if (items.seenVersion !== manifestVersion) {
-            // 新しいバージョンの場合、changelogShownをリセット
-            if (!items.changelogShown) {
-              // まだ表示していない場合のみ開く
-              chrome.tabs.create({
-                url: chrome.runtime.getURL('changelog.html'),
-              })
-              chrome.storage.local.set({
-                seenVersion: manifestVersion,
-                changelogShown: true, // 表示したことをマークする
-              })
-              console.log(
-                `新バージョン ${manifestVersion} の変更履歴を表示しました`,
-              )
-            } else {
-              // ただしバージョンは更新する
-              chrome.storage.local.set({ seenVersion: manifestVersion })
-              console.log(
-                `新バージョン ${manifestVersion} に更新されましたが、変更履歴は既に表示済みです`,
-              )
-            }
+
+    try {
+      if (details.reason === 'install') {
+        await openSavedTabsPage()
+        await chrome.storage.local.set({
+          seenVersion: manifestVersion,
+          changelogShown: true,
+        })
+      } else if (details.reason === 'update') {
+        // バージョンアップ時に変更点を表示（一度だけ）
+        const items = await chrome.storage.local.get({
+          seenVersion: '',
+          changelogShown: false,
+        })
+
+        if (items.seenVersion !== manifestVersion) {
+          // 新しいバージョンの場合、changelogShownをリセット
+          if (!items.changelogShown) {
+            // まだ表示していない場合のみ開く
+            await chrome.tabs.create({
+              url: chrome.runtime.getURL('changelog.html'),
+            })
+            await chrome.storage.local.set({
+              seenVersion: manifestVersion,
+              changelogShown: true, // 表示したことをマークする
+            })
+            console.log(
+              `新バージョン ${manifestVersion} の変更履歴を表示しました`,
+            )
+          } else {
+            // ただしバージョンは更新する
+            await chrome.storage.local.set({ seenVersion: manifestVersion })
+            console.log(
+              `新バージョン ${manifestVersion} に更新されましたが、変更履歴は既に表示済みです`,
+            )
           }
-        },
+        }
+
+        // 更新時も保存タブページを前面表示 + ピン留めする
+        await openSavedTabsPage()
+      }
+    } catch (error) {
+      console.error('インストール/更新時の自動オープン処理エラー:', error)
+    }
+  })
+
+  // ブラウザ起動時にも保存タブページを自動で開く
+  chrome.runtime.onStartup.addListener(async () => {
+    try {
+      console.log('ブラウザ起動時にsaved-tabsページを開きます')
+      await openSavedTabsPage()
+    } catch (error) {
+      console.error(
+        '起動時のsaved-tabsページ自動オープンに失敗しました:',
+        error,
       )
     }
   })
