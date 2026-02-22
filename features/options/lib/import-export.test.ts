@@ -275,6 +275,118 @@ describe('import-export utilities', () => {
     )
   })
 
+  it('exportSettings filters invalid legacy url items when tab.urls already exists', async () => {
+    const userSettings = buildFullUserSettings()
+    createChromeMock({
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'legacy-group',
+          domain: 'https://legacy.example.com',
+          urls: [
+            { url: 'https://legacy.example.com/ok', title: 'ok' },
+            { title: 'missing-url' },
+            null,
+          ],
+        },
+      ],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(userSettings)
+
+    const result = await exportSettings()
+
+    expect(result.savedTabs[0]).toEqual(
+      expect.objectContaining({
+        urls: [{ url: 'https://legacy.example.com/ok', title: 'ok' }],
+      }),
+    )
+  })
+
+  it('exportSettings uses fallback savedAt/title branches for reconstructed urls', async () => {
+    createChromeMock({
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'placeholder-no-savedat',
+          domain: 'https://placeholder-branch.example.com/',
+          urlIds: ['missing-no-savedat'],
+        },
+        {
+          id: 'titleless-record-group',
+          domain: 'https://titleless-record.example.com',
+          urlIds: ['titleless-record-id'],
+        },
+      ],
+      urls: [
+        {
+          id: 'titleless-record-id',
+          url: 'https://titleless-record.example.com/path',
+          savedAt: 55,
+        },
+      ],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-02-16T00:00:10.000Z'))
+
+    const result = await exportSettings()
+
+    const placeholderGroup = result.savedTabs.find(
+      tab => tab.id === 'placeholder-no-savedat',
+    )
+    expect(placeholderGroup?.urls?.[0]).toEqual(
+      expect.objectContaining({
+        url: 'https://placeholder-branch.example.com/#tabbin-export-missing-missing-no-savedat',
+        savedAt: new Date('2026-02-16T00:00:10.000Z').getTime(),
+      }),
+    )
+
+    const titlelessGroup = result.savedTabs.find(
+      tab => tab.id === 'titleless-record-group',
+    )
+    expect(titlelessGroup?.urls?.[0]).toEqual(
+      expect.objectContaining({
+        url: 'https://titleless-record.example.com/path',
+        title: '',
+      }),
+    )
+  })
+
+  it('exportSettings tolerates merged placeholder map has() returning true unexpectedly', async () => {
+    const originalHas = Map.prototype.has
+    let hasCallCount = 0
+    const hasSpy = vi.spyOn(Map.prototype, 'has').mockImplementation(function (
+      this: Map<unknown, unknown>,
+      key: unknown,
+    ) {
+      hasCallCount += 1
+      if (hasCallCount === 2 && key === 'forced-skip-placeholder-id') {
+        return true
+      }
+      return originalHas.call(this, key)
+    })
+
+    createChromeMock({
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'forced-skip-group',
+          domain: 'https://forced-skip.example.com',
+          urlIds: ['forced-skip-placeholder-id'],
+        },
+      ],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await exportSettings()
+
+    expect(result.savedTabs[0]?.urls).toHaveLength(1)
+    hasSpy.mockRestore()
+  })
+
   it('exportSettings throws normalized error when storage access fails', async () => {
     createChromeMock({}, { failGet: true })
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
@@ -297,6 +409,21 @@ describe('import-export utilities', () => {
     const result = await exportSettings()
 
     expect(result.version).toBe('1.0.0')
+  })
+
+  it('exportSettings tolerates non-array storage payloads', async () => {
+    createChromeMock({
+      parentCategories: { invalid: true },
+      savedTabs: { invalid: true },
+      urls: { invalid: true },
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await exportSettings()
+
+    expect(result.parentCategories).toEqual([])
+    expect(result.savedTabs).toEqual([])
+    expect(result.urls).toEqual([])
   })
 
   it('downloadAsJson creates a temporary anchor and cleans up', () => {
@@ -446,6 +573,57 @@ describe('import-export utilities', () => {
     )
   })
 
+  it('importSettings restores urlIds-only tabs with empty title fallback from backup url records', async () => {
+    createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecord).mockResolvedValue({
+      id: 'restored-titleless-url-id',
+      url: 'https://restored-titleless.example.com/path',
+      title: '',
+      savedAt: 1,
+    })
+
+    const imported = {
+      version: '6.0.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'restored-titleless-group',
+          domain: 'https://restored-titleless.example.com',
+          urlIds: ['backup-titleless-url-1'],
+        },
+      ],
+      urls: [
+        {
+          id: 'backup-titleless-url-1',
+          url: 'https://restored-titleless.example.com/path',
+          savedAt: 10,
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    expect(createOrUpdateUrlRecord).toHaveBeenCalledWith(
+      'https://restored-titleless.example.com/path',
+      '',
+      undefined,
+    )
+  })
+
   it('importSettings generates placeholder URLs when URL records are missing', async () => {
     const { set } = createChromeMock({
       parentCategories: [],
@@ -556,6 +734,205 @@ describe('import-export utilities', () => {
       urls: [
         expect.objectContaining({
           id: 'missing-overwrite-url-id',
+          title: '復元データ（元URL欠損）',
+        }),
+      ],
+    })
+  })
+
+  it('overwrite mode preserves raw urlIds fallback and skips placeholder creation when ids already exist later', async () => {
+    const existingUrlRecord = {
+      id: 'already-resolved-id',
+      url: 'https://existing.example.com/current',
+      title: 'Current',
+      savedAt: 1,
+    }
+    const lateAvailablePlaceholder = {
+      id: 'raw-fallback-id',
+      url: 'https://fallback.example.com/#tabbin-restored-raw-fallback-id',
+      title: '復元データ（元URL欠損）',
+      savedAt: 2,
+    }
+
+    const { get, set } = createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+      urls: [existingUrlRecord],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    let urlsGetCount = 0
+    get.mockImplementation(
+      async (keys?: string | string[] | Record<string, unknown>) => {
+        if (
+          keys &&
+          typeof keys === 'object' &&
+          !Array.isArray(keys) &&
+          'urls' in keys
+        ) {
+          urlsGetCount += 1
+          if (urlsGetCount === 1) {
+            return { urls: [existingUrlRecord] }
+          }
+
+          return { urls: [existingUrlRecord, lateAvailablePlaceholder] }
+        }
+
+        if (keys == null) {
+          return {}
+        }
+        if (typeof keys === 'string') {
+          return { [keys]: undefined }
+        }
+        if (Array.isArray(keys)) {
+          return Object.fromEntries(keys.map(key => [key, undefined]))
+        }
+
+        return Object.fromEntries(Object.entries(keys))
+      },
+    )
+
+    const imported = {
+      version: '6.0.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'raw-fallback-group',
+          domain: 'https://fallback.example.com/',
+          urlIds: ['raw-fallback-id', 'raw-fallback-id'],
+          urlSubCategories: {
+            'raw-fallback-id': 'KeepMe',
+            'not-in-urlids': 'DropMe',
+          },
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    expect(result.message).toContain('0件の代替URLを生成しました')
+    expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
+
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
+      Record<string, unknown>
+    >
+    expect(savedTabsArg[0]).toEqual(
+      expect.objectContaining({
+        id: 'raw-fallback-group',
+        domain: 'https://fallback.example.com/',
+        urlIds: ['raw-fallback-id'],
+        urlSubCategories: { 'raw-fallback-id': 'KeepMe' },
+      }),
+    )
+
+    expect(
+      set.mock.calls.some(([payload]) =>
+        Boolean(
+          (payload as Record<string, unknown>)?.urls &&
+            Array.isArray((payload as Record<string, unknown>).urls) &&
+            ((payload as Record<string, unknown>).urls as unknown[]).some(
+              record =>
+                typeof record === 'object' &&
+                record !== null &&
+                (record as { id?: string }).id === 'raw-fallback-id',
+            ),
+        ),
+      ),
+    ).toBe(false)
+  })
+
+  it('overwrite mode keeps tabs without urls/urlIds as empty groups', async () => {
+    const { set } = createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const imported = {
+      version: '6.1.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'empty-group',
+          domain: 'https://empty.example.com',
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
+
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
+      Record<string, unknown>
+    >
+    expect(savedTabsArg[0]).toEqual(
+      expect.objectContaining({
+        id: 'empty-group',
+        domain: 'https://empty.example.com',
+        urlIds: [],
+        urlSubCategories: undefined,
+        subCategories: [],
+        categoryKeywords: [],
+      }),
+    )
+  })
+
+  it('overwrite mode generates placeholders even when current urls storage is not an array', async () => {
+    const { set } = createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+      urls: { invalid: true },
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const imported = {
+      version: '6.2.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'invalid-current-urls-group',
+          domain: 'https://invalid-current-urls.example.com',
+          urlIds: ['invalid-current-urls-id'],
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    expect(result.message).toContain('1件の代替URLを生成しました')
+    expect(set).toHaveBeenCalledWith({
+      urls: [
+        expect.objectContaining({
+          id: 'invalid-current-urls-id',
           title: '復元データ（元URL欠損）',
         }),
       ],
