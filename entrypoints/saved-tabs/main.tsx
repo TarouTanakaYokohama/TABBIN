@@ -1,4 +1,12 @@
 import '@/assets/global.css'
+// プロダクションビルドではデバッグログを抑制する
+if (!import.meta.env.DEV) {
+  // eslint-disable-next-line no-console
+  console.log = () => {}
+  // eslint-disable-next-line no-console
+  console.debug = () => {}
+}
+
 import type { DragEndEvent } from '@dnd-kit/core'
 import {
   closestCenter,
@@ -51,45 +59,31 @@ import { CustomProjectSection } from '@/features/saved-tabs/components/CustomPro
 import { CategoryReorderFooter } from '@/features/saved-tabs/components/Footer'
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
 import { SortableDomainCard } from '@/features/saved-tabs/components/SortableDomainCard'
+import { useCategoryManagement } from '@/features/saved-tabs/hooks/useCategoryManagement'
+import { useProjectManagement } from '@/features/saved-tabs/hooks/useProjectManagement'
+import { useTabData } from '@/features/saved-tabs/hooks/useTabData'
 import { handleTabGroupRemoval } from '@/features/saved-tabs/lib/tab-operations'
+import { saveParentCategories } from '@/lib/storage/categories'
 import {
-  getParentCategories,
-  saveParentCategories,
-} from '@/lib/storage/categories'
-import {
-  migrateParentCategoriesToDomainNames,
-  migrateToUrlsStorage,
-} from '@/lib/storage/migration'
-import {
-  addCategoryToProject,
   addUrlToCustomProject,
-  createCustomProject,
-  deleteCustomProject,
   getCustomProjects,
   getProjectUrls,
-  getViewMode,
   removeCategoryFromProject,
   removeUrlFromCustomProject,
-  renameCategoryInProject,
-  reorderProjectUrls,
-  saveViewMode,
   setUrlCategory,
-  updateCategoryOrder,
-  updateCustomProjectName,
-  updateProjectOrder,
 } from '@/lib/storage/projects'
-import { defaultSettings, getUserSettings } from '@/lib/storage/settings'
+import { defaultSettings } from '@/lib/storage/settings'
 import {
   addSubCategoryToGroup,
   getTabGroupUrls,
   removeUrlFromTabGroup,
 } from '@/lib/storage/tabs'
+import { invalidateUrlCache } from '@/lib/storage/urls'
 import type {
   CustomProject,
   ParentCategory,
   TabGroup,
   UserSettings,
-  ViewMode,
 } from '@/types/storage'
 
 type SavedTabsProfilerStats = {
@@ -132,25 +126,11 @@ const handleSavedTabsRender: ProfilerOnRenderCallback = (
 }
 
 const SavedTabs = () => {
-  const [tabGroups, setTabGroups] = useState<TabGroup[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
-  const [categories, setCategories] = useState<ParentCategory[]>([])
   const [newSubCategory, setNewSubCategory] = useState('')
   const [showSubCategoryModal, setShowSubCategoryModal] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const [categoryOrder, setCategoryOrder] = useState<string[]>([])
-  const [viewMode, setViewMode] = useState<ViewMode>('domain')
-  const [customProjects, setCustomProjects] = useState<CustomProject[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  // 新形式対応: URLデータを取得済みのタブグループ
-  const [tabGroupsWithUrls, setTabGroupsWithUrls] = useState<TabGroup[]>([])
-  // 親カテゴリの並び替えモード状態管理
-  const [isCategoryReorderMode, setIsCategoryReorderMode] = useState(false)
-  const [_originalCategoryOrder, setOriginalCategoryOrder] = useState<string[]>(
-    [],
-  )
-  const [tempCategoryOrder, setTempCategoryOrder] = useState<string[]>([])
 
   // 未分類ドメインの並び替えモード状態管理
   const [isUncategorizedReorderMode, setIsUncategorizedReorderMode] =
@@ -161,698 +141,56 @@ const SavedTabs = () => {
   const [tempUncategorizedOrder, setTempUncategorizedOrder] = useState<
     TabGroup[]
   >([])
-  const customProjectsRef = useRef<CustomProject[]>([])
-  const viewModeRef = useRef<ViewMode>('domain')
+
+  // --- カスタムフック呼び出し ---
+
+  // 1. useCategoryManagement を先に呼び出す（setCategories を useTabData に渡すため）
+  const {
+    categories,
+    setCategories,
+    categoryOrder,
+    isCategoryReorderMode,
+    tempCategoryOrder,
+    handleDeleteCategory,
+    handleCategoryDragEnd,
+    handleConfirmCategoryReorder,
+    handleCancelCategoryReorder,
+    handleUpdateDomainsOrder,
+    handleMoveDomainToCategory,
+  } = useCategoryManagement([], settings)
+
+  // 2. useTabData を呼び出す（onCategoriesLoaded に setCategories を渡す）
+  const { tabGroups, isLoading, tabGroupsWithUrls, refreshTabGroupsWithUrls } =
+    useTabData(setCategories, setSettings)
+
+  // 3. useProjectManagement を呼び出す
+  const {
+    customProjects,
+    setCustomProjects,
+    viewMode,
+    customProjectsRef,
+    viewModeRef,
+    syncDomainDataToCustomProjects,
+    handleViewModeChange,
+    handleCreateProject,
+    handleDeleteProject,
+    handleRenameProject,
+    handleAddUrlToProject,
+    handleDeleteUrlFromProject,
+    handleAddCategory,
+    handleDeleteProjectCategory,
+    handleSetUrlCategory,
+    handleUpdateCategoryOrder,
+    handleReorderUrls,
+    handleReorderProjects,
+    handleRenameCategory,
+  } = useProjectManagement(tabGroups, settings)
 
   useEffect(() => {
     if (showSubCategoryModal && inputRef.current) {
       inputRef.current.focus()
     }
   }, [showSubCategoryModal])
-
-  useEffect(() => {
-    customProjectsRef.current = customProjects
-  }, [customProjects])
-
-  useEffect(() => {
-    viewModeRef.current = viewMode
-  }, [viewMode])
-
-  const loadTabGroupsWithUrls = useCallback(async (groups: TabGroup[]) => {
-    if (groups.length === 0) {
-      return []
-    }
-
-    console.log('タブグループのURL取得を開始...')
-    const groupsWithUrls = await Promise.all(
-      groups.map(async group => {
-        try {
-          if (group.urlIds && group.urlIds.length > 0) {
-            // 新形式: getTabGroupUrlsを使用してURLデータを取得
-            const urls = await getTabGroupUrls(group)
-            console.log(`グループ ${group.domain}: ${urls.length}個のURLを取得`)
-            return { ...group, urls }
-          }
-          if (group.urls && group.urls.length > 0) {
-            // 旧形式: そのまま使用
-            console.log(`グループ ${group.domain}: 旧形式のまま使用`)
-            return group
-          }
-          // URLがない場合
-          console.log(`グループ ${group.domain}: URLなし`)
-          return { ...group, urls: [] }
-        } catch (error) {
-          console.error(`グループ ${group.domain} のURL取得エラー:`, error)
-          return { ...group, urls: [] }
-        }
-      }),
-    )
-
-    return groupsWithUrls
-  }, [])
-
-  const refreshTabGroupsWithUrls = useCallback(
-    async (nextGroups?: TabGroup[]) => {
-      const groups =
-        nextGroups ||
-        ((await chrome.storage.local.get('savedTabs')).savedTabs as
-          | TabGroup[]
-          | undefined) ||
-        []
-      const normalizedGroups = Array.isArray(groups) ? groups : []
-      setTabGroups(normalizedGroups)
-
-      const groupsWithUrls = await loadTabGroupsWithUrls(normalizedGroups)
-      setTabGroupsWithUrls(groupsWithUrls)
-      return normalizedGroups
-    },
-    [loadTabGroupsWithUrls],
-  )
-
-  // ページ読み込み時にマイグレーションを実行
-  useEffect(() => {
-    const loadSavedTabs = async () => {
-      try {
-        console.log('ページ読み込み時の親カテゴリ移行処理を開始...')
-
-        // まずマイグレーションを実行
-        try {
-          await migrateParentCategoriesToDomainNames()
-        } catch (error) {
-          console.error('親カテゴリ移行エラー:', error)
-        }
-
-        // URL管理のマイグレーションも実行
-        try {
-          console.log('URL管理マイグレーションを開始...')
-          await migrateToUrlsStorage()
-          console.log('URL管理マイグレーションが完了しました')
-        } catch (error) {
-          console.error('URL管理マイグレーションエラー:', error)
-        }
-
-        // データ読み込み
-        const storageResult = await chrome.storage.local.get('savedTabs')
-        const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
-          ? storageResult.savedTabs
-          : []
-        console.log('読み込まれたタブ:', savedTabs)
-        console.log('タブグループ数:', savedTabs.length)
-
-        // 各タブグループの詳細を確認
-        for (const group of savedTabs) {
-          console.log(`グループ ${group.domain}:`, {
-            id: group.id,
-            urlIds: group.urlIds?.length || 0,
-            urls: group.urls?.length || 0,
-            urlSubCategories: group.urlSubCategories
-              ? Object.keys(group.urlSubCategories).length
-              : 0,
-          })
-        }
-
-        // もしタブグループが空の場合、テストデータを追加
-        if (savedTabs.length === 0) {
-          console.log('タブグループが空です。テストデータの有無を確認...')
-        }
-
-        setTabGroups(savedTabs)
-
-        const [urlStorageResult, allStorage, userSettings, parentCategories] =
-          await Promise.all([
-            chrome.storage.local.get('urls'),
-            chrome.storage.local.get(),
-            getUserSettings(),
-            getParentCategories(),
-          ])
-
-        // URLストレージの内容を確認
-        const urls = Array.isArray(urlStorageResult.urls)
-          ? urlStorageResult.urls
-          : []
-        console.log('URLストレージ内容:', urls)
-        console.log('URLレコード数:', urls.length)
-
-        // 全ストレージ内容を確認
-        console.log('全ストレージ内容:', allStorage)
-        console.log('ストレージキー一覧:', Object.keys(allStorage))
-
-        // ユーザー設定を読み込み
-        setSettings(userSettings)
-
-        // カテゴリを読み込み
-        console.log('読み込まれた親カテゴリ:', parentCategories)
-
-        // カテゴリが空の場合、または無効なカテゴリがある場合
-        const hasInvalidCategory = parentCategories.some(
-          cat => !cat.domainNames || !Array.isArray(cat.domainNames),
-        )
-
-        if (hasInvalidCategory || parentCategories.length === 0) {
-          console.log('無効なカテゴリを検出、再マイグレーションを実行')
-          await migrateParentCategoriesToDomainNames()
-          const updatedCategories = await getParentCategories()
-          setCategories(updatedCategories)
-        } else {
-          setCategories(parentCategories)
-        }
-
-        // TabGroupのparentCategoryId修復処理
-        let needsUpdate = false
-        const updatedTabGroups = savedTabs.map((group: TabGroup) => {
-          if (!group.parentCategoryId) {
-            // parentCategoryIdが設定されていない場合、適切なカテゴリを探す
-            for (const category of parentCategories) {
-              // IDベースで検索
-              if (category.domains?.includes(group.id)) {
-                console.log(
-                  `TabGroup ${group.domain} のparentCategoryIdを ${category.id} に修復しました (IDベース)`,
-                )
-                needsUpdate = true
-                return { ...group, parentCategoryId: category.id }
-              }
-              // ドメイン名ベースで検索
-              if (category.domainNames?.includes(group.domain)) {
-                console.log(
-                  `TabGroup ${group.domain} のparentCategoryIdを ${category.id} に修復しました (ドメイン名ベース)`,
-                )
-                needsUpdate = true
-                return { ...group, parentCategoryId: category.id }
-              }
-            }
-          }
-          return group
-        })
-
-        // 修復が必要な場合はストレージを更新
-        if (needsUpdate) {
-          await chrome.storage.local.set({ savedTabs: updatedTabGroups })
-          setTabGroups(updatedTabGroups)
-          console.log('TabGroupのparentCategoryId修復処理が完了しました')
-        }
-      } catch (error) {
-        console.error('保存されたタブの読み込みエラー:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadSavedTabs()
-  }, [])
-
-  // 新形式対応: タブグループが更新されたらURLデータを取得
-  useEffect(() => {
-    let cancelled = false
-
-    const loadUrlsForTabGroups = async () => {
-      const groupsWithUrls = await loadTabGroupsWithUrls(tabGroups)
-      if (!cancelled) {
-        console.log('URL取得完了、状態を更新...')
-        setTabGroupsWithUrls(groupsWithUrls)
-      }
-    }
-
-    loadUrlsForTabGroups()
-    return () => {
-      cancelled = true
-    }
-  }, [tabGroups, loadTabGroupsWithUrls])
-
-  useEffect(() => {
-    if (categories.length > 0) {
-      setCategoryOrder(categories.map(cat => cat.id))
-    }
-  }, [categories])
-
-  // ドメインモードのデータをカスタムプロジェクトと同期する関数の型定義
-  type SyncDomainDataToCustomProjects = () => Promise<CustomProject[]>
-
-  // ドメインモードのデータをカスタムプロジェクトと同期する関数
-  // 重複定義を削除し、1つにまとめる
-  const syncDomainDataToCustomProjects: SyncDomainDataToCustomProjects =
-    useCallback(async () => {
-      try {
-        console.log('ドメインモードのデータをカスタムプロジェクトと同期します')
-
-        // 最新のタブグループを取得
-        const storageResult = await chrome.storage.local.get('savedTabs')
-        const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
-          ? storageResult.savedTabs
-          : []
-        console.log(`同期元のドメインモードタブグループ数: ${savedTabs.length}`)
-
-        // 最新のカスタムプロジェクトを取得
-        let projects = await getCustomProjects()
-        console.log(`既存のカスタムプロジェクト数: ${projects.length}`)
-
-        // プロジェクトがなければデフォルトプロジェクトを作成
-        if (projects.length === 0) {
-          console.log(
-            'カスタムプロジェクトが存在しないため、デフォルトプロジェクトを作成します',
-          )
-
-          // ドメインモードのURLsを収集（新形式対応）
-          const allDomainUrls: { url: string; title: string }[] = []
-          for (const group of savedTabs) {
-            const groupUrls = await getTabGroupUrls(group)
-            for (const urlItem of groupUrls) {
-              allDomainUrls.push({
-                url: urlItem.url,
-                title: urlItem.title,
-              })
-            }
-          }
-
-          // デフォルトプロジェクトを作成
-          const defaultProject = await createCustomProject(
-            'デフォルトプロジェクト',
-            '自動作成されたプロジェクト',
-          )
-
-          // URLを追加
-          for (const urlItem of allDomainUrls) {
-            await addUrlToCustomProject(
-              defaultProject.id,
-              urlItem.url,
-              urlItem.title,
-            )
-          }
-
-          // 再取得
-          projects = await getCustomProjects()
-          console.log(
-            `デフォルトプロジェクトを作成しました: ${projects.length} プロジェクト`,
-          )
-        }
-
-        // 各プロジェクトごとに処理（新形式対応）
-        const updatedProjects = await Promise.all(
-          projects.map(async project => {
-            try {
-              // 新形式でURLを取得
-              const projectUrls = await getProjectUrls(project)
-
-              // 既存のURLを把握（削除済みのURLを検出するため）
-              const existingUrls = new Set(projectUrls.map(u => u.url))
-
-              // ドメインモードのすべてのURLをチェック
-              let urlsProcessed = 0
-              for (const group of savedTabs) {
-                const groupUrls = await getTabGroupUrls(group)
-                for (const tabUrl of groupUrls) {
-                  urlsProcessed++
-                  // URLが存在していることをマーク
-                  existingUrls.delete(tabUrl.url)
-                }
-              }
-
-              console.log(`処理したURL数: ${urlsProcessed}`)
-              console.log(
-                `プロジェクト ${project.name}: ${projectUrls.length}個のURL`,
-              )
-
-              // 新形式では個別の同期処理は不要（共通URLストレージで管理）
-              return project
-            } catch (error) {
-              console.error(
-                `プロジェクト ${project.id} の処理中にエラー:`,
-                error,
-              )
-              return project
-            }
-          }),
-        )
-
-        // 新形式では自動同期は不要（共通URLストレージで管理済み）
-        setCustomProjects(updatedProjects)
-        console.log(
-          'プロジェクトデータを確認しました。新形式URL管理で同期は不要です',
-        )
-
-        return updatedProjects
-      } catch (error) {
-        console.error('データ同期エラー:', error)
-        // エラーが発生しても最新のプロジェクトを再取得して返す
-        try {
-          const latestProjects = await getCustomProjects()
-          setCustomProjects(latestProjects)
-          return latestProjects
-        } catch (e) {
-          console.error('プロジェクト再取得エラー:', e)
-          return []
-        }
-      }
-    }, [])
-
-  // モード切替ハンドラー
-  const handleViewModeChange = useCallback(
-    async (mode: ViewMode) => {
-      try {
-        console.log(`ビューモードを ${mode} に変更します`)
-        setViewMode(mode)
-        await saveViewMode(mode)
-
-        // カスタムモードに切り替えた時は必ず最新のプロジェクトを読み込む
-        if (mode === 'custom') {
-          console.log('カスタムモードに切り替え: データ同期を開始')
-          const projects = await syncDomainDataToCustomProjects()
-          console.log(`同期完了: ${projects.length} プロジェクト`)
-
-          // プロジェクトが空の場合、デフォルトプロジェクトを作成
-          if (projects.length === 0) {
-            try {
-              console.log('デフォルトプロジェクトを作成します')
-              const defaultProject = await createCustomProject(
-                'デフォルトプロジェクト',
-                '自動作成されたプロジェクト',
-              )
-              setCustomProjects([defaultProject])
-
-              // ドメインモードのURLsをコピー（新形式対応）
-              const { savedTabs = [] } =
-                await chrome.storage.local.get('savedTabs')
-              for (const group of savedTabs) {
-                const groupUrls = await getTabGroupUrls(group)
-                for (const urlItem of groupUrls) {
-                  await addUrlToCustomProject(
-                    defaultProject.id,
-                    urlItem.url,
-                    urlItem.title,
-                  )
-                }
-              }
-              console.log('デフォルトプロジェクトを作成し、URLをコピーしました')
-
-              // 再取得して状態を更新
-              const updatedProjects = await getCustomProjects()
-              setCustomProjects(updatedProjects)
-            } catch (createError) {
-              console.error('デフォルトプロジェクト作成エラー:', createError)
-              toast.error('プロジェクトの作成に失敗しました')
-            }
-          }
-        }
-      } catch (error) {
-        console.error('ビューモード変更エラー:', error)
-        toast.error('モードの切り替えに失敗しました')
-      }
-    },
-    [syncDomainDataToCustomProjects],
-  )
-
-  // ビューモードと既存のカスタムプロジェクトをロード（初回のみ）
-  useEffect(() => {
-    const loadViewMode = async () => {
-      try {
-        console.log(
-          '初回ロード: ビューモードとカスタムプロジェクトを取得します',
-        )
-        // 最初にビューモードを取得
-        const mode = await getViewMode()
-        setViewMode(mode)
-        console.log(`ビューモード: ${mode}`)
-
-        // カスタムプロジェクトを読み込む
-        let projects = await getCustomProjects()
-        console.log(`カスタムプロジェクト数: ${projects.length}`)
-
-        // プロジェクトが空なら同期してから再取得
-        if (projects.length === 0) {
-          console.log('プロジェクトが空のため同期を行います')
-          await syncDomainDataToCustomProjects()
-          projects = await getCustomProjects()
-          console.log(`同期後のカスタムプロジェクト数: ${projects.length}`)
-        }
-
-        // UIを更新
-        setCustomProjects(projects)
-        console.log('初回ロード完了')
-      } catch (error) {
-        console.error('ビューモードの読み込みエラー:', error)
-      }
-    }
-
-    loadViewMode()
-  }, [syncDomainDataToCustomProjects])
-
-  // カスタムプロジェクト関連ハンドラー
-  const handleCreateProject = useCallback(
-    async (name: string, description?: string) => {
-      try {
-        const newProject = await createCustomProject(name, description)
-        setCustomProjects(prev => [...prev, newProject])
-        toast.success(`プロジェクト「${name}」を作成しました`)
-      } catch (error) {
-        console.error('プロジェクト作成エラー:', error)
-        if (
-          error instanceof Error &&
-          error.message.startsWith('DUPLICATE_PROJECT_NAME:')
-        ) {
-          toast.error(`プロジェクト名「${name}」は既に使用されています`)
-        } else {
-          toast.error('プロジェクトの作成に失敗しました')
-        }
-      }
-    },
-    [],
-  )
-
-  const handleDeleteProject = useCallback(async (projectId: string) => {
-    try {
-      const project = customProjectsRef.current.find(p => p.id === projectId)
-      if (!project) return
-
-      await deleteCustomProject(projectId)
-      setCustomProjects(prev => prev.filter(p => p.id !== projectId))
-      toast.success(`プロジェクト「${project.name}」を削除しました`)
-    } catch (error) {
-      console.error('プロジェクト削除エラー:', error)
-      toast.error('プロジェクトの削除に失敗しました')
-    }
-  }, [])
-
-  const handleRenameProject = useCallback(
-    async (projectId: string, newName: string) => {
-      try {
-        await updateCustomProjectName(projectId, newName)
-        setCustomProjects(prev =>
-          prev.map(p =>
-            p.id === projectId
-              ? { ...p, name: newName, updatedAt: Date.now() }
-              : p,
-          ),
-        )
-        toast.success('プロジェクト名を変更しました')
-      } catch (error) {
-        console.error('プロジェクト名変更エラー:', error)
-        if (
-          error instanceof Error &&
-          error.message.startsWith('DUPLICATE_PROJECT_NAME:')
-        ) {
-          toast.error(`プロジェクト名「${newName}」は既に使用されています`)
-        } else {
-          toast.error('プロジェクト名の変更に失敗しました')
-        }
-      }
-    },
-    [],
-  )
-
-  const handleAddUrlToProject = useCallback(
-    async (projectId: string, url: string, title: string) => {
-      try {
-        await addUrlToCustomProject(projectId, url, title)
-        const updatedProjects = await getCustomProjects()
-        setCustomProjects(updatedProjects)
-        toast.success('URLを追加しました')
-      } catch (error) {
-        console.error('URL追加エラー:', error)
-        toast.error('URLの追加に失敗しました')
-      }
-    },
-    [],
-  )
-
-  const handleDeleteUrlFromProject = useCallback(
-    async (projectId: string, url: string) => {
-      try {
-        await removeUrlFromCustomProject(projectId, url)
-        const updatedProjects = await getCustomProjects()
-        setCustomProjects(updatedProjects)
-        toast.success('URLを削除しました')
-      } catch (error) {
-        console.error('URL削除エラー:', error)
-        toast.error('URLの削除に失敗しました')
-      }
-    },
-    [],
-  )
-
-  // 新しいカテゴリ関連のハンドラーを追加
-  const handleAddCategory = useCallback(
-    async (projectId: string, categoryName: string) => {
-      try {
-        await addCategoryToProject(projectId, categoryName)
-        setCustomProjects(prev =>
-          prev.map(p => {
-            if (p.id !== projectId) return p
-            const updatedCategories = [...p.categories, categoryName]
-            return {
-              ...p,
-              categories: updatedCategories,
-              categoryOrder: p.categoryOrder
-                ? [...p.categoryOrder, categoryName]
-                : updatedCategories,
-              updatedAt: Date.now(),
-            }
-          }),
-        )
-        toast.success(`カテゴリ「${categoryName}」を追加しました`)
-      } catch (error) {
-        console.error('カテゴリ追加エラー:', error)
-        toast.error('カテゴリの追加に失敗しました')
-      }
-    },
-    [],
-  )
-
-  const handleDeleteProjectCategory = useCallback(
-    async (projectId: string, categoryName: string) => {
-      try {
-        await removeCategoryFromProject(projectId, categoryName)
-        const updatedProjects = await getCustomProjects()
-        setCustomProjects(updatedProjects)
-        toast.success(`カテゴリ「${categoryName}」を削除しました`)
-      } catch (error) {
-        console.error('カテゴリ削除エラー:', error)
-        toast.error('カテゴリの削除に失敗しました')
-      }
-    },
-    [],
-  )
-
-  const handleSetUrlCategory = useCallback(
-    async (projectId: string, url: string, category?: string) => {
-      try {
-        await setUrlCategory(projectId, url, category)
-        const updatedProjects = await getCustomProjects()
-        setCustomProjects(updatedProjects)
-      } catch (error) {
-        console.error('URL分類エラー:', error)
-        toast.error('URLの分類更新に失敗しました')
-      }
-    },
-    [],
-  )
-
-  const handleUpdateCategoryOrder = useCallback(
-    async (projectId: string, newOrder: string[]) => {
-      try {
-        console.log(`カテゴリ順序を更新: ${projectId}`, newOrder)
-        await updateCategoryOrder(projectId, newOrder)
-        setCustomProjects(prev =>
-          prev.map(p =>
-            p.id === projectId
-              ? {
-                  ...p,
-                  categoryOrder: newOrder,
-                  updatedAt: Date.now(),
-                }
-              : p,
-          ),
-        )
-      } catch (error) {
-        console.error('カテゴリ順序更新エラー:', error)
-        toast.error('カテゴリの順序更新に失敗しました')
-      }
-    },
-    [],
-  )
-
-  const handleReorderUrls = useCallback(
-    async (projectId: string, urls: CustomProject['urls']) => {
-      try {
-        await reorderProjectUrls(projectId, urls)
-        setCustomProjects(prev =>
-          prev.map(p =>
-            p.id === projectId ? { ...p, urls, updatedAt: Date.now() } : p,
-          ),
-        )
-      } catch (error) {
-        console.error('URL順序更新エラー:', error)
-        toast.error('URLの順序更新に失敗しました')
-      }
-    },
-    [],
-  )
-
-  // プロジェクトの順序を更新するハンドラー関数を追加
-  const handleReorderProjects = useCallback(async (newOrder: string[]) => {
-    try {
-      console.log('プロジェクト順序を更新:', newOrder)
-      await updateProjectOrder(newOrder)
-
-      setCustomProjects(prev =>
-        [...prev].sort((a, b) => {
-          const indexA = newOrder.indexOf(a.id)
-          const indexB = newOrder.indexOf(b.id)
-          if (indexA === -1) return 1
-          if (indexB === -1) return -1
-          return indexA - indexB
-        }),
-      )
-      toast.success('プロジェクトの順序を変更しました')
-    } catch (error) {
-      console.error('プロジェクト順序更新エラー:', error)
-      toast.error('プロジェクト順序の更新に失敗しました')
-    }
-  }, [])
-
-  // カテゴリ名変更ハンドラ
-  const handleRenameCategory = useCallback(
-    async (
-      projectId: string,
-      oldCategoryName: string,
-      newCategoryName: string,
-    ) => {
-      try {
-        await renameCategoryInProject(
-          projectId,
-          oldCategoryName,
-          newCategoryName,
-        )
-        setCustomProjects(prev =>
-          prev.map(project =>
-            project.id === projectId
-              ? {
-                  ...project,
-                  categories: project.categories.map(cat =>
-                    cat === oldCategoryName ? newCategoryName : cat,
-                  ),
-                  categoryOrder: project.categoryOrder
-                    ? project.categoryOrder.map(cat =>
-                        cat === oldCategoryName ? newCategoryName : cat,
-                      )
-                    : project.categoryOrder,
-                  urls: project.urls?.map(item => ({
-                    ...item,
-                    category:
-                      item.category === oldCategoryName
-                        ? newCategoryName
-                        : item.category,
-                  })),
-                }
-              : project,
-          ),
-        )
-        toast.success('カテゴリ名を変更しました')
-      } catch (error) {
-        console.error('カテゴリ名の変更エラー:', error)
-        toast.error('カテゴリ名の変更に失敗しました')
-      }
-    },
-    [],
-  )
 
   const removeOpenedUrlsFromStorage = useCallback(
     async (urlsToRemove: string[]) => {
@@ -897,7 +235,7 @@ const SavedTabs = () => {
       const updatedProjects = await getCustomProjects()
       setCustomProjects(updatedProjects)
     },
-    [refreshTabGroupsWithUrls],
+    [refreshTabGroupsWithUrls, setCustomProjects],
   )
 
   // 既存のタブ開く処理を拡張して両方のモードで同期する
@@ -1010,7 +348,12 @@ const SavedTabs = () => {
         console.error('グループ削除エラー:', error)
       }
     },
-    [isUncategorizedReorderMode, categories, refreshTabGroupsWithUrls],
+    [
+      isUncategorizedReorderMode,
+      categories,
+      refreshTabGroupsWithUrls,
+      setCategories,
+    ],
   )
 
   const handleDeleteUrl = useCallback(
@@ -1081,149 +424,6 @@ const SavedTabs = () => {
   //   }
   // }
 
-  // カテゴリの削除を処理する関数 - 改善版
-  const handleDeleteCategory = useCallback(
-    async (groupId: string, categoryName: string) => {
-      try {
-        console.log(`カテゴリ ${categoryName} の削除を開始します...`)
-
-        const storageResult = await chrome.storage.local.get('savedTabs')
-        const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
-          ? storageResult.savedTabs
-          : []
-
-        // 削除前にグループを取得して現在のカテゴリを確認
-        const targetGroup = savedTabs.find(group => group.id === groupId)
-        if (!targetGroup) {
-          console.error('カテゴリ削除対象のグループが見つかりません:', groupId)
-          return
-        }
-
-        const updatedGroups = savedTabs.map(group => {
-          if (group.id === groupId) {
-            // 削除前と削除後のカテゴリ情報をログ
-            console.log('削除前のサブカテゴリ:', group.subCategories)
-
-            const updatedSubCategories =
-              group.subCategories?.filter(cat => cat !== categoryName) || []
-
-            console.log('削除後のサブカテゴリ:', updatedSubCategories)
-
-            // 新形式ではサブカテゴリ情報はurlSubCategoriesで管理
-            const updatedUrlSubCategories = { ...group.urlSubCategories }
-
-            // 指定されたカテゴリのサブカテゴリを削除
-            if (updatedUrlSubCategories) {
-              for (const urlId in updatedUrlSubCategories) {
-                if (updatedUrlSubCategories[urlId] === categoryName) {
-                  delete updatedUrlSubCategories[urlId]
-                }
-              }
-            }
-
-            return {
-              ...group,
-              subCategories: updatedSubCategories,
-              categoryKeywords:
-                group.categoryKeywords?.filter(
-                  ck => ck.categoryName !== categoryName,
-                ) || [],
-              urlSubCategories: updatedUrlSubCategories,
-            }
-          }
-          return group
-        })
-
-        console.log(`カテゴリ ${categoryName} を削除します`)
-        await chrome.storage.local.set({ savedTabs: updatedGroups })
-        await refreshTabGroupsWithUrls(updatedGroups)
-        console.log(`カテゴリ ${groupId} を削除しました`)
-      } catch (error) {
-        console.error('カテゴリ削除エラー:', error)
-      }
-    },
-    [refreshTabGroupsWithUrls],
-  )
-
-  // 親カテゴリの順序変更ハンドラを追加
-  const handleCategoryDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event
-
-      if (over && active.id !== over.id) {
-        if (typeof active.id !== 'string' || typeof over.id !== 'string') {
-          return
-        }
-
-        // カテゴリの順序を一時的に更新（まだストレージには保存しない）
-        const currentOrder = isCategoryReorderMode
-          ? tempCategoryOrder
-          : categoryOrder
-        const oldIndex = currentOrder.indexOf(active.id)
-        const newIndex = currentOrder.indexOf(over.id)
-
-        if (oldIndex !== -1 && newIndex !== -1) {
-          const newOrder = arrayMove(currentOrder, oldIndex, newIndex)
-
-          if (!isCategoryReorderMode) {
-            // 初回の並び替え時：並び替えモードを開始
-            setIsCategoryReorderMode(true)
-            setOriginalCategoryOrder([...categoryOrder])
-            setTempCategoryOrder(newOrder)
-          } else {
-            // 既に並び替えモード中：一時的な順序を更新
-            setTempCategoryOrder(newOrder)
-          }
-        }
-      }
-    },
-    [isCategoryReorderMode, tempCategoryOrder, categoryOrder],
-  )
-
-  // 親カテゴリの並び替えを確定する
-  const handleConfirmCategoryReorder = useCallback(async () => {
-    if (!isCategoryReorderMode) return
-
-    try {
-      // カテゴリ順序を更新
-      setCategoryOrder(tempCategoryOrder)
-
-      // 新しい順序に基づいてカテゴリを並び替え
-      const orderedCategories = [...categories].sort(
-        (a, b) =>
-          tempCategoryOrder.indexOf(a.id) - tempCategoryOrder.indexOf(b.id),
-      )
-
-      // ストレージに保存
-      await saveParentCategories(orderedCategories)
-      setCategories(orderedCategories)
-
-      // 並び替えモードを終了
-      setIsCategoryReorderMode(false)
-      setOriginalCategoryOrder([])
-      setTempCategoryOrder([])
-
-      toast.success('親カテゴリの順序を変更しました')
-    } catch (error) {
-      console.error('親カテゴリ順序の更新に失敗しました:', error)
-      toast.error('親カテゴリ順序の更新に失敗しました')
-    }
-  }, [isCategoryReorderMode, tempCategoryOrder, categories])
-
-  // 親カテゴリの並び替えをキャンセルする
-  const handleCancelCategoryReorder = useCallback(() => {
-    if (!isCategoryReorderMode) return
-
-    // 元の順序に戻す
-    setTempCategoryOrder([])
-
-    // 並び替えモードを終了
-    setIsCategoryReorderMode(false)
-    setOriginalCategoryOrder([])
-
-    toast.info('親カテゴリの並び替えをキャンセルしました')
-  }, [isCategoryReorderMode])
-
   // 未分類ドメインの並び替えをキャンセルする
   const handleCancelUncategorizedReorder = useCallback(() => {
     if (!isUncategorizedReorderMode) return
@@ -1237,49 +437,6 @@ const SavedTabs = () => {
 
     toast.info('未分類ドメインの並び替えをキャンセルしました')
   }, [isUncategorizedReorderMode])
-
-  // カテゴリ内のドメイン順序更新関数を改善
-  const handleUpdateDomainsOrder = useCallback(
-    async (categoryId: string, updatedDomains: TabGroup[]) => {
-      try {
-        console.log('カテゴリ内のドメイン順序を更新:', categoryId)
-        console.log(
-          '更新後のドメイン順序:',
-          updatedDomains.map(d => d.domain),
-        )
-
-        // 更新するカテゴリを探す
-        const targetCategory = categories.find(cat => cat.id === categoryId)
-        if (!targetCategory) {
-          console.error('更新対象のカテゴリが見つかりません:', categoryId)
-          return
-        }
-
-        // 更新するドメインIDの配列を作成
-        const updatedDomainIds = updatedDomains.map(domain => domain.id)
-
-        // カテゴリ内のドメイン順序を更新
-        const updatedCategories = categories.map(category => {
-          if (category.id === categoryId) {
-            return {
-              ...category,
-              domains: updatedDomainIds,
-            }
-          }
-          return category
-        })
-
-        // ストレージに保存
-        await saveParentCategories(updatedCategories)
-        setCategories(updatedCategories)
-
-        console.log('カテゴリ内のドメイン順序を更新しました:', categoryId)
-      } catch (error) {
-        console.error('カテゴリ内ドメイン順序更新エラー:', error)
-      }
-    },
-    [categories],
-  )
 
   // タブグループをカテゴリごとに整理する関数を強化
   const organizeTabGroups = useCallback((): {
@@ -1417,25 +574,6 @@ const SavedTabs = () => {
             console.log(
               `ドメイン ${group.domain} のparentCategoryIdをIDベースで ${category.id} に更新しました`,
             )
-
-            // TabGroupの変更を永続化
-            ;(async () => {
-              try {
-                const { savedTabs = [] } =
-                  await chrome.storage.local.get('savedTabs')
-                const updatedTabGroups = savedTabs.map((tab: TabGroup) =>
-                  tab.id === group.id
-                    ? { ...tab, parentCategoryId: category.id }
-                    : tab,
-                )
-                await chrome.storage.local.set({ savedTabs: updatedTabGroups })
-                console.log(
-                  `ドメイン ${group.domain} のTabGroupを永続化しました`,
-                )
-              } catch (err) {
-                console.error('TabGroup更新エラー:', err)
-              }
-            })()
           }
 
           found = true
@@ -1472,38 +610,6 @@ const SavedTabs = () => {
             console.log(
               `ドメイン ${group.domain} のparentCategoryIdを ${category.id} に設定しました`,
             )
-
-            // 見つかった場合、ドメインIDも更新して同期させる
-            ;(async () => {
-              try {
-                const updatedCategory = {
-                  ...category,
-                  domains: [...category.domains, group.id],
-                }
-
-                await saveParentCategories(
-                  categories.map(c =>
-                    c.id === category.id ? updatedCategory : c,
-                  ),
-                )
-
-                // TabGroupも永続化するために保存
-                const { savedTabs = [] } =
-                  await chrome.storage.local.get('savedTabs')
-                const updatedTabGroups = savedTabs.map((tab: TabGroup) =>
-                  tab.id === group.id
-                    ? { ...tab, parentCategoryId: category.id }
-                    : tab,
-                )
-                await chrome.storage.local.set({ savedTabs: updatedTabGroups })
-
-                console.log(
-                  `ドメイン ${group.domain} のIDを親カテゴリに同期し、TabGroupも更新しました`,
-                )
-              } catch (err) {
-                console.error('カテゴリ同期エラー:', err)
-              }
-            })()
 
             found = true
             break
@@ -1549,6 +655,86 @@ const SavedTabs = () => {
       uncategorized: uncategorizedGroups,
     }
   }, [tabGroupsWithUrls, categories, settings.enableCategories, searchQuery])
+
+  // tabGroupsWithUrls と categories が変わったとき、カテゴリ割り当ての不一致を
+  // ストレージに反映するための副作用（organizeTabGroups から分離した副作用）
+  useEffect(() => {
+    if (!settings.enableCategories) return
+    if (tabGroupsWithUrls.length === 0 || categories.length === 0) return
+
+    const syncCategoryAssignments = async () => {
+      try {
+        const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+        const currentSavedTabs = savedTabs as TabGroup[]
+
+        let savedTabsChanged = false
+        let updatedSavedTabs = [...currentSavedTabs]
+
+        // カテゴリ配列のスナップショットをキャプチャ（非同期処理中にstateが変わっても安全）
+        const currentCategories = [...categories]
+        let categoriesChanged = false
+        let updatedCategories = currentCategories.map(c => ({ ...c }))
+
+        for (const group of tabGroupsWithUrls) {
+          // IDベースでカテゴリを検索してparentCategoryIdの不一致を修正
+          for (const category of currentCategories) {
+            if (
+              category.domains?.includes(group.id) &&
+              group.parentCategoryId !== category.id
+            ) {
+              updatedSavedTabs = updatedSavedTabs.map(tab =>
+                tab.id === group.id
+                  ? { ...tab, parentCategoryId: category.id }
+                  : tab,
+              )
+              savedTabsChanged = true
+              console.log(
+                `[カテゴリ同期] ドメイン ${group.domain} のparentCategoryIdをIDベースで ${category.id} に更新しました`,
+              )
+              break
+            }
+          }
+
+          // ドメイン名ベースでカテゴリを発見したとき、カテゴリのdomainsリストとparentCategoryIdを同期
+          const foundByDomainName = currentCategories.find(
+            c =>
+              !c.domains?.includes(group.id) &&
+              c.domainNames?.includes(group.domain),
+          )
+          if (foundByDomainName) {
+            updatedCategories = updatedCategories.map(c =>
+              c.id === foundByDomainName.id
+                ? { ...c, domains: [...c.domains, group.id] }
+                : c,
+            )
+            categoriesChanged = true
+
+            updatedSavedTabs = updatedSavedTabs.map(tab =>
+              tab.id === group.id
+                ? { ...tab, parentCategoryId: foundByDomainName.id }
+                : tab,
+            )
+            savedTabsChanged = true
+            console.log(
+              `[カテゴリ同期] ドメイン ${group.domain} のIDを親カテゴリ ${foundByDomainName.id} に同期しました`,
+            )
+          }
+        }
+
+        if (categoriesChanged) {
+          await saveParentCategories(updatedCategories)
+        }
+        if (savedTabsChanged) {
+          await chrome.storage.local.set({ savedTabs: updatedSavedTabs })
+          console.log('[カテゴリ同期] savedTabs をストレージに書き込みました')
+        }
+      } catch (err) {
+        console.error('[カテゴリ同期] ストレージ同期エラー:', err)
+      }
+    }
+
+    syncCategoryAssignments()
+  }, [tabGroupsWithUrls, categories, settings.enableCategories])
 
   // 検索・フィルタ適用後のグループを整理（メモ化）
   const { categorized, uncategorized } = useMemo(
@@ -1700,8 +886,16 @@ const SavedTabs = () => {
     }) => {
       console.log('ストレージ変更を検出:', changes)
 
+      const hasSavedTabsChange = Boolean(changes.savedTabs)
+      const hasUrlsChange = Boolean(changes.urls)
+
+      // 新形式URLストレージが更新されたら、ページ側のURLキャッシュを破棄する
+      if (hasUrlsChange) {
+        invalidateUrlCache()
+      }
+
       // savedTabsの変更を検出した場合
-      if (changes.savedTabs) {
+      if (hasSavedTabsChange) {
         const nextSavedTabs = Array.isArray(changes.savedTabs.newValue)
           ? (changes.savedTabs.newValue as TabGroup[])
           : []
@@ -1709,6 +903,9 @@ const SavedTabs = () => {
 
         // ドメインモードで変更があった場合、カスタムプロジェクトも同期更新
         await syncDomainDataToCustomProjects()
+      } else if (hasUrlsChange) {
+        // URL実体のみ更新されたケースでも、saved-tabs表示を再同期する
+        await refreshTabGroupsWithUrls()
       }
 
       if (changes.userSettings) {
@@ -1740,60 +937,13 @@ const SavedTabs = () => {
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChanged)
     }
-  }, [refreshTabGroupsWithUrls, syncDomainDataToCustomProjects]) // 必要な依存関係を追加
-
-  // ドメインを別のカテゴリに移動する関数
-  const handleMoveDomainToCategory = useCallback(
-    async (
-      domainId: string,
-      fromCategoryId: string | null,
-      toCategoryId: string,
-    ) => {
-      try {
-        const domainGroup = tabGroups.find(group => group.id === domainId)
-        if (!domainGroup) return
-
-        let updatedCategories = [...categories]
-
-        if (fromCategoryId) {
-          updatedCategories = updatedCategories.map(cat =>
-            cat.id === fromCategoryId
-              ? {
-                  ...cat,
-                  domains: cat.domains.filter(d => d !== domainId),
-                  domainNames: cat.domainNames
-                    ? cat.domainNames.filter(d => d !== domainGroup.domain)
-                    : [],
-                }
-              : cat,
-          )
-        }
-
-        updatedCategories = updatedCategories.map(cat =>
-          cat.id === toCategoryId
-            ? {
-                ...cat,
-                domains: cat.domains.includes(domainId)
-                  ? cat.domains
-                  : [...cat.domains, domainId],
-                domainNames: cat.domainNames?.includes(domainGroup.domain)
-                  ? cat.domainNames
-                  : [...(cat.domainNames || []), domainGroup.domain],
-              }
-            : cat,
-        )
-
-        await saveParentCategories(updatedCategories)
-        setCategories(updatedCategories)
-        console.log(
-          `ドメイン ${domainGroup.domain} を ${fromCategoryId || '未分類'} から ${toCategoryId} に移動しました`,
-        )
-      } catch (error) {
-        console.error('カテゴリ間ドメイン移動エラー:', error)
-      }
-    },
-    [tabGroups, categories],
-  )
+  }, [
+    refreshTabGroupsWithUrls,
+    syncDomainDataToCustomProjects,
+    setCategories,
+    setCustomProjects,
+    viewModeRef,
+  ]) // 必要な依存関係を追加
 
   // カスタムプロジェクト間でURLを移動するハンドラ
   const handleMoveUrlBetweenProjects = useCallback(
@@ -1870,7 +1020,7 @@ const SavedTabs = () => {
         return null
       }
     },
-    [],
+    [customProjectsRef, setCustomProjects],
   )
 
   // カテゴリ間でURLを移動するハンドラ
@@ -1959,7 +1109,7 @@ const SavedTabs = () => {
         toast.error('URLの移動に失敗しました')
       }
     },
-    [],
+    [customProjectsRef, setCustomProjects],
   )
 
   return (
@@ -2043,10 +1193,25 @@ const SavedTabs = () => {
                               handleUpdateDomainsOrder={
                                 handleUpdateDomainsOrder
                               }
-                              handleMoveDomainToCategory={
-                                handleMoveDomainToCategory
+                              handleMoveDomainToCategory={(
+                                domainId,
+                                fromCategoryId,
+                                toCategoryId,
+                              ) =>
+                                handleMoveDomainToCategory(
+                                  domainId,
+                                  fromCategoryId,
+                                  toCategoryId,
+                                  tabGroups,
+                                )
                               }
-                              handleDeleteCategory={handleDeleteCategory}
+                              handleDeleteCategory={(groupId, categoryName) =>
+                                handleDeleteCategory(
+                                  groupId,
+                                  categoryName,
+                                  refreshTabGroupsWithUrls,
+                                )
+                              }
                               settings={settings}
                               isCategoryReorderMode={isCategoryReorderMode}
                               searchQuery={searchQuery}
@@ -2167,7 +1332,13 @@ const SavedTabs = () => {
                           handleDeleteUrl={handleDeleteUrl}
                           handleOpenTab={handleOpenTab}
                           handleUpdateUrls={handleUpdateUrls}
-                          handleDeleteCategory={handleDeleteCategory}
+                          handleDeleteCategory={(groupId, categoryName) =>
+                            handleDeleteCategory(
+                              groupId,
+                              categoryName,
+                              refreshTabGroupsWithUrls,
+                            )
+                          }
                           settings={settings}
                           isReorderMode={isUncategorizedReorderMode}
                           searchQuery={searchQuery}

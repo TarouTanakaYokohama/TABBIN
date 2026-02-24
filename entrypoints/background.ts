@@ -3,6 +3,14 @@
  * リファクタリング後のモジュラー構造
  */
 
+// プロダクションビルドではデバッグログを抑制する
+if (!import.meta.env.DEV) {
+  // eslint-disable-next-line no-console
+  console.log = () => {}
+  // eslint-disable-next-line no-console
+  console.debug = () => {}
+}
+
 import { defineBackground } from 'wxt/utils/define-background'
 import { setupExpiredTabsCheckAlarm } from '@/lib/background/alarm-notification'
 // 分離したモジュールをインポート
@@ -108,22 +116,6 @@ export default defineBackground(() => {
       console.error('バックグラウンド初期化エラー:', error)
     }
   })()
-
-  // インストール時に実行する処理
-  chrome.runtime.onInstalled.addListener(async details => {
-    console.log(`拡張機能がインストールまたは更新されました: ${details.reason}`)
-
-    // データ構造の移行を実行
-    try {
-      console.log(
-        '拡張機能インストール/更新時の親カテゴリデータ構造移行を開始...',
-      )
-      await migrateParentCategoriesToDomainNames()
-      console.log('データ構造の移行が完了しました')
-    } catch (error) {
-      console.error('データ構造の移行に失敗しました:', error)
-    }
-  })
 
   // ブラウザアクション（拡張機能アイコン）クリック時の処理
   chrome.action.onClicked.addListener(handleExtensionActionClick)

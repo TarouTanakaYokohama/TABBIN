@@ -2,6 +2,16 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import type { SortableUrlItemProps } from '@/types/saved-tabs'
 
@@ -31,6 +41,7 @@ export const SortableUrlItem = ({
   const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [isDeleteButtonVisible, setIsDeleteButtonVisible] = useState(false)
   const buttonTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
 
   // ドラッグが開始されたとき
   const handleDragStart = (e: React.DragEvent<HTMLElement>, url: string) => {
@@ -159,11 +170,10 @@ export const SortableUrlItem = ({
   const handleDeleteButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
-    if (
-      !settings.confirmDeleteEach ||
-      window.confirm('このURLを削除しますか？')
-    ) {
+    if (!settings.confirmDeleteEach) {
       handleDeleteUrl(groupId, url)
+    } else {
+      setIsDeleteConfirmOpen(true)
     }
   }
 
@@ -173,75 +183,97 @@ export const SortableUrlItem = ({
   }
 
   return (
-    <li
-      ref={setNodeRef}
-      style={style}
-      className='relative flex items-center overflow-hidden pb-1 last:border-0 last:pb-0'
-      data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
-    >
-      <div
-        className='z-10 flex-shrink-0 cursor-grab px-2.5 text-muted-foreground/40 hover:cursor-grab active:cursor-grabbing'
-        {...attributes}
-        {...listeners}
+    <>
+      <li
+        ref={setNodeRef}
+        style={style}
+        className='relative flex items-center overflow-hidden pb-1 last:border-0 last:pb-0'
+        data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
       >
-        <GripVertical size={16} aria-hidden='true' />
-      </div>
-      <div className='relative min-w-0 flex-1'>
-        <Button
-          asChild
-          variant='ghost'
-          size='sm'
-          className='ml-2 flex h-full cursor-pointer items-center justify-start gap-1 overflow-hidden bg-transparent px-1 py-2 pr-8 text-foreground hover:text-foreground'
+        <div
+          className='z-10 flex-shrink-0 cursor-grab px-2.5 text-muted-foreground/40 hover:cursor-grab active:cursor-grabbing'
+          {...attributes}
+          {...listeners}
         >
-          <a
-            href={url as string}
-            target='_blank'
-            rel='noopener noreferrer'
-            draggable
-            onDragStart={e => handleDragStart(e, url as string)}
-            onDragEnd={handleDragEnd}
-            onClick={e => {
-              e.preventDefault()
-              handleOpenTab(url)
-            }}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleUIMouseLeave}
-          >
-            <div className='flex w-full flex-col truncate'>
-              <span className='truncate'>{title}</span>
-              {/* 保存日時と残り時間を表示 - settings.showSavedTime に基づき条件分岐 */}
-              {savedAt && (
-                <div className='flex items-center gap-2 text-xs'>
-                  {settings.showSavedTime && (
-                    <span className='text-muted-foreground'>
-                      {formatDatetime(savedAt)}
-                    </span>
-                  )}
-                  {autoDeletePeriod && autoDeletePeriod !== 'never' && (
-                    <TimeRemaining
-                      savedAt={savedAt}
-                      autoDeletePeriod={autoDeletePeriod}
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          </a>
-        </Button>
-        {isDeleteButtonVisible && (
+          <GripVertical size={16} aria-hidden='true' />
+        </div>
+        <div className='relative min-w-0 flex-1'>
           <Button
+            asChild
             variant='ghost'
-            size='icon'
-            onClick={handleDeleteButtonClick}
-            onMouseEnter={handleDeleteButtonMouseEnter}
-            className='absolute top-0 right-0 bottom-0 my-auto flex-shrink-0 cursor-pointer'
-            title='タブを削除'
-            aria-label='タブを削除'
+            size='sm'
+            className='ml-2 flex h-full cursor-pointer items-center justify-start gap-1 overflow-hidden bg-transparent px-1 py-2 pr-8 text-foreground hover:text-foreground'
           >
-            <X size={14} />
+            <a
+              href={url as string}
+              target='_blank'
+              rel='noopener noreferrer'
+              draggable
+              onDragStart={e => handleDragStart(e, url as string)}
+              onDragEnd={handleDragEnd}
+              onClick={e => {
+                e.preventDefault()
+                handleOpenTab(url)
+              }}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleUIMouseLeave}
+            >
+              <div className='flex w-full flex-col truncate'>
+                <span className='truncate'>{title}</span>
+                {/* 保存日時と残り時間を表示 - settings.showSavedTime に基づき条件分岐 */}
+                {savedAt && (
+                  <div className='flex items-center gap-2 text-xs'>
+                    {settings.showSavedTime && (
+                      <span className='text-muted-foreground'>
+                        {formatDatetime(savedAt)}
+                      </span>
+                    )}
+                    {autoDeletePeriod && autoDeletePeriod !== 'never' && (
+                      <TimeRemaining
+                        savedAt={savedAt}
+                        autoDeletePeriod={autoDeletePeriod}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            </a>
           </Button>
-        )}
-      </div>
-    </li>
+          {isDeleteButtonVisible && (
+            <Button
+              variant='ghost'
+              size='icon'
+              onClick={handleDeleteButtonClick}
+              onMouseEnter={handleDeleteButtonMouseEnter}
+              className='absolute top-0 right-0 bottom-0 my-auto flex-shrink-0 cursor-pointer'
+              title='タブを削除'
+              aria-label='タブを削除'
+            >
+              <X size={14} />
+            </Button>
+          )}
+        </div>
+      </li>
+
+      <AlertDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>タブを削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              このURLを削除します。この操作は元に戻せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleDeleteUrl(groupId, url)}>
+              削除する
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

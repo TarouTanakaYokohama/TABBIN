@@ -438,8 +438,8 @@ export async function removeCategoryFromProject(
 
   // このカテゴリに所属するURLのカテゴリをnullに設定（新形式対応）
   if (project.urlMetadata) {
-    for (const urlId in project.urlMetadata) {
-      if (project.urlMetadata[urlId]?.category === categoryName) {
+    for (const [urlId, meta] of Object.entries(project.urlMetadata)) {
+      if (meta?.category === categoryName) {
         project.urlMetadata[urlId].category = undefined
       }
     }
@@ -582,8 +582,8 @@ export async function renameCategoryInProject(
   }
   // URLメタデータのカテゴリ名を更新（新形式対応）
   if (project.urlMetadata) {
-    for (const urlId in project.urlMetadata) {
-      if (project.urlMetadata[urlId]?.category === oldCategoryName) {
+    for (const [urlId, meta] of Object.entries(project.urlMetadata)) {
+      if (meta?.category === oldCategoryName) {
         project.urlMetadata[urlId].category = newCategoryName
       }
     }

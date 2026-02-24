@@ -18,7 +18,7 @@ const AUTO_DELETE_PERIODS: AutoDeletePeriod[] = [
   '365days',
 ]
 
-function isAutoDeletePeriod(period: string): period is AutoDeletePeriod {
+export function isAutoDeletePeriod(period: string): period is AutoDeletePeriod {
   return AUTO_DELETE_PERIODS.includes(period as AutoDeletePeriod)
 }
 
@@ -184,25 +184,13 @@ export async function updateTabTimestamps(
     const now = Date.now()
     let timestamp: number
 
-    // テスト用設定の場合は現在時刻より前に設定
+    // 短いテスト用期間では、即時検証しやすいように過去時刻を設定する
     if (period === '30sec') {
-      // 30秒前に設定（テスト用）
-      timestamp = now - 40 * 1000 // 余裕を持って40秒前
-      console.log(
-        `保存時刻を30秒前に設定: ${new Date(timestamp).toLocaleString()}`,
-      )
+      timestamp = now - 40 * 1000
     } else if (period === '1min') {
-      // 1分10秒前に設定（テスト用）
-      timestamp = now - 70 * 1000 // 余裕を持って70秒前
-      console.log(
-        `保存時刻を1分10秒前に設定: ${new Date(timestamp).toLocaleString()}`,
-      )
+      timestamp = now - 70 * 1000
     } else {
-      // デフォルトは現在時刻
       timestamp = now
-      console.log(
-        `保存時刻を現在時刻に設定: ${new Date(timestamp).toLocaleString()}`,
-      )
     }
 
     // タブの保存時刻を更新

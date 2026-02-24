@@ -1,4 +1,12 @@
 import '@/assets/global.css'
+// プロダクションビルドではデバッグログを抑制する
+if (!import.meta.env.DEV) {
+  // eslint-disable-next-line no-console
+  console.log = () => {}
+  // eslint-disable-next-line no-console
+  console.debug = () => {}
+}
+
 // lucide-reactからアイコンをインポート - AlertTriangleを追加
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { createRoot } from 'react-dom/client'

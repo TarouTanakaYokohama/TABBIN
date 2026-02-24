@@ -11,6 +11,7 @@ import type {
 import {
   checkAndRemoveExpiredTabs,
   getExpirationPeriodMs,
+  isAutoDeletePeriod,
   updateTabTimestamps,
 } from './expired-tabs'
 import {
@@ -26,6 +27,14 @@ export function setupMessageListener(): void {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     console.log('バックグラウンドがメッセージを受信:', message)
 
+    if (
+      typeof message !== 'object' ||
+      message === null ||
+      typeof (message as Record<string, unknown>).action !== 'string'
+    ) {
+      sendResponse({ status: 'invalid_message' })
+      return false
+    }
     const typedMessage = message as BackgroundMessage
 
     switch (typedMessage.action) {
@@ -127,8 +136,13 @@ function handleCalculateTimeRemainingMessage(
     return
   }
 
+  if (!isAutoDeletePeriod(autoDeletePeriod)) {
+    sendResponse({ timeRemaining: null })
+    return
+  }
+
   try {
-    const expirationMs = getExpirationPeriodMs(autoDeletePeriod as 'never')
+    const expirationMs = getExpirationPeriodMs(autoDeletePeriod)
     if (!expirationMs) {
       sendResponse({ timeRemaining: null })
       return
