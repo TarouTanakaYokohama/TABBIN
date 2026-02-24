@@ -96,7 +96,13 @@ export async function handleSaveCurrentTab(): Promise<
     }
   }
 
-  return [{ url: activeTab.url || '', title: activeTab.title || '' }]
+  return [
+    {
+      // filterTabsByUserSettings で URL なしタブは除外済み
+      url: activeTab.url as string,
+      title: activeTab.title || '',
+    },
+  ]
 }
 
 /**
@@ -174,7 +180,8 @@ export async function handleSaveSameDomainTabs(): Promise<
     }
 
     return filteredTabs.map(tab => ({
-      url: tab.url || '',
+      // filterTabsByUserSettings と同一ドメイン抽出で URL なしタブは除外済み
+      url: tab.url as string,
       title: tab.title || '',
     }))
   } catch (error) {
@@ -232,7 +239,8 @@ export async function handleSaveAllWindowsTabs(): Promise<
     }
 
     return filteredTabs.map(tab => ({
-      url: tab.url || '',
+      // filterTabsByUserSettings で URL なしタブは除外済み
+      url: tab.url as string,
       title: tab.title || '',
     }))
   } catch (error) {
@@ -307,7 +315,8 @@ export async function handleSaveWindowTabs(): Promise<
   }
 
   return filteredTabs.map(tab => ({
-    url: tab.url || '',
+    // filterTabsByUserSettings で URL なしタブは除外済み
+    url: tab.url as string,
     title: tab.title || '',
   }))
 }

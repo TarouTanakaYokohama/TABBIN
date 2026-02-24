@@ -82,11 +82,8 @@ export async function checkAndRemoveExpiredTabs(): Promise<void> {
     }
 
     // 期限をミリ秒で計算
-    const expirationPeriod = getExpirationPeriodMs(autoDeletePeriod)
-    if (!expirationPeriod) {
-      console.log('有効な期限が設定されていません')
-      return
-    }
+    // "never" と無効値は上で除外済みのため、ここでは null にならない想定
+    const expirationPeriod = getExpirationPeriodMs(autoDeletePeriod) as number
 
     const currentTime = Date.now()
     const cutoffTime = currentTime - expirationPeriod
@@ -133,11 +130,11 @@ export async function checkAndRemoveExpiredTabs(): Promise<void> {
           urls: filteredUrls,
         }
       })
-      .filter(group => (group.urls?.length ?? 0) > 0)
+      .filter(group => group.urls.length > 0)
 
     // 更新後のURL数を計算
     const updatedUrlCount: number = updatedTabs.reduce(
-      (acc: number, g: TabGroup) => acc + (g.urls?.length ?? 0),
+      (acc: number, g) => acc + g.urls.length,
       0,
     )
 

@@ -3,8 +3,8 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { Button } from './button'
 
-describe('Button', () => {
-  it('renders native button by default', () => {
+describe('Buttonコンポーネント', () => {
+  it('デフォルトでネイティブの button 要素を描画する', () => {
     render(<Button>Default Button</Button>)
 
     const button = screen.getByRole('button', { name: 'Default Button' })
@@ -12,7 +12,7 @@ describe('Button', () => {
     expect(button.getAttribute('data-slot')).toBe('button')
   })
 
-  it('renders child element when asChild is true', () => {
+  it('asChild が true のとき子要素を描画する', () => {
     render(
       <Button asChild>
         <a href='/docs'>Read Docs</a>

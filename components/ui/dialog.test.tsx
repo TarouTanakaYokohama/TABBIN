@@ -10,8 +10,8 @@ import {
   DialogTrigger,
 } from './dialog'
 
-describe('Dialog', () => {
-  it('renders trigger and close wrappers with slot attributes', () => {
+describe('Dialogコンポーネント', () => {
+  it('トリガーとクローズのラッパーに slot 属性を付与して描画する', () => {
     render(
       <Dialog open>
         <DialogTrigger>Open Dialog</DialogTrigger>

@@ -52,12 +52,12 @@ vi.mock('@radix-ui/react-scroll-area', () => {
 
 import { ScrollArea, ScrollBar } from './scroll-area'
 
-describe('ScrollArea', () => {
+describe('ScrollAreaコンポーネント', () => {
   afterEach(() => {
     document.body.innerHTML = ''
   })
 
-  it('renders default vertical scrollbar in ScrollArea', () => {
+  it('ScrollArea にデフォルトの縦スクロールバーを描画する', () => {
     render(
       <ScrollArea>
         <div>Content</div>
@@ -69,7 +69,7 @@ describe('ScrollArea', () => {
     expect(scrollbars[0]?.className).toContain('h-full w-2.5')
   })
 
-  it('applies horizontal styles when orientation is horizontal', () => {
+  it('orientation が horizontal のとき横向きスタイルを適用する', () => {
     render(<ScrollBar orientation='horizontal' />)
 
     const scrollbar = screen
