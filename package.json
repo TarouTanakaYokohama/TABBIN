@@ -17,7 +17,7 @@
     "lint": "biome lint .",
     "check": "biome check .",
     "check:write": "biome check --write .",
-    "quality": "npm run format && npm run lint && npm run check && npm run test",
+    "quality": "bun run format && bun run lint && bun run check && bun run test",
     "test": "vitest run --config vitest.ci.config.ts",
     "test:coverage": "vitest run --coverage --config vitest.ci.config.ts",
     "storybook": "storybook dev -p 6006",
