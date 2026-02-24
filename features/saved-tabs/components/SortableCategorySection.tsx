@@ -12,6 +12,16 @@ import {
   Trash,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -72,48 +82,40 @@ export const SortableCategorySection = ({
     return arr
   }, [props.urls, sortOrder])
 
-  // 完全に再設計された削除処理
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
+
+  const onDeleteAllTabsConfirmed = useCallback(async () => {
+    if (isDeleting || !handleDeleteAllTabs) return
+    setIsDeleteConfirmOpen(false)
+    setIsDeleting(true)
+    try {
+      const urlsToDelete = [...(props.urls || [])]
+      await handleDeleteAllTabs(urlsToDelete)
+    } catch (error) {
+      console.error('削除処理中にエラーが発生しました:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [props.urls, handleDeleteAllTabs, isDeleting])
+
   const onDeleteAllTabs = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
       e.preventDefault()
-
-      // 処理中なら何もしない
-      if (isDeleting) return
-
-      // 確認ダイアログを削除し、直接削除処理を実行
-      setIsDeleting(true)
-
-      // 非同期で処理を実行
-      Promise.resolve().then(async () => {
-        try {
-          // URLのコピーを作成
-          const urlsToDelete = [...(props.urls || [])]
-
-          // まず削除フラグを設定して安全にUIを更新
-          if (handleDeleteAllTabs) {
-            if (
-              !settings.confirmDeleteAll ||
-              window.confirm(
-                `「${props.categoryName === '__uncategorized' ? '未分類' : props.categoryName}」のタブをすべて削除しますか？`,
-              )
-            ) {
-              await handleDeleteAllTabs(urlsToDelete)
-            }
-          }
-
-          // 削除完了後のステートリセット
-          Promise.resolve().then(async () => {
-            await new Promise(resolve => requestAnimationFrame(resolve))
-            setIsDeleting(false)
-          })
-        } catch (error) {
-          console.error('削除処理中にエラーが発生しました:', error)
-          setIsDeleting(false)
-        }
-      })
+      if (isDeleting || !handleDeleteAllTabs) return
+      if (settings.confirmDeleteAll) {
+        setIsDeleteConfirmOpen(true)
+      } else {
+        void onDeleteAllTabsConfirmed()
+      }
     },
-    [props.urls, handleDeleteAllTabs, isDeleting, settings, props.categoryName],
+    [
+      handleDeleteAllTabs,
+      isDeleting,
+      settings.confirmDeleteAll,
+      onDeleteAllTabsConfirmed,
+    ],
   )
 
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -264,15 +266,12 @@ export const SortableCategorySection = ({
                   variant='secondary'
                   size='sm'
                   onClick={e => {
-                    if (
-                      (props.urls?.length || 0) >= 10 &&
-                      !window.confirm(
-                        '10個以上のタブを開こうとしています。続行しますか？',
-                      )
-                    )
-                      return
-                    e.stopPropagation() // ドラッグイベントの伝播を防止
-                    handleOpenAllTabs(props.urls || [])
+                    e.stopPropagation()
+                    if ((props.urls?.length || 0) >= 10) {
+                      setIsOpenAllConfirmOpen(true)
+                    } else {
+                      handleOpenAllTabs(props.urls || [])
+                    }
                   }}
                   className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
                   style={{ position: 'relative' }} // ボタンを確実に上に表示
@@ -316,6 +315,57 @@ export const SortableCategorySection = ({
           <CategorySection {...props} urls={sortedUrls} settings={settings} />
         )}
       </div>
+
+      {/* 削除確認ダイアログ */}
+      <AlertDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>タブを削除</AlertDialogTitle>
+            <AlertDialogDescription>
+              「
+              {props.categoryName === '__uncategorized'
+                ? '未分類'
+                : props.categoryName}
+              」のタブをすべて削除しますか？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void onDeleteAllTabsConfirmed()}>
+              削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* すべて開く確認ダイアログ */}
+      <AlertDialog
+        open={isOpenAllConfirmOpen}
+        onOpenChange={setIsOpenAllConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>複数タブを開く</AlertDialogTitle>
+            <AlertDialogDescription>
+              10個以上のタブを開こうとしています。続行しますか？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setIsOpenAllConfirmOpen(false)
+                handleOpenAllTabs(props.urls || [])
+              }}
+            >
+              開く
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

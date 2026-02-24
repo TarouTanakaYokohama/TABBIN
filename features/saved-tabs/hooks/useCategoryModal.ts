@@ -238,7 +238,7 @@ export function useCategoryModal({ tabGroups }: UseCategoryModalParams) {
       setCategories(updatedCategories)
 
       const updatedDomainCategories = { ...domainCategories }
-      for (const groupId in updatedDomainCategories) {
+      for (const groupId of Object.keys(updatedDomainCategories)) {
         if (updatedDomainCategories[groupId]?.id === categoryToDelete.id) {
           updatedDomainCategories[groupId] = null
         }

@@ -11,7 +11,7 @@ import {
   updateDomainCategoryMapping,
 } from './categories'
 import { autoCategorizeTabs, restoreCategorySettings } from './tabs'
-import { createOrUpdateUrlRecord } from './urls'
+import { createOrUpdateUrlRecord, invalidateUrlCache } from './urls'
 
 // ドメインを親カテゴリに割り当てる関数
 export async function assignDomainToCategory(
@@ -436,12 +436,26 @@ async function getTabGroupById(groupId: string): Promise<TabGroup | null> {
   return savedTabs.find((group: TabGroup) => group.id === groupId) || null
 }
 
+/** モジュールスコープのメモ化フラグ（ページセッション中の重複ストレージアクセスを防ぐ） */
+let _urlsMigrationDone = false
+
 /**
  * URL管理の正規化マイグレーション
  * SavedTabsとCustomProjectsのURLsを共通のUrlsストレージに移行する
  */
 export async function migrateToUrlsStorage(): Promise<void> {
   try {
+    // メモリ上のフラグが立っていても、ストレージ状態がリセットされていないか再確認する
+    if (_urlsMigrationDone) {
+      const { urlsMigrationCompleted } = await chrome.storage.local.get(
+        'urlsMigrationCompleted',
+      )
+      if (urlsMigrationCompleted) {
+        return
+      }
+      _urlsMigrationDone = false
+    }
+
     console.log('URL管理正規化マイグレーションを開始します')
 
     // 既にマイグレーション済みかチェック
@@ -449,6 +463,7 @@ export async function migrateToUrlsStorage(): Promise<void> {
       'urlsMigrationCompleted',
     )
     if (urlsMigrationCompleted) {
+      _urlsMigrationDone = true
       console.log('URL管理マイグレーションは既に完了済みです')
       return
     }
@@ -613,6 +628,8 @@ export async function migrateToUrlsStorage(): Promise<void> {
       customProjects,
       urlsMigrationCompleted: true,
     })
+    invalidateUrlCache()
+    _urlsMigrationDone = true
 
     console.log(
       `URL管理マイグレーション完了: ${allUrlRecords.length}個のURLレコードを作成`,

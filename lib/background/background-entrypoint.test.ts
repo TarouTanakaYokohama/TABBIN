@@ -227,7 +227,7 @@ describe('background lifecycle auto-open behavior', () => {
   it('opens and pins saved-tabs via helper on install', async () => {
     const harness = await loadBackground({ clearAfterImport: false })
 
-    expect(harness.onInstalledListeners).toHaveLength(2)
+    expect(harness.onInstalledListeners).toHaveLength(1)
     expect(harness.onStartupListeners).toHaveLength(1)
     expect(harness.actionAddListener).toHaveBeenCalledWith(
       mocked.handleExtensionActionClick,
@@ -311,16 +311,16 @@ describe('background lifecycle auto-open behavior', () => {
     expect(mocked.openSavedTabsPage).toHaveBeenCalledTimes(1)
   })
 
-  it('does nothing in the first onInstalled listener for chrome_update', async () => {
+  it('does nothing in the onInstalled listener for chrome_update', async () => {
     const harness = await loadBackground()
 
     await triggerInstalled(harness, 'chrome_update')
 
-    // 2つ目のonInstalledリスナー（マイグレーション）は実行される
-    expect(mocked.migrateParentCategoriesToDomainNames).toHaveBeenCalledTimes(1)
-    // 1つ目のonInstalledリスナー側のUI起動は行わない
+    // chrome_update ではUI起動は行わない（マイグレーションはIIFEで実行済み）
     expect(mocked.openSavedTabsPage).not.toHaveBeenCalled()
     expect(harness.tabsCreate).not.toHaveBeenCalled()
+    // onInstalledリスナー経由ではマイグレーションを実行しない
+    expect(mocked.migrateParentCategoriesToDomainNames).not.toHaveBeenCalled()
   })
 
   it('catches errors in install auto-open flow', async () => {
@@ -355,18 +355,17 @@ describe('background lifecycle auto-open behavior', () => {
     )
   })
 
-  it('catches errors in install/update migration listener', async () => {
-    const harness = await loadBackground()
-    const errorSpy = vi.mocked(console.error)
-
+  it('catches migration errors in background initialization IIFE', async () => {
     mocked.migrateParentCategoriesToDomainNames.mockRejectedValueOnce(
       new Error('migration failed'),
     )
 
-    await triggerInstalled(harness, 'chrome_update')
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await loadBackground({ clearAfterImport: false })
 
     expect(errorSpy).toHaveBeenCalledWith(
-      'データ構造の移行に失敗しました:',
+      'バックグラウンド初期化エラー:',
       expect.any(Error),
     )
   })

@@ -4,7 +4,7 @@ import type { UserSettings } from '@/types/storage'
 export const defaultSettings: UserSettings = {
   removeTabAfterOpen: true,
   excludePatterns: ['chrome-extension://', 'chrome://'],
-  enableCategories: true, // デフォルトは無効
+  enableCategories: true, // デフォルトは有効
   autoDeletePeriod: 'never', // デフォルトでは自動削除しない
   showSavedTime: false, // デフォルトでは表示しない
   clickBehavior: 'saveSameDomainTabs', // デフォルトは「現在開いているドメインのタブをすべて保存」

@@ -26,7 +26,7 @@ export function setupExpiredTabsCheckAlarm(): void {
       try {
         console.log('アラームを作成します')
         chrome.alarms.create('checkExpiredTabs', {
-          periodInMinutes: 0.5, // 30秒間隔でテスト
+          periodInMinutes: 0.5, // 30秒間隔（30sec設定にも追従）
         })
         console.log('アラームが作成されました')
       } catch (error) {

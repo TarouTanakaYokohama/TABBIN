@@ -1,0 +1,370 @@
+/**
+ * @file useCategoryManagement.ts
+ * @description 親カテゴリの CRUD・並び替えモード・ドメイン移動を担うカスタムフック。
+ */
+import type { DragEndEvent } from '@dnd-kit/core'
+import { arrayMove } from '@dnd-kit/sortable'
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react'
+import { toast } from 'sonner'
+import { saveParentCategories } from '@/lib/storage/categories'
+import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
+
+/** useCategoryManagement フックの戻り値型 */
+export type UseCategoryManagementReturn = {
+  /** 親カテゴリ一覧 */
+  categories: ParentCategory[]
+  /** categories を直接更新するセッター */
+  setCategories: Dispatch<SetStateAction<ParentCategory[]>>
+  /** カテゴリ表示順序（カテゴリ ID 配列） */
+  categoryOrder: string[]
+  /** categoryOrder を直接更新するセッター */
+  setCategoryOrder: Dispatch<SetStateAction<string[]>>
+  /** 並び替えモード中かどうか */
+  isCategoryReorderMode: boolean
+  /** 並び替え開始前の元の順序（キャンセル用） */
+  _originalCategoryOrder: string[]
+  /** 並び替え中の一時的な順序 */
+  tempCategoryOrder: string[]
+  /**
+   * 子カテゴリ（サブカテゴリ）を削除する。
+   * @param groupId - 対象グループの ID
+   * @param categoryName - 削除するカテゴリ名
+   */
+  handleDeleteCategory: (
+    groupId: string,
+    categoryName: string,
+    refreshTabGroupsWithUrls: (nextGroups?: TabGroup[]) => Promise<TabGroup[]>,
+  ) => Promise<void>
+  /**
+   * 親カテゴリのドラッグエンド処理（並び替えモード開始または更新）。
+   * @param event - dnd-kit の DragEndEvent
+   */
+  handleCategoryDragEnd: (event: DragEndEvent) => void
+  /** 並び替えを確定してストレージに保存する */
+  handleConfirmCategoryReorder: () => Promise<void>
+  /** 並び替えをキャンセルして元の順序に戻す */
+  handleCancelCategoryReorder: () => void
+  /**
+   * カテゴリ内のドメイン順序を更新する。
+   * @param categoryId - 対象カテゴリの ID
+   * @param updatedDomains - 新しいドメイン順序の配列
+   */
+  handleUpdateDomainsOrder: (
+    categoryId: string,
+    updatedDomains: TabGroup[],
+  ) => Promise<void>
+  /**
+   * ドメインを別のカテゴリに移動する。
+   * @param domainId - 移動するドメインの ID
+   * @param fromCategoryId - 移動元カテゴリの ID（未分類の場合は null）
+   * @param toCategoryId - 移動先カテゴリの ID
+   */
+  handleMoveDomainToCategory: (
+    domainId: string,
+    fromCategoryId: string | null,
+    toCategoryId: string,
+    tabGroups: TabGroup[],
+  ) => Promise<void>
+}
+
+/**
+ * 親カテゴリ管理フック。
+ * カテゴリの読み込み・並び替えモード・ドメイン間移動を担う。
+ *
+ * @param _tabGroups - 現在のタブグループ一覧（将来の拡張用）
+ * @param _settings - ユーザー設定（将来の拡張用）
+ * @returns UseCategoryManagementReturn
+ */
+export function useCategoryManagement(
+  _tabGroups: TabGroup[],
+  _settings: UserSettings,
+): UseCategoryManagementReturn {
+  const [categories, setCategories] = useState<ParentCategory[]>([])
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([])
+  const [isCategoryReorderMode, setIsCategoryReorderMode] = useState(false)
+  const [_originalCategoryOrder, setOriginalCategoryOrder] = useState<string[]>(
+    [],
+  )
+  const [tempCategoryOrder, setTempCategoryOrder] = useState<string[]>([])
+
+  // categories が変更されたときに categoryOrder を同期する
+  useEffect(() => {
+    if (categories.length > 0) {
+      setCategoryOrder(categories.map(cat => cat.id))
+    }
+  }, [categories])
+
+  /**
+   * 子カテゴリ（サブカテゴリ）を削除する。
+   * refreshTabGroupsWithUrls は useTabData から受け取る。
+   */
+  const handleDeleteCategory = useCallback(
+    async (
+      groupId: string,
+      categoryName: string,
+      refreshTabGroupsWithUrls: (
+        nextGroups?: TabGroup[],
+      ) => Promise<TabGroup[]>,
+    ): Promise<void> => {
+      try {
+        console.log(`カテゴリ ${categoryName} の削除を開始します...`)
+
+        const storageResult = await chrome.storage.local.get('savedTabs')
+        const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
+          ? storageResult.savedTabs
+          : []
+
+        // 削除前にグループを取得して現在のカテゴリを確認
+        const targetGroup = savedTabs.find(group => group.id === groupId)
+        if (!targetGroup) {
+          console.error('カテゴリ削除対象のグループが見つかりません:', groupId)
+          return
+        }
+
+        const updatedGroups = savedTabs.map(group => {
+          if (group.id === groupId) {
+            // 削除前と削除後のカテゴリ情報をログ
+            console.log('削除前のサブカテゴリ:', group.subCategories)
+
+            const updatedSubCategories =
+              group.subCategories?.filter(cat => cat !== categoryName) || []
+
+            console.log('削除後のサブカテゴリ:', updatedSubCategories)
+
+            // 新形式ではサブカテゴリ情報はurlSubCategoriesで管理
+            const updatedUrlSubCategories = { ...group.urlSubCategories }
+
+            // 指定されたカテゴリのサブカテゴリを削除
+            if (updatedUrlSubCategories) {
+              for (const urlId in updatedUrlSubCategories) {
+                if (updatedUrlSubCategories[urlId] === categoryName) {
+                  delete updatedUrlSubCategories[urlId]
+                }
+              }
+            }
+
+            return {
+              ...group,
+              subCategories: updatedSubCategories,
+              categoryKeywords:
+                group.categoryKeywords?.filter(
+                  ck => ck.categoryName !== categoryName,
+                ) || [],
+              urlSubCategories: updatedUrlSubCategories,
+            }
+          }
+          return group
+        })
+
+        console.log(`カテゴリ ${categoryName} を削除します`)
+        await chrome.storage.local.set({ savedTabs: updatedGroups })
+        await refreshTabGroupsWithUrls(updatedGroups)
+        console.log(`カテゴリ ${groupId} を削除しました`)
+      } catch (error) {
+        console.error('カテゴリ削除エラー:', error)
+      }
+    },
+    [],
+  )
+
+  /** 親カテゴリのドラッグエンド処理（並び替えモード開始または更新） */
+  const handleCategoryDragEnd = useCallback(
+    (event: DragEndEvent): void => {
+      const { active, over } = event
+
+      if (over && active.id !== over.id) {
+        if (typeof active.id !== 'string' || typeof over.id !== 'string') {
+          return
+        }
+
+        // カテゴリの順序を一時的に更新（まだストレージには保存しない）
+        const currentOrder = isCategoryReorderMode
+          ? tempCategoryOrder
+          : categoryOrder
+        const oldIndex = currentOrder.indexOf(active.id)
+        const newIndex = currentOrder.indexOf(over.id)
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(currentOrder, oldIndex, newIndex)
+
+          if (!isCategoryReorderMode) {
+            // 初回の並び替え時：並び替えモードを開始
+            setIsCategoryReorderMode(true)
+            setOriginalCategoryOrder([...categoryOrder])
+            setTempCategoryOrder(newOrder)
+          } else {
+            // 既に並び替えモード中：一時的な順序を更新
+            setTempCategoryOrder(newOrder)
+          }
+        }
+      }
+    },
+    [isCategoryReorderMode, tempCategoryOrder, categoryOrder],
+  )
+
+  /** 並び替えを確定してストレージに保存する */
+  const handleConfirmCategoryReorder = useCallback(async (): Promise<void> => {
+    if (!isCategoryReorderMode) return
+
+    try {
+      // カテゴリ順序を更新
+      setCategoryOrder(tempCategoryOrder)
+
+      // 新しい順序に基づいてカテゴリを並び替え
+      const orderedCategories = [...categories].sort(
+        (a, b) =>
+          tempCategoryOrder.indexOf(a.id) - tempCategoryOrder.indexOf(b.id),
+      )
+
+      // ストレージに保存
+      await saveParentCategories(orderedCategories)
+      setCategories(orderedCategories)
+
+      // 並び替えモードを終了
+      setIsCategoryReorderMode(false)
+      setOriginalCategoryOrder([])
+      setTempCategoryOrder([])
+
+      toast.success('親カテゴリの順序を変更しました')
+    } catch (error) {
+      console.error('親カテゴリ順序の更新に失敗しました:', error)
+      toast.error('親カテゴリ順序の更新に失敗しました')
+    }
+  }, [isCategoryReorderMode, tempCategoryOrder, categories])
+
+  /** 並び替えをキャンセルして元の順序に戻す */
+  const handleCancelCategoryReorder = useCallback((): void => {
+    if (!isCategoryReorderMode) return
+
+    // 元の順序に戻す
+    setTempCategoryOrder([])
+
+    // 並び替えモードを終了
+    setIsCategoryReorderMode(false)
+    setOriginalCategoryOrder([])
+
+    toast.info('親カテゴリの並び替えをキャンセルしました')
+  }, [isCategoryReorderMode])
+
+  /** カテゴリ内のドメイン順序を更新する */
+  const handleUpdateDomainsOrder = useCallback(
+    async (categoryId: string, updatedDomains: TabGroup[]): Promise<void> => {
+      try {
+        console.log('カテゴリ内のドメイン順序を更新:', categoryId)
+        console.log(
+          '更新後のドメイン順序:',
+          updatedDomains.map(d => d.domain),
+        )
+
+        // 更新するカテゴリを探す
+        const targetCategory = categories.find(cat => cat.id === categoryId)
+        if (!targetCategory) {
+          console.error('更新対象のカテゴリが見つかりません:', categoryId)
+          return
+        }
+
+        // 更新するドメインIDの配列を作成
+        const updatedDomainIds = updatedDomains.map(domain => domain.id)
+
+        // カテゴリ内のドメイン順序を更新
+        const updatedCategories = categories.map(category => {
+          if (category.id === categoryId) {
+            return {
+              ...category,
+              domains: updatedDomainIds,
+            }
+          }
+          return category
+        })
+
+        // ストレージに保存
+        await saveParentCategories(updatedCategories)
+        setCategories(updatedCategories)
+
+        console.log('カテゴリ内のドメイン順序を更新しました:', categoryId)
+      } catch (error) {
+        console.error('カテゴリ内ドメイン順序更新エラー:', error)
+      }
+    },
+    [categories],
+  )
+
+  /**
+   * ドメインを別のカテゴリに移動する。
+   * tabGroups は main.tsx から渡す（useTabData に依存するため引数として受け取る）。
+   */
+  const handleMoveDomainToCategory = useCallback(
+    async (
+      domainId: string,
+      fromCategoryId: string | null,
+      toCategoryId: string,
+      tabGroups: TabGroup[],
+    ): Promise<void> => {
+      try {
+        const domainGroup = tabGroups.find(group => group.id === domainId)
+        if (!domainGroup) return
+
+        let updatedCategories = [...categories]
+
+        if (fromCategoryId) {
+          updatedCategories = updatedCategories.map(cat =>
+            cat.id === fromCategoryId
+              ? {
+                  ...cat,
+                  domains: cat.domains.filter(d => d !== domainId),
+                  domainNames: cat.domainNames
+                    ? cat.domainNames.filter(d => d !== domainGroup.domain)
+                    : [],
+                }
+              : cat,
+          )
+        }
+
+        updatedCategories = updatedCategories.map(cat =>
+          cat.id === toCategoryId
+            ? {
+                ...cat,
+                domains: cat.domains.includes(domainId)
+                  ? cat.domains
+                  : [...cat.domains, domainId],
+                domainNames: cat.domainNames?.includes(domainGroup.domain)
+                  ? cat.domainNames
+                  : [...(cat.domainNames || []), domainGroup.domain],
+              }
+            : cat,
+        )
+
+        await saveParentCategories(updatedCategories)
+        setCategories(updatedCategories)
+        console.log(
+          `ドメイン ${domainGroup.domain} を ${fromCategoryId || '未分類'} から ${toCategoryId} に移動しました`,
+        )
+      } catch (error) {
+        console.error('カテゴリ間ドメイン移動エラー:', error)
+      }
+    },
+    [categories],
+  )
+
+  return {
+    categories,
+    setCategories,
+    categoryOrder,
+    setCategoryOrder,
+    isCategoryReorderMode,
+    _originalCategoryOrder,
+    tempCategoryOrder,
+    handleDeleteCategory,
+    handleCategoryDragEnd,
+    handleConfirmCategoryReorder,
+    handleCancelCategoryReorder,
+    handleUpdateDomainsOrder,
+    handleMoveDomainToCategory,
+  }
+}

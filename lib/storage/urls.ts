@@ -1,13 +1,24 @@
 import { v4 as uuidv4 } from 'uuid'
 import type { UrlRecord } from '@/types/storage'
 
+/** セッション中のインメモリキャッシュ */
+let _urlRecordsCache: UrlRecord[] | null = null
+
+/** キャッシュを無効化する（書き込み後・外部更新検知後に呼ぶ） */
+export function invalidateUrlCache(): void {
+  _urlRecordsCache = null
+}
+
 /**
  * すべてのURLレコードを取得する
  */
 export async function getUrlRecords(): Promise<UrlRecord[]> {
+  if (_urlRecordsCache !== null) return _urlRecordsCache
   try {
-    const { urls = [] } = await chrome.storage.local.get('urls')
-    return urls as UrlRecord[]
+    const { urls } = await chrome.storage.local.get('urls')
+    if (!Array.isArray(urls)) return []
+    _urlRecordsCache = urls as UrlRecord[]
+    return _urlRecordsCache
   } catch (error) {
     console.error('URLレコード取得エラー:', error)
     return []
@@ -20,6 +31,7 @@ export async function getUrlRecords(): Promise<UrlRecord[]> {
 export async function saveUrlRecords(urlRecords: UrlRecord[]): Promise<void> {
   try {
     await chrome.storage.local.set({ urls: urlRecords })
+    invalidateUrlCache()
     console.log(`${urlRecords.length}個のURLレコードを保存しました`)
   } catch (error) {
     console.error('URLレコード保存エラー:', error)

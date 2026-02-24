@@ -3,56 +3,6 @@
  */
 
 /**
- * プロジェクト内のURL情報
- */
-export interface ProjectUrl {
-  url: string
-  title: string
-  savedAt: number
-}
-
-/**
- * カスタムプロジェクト
- */
-export interface Project {
-  id: string
-  name: string
-  description: string
-  urls: ProjectUrl[]
-  categories: string[]
-  createdAt: number
-  updatedAt: number
-}
-
-/**
- * タブグループ
- */
-export interface TabGroup {
-  id: string
-  domain: string
-  parentCategoryId?: string
-  urls: Array<{
-    url: string
-    title: string
-    subCategory?: string
-    savedAt?: number // 個別URL保存時刻
-  }>
-  subCategories?: string[]
-  categoryKeywords?: import('@/types/storage').SubCategoryKeyword[]
-  savedAt?: number // グループ全体の保存時刻
-}
-
-/**
- * 親カテゴリ
- */
-export interface ParentCategory {
-  id: string
-  name: string
-  domains: string[]
-  domainNames: string[]
-}
-
-/**
  * ドラッグされたURL情報
  */
 export interface DraggedUrlInfo {
