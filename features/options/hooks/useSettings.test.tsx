@@ -58,7 +58,7 @@ const createChromeMock = () =>
     },
   }) as unknown as typeof chrome
 
-describe('useSettings', () => {
+describe('useSettingsフック', () => {
   beforeEach(() => {
     listeners.length = 0
     vi.clearAllMocks()
@@ -66,7 +66,7 @@ describe('useSettings', () => {
       createChromeMock()
   })
 
-  it('loads settings on mount', async () => {
+  it('マウント時に設定を読み込む', async () => {
     const loadedSettings = {
       ...defaultSettings,
       showSavedTime: true,
@@ -84,7 +84,7 @@ describe('useSettings', () => {
     expect(result.current.settings).toEqual(loadedSettings)
   })
 
-  it('falls back to default settings when loading fails', async () => {
+  it('読み込み失敗時はデフォルト設定にフォールバックする', async () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined)
@@ -107,7 +107,7 @@ describe('useSettings', () => {
     }
   })
 
-  it('updateSetting updates local state and persists settings', async () => {
+  it('updateSetting はローカル状態を更新し設定を永続化する', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
     vi.mocked(saveUserSettings).mockResolvedValue(undefined)
 
@@ -131,7 +131,7 @@ describe('useSettings', () => {
     )
   })
 
-  it('handleExcludePatternsBlur saves only non-empty lines', async () => {
+  it('handleExcludePatternsBlur は空でない行のみ保存する', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
     vi.mocked(saveUserSettings).mockResolvedValue(undefined)
 
@@ -158,7 +158,7 @@ describe('useSettings', () => {
     )
   })
 
-  it('updates state from chrome.storage.onChanged events', async () => {
+  it('chrome.storage.onChanged イベントから状態を更新する', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
 
     const { result } = renderHook(() => useSettings())

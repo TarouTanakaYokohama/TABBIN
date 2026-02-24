@@ -89,7 +89,7 @@ const getDropzoneFileInput = (container: HTMLElement): HTMLInputElement => {
   return dropzoneInput
 }
 
-describe('ImportExportSettings', () => {
+describe('ImportExportSettingsコンポーネント', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -112,7 +112,7 @@ describe('ImportExportSettings', () => {
     vi.restoreAllMocks()
   })
 
-  it('exports data and downloads backup file', async () => {
+  it('データをエクスポートしてバックアップファイルをダウンロードする', async () => {
     vi.mocked(exportSettings).mockResolvedValue({
       version: '1.0.0',
       timestamp: '2026-02-16T00:00:00.000Z',
@@ -151,7 +151,7 @@ describe('ImportExportSettings', () => {
     )
   })
 
-  it('shows an error toast when export fails', async () => {
+  it('エクスポート失敗時にエラートーストを表示する', async () => {
     vi.mocked(exportSettings).mockRejectedValue(new Error('export failed'))
 
     render(<ImportExportSettings />)
@@ -167,7 +167,7 @@ describe('ImportExportSettings', () => {
     })
   })
 
-  it('toggles merge option and passes mergeData=false on import', async () => {
+  it('マージ設定を切り替えるとインポート時に mergeData=false を渡す', async () => {
     vi.mocked(importSettings).mockResolvedValue({
       success: true,
       message: 'ok',
@@ -202,7 +202,7 @@ describe('ImportExportSettings', () => {
     })
   })
 
-  it('ignores file change events when no file is selected', async () => {
+  it('ファイル未選択時は file change イベントを無視する', async () => {
     const { container } = render(<ImportExportSettings />)
 
     fireEvent.change(getHiddenFileInput(container), {
@@ -214,7 +214,7 @@ describe('ImportExportSettings', () => {
     })
   })
 
-  it('processes files through dropzone input (onDrop path)', async () => {
+  it('dropzone input 経由（onDrop 経路）でファイルを処理する', async () => {
     vi.mocked(importSettings).mockResolvedValue({
       success: true,
       message: 'ok',
@@ -239,7 +239,7 @@ describe('ImportExportSettings', () => {
     })
   })
 
-  it('shows drag-active label while dragging over dropzone', async () => {
+  it('dropzone 上でドラッグ中にドラッグアクティブラベルを表示する', async () => {
     const { container } = render(<ImportExportSettings />)
 
     fireEvent.click(
@@ -264,7 +264,7 @@ describe('ImportExportSettings', () => {
     })
   })
 
-  it('does not process drop events with no accepted files', async () => {
+  it('受け入れファイルがない drop イベントは処理しない', async () => {
     const { container } = render(<ImportExportSettings />)
 
     fireEvent.click(
@@ -289,7 +289,7 @@ describe('ImportExportSettings', () => {
     })
   })
 
-  it('closes dialog when cancel button is clicked', async () => {
+  it('キャンセルボタンをクリックするとダイアログを閉じる', async () => {
     render(<ImportExportSettings />)
 
     fireEvent.click(
@@ -304,7 +304,7 @@ describe('ImportExportSettings', () => {
     })
   })
 
-  it('rejects non-json files before reading', async () => {
+  it('読み込み前に JSON 以外のファイルを拒否する', async () => {
     const { container } = render(<ImportExportSettings />)
 
     fireEvent.change(getHiddenFileInput(container), {
@@ -319,7 +319,7 @@ describe('ImportExportSettings', () => {
     expect(importSettings).not.toHaveBeenCalled()
   })
 
-  it('imports json file successfully and notifies background', async () => {
+  it('JSON ファイルを正常にインポートして background に通知する', async () => {
     vi.mocked(importSettings).mockResolvedValue({
       success: true,
       message: 'インポート成功',
@@ -345,7 +345,7 @@ describe('ImportExportSettings', () => {
     })
   })
 
-  it('shows importSettings failure message when import result is unsuccessful', async () => {
+  it('インポート結果が失敗時は importSettings の失敗メッセージを表示する', async () => {
     vi.mocked(importSettings).mockResolvedValue({
       success: false,
       message: 'バリデーションエラー',
@@ -368,7 +368,7 @@ describe('ImportExportSettings', () => {
     expect(runtimeSendMessage).not.toHaveBeenCalled()
   })
 
-  it('shows generic error when import throws', async () => {
+  it('インポートで例外発生時に汎用エラーを表示する', async () => {
     vi.mocked(importSettings).mockRejectedValue(new Error('import failed'))
 
     const { container } = render(<ImportExportSettings />)
@@ -386,7 +386,7 @@ describe('ImportExportSettings', () => {
     })
   })
 
-  it('shows read error when file content is empty', async () => {
+  it('ファイル内容が空のとき読み込みエラーを表示する', async () => {
     readerMode = 'empty'
 
     const { container } = render(<ImportExportSettings />)
@@ -407,7 +407,7 @@ describe('ImportExportSettings', () => {
     expect(importSettings).not.toHaveBeenCalled()
   })
 
-  it('shows read error when FileReader.onerror is triggered', async () => {
+  it('FileReader.onerror 発火時に読み込みエラーを表示する', async () => {
     readerMode = 'error'
 
     const { container } = render(<ImportExportSettings />)
@@ -428,7 +428,7 @@ describe('ImportExportSettings', () => {
     expect(importSettings).not.toHaveBeenCalled()
   })
 
-  it('handles async onload after unmount without accessing null file input ref', async () => {
+  it('アンマウント後の非同期 onload を null の file input ref に触れず処理する', async () => {
     readerMode = 'success'
     readerAsync = true
     vi.mocked(importSettings).mockResolvedValue({
@@ -452,7 +452,7 @@ describe('ImportExportSettings', () => {
     expect(importSettings).toHaveBeenCalledWith(readerContent, true)
   })
 
-  it('handles async onerror after unmount without accessing null file input ref', async () => {
+  it('アンマウント後の非同期 onerror を null の file input ref に触れず処理する', async () => {
     readerMode = 'error'
     readerAsync = true
 

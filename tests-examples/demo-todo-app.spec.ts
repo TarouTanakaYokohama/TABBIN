@@ -10,8 +10,8 @@ const TODO_ITEMS = [
   'book a doctors appointment',
 ] as const
 
-test.describe('New Todo', () => {
-  test('should allow me to add todo items', async ({ page }) => {
+test.describe('新しい ToDo', () => {
+  test('ToDo 項目を追加できる', async ({ page }) => {
     // create a new todo locator
     const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -35,9 +35,7 @@ test.describe('New Todo', () => {
     await checkNumberOfTodosInLocalStorage(page, 2)
   })
 
-  test('should clear text input field when an item is added', async ({
-    page,
-  }) => {
+  test('項目追加時にテキスト入力欄がクリアされる', async ({ page }) => {
     // create a new todo locator
     const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -50,9 +48,7 @@ test.describe('New Todo', () => {
     await checkNumberOfTodosInLocalStorage(page, 1)
   })
 
-  test('should append new items to the bottom of the list', async ({
-    page,
-  }) => {
+  test('新しい項目がリストの末尾に追加される', async ({ page }) => {
     // Create 3 items.
     await createDefaultTodos(page)
 
@@ -71,7 +67,7 @@ test.describe('New Todo', () => {
   })
 })
 
-test.describe('Mark all as completed', () => {
+test.describe('すべて完了にする', () => {
   test.beforeEach(async ({ page }) => {
     await createDefaultTodos(page)
     await checkNumberOfTodosInLocalStorage(page, 3)
@@ -81,7 +77,7 @@ test.describe('Mark all as completed', () => {
     await checkNumberOfTodosInLocalStorage(page, 3)
   })
 
-  test('should allow me to mark all items as completed', async ({ page }) => {
+  test('すべての項目を完了にできる', async ({ page }) => {
     // Complete all todos.
     await page.getByLabel('Mark all as complete').check()
 
@@ -94,9 +90,7 @@ test.describe('Mark all as completed', () => {
     await checkNumberOfCompletedTodosInLocalStorage(page, 3)
   })
 
-  test('should allow me to clear the complete state of all items', async ({
-    page,
-  }) => {
+  test('すべての項目の完了状態を解除できる', async ({ page }) => {
     const toggleAll = page.getByLabel('Mark all as complete')
     // Check and then immediately uncheck.
     await toggleAll.check()
@@ -106,7 +100,7 @@ test.describe('Mark all as completed', () => {
     await expect(page.getByTestId('todo-item')).toHaveClass(['', '', ''])
   })
 
-  test('complete all checkbox should update state when items are completed / cleared', async ({
+  test('項目の完了/解除に応じて「すべて完了」チェックボックスの状態が更新される', async ({
     page,
   }) => {
     const toggleAll = page.getByLabel('Mark all as complete')
@@ -129,8 +123,8 @@ test.describe('Mark all as completed', () => {
   })
 })
 
-test.describe('Item', () => {
-  test('should allow me to mark items as complete', async ({ page }) => {
+test.describe('個別アイテム', () => {
+  test('項目を完了にできる', async ({ page }) => {
     // create a new todo locator
     const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -155,7 +149,7 @@ test.describe('Item', () => {
     await expect(secondTodo).toHaveClass('completed')
   })
 
-  test('should allow me to un-mark items as complete', async ({ page }) => {
+  test('項目の完了を解除できる', async ({ page }) => {
     // create a new todo locator
     const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -180,7 +174,7 @@ test.describe('Item', () => {
     await checkNumberOfCompletedTodosInLocalStorage(page, 0)
   })
 
-  test('should allow me to edit an item', async ({ page }) => {
+  test('項目を編集できる', async ({ page }) => {
     await createDefaultTodos(page)
 
     const todoItems = page.getByTestId('todo-item')
@@ -204,13 +198,13 @@ test.describe('Item', () => {
   })
 })
 
-test.describe('Editing', () => {
+test.describe('編集', () => {
   test.beforeEach(async ({ page }) => {
     await createDefaultTodos(page)
     await checkNumberOfTodosInLocalStorage(page, 3)
   })
 
-  test('should hide other controls when editing', async ({ page }) => {
+  test('編集中は他のコントロールを非表示にする', async ({ page }) => {
     const todoItem = page.getByTestId('todo-item').nth(1)
     await todoItem.dblclick()
     await expect(todoItem.getByRole('checkbox')).not.toBeVisible()
@@ -222,7 +216,7 @@ test.describe('Editing', () => {
     await checkNumberOfTodosInLocalStorage(page, 3)
   })
 
-  test('should save edits on blur', async ({ page }) => {
+  test('blur 時に編集内容を保存する', async ({ page }) => {
     const todoItems = page.getByTestId('todo-item')
     await todoItems.nth(1).dblclick()
     await todoItems
@@ -242,7 +236,7 @@ test.describe('Editing', () => {
     await checkTodosInLocalStorage(page, 'buy some sausages')
   })
 
-  test('should trim entered text', async ({ page }) => {
+  test('入力テキストをトリムする', async ({ page }) => {
     const todoItems = page.getByTestId('todo-item')
     await todoItems.nth(1).dblclick()
     await todoItems
@@ -259,9 +253,7 @@ test.describe('Editing', () => {
     await checkTodosInLocalStorage(page, 'buy some sausages')
   })
 
-  test('should remove the item if an empty text string was entered', async ({
-    page,
-  }) => {
+  test('空文字列が入力された場合は項目を削除する', async ({ page }) => {
     const todoItems = page.getByTestId('todo-item')
     await todoItems.nth(1).dblclick()
     await todoItems.nth(1).getByRole('textbox', { name: 'Edit' }).fill('')
@@ -270,7 +262,7 @@ test.describe('Editing', () => {
     await expect(todoItems).toHaveText([TODO_ITEMS[0], TODO_ITEMS[2]])
   })
 
-  test('should cancel edits on escape', async ({ page }) => {
+  test('Escape で編集をキャンセルする', async ({ page }) => {
     const todoItems = page.getByTestId('todo-item')
     await todoItems.nth(1).dblclick()
     await todoItems
@@ -285,8 +277,8 @@ test.describe('Editing', () => {
   })
 })
 
-test.describe('Counter', () => {
-  test('should display the current number of todo items', async ({ page }) => {
+test.describe('カウンター', () => {
+  test('現在の ToDo 項目数を表示する', async ({ page }) => {
     // create a new todo locator
     const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -306,19 +298,19 @@ test.describe('Counter', () => {
   })
 })
 
-test.describe('Clear completed button', () => {
+test.describe('完了済みクリアボタン', () => {
   test.beforeEach(async ({ page }) => {
     await createDefaultTodos(page)
   })
 
-  test('should display the correct text', async ({ page }) => {
+  test('正しいテキストを表示する', async ({ page }) => {
     await page.locator('.todo-list li .toggle').first().check()
     await expect(
       page.getByRole('button', { name: 'Clear completed' }),
     ).toBeVisible()
   })
 
-  test('should remove completed items when clicked', async ({ page }) => {
+  test('クリック時に完了済み項目を削除する', async ({ page }) => {
     const todoItems = page.getByTestId('todo-item')
     await todoItems.nth(1).getByRole('checkbox').check()
     await page.getByRole('button', { name: 'Clear completed' }).click()
@@ -326,9 +318,7 @@ test.describe('Clear completed button', () => {
     await expect(todoItems).toHaveText([TODO_ITEMS[0], TODO_ITEMS[2]])
   })
 
-  test('should be hidden when there are no items that are completed', async ({
-    page,
-  }) => {
+  test('完了済み項目がないときは非表示になる', async ({ page }) => {
     await page.locator('.todo-list li .toggle').first().check()
     await page.getByRole('button', { name: 'Clear completed' }).click()
     await expect(
@@ -337,8 +327,8 @@ test.describe('Clear completed button', () => {
   })
 })
 
-test.describe('Persistence', () => {
-  test('should persist its data', async ({ page }) => {
+test.describe('永続化', () => {
+  test('データを永続化する', async ({ page }) => {
     // create a new todo locator
     const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -365,7 +355,7 @@ test.describe('Persistence', () => {
   })
 })
 
-test.describe('Routing', () => {
+test.describe('ルーティング', () => {
   test.beforeEach(async ({ page }) => {
     await createDefaultTodos(page)
     // make sure the app had a chance to save updated todos in storage
@@ -374,7 +364,7 @@ test.describe('Routing', () => {
     await checkTodosInLocalStorage(page, TODO_ITEMS[0])
   })
 
-  test('should allow me to display active items', async ({ page }) => {
+  test('未完了項目を表示できる', async ({ page }) => {
     const todoItem = page.getByTestId('todo-item')
     await page.getByTestId('todo-item').nth(1).getByRole('checkbox').check()
 
@@ -384,7 +374,7 @@ test.describe('Routing', () => {
     await expect(todoItem).toHaveText([TODO_ITEMS[0], TODO_ITEMS[2]])
   })
 
-  test('should respect the back button', async ({ page }) => {
+  test('戻るボタンを反映する', async ({ page }) => {
     const todoItem = page.getByTestId('todo-item')
     await page.getByTestId('todo-item').nth(1).getByRole('checkbox').check()
 
@@ -410,14 +400,14 @@ test.describe('Routing', () => {
     await expect(todoItem).toHaveCount(3)
   })
 
-  test('should allow me to display completed items', async ({ page }) => {
+  test('完了済み項目を表示できる', async ({ page }) => {
     await page.getByTestId('todo-item').nth(1).getByRole('checkbox').check()
     await checkNumberOfCompletedTodosInLocalStorage(page, 1)
     await page.getByRole('link', { name: 'Completed' }).click()
     await expect(page.getByTestId('todo-item')).toHaveCount(1)
   })
 
-  test('should allow me to display all items', async ({ page }) => {
+  test('すべての項目を表示できる', async ({ page }) => {
     await page.getByTestId('todo-item').nth(1).getByRole('checkbox').check()
     await checkNumberOfCompletedTodosInLocalStorage(page, 1)
     await page.getByRole('link', { name: 'Active' }).click()
@@ -426,7 +416,7 @@ test.describe('Routing', () => {
     await expect(page.getByTestId('todo-item')).toHaveCount(3)
   })
 
-  test('should highlight the currently applied filter', async ({ page }) => {
+  test('現在適用中のフィルターを強調表示する', async ({ page }) => {
     await expect(page.getByRole('link', { name: 'All' })).toHaveClass(
       'selected',
     )

@@ -173,6 +173,7 @@ type LoadBackgroundOptions = {
   initialStorage?: Record<string, unknown>
   clearAfterImport?: boolean
   setupMocks?: () => void
+  dev?: boolean
 }
 
 async function loadBackground(
@@ -180,6 +181,9 @@ async function loadBackground(
 ): Promise<ChromeHarness> {
   vi.resetModules()
   vi.clearAllMocks()
+  if (options.dev !== undefined) {
+    vi.stubEnv('DEV', options.dev)
+  }
 
   mocked.openSavedTabsPage.mockResolvedValue(123)
   mocked.getParentCategories.mockResolvedValue([])
@@ -223,8 +227,8 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
-describe('background lifecycle auto-open behavior', () => {
-  it('opens and pins saved-tabs via helper on install', async () => {
+describe('バックグラウンドのライフサイクル時の自動オープン挙動', () => {
+  it('インストール時に helper 経由で saved-tabs を開いてピン留めする', async () => {
     const harness = await loadBackground({ clearAfterImport: false })
 
     expect(harness.onInstalledListeners).toHaveLength(1)
@@ -247,7 +251,7 @@ describe('background lifecycle auto-open behavior', () => {
     })
   })
 
-  it('opens changelog first and then saved-tabs on update', async () => {
+  it('更新時は最初に changelog を開き、その後 saved-tabs を開く', async () => {
     const harness = await loadBackground({
       initialStorage: {
         seenVersion: '9.9.8',
@@ -271,7 +275,7 @@ describe('background lifecycle auto-open behavior', () => {
     )
   })
 
-  it('opens saved-tabs on browser startup', async () => {
+  it('ブラウザー起動時に saved-tabs を開く', async () => {
     const harness = await loadBackground()
 
     await triggerStartup(harness)
@@ -279,7 +283,7 @@ describe('background lifecycle auto-open behavior', () => {
     expect(mocked.openSavedTabsPage).toHaveBeenCalledTimes(1)
   })
 
-  it('updates seenVersion only when changelog is already shown', async () => {
+  it('changelog が既に表示済みのときだけ seenVersion を更新する', async () => {
     const harness = await loadBackground({
       initialStorage: {
         seenVersion: '9.9.8',
@@ -296,7 +300,7 @@ describe('background lifecycle auto-open behavior', () => {
     expect(mocked.openSavedTabsPage).toHaveBeenCalledTimes(1)
   })
 
-  it('still opens saved-tabs on update even when version is unchanged', async () => {
+  it('バージョンが同じでも更新時には saved-tabs を開く', async () => {
     const harness = await loadBackground({
       initialStorage: {
         seenVersion: '9.9.9',
@@ -311,7 +315,7 @@ describe('background lifecycle auto-open behavior', () => {
     expect(mocked.openSavedTabsPage).toHaveBeenCalledTimes(1)
   })
 
-  it('does nothing in the onInstalled listener for chrome_update', async () => {
+  it('chrome_update の onInstalled リスナーでは何もしない', async () => {
     const harness = await loadBackground()
 
     await triggerInstalled(harness, 'chrome_update')
@@ -323,7 +327,7 @@ describe('background lifecycle auto-open behavior', () => {
     expect(mocked.migrateParentCategoriesToDomainNames).not.toHaveBeenCalled()
   })
 
-  it('catches errors in install auto-open flow', async () => {
+  it('インストール時の自動オープンフローのエラーを捕捉する', async () => {
     const harness = await loadBackground()
     const errorSpy = vi.mocked(console.error)
 
@@ -341,7 +345,7 @@ describe('background lifecycle auto-open behavior', () => {
     })
   })
 
-  it('catches errors in startup auto-open flow', async () => {
+  it('起動時の自動オープンフローのエラーを捕捉する', async () => {
     const harness = await loadBackground()
     const errorSpy = vi.mocked(console.error)
 
@@ -355,7 +359,7 @@ describe('background lifecycle auto-open behavior', () => {
     )
   })
 
-  it('catches migration errors in background initialization IIFE', async () => {
+  it('バックグラウンド初期化 IIFE 内のマイグレーションエラーを捕捉する', async () => {
     mocked.migrateParentCategoriesToDomainNames.mockRejectedValueOnce(
       new Error('migration failed'),
     )
@@ -370,7 +374,7 @@ describe('background lifecycle auto-open behavior', () => {
     )
   })
 
-  it('handles context menu initialization errors during background setup', async () => {
+  it('バックグラウンドセットアップ中のコンテキストメニュー初期化エラーを処理する', async () => {
     const errorSpy = vi.mocked(console.error)
 
     await loadBackground({
@@ -388,7 +392,7 @@ describe('background lifecycle auto-open behavior', () => {
     )
   })
 
-  it('handles background initialization IIFE errors', async () => {
+  it('バックグラウンド初期化 IIFE のエラーを処理する', async () => {
     const errorSpy = vi.mocked(console.error)
 
     await loadBackground({
@@ -405,5 +409,24 @@ describe('background lifecycle auto-open behavior', () => {
       expect.any(Error),
     )
     expect(mocked.setupExpiredTabsCheckAlarm).not.toHaveBeenCalled()
+  })
+
+  it('本番モードでは console.log と console.debug を抑制する', async () => {
+    const originalLog = console.log
+    const originalDebug = console.debug
+
+    try {
+      await loadBackground({ clearAfterImport: false, dev: false })
+
+      expect(console.log).not.toBe(originalLog)
+      expect(console.debug).not.toBe(originalDebug)
+
+      expect(() => console.log('suppressed')).not.toThrow()
+      expect(() => console.debug('suppressed')).not.toThrow()
+    } finally {
+      vi.unstubAllEnvs()
+      console.log = originalLog
+      console.debug = originalDebug
+    }
   })
 })

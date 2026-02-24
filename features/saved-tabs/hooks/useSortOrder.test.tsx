@@ -11,8 +11,8 @@ const items: Item[] = [
   { domain: 'beta.example.com' },
 ]
 
-describe('useSortOrder', () => {
-  it('returns original order by default', () => {
+describe('useSortOrderフック', () => {
+  it('デフォルトでは元の順序を返す', () => {
     const { result } = renderHook(() =>
       useSortOrder(items, item => item.domain),
     )
@@ -21,7 +21,7 @@ describe('useSortOrder', () => {
     expect(result.current.sortedItems).toEqual(items)
   })
 
-  it('sorts ascending when sortOrder is asc', () => {
+  it('sortOrder が asc のとき昇順に並べ替える', () => {
     const { result } = renderHook(() =>
       useSortOrder(items, item => item.domain),
     )
@@ -37,7 +37,7 @@ describe('useSortOrder', () => {
     ])
   })
 
-  it('sorts descending when sortOrder is desc', () => {
+  it('sortOrder が desc のとき降順に並べ替える', () => {
     const { result } = renderHook(() =>
       useSortOrder(items, item => item.domain),
     )

@@ -128,7 +128,7 @@ const createChromeMock = () => {
   } as unknown as typeof chrome
 }
 
-describe('SavedTabs profiler baseline', () => {
+describe('SavedTabs プロファイラのベースライン', () => {
   beforeEach(() => {
     vi.resetModules()
     document.body.innerHTML = '<div id="app"></div>'
@@ -170,7 +170,7 @@ describe('SavedTabs profiler baseline', () => {
     ).__ENABLE_SAVED_TABS_PROFILER = false
   })
 
-  test('records commit count during search interactions', async () => {
+  test('検索操作中のコミット回数を記録する', async () => {
     await import('@/entrypoints/saved-tabs/main.tsx')
 
     document.dispatchEvent(new Event('DOMContentLoaded'))
