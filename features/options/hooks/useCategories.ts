@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { z } from 'zod/v3'
 import {
+  getChromeStorageOnChanged,
+  warnMissingChromeStorage,
+} from '@/lib/browser/chrome-storage'
+import {
   createParentCategory,
   getParentCategories,
 } from '@/lib/storage/categories'
@@ -44,10 +48,16 @@ export const useCategories = () => {
       }
     }
 
-    chrome.storage.onChanged.addListener(storageChangeListener)
+    const storageOnChanged = getChromeStorageOnChanged()
+    if (!storageOnChanged) {
+      warnMissingChromeStorage('カテゴリ変更監視')
+      return
+    }
+
+    storageOnChanged.addListener(storageChangeListener)
 
     return () => {
-      chrome.storage.onChanged.removeListener(storageChangeListener)
+      storageOnChanged.removeListener(storageChangeListener)
     }
   }, [])
 

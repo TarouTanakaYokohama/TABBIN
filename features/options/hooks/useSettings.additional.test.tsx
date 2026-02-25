@@ -214,4 +214,18 @@ describe('useSettings の追加分岐', () => {
 
     expect(result.current.settings).toEqual(before)
   })
+
+  it('chrome.storage が利用できない環境でもクラッシュせず初期化できる', async () => {
+    vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
+    ;(globalThis as unknown as { chrome: typeof chrome }).chrome =
+      {} as typeof chrome
+
+    const { result } = renderHook(() => useSettings())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(result.current.settings).toEqual(defaultSettings)
+  })
 })

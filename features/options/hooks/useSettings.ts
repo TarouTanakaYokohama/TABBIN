@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
 import {
+  getChromeStorageOnChanged,
+  warnMissingChromeStorage,
+} from '@/lib/browser/chrome-storage'
+import {
   defaultSettings,
   getUserSettings,
   saveUserSettings,
@@ -44,11 +48,17 @@ export const useSettings = () => {
       }
     }
 
-    chrome.storage.onChanged.addListener(storageChangeListener)
+    const storageOnChanged = getChromeStorageOnChanged()
+    if (!storageOnChanged) {
+      warnMissingChromeStorage('設定変更監視')
+      return
+    }
+
+    storageOnChanged.addListener(storageChangeListener)
 
     // クリーンアップ関数
     return () => {
-      chrome.storage.onChanged.removeListener(storageChangeListener)
+      storageOnChanged.removeListener(storageChangeListener)
     }
   }, [])
 

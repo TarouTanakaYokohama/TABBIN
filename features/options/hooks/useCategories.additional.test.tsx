@@ -291,4 +291,16 @@ describe('useCategories の追加分岐', () => {
 
     expect(result.current.parentCategories).toEqual([])
   })
+
+  it('chrome.storage が利用できない環境でもクラッシュせず初期化できる', async () => {
+    vi.mocked(getParentCategories).mockResolvedValue([])
+    ;(globalThis as unknown as { chrome: typeof chrome }).chrome =
+      {} as typeof chrome
+
+    const { result } = renderHook(() => useCategories())
+
+    await waitFor(() => {
+      expect(result.current.parentCategories).toEqual([])
+    })
+  })
 })
