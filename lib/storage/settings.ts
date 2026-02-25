@@ -1,3 +1,7 @@
+import {
+  getChromeStorageLocal,
+  warnMissingChromeStorage,
+} from '@/lib/browser/chrome-storage'
 import type { UserSettings } from '@/types/storage'
 
 // デフォルト設定
@@ -20,7 +24,13 @@ export const defaultSettings: UserSettings = {
 export async function getUserSettings(): Promise<UserSettings> {
   try {
     console.log('ユーザー設定を取得中...')
-    const data = await chrome.storage.local.get(['userSettings'])
+    const storageLocal = getChromeStorageLocal()
+    if (!storageLocal) {
+      warnMissingChromeStorage('設定読み込み')
+      return { ...defaultSettings }
+    }
+
+    const data = await storageLocal.get(['userSettings'])
     console.log('取得した設定データ:', data)
 
     if (data.userSettings) {
@@ -41,7 +51,13 @@ export async function getUserSettings(): Promise<UserSettings> {
 export async function saveUserSettings(settings: UserSettings): Promise<void> {
   try {
     console.log('ユーザー設定を保存:', settings)
-    await chrome.storage.local.set({ userSettings: settings })
+    const storageLocal = getChromeStorageLocal()
+    if (!storageLocal) {
+      warnMissingChromeStorage('設定保存')
+      return
+    }
+
+    await storageLocal.set({ userSettings: settings })
     console.log('設定を保存しました')
   } catch (error) {
     console.error('設定保存エラー:', error)

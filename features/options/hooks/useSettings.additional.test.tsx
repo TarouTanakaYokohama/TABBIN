@@ -58,7 +58,7 @@ const createChromeMock = () =>
     },
   }) as unknown as typeof chrome
 
-describe('useSettings additional branches', () => {
+describe('useSettings の追加分岐', () => {
   beforeEach(() => {
     listeners.length = 0
     vi.clearAllMocks()
@@ -66,7 +66,7 @@ describe('useSettings additional branches', () => {
       createChromeMock()
   })
 
-  it('removes storage listener on unmount', async () => {
+  it('アンマウント時にストレージリスナーを解除する', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
 
     const { result, unmount } = renderHook(() => useSettings())
@@ -88,7 +88,7 @@ describe('useSettings additional branches', () => {
     expect(typeof removeListener.mock.calls[0]?.[0]).toBe('function')
   })
 
-  it('returns false when updateSetting persistence fails', async () => {
+  it('updateSetting の永続化に失敗したとき false を返す', async () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined)
@@ -111,7 +111,7 @@ describe('useSettings additional branches', () => {
     expect(consoleErrorSpy).toHaveBeenCalled()
   })
 
-  it('swallows save errors in handleSaveSettings', async () => {
+  it('handleSaveSettings で保存エラーを握りつぶす', async () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined)
@@ -138,7 +138,7 @@ describe('useSettings additional branches', () => {
     expect(consoleErrorSpy).toHaveBeenCalled()
   })
 
-  it('triggers save through handleExcludePatternsBlur', async () => {
+  it('handleExcludePatternsBlur 経由で保存を実行する', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
     vi.mocked(saveUserSettings).mockResolvedValue(undefined)
 
@@ -163,7 +163,7 @@ describe('useSettings additional branches', () => {
     })
   })
 
-  it('ignores storage updates from non-local area', async () => {
+  it('local 以外の領域からのストレージ更新を無視する', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
 
     const { result } = renderHook(() => useSettings())
@@ -189,7 +189,7 @@ describe('useSettings additional branches', () => {
     expect(result.current.settings).toEqual(before)
   })
 
-  it('ignores local storage changes without userSettings key', async () => {
+  it('userSettings キーがない local storage 変更を無視する', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
 
     const { result } = renderHook(() => useSettings())
@@ -213,5 +213,19 @@ describe('useSettings additional branches', () => {
     })
 
     expect(result.current.settings).toEqual(before)
+  })
+
+  it('chrome.storage が利用できない環境でもクラッシュせず初期化できる', async () => {
+    vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
+    ;(globalThis as unknown as { chrome: typeof chrome }).chrome =
+      {} as typeof chrome
+
+    const { result } = renderHook(() => useSettings())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(result.current.settings).toEqual(defaultSettings)
   })
 })

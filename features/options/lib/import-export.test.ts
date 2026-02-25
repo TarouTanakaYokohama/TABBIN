@@ -127,7 +127,7 @@ const buildFullUserSettings = (
   ...override,
 })
 
-describe('import-export utilities', () => {
+describe('import-export ユーティリティ', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -140,7 +140,7 @@ describe('import-export utilities', () => {
     vi.restoreAllMocks()
   })
 
-  it('exportSettings returns backup payload from storage and settings', async () => {
+  it('exportSettings はストレージと設定からバックアップ payload を返す', async () => {
     const userSettings = buildFullUserSettings()
     const parentCategories = [
       { id: 'cat-1', name: 'Work', domains: [], domainNames: [] },
@@ -168,7 +168,7 @@ describe('import-export utilities', () => {
     })
   })
 
-  it('exportSettings rebuilds urls from urlIds for portable backup data', async () => {
+  it('移行しやすいバックアップデータ用に urlIds から urls を再構築する', async () => {
     const userSettings = buildFullUserSettings()
     createChromeMock({
       parentCategories: [],
@@ -222,7 +222,7 @@ describe('import-export utilities', () => {
     expect(result.urls).toHaveLength(2)
   })
 
-  it('exportSettings adds placeholder URLs when urlIds cannot be resolved', async () => {
+  it('urlIds を解決できない場合はプレースホルダー URL を追加する', async () => {
     const userSettings = buildFullUserSettings()
     createChromeMock({
       parentCategories: [],
@@ -275,7 +275,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('exportSettings filters invalid legacy url items when tab.urls already exists', async () => {
+  it('tab.urls が既にある場合は不正な legacy url 項目を除外する', async () => {
     const userSettings = buildFullUserSettings()
     createChromeMock({
       parentCategories: [],
@@ -303,7 +303,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('exportSettings uses fallback savedAt/title branches for reconstructed urls', async () => {
+  it('再構築した urls に fallback の savedAt/title 分岐を使う', async () => {
     createChromeMock({
       parentCategories: [],
       savedTabs: [
@@ -354,7 +354,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('exportSettings tolerates merged placeholder map has() returning true unexpectedly', async () => {
+  it('マージ済みプレースホルダーマップの has() が予期せず true を返しても処理できる', async () => {
     const originalHas = Map.prototype.has
     let hasCallCount = 0
     const hasSpy = vi.spyOn(Map.prototype, 'has').mockImplementation(function (
@@ -387,7 +387,7 @@ describe('import-export utilities', () => {
     hasSpy.mockRestore()
   })
 
-  it('exportSettings throws normalized error when storage access fails', async () => {
+  it('ストレージアクセス失敗時に正規化されたエラーを投げる', async () => {
     createChromeMock({}, { failGet: true })
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
 
@@ -396,7 +396,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('exportSettings falls back to default version when manifest version is empty', async () => {
+  it('manifest の version が空ならデフォルト版にフォールバックする', async () => {
     createChromeMock(
       {
         parentCategories: [],
@@ -411,7 +411,7 @@ describe('import-export utilities', () => {
     expect(result.version).toBe('1.0.0')
   })
 
-  it('exportSettings tolerates non-array storage payloads', async () => {
+  it('配列でないストレージ payload でも処理できる', async () => {
     createChromeMock({
       parentCategories: { invalid: true },
       savedTabs: { invalid: true },
@@ -426,7 +426,7 @@ describe('import-export utilities', () => {
     expect(result.urls).toEqual([])
   })
 
-  it('downloadAsJson creates a temporary anchor and cleans up', () => {
+  it('downloadAsJson は一時的なアンカーを作成してクリーンアップする', () => {
     const originalCreateObjectURL = URL.createObjectURL
     const originalRevokeObjectURL = URL.revokeObjectURL
     const createObjectURL = vi.fn(() => 'blob:mock-url')
@@ -484,7 +484,7 @@ describe('import-export utilities', () => {
     })
   })
 
-  it('importSettings returns validation error for schema-invalid JSON', async () => {
+  it('importSettings はスキーマ不正な JSON に対してバリデーションエラーを返す', async () => {
     createChromeMock()
 
     const result = await importSettings(JSON.stringify({ foo: 'bar' }))
@@ -497,7 +497,7 @@ describe('import-export utilities', () => {
     expect(saveParentCategories).not.toHaveBeenCalled()
   })
 
-  it('importSettings returns generic error for malformed JSON', async () => {
+  it('importSettings は不正な JSON 形式に対して汎用エラーを返す', async () => {
     createChromeMock()
 
     const result = await importSettings('{malformed-json')
@@ -508,7 +508,7 @@ describe('import-export utilities', () => {
     })
   })
 
-  it('importSettings restores urlIds-only tabs when backup includes url records', async () => {
+  it('バックアップに URL レコードがある場合 urlIds のみのタブを復元する', async () => {
     const { set } = createChromeMock({
       parentCategories: [],
       savedTabs: [],
@@ -573,7 +573,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('importSettings restores urlIds-only tabs with empty title fallback from backup url records', async () => {
+  it('バックアップ URL レコードから空タイトル fallback を使って urlIds のみのタブを復元する', async () => {
     createChromeMock({
       parentCategories: [],
       savedTabs: [],
@@ -624,7 +624,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('importSettings generates placeholder URLs when URL records are missing', async () => {
+  it('importSettings は URL レコード不足時にプレースホルダー URL を生成する', async () => {
     const { set } = createChromeMock({
       parentCategories: [],
       savedTabs: [],
@@ -683,7 +683,7 @@ describe('import-export utilities', () => {
     })
   })
 
-  it('overwrite mode generates placeholder URLs when URL records are missing', async () => {
+  it('overwrite モードでは URL レコード不足時にプレースホルダー URL を生成する', async () => {
     const { set } = createChromeMock({
       parentCategories: [],
       savedTabs: [],
@@ -740,7 +740,7 @@ describe('import-export utilities', () => {
     })
   })
 
-  it('overwrite mode preserves raw urlIds fallback and skips placeholder creation when ids already exist later', async () => {
+  it('overwrite モードでは raw urlIds の fallback を保持し、後続で id が既に存在する場合はプレースホルダー生成をスキップする', async () => {
     const existingUrlRecord = {
       id: 'already-resolved-id',
       url: 'https://existing.example.com/current',
@@ -850,7 +850,7 @@ describe('import-export utilities', () => {
     ).toBe(false)
   })
 
-  it('overwrite mode keeps tabs without urls/urlIds as empty groups', async () => {
+  it('overwrite モードでは urls/urlIds を持たないタブを空グループとして保持する', async () => {
     const { set } = createChromeMock({
       parentCategories: [],
       savedTabs: [],
@@ -897,7 +897,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('overwrite mode generates placeholders even when current urls storage is not an array', async () => {
+  it('overwrite モードでは現在の urls ストレージが配列でなくてもプレースホルダーを生成する', async () => {
     const { set } = createChromeMock({
       parentCategories: [],
       savedTabs: [],
@@ -939,7 +939,7 @@ describe('import-export utilities', () => {
     })
   })
 
-  it('merge mode handles non-array current storage safely', async () => {
+  it('merge モードでは配列でない現在ストレージを安全に処理する', async () => {
     const { set } = createChromeMock({
       parentCategories: { invalid: true },
       savedTabs: { invalid: true },
@@ -1007,7 +1007,7 @@ describe('import-export utilities', () => {
     })
   })
 
-  it('merge mode keeps existing parent/savedAt when imported values are omitted', async () => {
+  it('merge モードではインポート値が省略された場合に既存の parent/savedAt を保持する', async () => {
     const { set } = createChromeMock({
       parentCategories: [],
       savedTabs: [
@@ -1068,7 +1068,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('merge mode avoids duplicate URL IDs and normalizes mixed subcategory/keyword payloads', async () => {
+  it('merge モードでは重複 URL ID を避けつつ混在した subcategory/keyword payload を正規化する', async () => {
     const { set } = createChromeMock({
       parentCategories: [],
       savedTabs: [
@@ -1141,7 +1141,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('merge mode normalizes new-domain keyword and subcategory edge cases', async () => {
+  it('merge モードでは新規ドメインの keyword と subcategory の境界ケースを正規化する', async () => {
     const { set } = createChromeMock({
       parentCategories: [],
       savedTabs: [],
@@ -1190,7 +1190,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('merge mode tolerates keyword map lookups returning undefined after has()', async () => {
+  it('merge モードでは has() 後の keyword map 参照が undefined を返しても処理できる', async () => {
     const originalGet = Map.prototype.get
     const getSpy = vi.spyOn(Map.prototype, 'get').mockImplementation(function (
       this: Map<unknown, unknown>,
@@ -1259,7 +1259,7 @@ describe('import-export utilities', () => {
     getSpy.mockRestore()
   })
 
-  it('importSettings merges existing and imported data in merge mode', async () => {
+  it('importSettings は merge モードで既存データとインポートデータを結合する', async () => {
     const currentSettings = buildFullUserSettings({
       excludePatterns: ['existing-pattern'],
       showSavedTime: false,
@@ -1463,7 +1463,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('importSettings replaces all data in overwrite mode', async () => {
+  it('importSettings は overwrite モードで全データを置き換える', async () => {
     const { set } = createChromeMock()
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
     vi.mocked(createOrUpdateUrlRecord)
@@ -1563,7 +1563,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('overwrite mode normalizes invalid keyword and subcategory entries', async () => {
+  it('overwrite モードでは不正な keyword と subcategory エントリを正規化する', async () => {
     const { set } = createChromeMock()
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
     vi.mocked(createOrUpdateUrlRecord).mockResolvedValue({
@@ -1621,7 +1621,7 @@ describe('import-export utilities', () => {
     )
   })
 
-  it('overwrite mode supports tabs without categoryKeywords/subCategories', async () => {
+  it('overwrite モードでは categoryKeywords/subCategories がないタブもサポートする', async () => {
     const { set } = createChromeMock()
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
     vi.mocked(createOrUpdateUrlRecord).mockResolvedValue({

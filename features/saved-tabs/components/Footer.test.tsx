@@ -3,12 +3,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CategoryReorderFooter } from './Footer'
 
-describe('CategoryReorderFooter', () => {
+describe('CategoryReorderFooterコンポーネント', () => {
   afterEach(() => {
     cleanup()
   })
 
-  it('calls handlers when cancel/confirm buttons are clicked', () => {
+  it('キャンセル/確認ボタンをクリックするとハンドラを呼び出す', () => {
     const onConfirm = vi.fn()
     const onCancel = vi.fn()
 
@@ -30,7 +30,7 @@ describe('CategoryReorderFooter', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1)
   })
 
-  it('renders without handlers', () => {
+  it('ハンドラなしでも描画できる', () => {
     render(<CategoryReorderFooter />)
 
     fireEvent.click(

@@ -35,7 +35,7 @@ const createChromeMock = () =>
     },
   }) as unknown as typeof chrome
 
-describe('useCategories', () => {
+describe('useCategoriesフック', () => {
   beforeEach(() => {
     listeners.length = 0
     vi.useRealTimers()
@@ -44,7 +44,7 @@ describe('useCategories', () => {
       createChromeMock()
   })
 
-  it('loads categories on mount', async () => {
+  it('マウント時にカテゴリを読み込む', async () => {
     const categories = [
       { id: '1', name: 'Work', domains: [], domainNames: [] },
       { id: '2', name: 'Private', domains: [], domainNames: [] },
@@ -58,7 +58,7 @@ describe('useCategories', () => {
     })
   })
 
-  it('logs an error when loading categories fails', async () => {
+  it('カテゴリ読み込み失敗時にエラーをログ出力する', async () => {
     const error = new Error('load failed')
     vi.mocked(getParentCategories).mockRejectedValue(error)
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -77,7 +77,7 @@ describe('useCategories', () => {
     }
   })
 
-  it('prevents adding duplicate category names (case-insensitive)', async () => {
+  it('カテゴリ名の重複追加を防ぐ（大文字小文字を区別しない）', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([
       { id: '1', name: 'Work', domains: [], domainNames: [] },
     ])
@@ -115,7 +115,7 @@ describe('useCategories', () => {
     }
   })
 
-  it('rejects category names longer than 25 chars', async () => {
+  it('25文字を超えるカテゴリ名を拒否する', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
 
     const { result } = renderHook(() => useCategories())
@@ -151,7 +151,7 @@ describe('useCategories', () => {
     }
   })
 
-  it('returns false when category name is empty after trimming', async () => {
+  it('トリム後にカテゴリ名が空なら false を返す', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
 
     const { result } = renderHook(() => useCategories())
@@ -173,7 +173,7 @@ describe('useCategories', () => {
     expect(createParentCategory).not.toHaveBeenCalled()
   })
 
-  it('adds a category when input is valid and unique', async () => {
+  it('入力が有効かつ一意ならカテゴリを追加する', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
     vi.mocked(createParentCategory).mockResolvedValue({
       id: 'new-id',
@@ -203,7 +203,7 @@ describe('useCategories', () => {
     expect(result.current.categoryError).toBe(null)
   })
 
-  it('handles create category errors', async () => {
+  it('カテゴリ作成エラーを処理する', async () => {
     const error = new Error('create failed')
     vi.mocked(getParentCategories).mockResolvedValue([])
     vi.mocked(createParentCategory).mockRejectedValue(error)
@@ -246,7 +246,7 @@ describe('useCategories', () => {
     }
   })
 
-  it('reflects category updates from chrome.storage changes', async () => {
+  it('chrome.storage の変更からカテゴリ更新を反映する', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
 
     const { result } = renderHook(() => useCategories())
@@ -274,7 +274,7 @@ describe('useCategories', () => {
     expect(result.current.parentCategories).toEqual(updatedCategories)
   })
 
-  it('ignores unrelated storage changes and resets invalid parentCategories payload', async () => {
+  it('無関係なストレージ変更を無視し不正な parentCategories payload をリセットする', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
 
     const { result } = renderHook(() => useCategories())
@@ -340,7 +340,7 @@ describe('useCategories', () => {
     expect(result.current.parentCategories).toEqual([])
   })
 
-  it('adds a category on Enter key when there is no error', async () => {
+  it('エラーがない場合 Enter キーでカテゴリを追加する', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
     vi.mocked(createParentCategory).mockResolvedValue({
       id: 'enter-id',
@@ -374,7 +374,7 @@ describe('useCategories', () => {
     })
   })
 
-  it('does not add a category on Enter when an error exists', async () => {
+  it('エラーがある場合 Enter キーでカテゴリを追加しない', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
 
     const { result } = renderHook(() => useCategories())
@@ -401,7 +401,7 @@ describe('useCategories', () => {
     expect(createParentCategory).not.toHaveBeenCalled()
   })
 
-  it('ignores non-Enter keys in keydown handler', async () => {
+  it('keydown ハンドラで Enter 以外のキーを無視する', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
 
     const { result } = renderHook(() => useCategories())
@@ -423,7 +423,7 @@ describe('useCategories', () => {
     expect(createParentCategory).not.toHaveBeenCalled()
   })
 
-  it('removes storage listener on unmount', async () => {
+  it('アンマウント時にストレージリスナーを解除する', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
 
     const { unmount } = renderHook(() => useCategories())

@@ -36,7 +36,7 @@ const createChromeMock = () =>
     },
   }) as unknown as typeof chrome
 
-describe('useCategories additional branches', () => {
+describe('useCategories の追加分岐', () => {
   beforeEach(() => {
     listeners.length = 0
     vi.clearAllMocks()
@@ -49,7 +49,7 @@ describe('useCategories additional branches', () => {
     vi.useRealTimers()
   })
 
-  it('handles category loading errors gracefully', async () => {
+  it('カテゴリ読み込みエラーを適切に処理する', async () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined)
@@ -65,7 +65,7 @@ describe('useCategories additional branches', () => {
     expect(consoleErrorSpy).toHaveBeenCalled()
   })
 
-  it('returns false when category name is blank', async () => {
+  it('カテゴリ名が空白のとき false を返す', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
 
     const { result } = renderHook(() => useCategories())
@@ -83,7 +83,7 @@ describe('useCategories additional branches', () => {
     expect(createParentCategory).not.toHaveBeenCalled()
   })
 
-  it('shows create error and clears it after timeout', async () => {
+  it('作成エラーを表示しタイムアウト後にクリアする', async () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined)
@@ -120,7 +120,7 @@ describe('useCategories additional branches', () => {
     expect(result.current.categoryError).toBe(null)
   })
 
-  it('handleCategoryKeyDown adds category on Enter when no error exists', async () => {
+  it('handleCategoryKeyDown はエラーがない場合 Enter でカテゴリを追加する', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
     vi.mocked(createParentCategory).mockResolvedValue({
       id: 'new-id',
@@ -153,7 +153,7 @@ describe('useCategories additional branches', () => {
     })
   })
 
-  it('handleCategoryKeyDown does nothing for non-Enter keys', async () => {
+  it('handleCategoryKeyDown は Enter 以外のキーでは何もしない', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
 
     const { result } = renderHook(() => useCategories())
@@ -175,7 +175,7 @@ describe('useCategories additional branches', () => {
     expect(createParentCategory).not.toHaveBeenCalled()
   })
 
-  it('handleCategoryKeyDown skips add when error already exists', async () => {
+  it('handleCategoryKeyDown は既存エラーがあると追加をスキップする', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
 
     const { result } = renderHook(() => useCategories())
@@ -200,7 +200,7 @@ describe('useCategories additional branches', () => {
     expect(createParentCategory).not.toHaveBeenCalled()
   })
 
-  it('ignores local storage changes when parentCategories key is missing', async () => {
+  it('parentCategories キーがない local storage 変更は無視する', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([
       { id: 'cat-1', name: 'Initial', domains: [], domainNames: [] },
     ])
@@ -230,7 +230,7 @@ describe('useCategories additional branches', () => {
     ])
   })
 
-  it('ignores storage updates from non-local areas', async () => {
+  it('local 以外の領域からのストレージ更新を無視する', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([
       { id: 'cat-1', name: 'Initial', domains: [], domainNames: [] },
     ])
@@ -264,7 +264,7 @@ describe('useCategories additional branches', () => {
     ])
   })
 
-  it('falls back to empty categories when storage change payload is not an array', async () => {
+  it('ストレージ変更 payload が配列でない場合は空カテゴリにフォールバックする', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([
       { id: 'cat-1', name: 'Initial', domains: [], domainNames: [] },
     ])
@@ -290,5 +290,17 @@ describe('useCategories additional branches', () => {
     })
 
     expect(result.current.parentCategories).toEqual([])
+  })
+
+  it('chrome.storage が利用できない環境でもクラッシュせず初期化できる', async () => {
+    vi.mocked(getParentCategories).mockResolvedValue([])
+    ;(globalThis as unknown as { chrome: typeof chrome }).chrome =
+      {} as typeof chrome
+
+    const { result } = renderHook(() => useCategories())
+
+    await waitFor(() => {
+      expect(result.current.parentCategories).toEqual([])
+    })
   })
 })

@@ -119,8 +119,10 @@ export async function safelyUpdateGroupUrls(
     // 更新を保存
     await chrome.storage.local.set({ savedTabs: updatedTabs })
 
+    const urlCount = urls?.length ?? 0
+
     // URLsが空の場合はコンソールにその旨を出力
-    if ((urls?.length || 0) === 0) {
+    if (urlCount === 0) {
       console.log(
         `グループ ${groupId} (${targetGroup.domain}) のURLがすべて削除されました。表示から除外されます。`,
       )
@@ -138,7 +140,7 @@ export async function safelyUpdateGroupUrls(
       }
     } else {
       console.log(
-        `グループ ${groupId} のURLを更新しました。残り: ${urls?.length || 0}件`,
+        `グループ ${groupId} のURLを更新しました。残り: ${urlCount}件`,
       )
     }
 

@@ -73,49 +73,44 @@ export const SortableCategorySection = ({
   const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>(
     'default',
   )
+  const urls = props.urls ?? []
+  const urlCount = urls.length
   // derive sorted urls by savedAt (default = original order)
   const sortedUrls = useMemo(() => {
-    if (sortOrder === 'default') return props.urls || []
-    const arr = [...(props.urls || [])]
+    if (sortOrder === 'default') return urls
+    const arr = [...urls]
     arr.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
     if (sortOrder === 'desc') arr.reverse()
     return arr
-  }, [props.urls, sortOrder])
+  }, [urls, sortOrder])
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
 
   const onDeleteAllTabsConfirmed = useCallback(async () => {
-    if (isDeleting || !handleDeleteAllTabs) return
     setIsDeleteConfirmOpen(false)
     setIsDeleting(true)
     try {
-      const urlsToDelete = [...(props.urls || [])]
-      await handleDeleteAllTabs(urlsToDelete)
+      const urlsToDelete = [...urls]
+      await handleDeleteAllTabs?.(urlsToDelete)
     } catch (error) {
       console.error('削除処理中にエラーが発生しました:', error)
     } finally {
       setIsDeleting(false)
     }
-  }, [props.urls, handleDeleteAllTabs, isDeleting])
+  }, [urls, handleDeleteAllTabs])
 
   const onDeleteAllTabs = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
       e.preventDefault()
-      if (isDeleting || !handleDeleteAllTabs) return
       if (settings.confirmDeleteAll) {
         setIsDeleteConfirmOpen(true)
       } else {
         void onDeleteAllTabsConfirmed()
       }
     },
-    [
-      handleDeleteAllTabs,
-      isDeleting,
-      settings.confirmDeleteAll,
-      onDeleteAllTabsConfirmed,
-    ],
+    [settings.confirmDeleteAll, onDeleteAllTabsConfirmed],
   )
 
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -144,10 +139,11 @@ export const SortableCategorySection = ({
     // ドラッグ中または並び替えモード中は折りたたむ
     if (isDraggingGlobal || isReorderMode) {
       setIsCollapsed(true)
-    } else if (!isDraggingGlobal && !isReorderMode) {
-      // ドラッグもモードも終了したらユーザーが設定した状態に戻す
-      setIsCollapsed(userCollapsedState)
+      return
     }
+
+    // ドラッグもモードも終了したらユーザーが設定した状態に戻す
+    setIsCollapsed(userCollapsedState)
   }, [isDraggingGlobal, isReorderMode, userCollapsedState])
 
   return (
@@ -172,11 +168,9 @@ export const SortableCategorySection = ({
                 size='sm'
                 onClick={e => {
                   e.stopPropagation()
-                  if (!isReorderMode) {
-                    const newState = !isCollapsed
-                    setIsCollapsed(newState)
-                    setUserCollapsedState(newState)
-                  }
+                  const newState = !isCollapsed
+                  setIsCollapsed(newState)
+                  setUserCollapsedState(newState)
                 }}
                 className={`flex items-center gap-1 ${
                   isReorderMode
@@ -254,7 +248,7 @@ export const SortableCategorySection = ({
                 : props.categoryName}
             </h3>
             <span className='text-muted-foreground text-sm'>
-              <Badge variant='secondary'>{props.urls?.length || 0}</Badge>
+              <Badge variant='secondary'>{urlCount}</Badge>
             </span>
           </div>
 
@@ -267,10 +261,10 @@ export const SortableCategorySection = ({
                   size='sm'
                   onClick={e => {
                     e.stopPropagation()
-                    if ((props.urls?.length || 0) >= 10) {
+                    if (urlCount >= 10) {
                       setIsOpenAllConfirmOpen(true)
                     } else {
-                      handleOpenAllTabs(props.urls || [])
+                      handleOpenAllTabs(urls)
                     }
                   }}
                   className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
@@ -358,7 +352,7 @@ export const SortableCategorySection = ({
             <AlertDialogAction
               onClick={() => {
                 setIsOpenAllConfirmOpen(false)
-                handleOpenAllTabs(props.urls || [])
+                handleOpenAllTabs(urls)
               }}
             >
               開く

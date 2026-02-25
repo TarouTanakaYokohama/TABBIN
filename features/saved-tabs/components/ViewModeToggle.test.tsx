@@ -1,0 +1,104 @@
+// @vitest-environment jsdom
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ViewMode } from '@/types/storage'
+
+vi.mock('@/components/ui/select', () => ({
+  Select: ({
+    value,
+    onValueChange,
+    children,
+  }: {
+    value: string
+    onValueChange?: (value: ViewMode) => void
+    children: React.ReactNode
+  }) => (
+    <div data-testid='select-root' data-value={value}>
+      <button onClick={() => onValueChange?.('custom')} type='button'>
+        emit-custom
+      </button>
+      {children}
+    </div>
+  ),
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid='select-trigger'>{children}</div>
+  ),
+  SelectValue: ({
+    children,
+    placeholder,
+  }: {
+    children?: React.ReactNode
+    placeholder?: string
+  }) => <div data-testid='select-value'>{children ?? placeholder}</div>,
+  SelectContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid='select-content'>{children}</div>
+  ),
+  SelectItem: ({
+    children,
+    value,
+  }: {
+    children: React.ReactNode
+    value: string
+  }) => <div data-testid={`select-item-${value}`}>{children}</div>,
+}))
+
+vi.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid='tooltip-root'>{children}</div>
+  ),
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid='tooltip-trigger'>{children}</div>
+  ),
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid='tooltip-content'>{children}</div>
+  ),
+}))
+
+import { ViewModeToggle } from './ViewModeToggle'
+
+describe('ViewModeToggle', () => {
+  afterEach(() => {
+    cleanup()
+    vi.clearAllMocks()
+  })
+
+  it('domain モードの選択表示と tooltip/menu を描画し onChange を呼ぶ', () => {
+    const onChange = vi.fn()
+
+    render(<ViewModeToggle currentMode='domain' onChange={onChange} />)
+
+    const value = within(screen.getByTestId('select-value'))
+    expect(value.getByText('ドメインモード')).toBeTruthy()
+    expect(screen.getByTestId('tooltip-content').textContent).toBe(
+      '表示モード切り替え',
+    )
+    expect(screen.getByTestId('select-item-domain')).toBeTruthy()
+    expect(screen.getByTestId('select-item-custom')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'emit-custom' }))
+
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith('custom')
+  })
+
+  it('custom モードの選択表示を描画する', () => {
+    render(<ViewModeToggle currentMode='custom' onChange={vi.fn()} />)
+
+    const value = within(screen.getByTestId('select-value'))
+    expect(value.getByText('(preview)カスタムモード')).toBeTruthy()
+  })
+
+  it('未知モード値ではフォールバック文言を表示する', () => {
+    render(
+      <ViewModeToggle currentMode={'unknown' as ViewMode} onChange={vi.fn()} />,
+    )
+
+    expect(screen.getByTestId('select-value').textContent).toBe('表示モード')
+  })
+})
