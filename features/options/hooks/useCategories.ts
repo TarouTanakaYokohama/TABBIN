@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { z } from 'zod/v3'
+import { z } from 'zod'
 import {
   getChromeStorageOnChanged,
   warnMissingChromeStorage,
@@ -69,7 +69,9 @@ export const useCategories = () => {
         newCategoryName.trim(),
       )
       if (!validationResult.success) {
-        setCategoryError(validationResult.error.errors[0].message)
+        const message =
+          validationResult.error.issues[0]?.message ?? 'カテゴリ名が無効です'
+        setCategoryError(message)
         setTimeout(() => setCategoryError(null), 3000)
         return false
       }

@@ -62,6 +62,8 @@ export const SortableCategorySection = ({
 
   const categoryDisplayName =
     props.categoryName === '__uncategorized' ? '未分類' : props.categoryName
+  const urls = props.urls ?? []
+  const urlCount = urls.length
 
   /**
    * カテゴリ内の全タブを削除する処理（確認済みの場合に呼び出す）
@@ -70,7 +72,7 @@ export const SortableCategorySection = ({
     if (isDeleting) return
     setIsDeleting(true)
     try {
-      const urlsToDelete = [...(props.urls || [])]
+      const urlsToDelete = [...urls]
       const urlsToRemove = urlsToDelete.map(item => item.url)
 
       const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
@@ -95,18 +97,14 @@ export const SortableCategorySection = ({
     } finally {
       setIsDeleting(false)
     }
-  }, [props.urls, props.groupId, categoryDisplayName, isDeleting])
+  }, [urls, props.groupId, categoryDisplayName, isDeleting])
 
   // 削除ボタンクリック時の処理
-  const onDeleteAllTabs = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation()
-      e.preventDefault()
-      if (isDeleting) return
-      setIsDeleteAllConfirmOpen(true)
-    },
-    [isDeleting],
-  )
+  const onDeleteAllTabs = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    setIsDeleteAllConfirmOpen(true)
+  }, [])
 
   return (
     <>
@@ -134,7 +132,7 @@ export const SortableCategorySection = ({
                 ? '未分類'
                 : props.categoryName}{' '}
               <span className='text-muted-foreground text-sm'>
-                ({props.urls?.length || 0})
+                ({urlCount})
               </span>
             </h3>
           </div>
@@ -147,13 +145,13 @@ export const SortableCategorySection = ({
                   variant='secondary'
                   size='sm'
                   onClick={e => {
-                    if ((props.urls?.length || 0) >= 10) {
+                    if (urlCount >= 10) {
                       e.stopPropagation()
                       setIsOpenAllConfirmOpen(true)
                       return
                     }
                     e.stopPropagation()
-                    handleOpenAllTabs(props.urls || [])
+                    handleOpenAllTabs(urls)
                   }}
                   className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
                   style={{ position: 'relative' }}
@@ -193,7 +191,7 @@ export const SortableCategorySection = ({
           </div>
         </div>
 
-        <CategorySection {...props} settings={settings} />
+        <CategorySection {...props} urls={urls} settings={settings} />
       </div>
 
       {/* 10個以上タブを開く確認ダイアログ */}
@@ -210,9 +208,7 @@ export const SortableCategorySection = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>キャンセル</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => handleOpenAllTabs(props.urls || [])}
-            >
+            <AlertDialogAction onClick={() => handleOpenAllTabs(urls)}>
               開く
             </AlertDialogAction>
           </AlertDialogFooter>

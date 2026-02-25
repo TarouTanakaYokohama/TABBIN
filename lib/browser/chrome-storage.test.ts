@@ -6,7 +6,9 @@ import {
   warnMissingChromeStorage,
 } from './chrome-storage'
 
-type GlobalWithChrome = typeof globalThis & { chrome?: typeof chrome }
+type GlobalWithChrome = Omit<typeof globalThis, 'chrome'> & {
+  chrome?: typeof chrome | undefined
+}
 
 const globalWithChrome = globalThis as GlobalWithChrome
 const originalChrome = globalWithChrome.chrome
