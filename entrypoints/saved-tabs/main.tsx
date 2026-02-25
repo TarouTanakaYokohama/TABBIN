@@ -63,6 +63,7 @@ import { useCategoryManagement } from '@/features/saved-tabs/hooks/useCategoryMa
 import { useProjectManagement } from '@/features/saved-tabs/hooks/useProjectManagement'
 import { useTabData } from '@/features/saved-tabs/hooks/useTabData'
 import { handleTabGroupRemoval } from '@/features/saved-tabs/lib/tab-operations'
+import { shouldShowUncategorizedHeader as computeShouldShowUncategorizedHeader } from '@/features/saved-tabs/lib/uncategorized-display'
 import { saveParentCategories } from '@/lib/storage/categories'
 import {
   addUrlToCustomProject,
@@ -1112,6 +1113,25 @@ const SavedTabs = () => {
     [customProjectsRef, setCustomProjects],
   )
 
+  const visibleUncategorizedGroups = useMemo(
+    () =>
+      uncategorized.filter(
+        group => (group.urls || group.urlIds || []).length > 0,
+      ),
+    [uncategorized],
+  )
+  const hasVisibleCategoryGroups =
+    settings.enableCategories && Object.keys(categorized).length > 0
+  const shouldShowUncategorizedSectionHeader =
+    settings.enableCategories &&
+    computeShouldShowUncategorizedHeader({
+      searchQuery,
+      uncategorizedCount: uncategorized.length,
+      visibleUncategorizedCount: visibleUncategorizedGroups.length,
+      isUncategorizedReorderMode,
+    })
+  const shouldShowUncategorizedList = visibleUncategorizedGroups.length > 0
+
   return (
     <>
       <Toaster />
@@ -1152,153 +1172,127 @@ const SavedTabs = () => {
             {/* 既存のドメインモード表示コード */}
             {settings.enableCategories &&
               Object.keys(categorized).length > 0 && (
-                <>
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleCategoryDragEnd}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleCategoryDragEnd}
+                >
+                  <SortableContext
+                    items={
+                      isCategoryReorderMode ? tempCategoryOrder : categoryOrder
+                    }
+                    strategy={verticalListSortingStrategy}
                   >
-                    <SortableContext
-                      items={
-                        isCategoryReorderMode
-                          ? tempCategoryOrder
-                          : categoryOrder
-                      }
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <div className='flex flex-col gap-1'>
-                        {/* カテゴリ順序に基づいて表示（並び替えモード中は一時的な順序を使用） */}
-                        {(isCategoryReorderMode
-                          ? tempCategoryOrder
-                          : categoryOrder
-                        ).map(categoryId => {
-                          if (!categoryId) return null
-                          const category = categories.find(
-                            c => c.id === categoryId,
-                          )
-                          if (!category) return null
-                          const domainGroups = categorized[categoryId] || []
-                          if (domainGroups.length === 0) return null
+                    <div className='flex flex-col gap-1'>
+                      {/* カテゴリ順序に基づいて表示（並び替えモード中は一時的な順序を使用） */}
+                      {(isCategoryReorderMode
+                        ? tempCategoryOrder
+                        : categoryOrder
+                      ).map(categoryId => {
+                        if (!categoryId) return null
+                        const category = categories.find(
+                          c => c.id === categoryId,
+                        )
+                        if (!category) return null
+                        const domainGroups = categorized[categoryId] || []
+                        if (domainGroups.length === 0) return null
 
-                          return (
-                            <CategoryGroup
-                              key={categoryId}
-                              category={category}
-                              domains={domainGroups}
-                              handleOpenAllTabs={handleOpenAllTabs}
-                              handleDeleteGroup={handleDeleteGroup}
-                              handleDeleteUrl={handleDeleteUrl}
-                              handleOpenTab={handleOpenTab}
-                              handleUpdateUrls={handleUpdateUrls}
-                              handleUpdateDomainsOrder={
-                                handleUpdateDomainsOrder
-                              }
-                              handleMoveDomainToCategory={(
+                        return (
+                          <CategoryGroup
+                            key={categoryId}
+                            category={category}
+                            domains={domainGroups}
+                            handleOpenAllTabs={handleOpenAllTabs}
+                            handleDeleteGroup={handleDeleteGroup}
+                            handleDeleteUrl={handleDeleteUrl}
+                            handleOpenTab={handleOpenTab}
+                            handleUpdateUrls={handleUpdateUrls}
+                            handleUpdateDomainsOrder={handleUpdateDomainsOrder}
+                            handleMoveDomainToCategory={(
+                              domainId,
+                              fromCategoryId,
+                              toCategoryId,
+                            ) =>
+                              handleMoveDomainToCategory(
                                 domainId,
                                 fromCategoryId,
                                 toCategoryId,
-                              ) =>
-                                handleMoveDomainToCategory(
-                                  domainId,
-                                  fromCategoryId,
-                                  toCategoryId,
-                                  tabGroups,
-                                )
-                              }
-                              handleDeleteCategory={(groupId, categoryName) =>
-                                handleDeleteCategory(
-                                  groupId,
-                                  categoryName,
-                                  refreshTabGroupsWithUrls,
-                                )
-                              }
-                              settings={settings}
-                              isCategoryReorderMode={isCategoryReorderMode}
-                              searchQuery={searchQuery}
-                            />
-                          )
-                        })}
-                      </div>
-                    </SortableContext>
-                  </DndContext>
-
-                  {(() => {
-                    // 検索でヒットしないカテゴリは非表示
-                    const hasSearchQuery = searchQuery.trim().length > 0
-                    const visibleUncategorizedGroups = uncategorized.filter(
-                      group => (group.urls || group.urlIds || []).length > 0,
-                    )
-
-                    // 検索なしの場合：未分類ドメインが存在すれば表示
-                    // 検索ありの場合：検索でヒットしたドメインがあれば表示
-                    const shouldShowTitle = hasSearchQuery
-                      ? visibleUncategorizedGroups.length > 0
-                      : uncategorized.length > 0
-
-                    return shouldShowTitle
-                  })() && (
-                    <div className='sticky top-0 z-50 mt-6 flex items-center justify-between bg-card'>
-                      <h2 className='font-bold text-foreground text-xl'>
-                        未分類のドメイン
-                      </h2>
-
-                      {/* 未分類ドメイン並び替えモード中の確定・キャンセルボタン */}
-                      {isUncategorizedReorderMode && (
-                        <div className='pointer-events-auto ml-2 flex flex-shrink-0 gap-2'>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant='outline'
-                                size='sm'
-                                onClick={handleCancelUncategorizedReorder}
-                                className='flex cursor-pointer items-center gap-1'
-                                aria-label='並び替えをキャンセル'
-                              >
-                                <X size={14} />
-                                <span className='hidden lg:inline'>
-                                  キャンセル
-                                </span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side='top'
-                              className='block lg:hidden'
-                            >
-                              並び替えをキャンセル
-                            </TooltipContent>
-                          </Tooltip>
-
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant='default'
-                                size='sm'
-                                onClick={handleConfirmUncategorizedReorder}
-                                className='flex cursor-pointer items-center gap-1'
-                                aria-label='並び替えを確定'
-                              >
-                                <Check size={14} />
-                                <span className='hidden lg:inline'>確定</span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side='top'
-                              className='block lg:hidden'
-                            >
-                              並び替えを確定
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      )}
+                                tabGroups,
+                              )
+                            }
+                            handleDeleteCategory={(groupId, categoryName) =>
+                              handleDeleteCategory(
+                                groupId,
+                                categoryName,
+                                refreshTabGroupsWithUrls,
+                              )
+                            }
+                            settings={settings}
+                            isCategoryReorderMode={isCategoryReorderMode}
+                            searchQuery={searchQuery}
+                          />
+                        )
+                      })}
                     </div>
-                  )}
-                </>
+                  </SortableContext>
+                </DndContext>
               )}
 
+            {shouldShowUncategorizedSectionHeader && (
+              <div
+                className={`sticky top-0 z-50 flex items-center justify-between bg-card ${
+                  hasVisibleCategoryGroups ? 'mt-6' : 'mt-2'
+                }`}
+              >
+                <h2 className='font-bold text-foreground text-xl'>
+                  未分類のドメイン
+                </h2>
+
+                {/* 未分類ドメイン並び替えモード中の確定・キャンセルボタン */}
+                {isUncategorizedReorderMode && (
+                  <div className='pointer-events-auto ml-2 flex flex-shrink-0 gap-2'>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={handleCancelUncategorizedReorder}
+                          className='flex cursor-pointer items-center gap-1'
+                          aria-label='並び替えをキャンセル'
+                        >
+                          <X size={14} />
+                          <span className='hidden lg:inline'>キャンセル</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side='top' className='block lg:hidden'>
+                        並び替えをキャンセル
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant='default'
+                          size='sm'
+                          onClick={handleConfirmUncategorizedReorder}
+                          className='flex cursor-pointer items-center gap-1'
+                          aria-label='並び替えを確定'
+                        >
+                          <Check size={14} />
+                          <span className='hidden lg:inline'>確定</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side='top' className='block lg:hidden'>
+                        並び替えを確定
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* 未分類タブを表示する部分 */}
-            {uncategorized.filter(
-              group => (group.urls || group.urlIds || []).length > 0,
-            ).length > 0 && (
+            {shouldShowUncategorizedList && (
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
