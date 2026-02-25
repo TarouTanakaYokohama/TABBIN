@@ -1,4 +1,4 @@
-import { z } from 'zod/v3'
+import { z } from 'zod'
 import { saveParentCategories } from '@/lib/storage/categories'
 import { migrateToUrlsStorage } from '@/lib/storage/migration'
 import {
@@ -122,7 +122,7 @@ const backupDataSchema = z.object({
       urls: z.array(importedUrlDataSchema).optional(),
       // 新形式: URL ID参照
       urlIds: z.array(z.string()).optional(),
-      urlSubCategories: z.record(z.string()).optional(),
+      urlSubCategories: z.record(z.string(), z.string()).optional(),
       parentCategoryId: z.string().optional(),
       subCategories: z.array(z.unknown()).optional(),
       categoryKeywords: z.array(z.unknown()).optional(),

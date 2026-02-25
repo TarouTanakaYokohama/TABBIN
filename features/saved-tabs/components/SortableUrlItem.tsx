@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import type { SortableUrlItemProps } from '@/types/saved-tabs'
+import { formatDatetime, TimeRemaining } from '@/utils/datetime'
 
 // URL項目用のソータブルコンポーネント - 型定義を修正
 export const SortableUrlItem = ({
@@ -39,8 +40,6 @@ export const SortableUrlItem = ({
   const [isDragging, setIsDragging] = useState(false)
   const [leftWindow, setLeftWindow] = useState(false)
   const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const [isDeleteButtonVisible, setIsDeleteButtonVisible] = useState(false)
-  const buttonTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
 
   // ドラッグが開始されたとき
@@ -130,43 +129,6 @@ export const SortableUrlItem = ({
     }
   }, [handleMouseLeave])
 
-  // マウスイベントの処理を改善
-  const handleMouseEnter = () => {
-    setIsDeleteButtonVisible(true)
-    // タイマーをクリア
-    if (buttonTimeoutRef.current) {
-      clearTimeout(buttonTimeoutRef.current)
-      buttonTimeoutRef.current = null
-    }
-  }
-
-  const handleUIMouseLeave = () => {
-    // ボタンの非表示を少し遅らせて、ボタンへのマウス移動を可能にする
-    // 削除ボタンの遅延非表示（300ms）
-    buttonTimeoutRef.current = setTimeout(() => {
-      setIsDeleteButtonVisible(false)
-    }, 300)
-  }
-
-  // コンポーネントのアンマウント時にクリーンアップ
-  useEffect(() => {
-    return () => {
-      if (buttonTimeoutRef.current) {
-        clearTimeout(buttonTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  // 削除ボタンのマウスイベント処理
-  const handleDeleteButtonMouseEnter = () => {
-    // タイマーをクリアして非表示にならないようにする
-    if (buttonTimeoutRef.current) {
-      clearTimeout(buttonTimeoutRef.current)
-      buttonTimeoutRef.current = null
-    }
-    setIsDeleteButtonVisible(true)
-  }
-
   const handleDeleteButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
@@ -187,7 +149,7 @@ export const SortableUrlItem = ({
       <li
         ref={setNodeRef}
         style={style}
-        className='relative flex items-center overflow-hidden pb-1 last:border-0 last:pb-0'
+        className='group relative flex items-center overflow-hidden pb-1 last:border-0 last:pb-0'
         data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
       >
         <div
@@ -215,8 +177,6 @@ export const SortableUrlItem = ({
                 e.preventDefault()
                 handleOpenTab(url)
               }}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleUIMouseLeave}
             >
               <div className='flex w-full flex-col truncate'>
                 <span className='truncate'>{title}</span>
@@ -239,19 +199,16 @@ export const SortableUrlItem = ({
               </div>
             </a>
           </Button>
-          {isDeleteButtonVisible && (
-            <Button
-              variant='ghost'
-              size='icon'
-              onClick={handleDeleteButtonClick}
-              onMouseEnter={handleDeleteButtonMouseEnter}
-              className='absolute top-0 right-0 bottom-0 my-auto flex-shrink-0 cursor-pointer'
-              title='タブを削除'
-              aria-label='タブを削除'
-            >
-              <X size={14} />
-            </Button>
-          )}
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={handleDeleteButtonClick}
+            className='pointer-events-none invisible absolute top-0 right-0 bottom-0 my-auto flex-shrink-0 cursor-pointer opacity-0 transition-opacity group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100'
+            title='タブを削除'
+            aria-label='タブを削除'
+          >
+            <X size={14} />
+          </Button>
         </div>
       </li>
 

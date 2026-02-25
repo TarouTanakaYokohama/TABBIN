@@ -105,7 +105,7 @@ export const CustomProjectSection = ({
         type: string
       }
 
-      if (type === 'url' && url && projectId && title) {
+      if (type === 'url' && url && projectId && typeof title === 'string') {
         // URLドラッグの場合
         console.log(
           `URLドラッグ開始: ${title} (${url}) from プロジェクト ${projectId}`,

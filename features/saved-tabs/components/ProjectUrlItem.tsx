@@ -35,14 +35,14 @@ export interface ProjectUrlItemProps {
 }
 
 // カテゴリ名から表示名を取得する関数を追加
-const getCategoryDisplayName = (category?: string) => {
+export const getCategoryDisplayName = (category?: string) => {
   if (!category) return ''
   const parts = category.split('/')
   return parts[parts.length - 1]
 }
 
 // カテゴリの階層レベルを取得
-const getCategoryLevel = (category?: string) => {
+export const getCategoryLevel = (category?: string) => {
   if (!category) return 0
   return category.split('/').length - 1
 }

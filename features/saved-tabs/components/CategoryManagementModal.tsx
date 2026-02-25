@@ -1,7 +1,7 @@
 import { Edit, Plus, Trash, Trash2, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { z } from 'zod/v3' // zodをインポート
+import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,7 +27,7 @@ import {
 import type { ParentCategory, TabGroup } from '@/types/storage'
 
 // カテゴリ名のバリデーションスキーマ
-const categoryNameSchema = z
+export const categoryNameSchema = z
   .string()
   .trim()
   .min(1, { message: 'カテゴリ名を入力してください' })
@@ -76,16 +76,16 @@ export const CategoryManagementModal = ({
 
   // 入力値バリデーション関数
   const validateCategoryName = (name: string) => {
-    try {
-      categoryNameSchema.parse(name)
-      setCategoryNameError(null)
-      return true
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        setCategoryNameError(error.errors[0]?.message || 'カテゴリ名が無効です')
-      }
+    const result = categoryNameSchema.safeParse(name)
+    if (!result.success) {
+      const [{ message } = { message: 'カテゴリ名が無効です' }] =
+        result.error.issues
+      setCategoryNameError(message)
       return false
     }
+
+    setCategoryNameError(null)
+    return true
   }
 
   // 追加可能なドメイン一覧を取得
@@ -172,20 +172,6 @@ export const CategoryManagementModal = ({
       hasUpdateCallback: !!onCategoryUpdate,
     })
 
-    if (
-      !newCategoryName.trim() ||
-      newCategoryName.trim() === localCategoryName
-    ) {
-      console.log('Modal - 変更なしまたは空の値のため終了')
-      setIsRenaming(false)
-      return
-    }
-
-    if (isProcessing) {
-      console.log('Modal - 処理中のため終了')
-      return
-    }
-
     // バリデーション
     if (!validateCategoryName(newCategoryName.trim())) {
       // エラーがある場合、処理を中止
@@ -270,28 +256,26 @@ export const CategoryManagementModal = ({
       }
 
       // すべての更新が完了したことを確認してからリロード
-      if (trimmedName) {
-        console.log('Modal - 最終確認開始')
-        const finalCheck = await chrome.storage.local.get('parentCategories')
-        const finalCategory = finalCheck.parentCategories?.find(
-          (cat: ParentCategory) => cat.id === category.id,
-        )
+      console.log('Modal - 最終確認開始')
+      const finalCheck = await chrome.storage.local.get('parentCategories')
+      const finalCategory = finalCheck.parentCategories?.find(
+        (cat: ParentCategory) => cat.id === category.id,
+      )
 
-        if (finalCategory?.name !== trimmedName) {
-          console.error('Modal - 最終確認でカテゴリ名が一致しません:', {
-            expected: trimmedName,
-            actual: finalCategory?.name,
-          })
-          throw new Error('カテゴリ名の更新が完了していません')
-        }
-
-        // すべての更新が確認できたら親コンポーネントに通知
-        console.log('Modal - カテゴリ更新が完了しました')
-
-        // 親コンポーネント側で状態を更新（onCategoryUpdateが既に呼ばれているため、ここでは何もしない）
-        setLocalCategoryName(trimmedName)
-        setIsRenaming(false)
+      if (finalCategory?.name !== trimmedName) {
+        console.error('Modal - 最終確認でカテゴリ名が一致しません:', {
+          expected: trimmedName,
+          actual: finalCategory?.name,
+        })
+        throw new Error('カテゴリ名の更新が完了していません')
       }
+
+      // すべての更新が確認できたら親コンポーネントに通知
+      console.log('Modal - カテゴリ更新が完了しました')
+
+      // 親コンポーネント側で状態を更新（onCategoryUpdateが既に呼ばれているため、ここでは何もしない）
+      setLocalCategoryName(trimmedName)
+      setIsRenaming(false)
     } catch (error) {
       console.error('Modal - カテゴリ名の更新に失敗:', {
         error,
@@ -359,11 +343,12 @@ export const CategoryManagementModal = ({
       if (!selectedDomainInfo) {
         throw new Error('ドメインが見つかりません')
       }
+      const existingDomainNames = targetCategory.domainNames || []
 
       // 重複チェック
       if (
         targetCategory.domains.includes(selectedDomain) ||
-        targetCategory.domainNames.includes(selectedDomainInfo.domain)
+        existingDomainNames.includes(selectedDomainInfo.domain)
       ) {
         throw new Error('このドメインは既にカテゴリに追加されています')
       }
@@ -374,10 +359,7 @@ export const CategoryManagementModal = ({
           return {
             ...cat,
             domains: [...cat.domains, selectedDomain],
-            domainNames: [
-              ...(cat.domainNames || []),
-              selectedDomainInfo.domain,
-            ],
+            domainNames: [...existingDomainNames, selectedDomainInfo.domain],
           }
         }
         return cat
@@ -732,7 +714,6 @@ export const CategoryManagementModal = ({
                       onClick={e => {
                         e.preventDefault()
                         e.stopPropagation()
-                        if (!selectedDomain || isProcessing) return
                         handleAddDomain()
                       }}
                       className='cursor-pointer'
