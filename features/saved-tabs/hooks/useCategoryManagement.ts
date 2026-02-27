@@ -73,6 +73,55 @@ export interface UseCategoryManagementReturn {
   ) => Promise<void>
 }
 
+function removeSubCategoryFromGroup(
+  group: TabGroup,
+  groupId: string,
+  categoryName: string,
+): TabGroup {
+  if (group.id !== groupId) {
+    return group
+  }
+
+  console.log('削除前のサブカテゴリ:', group.subCategories)
+  const updatedSubCategories =
+    group.subCategories?.filter(cat => cat !== categoryName) || []
+  console.log('削除後のサブカテゴリ:', updatedSubCategories)
+
+  const updatedUrlSubCategories = { ...group.urlSubCategories }
+  if (updatedUrlSubCategories) {
+    for (const urlId in updatedUrlSubCategories) {
+      if (updatedUrlSubCategories[urlId] === categoryName) {
+        delete updatedUrlSubCategories[urlId]
+      }
+    }
+  }
+
+  return {
+    ...group,
+    subCategories: updatedSubCategories,
+    categoryKeywords:
+      group.categoryKeywords?.filter(ck => ck.categoryName !== categoryName) ||
+      [],
+    urlSubCategories: updatedUrlSubCategories,
+  }
+}
+
+function buildReorderedCategoryOrder(
+  activeId: string,
+  overId: string,
+  isCategoryReorderMode: boolean,
+  tempCategoryOrder: string[],
+  categoryOrder: string[],
+): string[] | null {
+  const currentOrder = isCategoryReorderMode ? tempCategoryOrder : categoryOrder
+  const oldIndex = currentOrder.indexOf(activeId)
+  const newIndex = currentOrder.indexOf(overId)
+  if (oldIndex === -1 || newIndex === -1) {
+    return null
+  }
+  return arrayMove(currentOrder, oldIndex, newIndex)
+}
+
 /**
  * 親カテゴリ管理フック。
  * カテゴリの読み込み・並び替えモード・ドメイン間移動を担う。
@@ -127,40 +176,9 @@ export function useCategoryManagement(
           return
         }
 
-        const updatedGroups = savedTabs.map(group => {
-          if (group.id === groupId) {
-            // 削除前と削除後のカテゴリ情報をログ
-            console.log('削除前のサブカテゴリ:', group.subCategories)
-
-            const updatedSubCategories =
-              group.subCategories?.filter(cat => cat !== categoryName) || []
-
-            console.log('削除後のサブカテゴリ:', updatedSubCategories)
-
-            // 新形式ではサブカテゴリ情報はurlSubCategoriesで管理
-            const updatedUrlSubCategories = { ...group.urlSubCategories }
-
-            // 指定されたカテゴリのサブカテゴリを削除
-            if (updatedUrlSubCategories) {
-              for (const urlId in updatedUrlSubCategories) {
-                if (updatedUrlSubCategories[urlId] === categoryName) {
-                  delete updatedUrlSubCategories[urlId]
-                }
-              }
-            }
-
-            return {
-              ...group,
-              subCategories: updatedSubCategories,
-              categoryKeywords:
-                group.categoryKeywords?.filter(
-                  ck => ck.categoryName !== categoryName,
-                ) || [],
-              urlSubCategories: updatedUrlSubCategories,
-            }
-          }
-          return group
-        })
+        const updatedGroups = savedTabs.map(group =>
+          removeSubCategoryFromGroup(group, groupId, categoryName),
+        )
 
         console.log(`カテゴリ ${categoryName} を削除します`)
         await chrome.storage.local.set({ savedTabs: updatedGroups })
@@ -178,32 +196,32 @@ export function useCategoryManagement(
     (event: DragEndEvent): void => {
       const { active, over } = event
 
-      if (over && active.id !== over.id) {
-        if (typeof active.id !== 'string' || typeof over.id !== 'string') {
-          return
-        }
-
-        // カテゴリの順序を一時的に更新（まだストレージには保存しない）
-        const currentOrder = isCategoryReorderMode
-          ? tempCategoryOrder
-          : categoryOrder
-        const oldIndex = currentOrder.indexOf(active.id)
-        const newIndex = currentOrder.indexOf(over.id)
-
-        if (oldIndex !== -1 && newIndex !== -1) {
-          const newOrder = arrayMove(currentOrder, oldIndex, newIndex)
-
-          if (isCategoryReorderMode) {
-            // 既に並び替えモード中：一時的な順序を更新
-            setTempCategoryOrder(newOrder)
-          } else {
-            // 初回の並び替え時：並び替えモードを開始
-            setIsCategoryReorderMode(true)
-            setOriginalCategoryOrder([...categoryOrder])
-            setTempCategoryOrder(newOrder)
-          }
-        }
+      if (!over || active.id === over.id) {
+        return
       }
+      if (typeof active.id !== 'string' || typeof over.id !== 'string') {
+        return
+      }
+
+      const newOrder = buildReorderedCategoryOrder(
+        active.id,
+        over.id,
+        isCategoryReorderMode,
+        tempCategoryOrder,
+        categoryOrder,
+      )
+      if (!newOrder) {
+        return
+      }
+
+      if (isCategoryReorderMode) {
+        setTempCategoryOrder(newOrder)
+        return
+      }
+
+      setIsCategoryReorderMode(true)
+      setOriginalCategoryOrder([...categoryOrder])
+      setTempCategoryOrder(newOrder)
     },
     [isCategoryReorderMode, tempCategoryOrder, categoryOrder],
   )

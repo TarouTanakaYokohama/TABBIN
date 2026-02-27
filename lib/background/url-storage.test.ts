@@ -792,6 +792,42 @@ describe('url-storage', () => {
     })
   })
 
+  it('urlIds形式でURLレコードが未解決の場合はグループを変更しない', async () => {
+    storageState = {
+      savedTabs: [
+        {
+          id: 'group-target',
+          domain: 'target.example.com',
+          urlIds: ['url-id-1'],
+          urlSubCategories: { 'url-id-1': 'catA' },
+        },
+      ],
+      parentCategories: [],
+      urls: [
+        {
+          id: 'url-id-1',
+          url: 'https://another.example.com/page',
+          title: 'Another',
+          savedAt: 1,
+        },
+      ],
+    }
+    setupChromeMock()
+
+    await removeUrlFromStorage('https://target.example.com/page')
+
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      savedTabs: [
+        {
+          id: 'group-target',
+          domain: 'target.example.com',
+          urlIds: ['url-id-1'],
+          urlSubCategories: { 'url-id-1': 'catA' },
+        },
+      ],
+    })
+  })
+
   it('カテゴリ削除処理で parentCategories/savedTabs 未定義でもフォールバックする', async () => {
     storageState = {
       savedTabs: [

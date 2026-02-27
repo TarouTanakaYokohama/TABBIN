@@ -168,6 +168,78 @@ export async function createCustomProject(
   return newProject
 }
 
+function ensureProjectUrlIds(project: CustomProject): void {
+  if (!project.urlIds) {
+    project.urlIds = []
+  }
+}
+
+function addUrlIdToProject(project: CustomProject, urlId: string): boolean {
+  ensureProjectUrlIds(project)
+  let urlIds = project.urlIds
+  if (!urlIds) {
+    urlIds = []
+    project.urlIds = urlIds
+  }
+  if (urlIds.includes(urlId)) {
+    return false
+  }
+  urlIds.push(urlId)
+  return true
+}
+
+function setProjectUrlMetadata(
+  project: CustomProject,
+  urlId: string,
+  notes?: string,
+  category?: string,
+): void {
+  if (!(notes || category)) {
+    return
+  }
+  if (!project.urlMetadata) {
+    project.urlMetadata = {}
+  }
+  project.urlMetadata[urlId] = { notes, category }
+}
+
+function getDomainFromUrl(url: string): string {
+  const urlObj = new URL(url)
+  return `${urlObj.protocol}//${urlObj.hostname}`
+}
+
+function ensureUrlIdInGroup(group: TabGroup, urlId: string): TabGroup {
+  if (!group.urlIds) {
+    group.urlIds = []
+  }
+  if (!group.urlIds.includes(urlId)) {
+    group.urlIds.push(urlId)
+  }
+  return group
+}
+
+async function addUrlIdToDomainMode(url: string, urlId: string): Promise<void> {
+  const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+  const domain = getDomainFromUrl(url)
+
+  const domainGroup = savedTabs.find(
+    (group: TabGroup) => group.domain === domain,
+  )
+  if (domainGroup) {
+    ensureUrlIdInGroup(domainGroup, urlId)
+  } else {
+    savedTabs.push({
+      id: uuidv4(),
+      domain,
+      urlIds: [urlId],
+      savedAt: Date.now(),
+    })
+  }
+
+  await chrome.storage.local.set({ savedTabs })
+  console.log(`URL ${url} をドメインモードのデータにも追加しました`)
+}
+
 // URLをカスタムプロジェクトに追加する関数（新形式対応）
 export async function addUrlToCustomProject(
   projectId: string,
@@ -192,65 +264,11 @@ export async function addUrlToCustomProject(
     // URLレコードを作成または更新
     const urlRecord = await createOrUpdateUrlRecord(url, title)
 
-    // URLIDsが存在しない場合は初期化
-    if (!project.urlIds) {
-      project.urlIds = []
-    }
-
-    let isNewUrl = false
-
-    // URLが既にプロジェクトに存在するかチェック
-    if (!project.urlIds.includes(urlRecord.id)) {
-      isNewUrl = true
-      project.urlIds.push(urlRecord.id)
-    }
-
-    // メタデータを設定
-    if (notes || category) {
-      if (!project.urlMetadata) {
-        project.urlMetadata = {}
-      }
-      project.urlMetadata[urlRecord.id] = {
-        notes,
-        category,
-      }
-    }
+    const isNewUrl = addUrlIdToProject(project, urlRecord.id)
+    setProjectUrlMetadata(project, urlRecord.id, notes, category)
 
     if (isNewUrl) {
-      // URLがドメインモードにまだなければ追加
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-
-      // URLからドメインを抽出
-      const urlObj = new URL(url)
-      const domain = `${urlObj.protocol}//${urlObj.hostname}`
-
-      // そのドメイングループが存在するか確認
-      let domainGroup = savedTabs.find(
-        (group: TabGroup) => group.domain === domain,
-      )
-
-      if (domainGroup) {
-        // 既存のドメイングループに追加（新形式のみ）
-        if (!domainGroup.urlIds) {
-          domainGroup.urlIds = []
-        }
-        if (!domainGroup.urlIds.includes(urlRecord.id)) {
-          domainGroup.urlIds.push(urlRecord.id)
-        }
-      } else {
-        // ドメイングループが存在しなければ作成（新形式のみ）
-        domainGroup = {
-          id: uuidv4(),
-          domain,
-          urlIds: [urlRecord.id],
-          savedAt: Date.now(),
-        }
-        savedTabs.push(domainGroup)
-      }
-
-      // 保存
-      await chrome.storage.local.set({ savedTabs })
-      console.log(`URL ${url} をドメインモードのデータにも追加しました`)
+      await addUrlIdToDomainMode(url, urlRecord.id)
     }
 
     project.updatedAt = Date.now()

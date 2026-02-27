@@ -111,30 +111,39 @@ export async function installChromeMock(
         }
       }
 
+      const readAllStore = () => clone(store)
+      const readStoreByKey = (key: string) => ({ [key]: clone(store[key]) })
+      const readStoreByArray = (keys: string[]) => {
+        const result: Record<string, unknown> = {}
+        for (const key of keys) {
+          result[key] = clone(store[key])
+        }
+        return result
+      }
+      const readStoreByDefaults = (defaults: Record<string, unknown>) => {
+        const result: Record<string, unknown> = {}
+        for (const [key, fallback] of Object.entries(defaults)) {
+          result[key] =
+            store[key] === undefined ? clone(fallback) : clone(store[key])
+        }
+        return result
+      }
+
       const local = {
         async get(keys?: string | string[] | Record<string, unknown>) {
           if (keys == null) {
-            return clone(store)
+            return readAllStore()
           }
 
           if (typeof keys === 'string') {
-            return { [keys]: clone(store[keys]) }
+            return readStoreByKey(keys)
           }
 
           if (Array.isArray(keys)) {
-            const result: Record<string, unknown> = {}
-            for (const key of keys) {
-              result[key] = clone(store[key])
-            }
-            return result
+            return readStoreByArray(keys)
           }
 
-          const result: Record<string, unknown> = {}
-          for (const [key, fallback] of Object.entries(keys)) {
-            result[key] =
-              store[key] === undefined ? clone(fallback) : clone(store[key])
-          }
-          return result
+          return readStoreByDefaults(keys)
         },
 
         async set(

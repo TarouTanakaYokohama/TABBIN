@@ -26,6 +26,63 @@ interface UseCategoryKeywordModalParams {
   onUpdateParentCategories?: (categories: ParentCategory[]) => void
 }
 
+function resolveSelectedParentCategoryId(
+  storedCategories: ParentCategory[],
+  group: TabGroup,
+): string {
+  if (group.parentCategoryId) {
+    return group.parentCategoryId
+  }
+
+  const matchedCategory = storedCategories.find(
+    category =>
+      category.domains.includes(group.id) ||
+      category.domainNames.includes(group.domain),
+  )
+  return matchedCategory ? matchedCategory.id : 'none'
+}
+
+function renameCategoryInTab(
+  tab: TabGroup,
+  groupId: string,
+  activeCategory: string,
+  validName: string,
+): TabGroup {
+  if (tab.id !== groupId) {
+    return tab
+  }
+
+  const updatedSubCategories =
+    tab.subCategories?.map(cat => (cat === activeCategory ? validName : cat)) ||
+    []
+  const updatedCategoryKeywords =
+    tab.categoryKeywords?.map(ck =>
+      ck.categoryName === activeCategory
+        ? { ...ck, categoryName: validName }
+        : ck,
+    ) || []
+  const updatedUrls = (tab.urls || []).map(url =>
+    url.subCategory === activeCategory
+      ? { ...url, subCategory: validName }
+      : url,
+  )
+  const updatedSubCategoryOrder = (tab.subCategoryOrder || []).map(cat =>
+    cat === activeCategory ? validName : cat,
+  )
+  const updatedAllOrder = (tab.subCategoryOrderWithUncategorized || []).map(
+    cat => (cat === activeCategory ? validName : cat),
+  )
+
+  return {
+    ...tab,
+    subCategories: updatedSubCategories,
+    categoryKeywords: updatedCategoryKeywords,
+    urls: updatedUrls,
+    subCategoryOrder: updatedSubCategoryOrder,
+    subCategoryOrderWithUncategorized: updatedAllOrder,
+  }
+}
+
 /**
  * CategoryKeywordModal の状態ロジックを管理するカスタムフック
  * @param params フックの引数
@@ -121,21 +178,10 @@ export function useCategoryKeywordModal({
         await onUpdateParentCategories(storedCategories)
       }
 
-      let newParentId = 'none'
-
-      if (group.parentCategoryId) {
-        newParentId = group.parentCategoryId
-      } else {
-        for (const category of storedCategories) {
-          if (
-            category.domains.includes(group.id) ||
-            category.domainNames.includes(group.domain)
-          ) {
-            newParentId = category.id
-            break
-          }
-        }
-      }
+      const newParentId = resolveSelectedParentCategoryId(
+        storedCategories,
+        group,
+      )
 
       if (selectedParentCategory !== newParentId) {
         setSelectedParentCategory(newParentId)
@@ -426,53 +472,9 @@ export function useCategoryKeywordModal({
 
       const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
 
-      const updatedTabs = savedTabs.map((tab: TabGroup) => {
-        if (tab.id === group.id) {
-          const updatedSubCategories =
-            tab.subCategories?.map(cat =>
-              cat === activeCategory ? validName : cat,
-            ) || []
-
-          const updatedCategoryKeywords =
-            tab.categoryKeywords?.map(ck => {
-              if (ck.categoryName === activeCategory) {
-                return { ...ck, categoryName: validName }
-              }
-              return ck
-            }) || []
-
-          const updatedUrls = (tab.urls || []).map(url => {
-            if (url.subCategory === activeCategory) {
-              return { ...url, subCategory: validName }
-            }
-            return url
-          })
-
-          let updatedSubCategoryOrder = tab.subCategoryOrder || []
-          if (updatedSubCategoryOrder.includes(activeCategory)) {
-            updatedSubCategoryOrder = updatedSubCategoryOrder.map(cat =>
-              cat === activeCategory ? validName : cat,
-            )
-          }
-
-          let updatedAllOrder = tab.subCategoryOrderWithUncategorized || []
-          if (updatedAllOrder.includes(activeCategory)) {
-            updatedAllOrder = updatedAllOrder.map(cat =>
-              cat === activeCategory ? validName : cat,
-            )
-          }
-
-          return {
-            ...tab,
-            subCategories: updatedSubCategories,
-            categoryKeywords: updatedCategoryKeywords,
-            urls: updatedUrls,
-            subCategoryOrder: updatedSubCategoryOrder,
-            subCategoryOrderWithUncategorized: updatedAllOrder,
-          }
-        }
-        return tab
-      })
+      const updatedTabs = savedTabs.map((tab: TabGroup) =>
+        renameCategoryInTab(tab, group.id, activeCategory, validName),
+      )
 
       await chrome.storage.local.set({ savedTabs: updatedTabs })
 

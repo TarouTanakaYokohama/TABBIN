@@ -42,6 +42,80 @@ export function normalizeUrl(url: string): string {
   }
 }
 
+function removeUrlIdFromGroup(
+  group: TabGroup,
+  matchedUrlId: string,
+  removedGroupIds: string[],
+): TabGroup[] {
+  if (!(Array.isArray(group.urlIds) && group.urlIds.includes(matchedUrlId))) {
+    return [group]
+  }
+
+  const updatedUrlIds = group.urlIds.filter(id => id !== matchedUrlId)
+  const updatedUrlSubCategories = group.urlSubCategories
+    ? Object.fromEntries(
+        Object.entries(group.urlSubCategories).filter(([urlId]) => {
+          return urlId !== matchedUrlId
+        }),
+      )
+    : undefined
+
+  if (updatedUrlIds.length === 0) {
+    removedGroupIds.push(group.id)
+    return []
+  }
+
+  return [
+    {
+      ...group,
+      urlIds: updatedUrlIds,
+      urlSubCategories:
+        updatedUrlSubCategories &&
+        Object.keys(updatedUrlSubCategories).length > 0
+          ? updatedUrlSubCategories
+          : undefined,
+    },
+  ]
+}
+
+function removeLegacyUrlFromGroup(
+  group: TabGroup,
+  url: string,
+  removedGroupIds: string[],
+): TabGroup[] {
+  if (!Array.isArray(group.urls)) {
+    return [group]
+  }
+
+  const updatedUrls = group.urls.filter(item => item.url !== url)
+  if (updatedUrls.length === group.urls.length) {
+    return [group]
+  }
+
+  if (updatedUrls.length === 0) {
+    removedGroupIds.push(group.id)
+    return []
+  }
+
+  return [{ ...group, urls: updatedUrls }]
+}
+
+function updateGroupAfterUrlRemoval(
+  group: TabGroup,
+  url: string,
+  matchedUrlId: string | undefined,
+  removedGroupIds: string[],
+): TabGroup[] {
+  if (Array.isArray(group.urlIds)) {
+    if (!matchedUrlId) {
+      return [group]
+    }
+    return removeUrlIdFromGroup(group, matchedUrlId, removedGroupIds)
+  }
+
+  return removeLegacyUrlFromGroup(group, url, removedGroupIds)
+}
+
 /**
  * URLをストレージから削除する関数（カテゴリ設定とマッピングを保持）
  */
@@ -58,55 +132,9 @@ export async function removeUrlFromStorage(url: string): Promise<void> {
     const removedGroupIds: string[] = []
 
     // URLを含むグループのみを更新（新形式 urlIds / 旧形式 urls の両方に対応）
-    const updatedGroups: TabGroup[] = savedTabs.flatMap((group: TabGroup) => {
-      if (Array.isArray(group.urlIds)) {
-        if (!(matchedUrlId && group.urlIds.includes(matchedUrlId))) {
-          return [group]
-        }
-
-        const updatedUrlIds = group.urlIds.filter(id => id !== matchedUrlId)
-        const updatedUrlSubCategories = group.urlSubCategories
-          ? Object.fromEntries(
-              Object.entries(group.urlSubCategories).filter(
-                ([urlId]) => urlId !== matchedUrlId,
-              ),
-            )
-          : undefined
-
-        if (updatedUrlIds.length === 0) {
-          removedGroupIds.push(group.id)
-          return []
-        }
-
-        return [
-          {
-            ...group,
-            urlIds: updatedUrlIds,
-            urlSubCategories:
-              updatedUrlSubCategories &&
-              Object.keys(updatedUrlSubCategories).length > 0
-                ? updatedUrlSubCategories
-                : undefined,
-          },
-        ]
-      }
-
-      if (Array.isArray(group.urls)) {
-        const updatedUrls = group.urls.filter(item => item.url !== url)
-        if (updatedUrls.length === group.urls.length) {
-          return [group]
-        }
-
-        if (updatedUrls.length === 0) {
-          removedGroupIds.push(group.id)
-          return []
-        }
-
-        return [{ ...group, urls: updatedUrls }]
-      }
-
-      return [group]
-    })
+    const updatedGroups: TabGroup[] = savedTabs.flatMap((group: TabGroup) =>
+      updateGroupAfterUrlRemoval(group, url, matchedUrlId, removedGroupIds),
+    )
 
     // 空になったグループに紐づくカテゴリ更新を先に実行する
     await Promise.all(

@@ -22,6 +22,78 @@ interface UseCategoryGroupStateParams {
   isCategoryReorderMode: boolean
 }
 
+function ensureCategoryPresence(
+  categoryGroups: ParentCategory[],
+  categoryId: string,
+  newName: string,
+): ParentCategory[] {
+  const existingCategory = categoryGroups.find(cat => cat.id === categoryId)
+  if (existingCategory) {
+    return categoryGroups
+  }
+
+  return [
+    ...categoryGroups,
+    {
+      id: categoryId,
+      name: newName,
+      domains: [],
+      domainNames: [],
+    },
+  ]
+}
+
+function renameCategoryInGroups(
+  categoryGroups: ParentCategory[],
+  categoryId: string,
+  newName: string,
+): ParentCategory[] {
+  return categoryGroups.map(cat => {
+    if (cat.id !== categoryId) {
+      return cat
+    }
+    return {
+      ...cat,
+      name: newName,
+      domainNames: [...(cat.domainNames || [])],
+    }
+  })
+}
+
+async function confirmCategorySaved(
+  categoryId: string,
+  newName: string,
+  updatedGroups: ParentCategory[],
+): Promise<void> {
+  const maxRetries = 3
+  for (let retryCount = 0; retryCount < maxRetries; retryCount++) {
+    const checkResult = await chrome.storage.local.get('parentCategories')
+    const savedCategory = checkResult.parentCategories?.find(
+      (cat: ParentCategory) => cat.id === categoryId,
+    )
+
+    if (savedCategory?.name === newName) {
+      console.log('CategoryGroup - 保存の確認に成功:', savedCategory)
+      break
+    }
+
+    console.log(
+      `CategoryGroup - 保存の確認に失敗 (試行 ${retryCount + 1}/${maxRetries})`,
+    )
+    await chrome.storage.local.set({ parentCategories: updatedGroups })
+  }
+
+  const finalCheck = await chrome.storage.local.get('parentCategories')
+  const finalCategory = finalCheck.parentCategories?.find(
+    (cat: ParentCategory) => cat.id === categoryId,
+  )
+  if (finalCategory?.name !== newName) {
+    throw new Error('カテゴリ名の更新が反映されていません')
+  }
+
+  console.log('CategoryGroup - カテゴリ更新が完了しました:', finalCategory)
+}
+
 /**
  * CategoryGroup の状態ロジックを管理するカスタムフック
  * @param params フックの引数
@@ -68,77 +140,20 @@ export function useCategoryGroupState({
         })
 
         const result = await chrome.storage.local.get(['parentCategories'])
-        const categoryGroups = result.parentCategories || []
-
-        const existingCategory = categoryGroups.find(
-          (cat: ParentCategory) => cat.id === categoryId,
+        const baseGroups: ParentCategory[] = result.parentCategories || []
+        const categoryGroups = ensureCategoryPresence(
+          baseGroups,
+          categoryId,
+          newName,
         )
-
-        if (!existingCategory) {
-          categoryGroups.push({
-            id: categoryId,
-            name: newName,
-            domains: [],
-            domainNames: [],
-          })
-        }
-
-        const updatedGroups = categoryGroups.map((cat: ParentCategory) => {
-          if (cat.id === categoryId) {
-            return {
-              ...cat,
-              name: newName,
-              domainNames: [...(cat.domainNames || [])],
-            }
-          }
-          return cat
-        })
+        const updatedGroups = renameCategoryInGroups(
+          categoryGroups,
+          categoryId,
+          newName,
+        )
 
         await chrome.storage.local.set({ parentCategories: updatedGroups })
-
-        let retryCount = 0
-        const maxRetries = 3
-
-        while (retryCount < maxRetries) {
-          const checkResult = await chrome.storage.local.get('parentCategories')
-          const savedCategory = checkResult.parentCategories?.find(
-            (cat: ParentCategory) => cat.id === categoryId,
-          )
-
-          if (savedCategory && savedCategory.name === newName) {
-            console.log('CategoryGroup - 保存の確認に成功:', savedCategory)
-            break
-          }
-
-          console.log(
-            `CategoryGroup - 保存の確認に失敗 (試行 ${retryCount + 1}/${maxRetries})`,
-          )
-          await chrome.storage.local.set({ parentCategories: updatedGroups })
-          retryCount++
-        }
-
-        const savedResult = await chrome.storage.local.get(['parentCategories'])
-        const savedCategory = savedResult.parentCategories?.find(
-          (cat: ParentCategory) => cat.id === categoryId,
-        )
-
-        if (!savedCategory || savedCategory.name !== newName) {
-          throw new Error('カテゴリの更新が正しく保存されませんでした')
-        }
-
-        const finalCheck = await chrome.storage.local.get('parentCategories')
-        const finalCategory = finalCheck.parentCategories?.find(
-          (cat: ParentCategory) => cat.id === categoryId,
-        )
-
-        if (!finalCategory || finalCategory.name !== newName) {
-          throw new Error('カテゴリ名の更新が反映されていません')
-        }
-
-        console.log(
-          'CategoryGroup - カテゴリ更新が完了しました:',
-          finalCategory,
-        )
+        await confirmCategorySaved(categoryId, newName, updatedGroups)
       } catch (error) {
         console.error('CategoryGroup - カテゴリ名の更新に失敗:', error)
         toast.error('カテゴリ名の更新に失敗しました')

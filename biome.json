@@ -12,7 +12,8 @@
       "!**/test-results",
       "!**/playwright-report",
       "!**/blob-report",
-      "!**/storybook-static"
+      "!**/storybook-static",
+      "!**/tmp-profile-saved-tabs.cjs"
     ]
   },
   "assist": {
@@ -46,7 +47,8 @@
       "!**/test-results",
       "!**/playwright-report",
       "!**/blob-report",
-      "!**/storybook-static"
+      "!**/storybook-static",
+      "!**/tmp-profile-saved-tabs.cjs"
     ],
     "rules": {
       "recommended": true,
@@ -57,7 +59,12 @@
       },
       "complexity": {
         "recommended": true,
-        "noExcessiveCognitiveComplexity": "off",
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": {
+            "maxAllowedComplexity": 15
+          }
+        },
         "noExcessiveLinesPerFunction": "off",
         "noExtraBooleanCast": "off",
         "noImplicitCoercions": "off",
@@ -152,7 +159,8 @@
       "!**/test-results",
       "!**/playwright-report",
       "!**/blob-report",
-      "!**/storybook-static"
+      "!**/storybook-static",
+      "!**/tmp-profile-saved-tabs.cjs"
     ],
     "indentWidth": 2,
     "indentStyle": "space",

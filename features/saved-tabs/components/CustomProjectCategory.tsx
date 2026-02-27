@@ -16,7 +16,7 @@ import {
   Settings,
   Trash2,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +47,503 @@ import {
 import type { CustomProjectCategoryProps } from '../types/CustomProjectCategory.types'
 import { ProjectUrlItem } from './ProjectUrlItem'
 
+type CategoryUrl = NonNullable<CustomProjectCategoryProps['urls']>[number]
+type SortOrder = 'default' | 'asc' | 'desc'
+
+const sortOrderLabels: Record<SortOrder, string> = {
+  default: 'デフォルト',
+  asc: '保存日時の昇順',
+  desc: '保存日時の降順',
+}
+
+const nextSortOrderMap: Record<SortOrder, SortOrder> = {
+  default: 'asc',
+  asc: 'desc',
+  desc: 'default',
+}
+
+const sortOrderIcons = {
+  default: ArrowUpDown,
+  asc: ArrowUpNarrowWide,
+  desc: ArrowUpWideNarrow,
+} as const
+
+const getCollapseLabel = (isCollapsed: boolean): string =>
+  isCollapsed ? '展開' : '折りたたむ'
+
+const shouldConfirmBulkOpen = (urlCount: number): boolean => urlCount >= 10
+
+const shouldStopDialogPropagation = (key: string): boolean =>
+  key === 'Enter' || key === ' '
+
+const sortCategoryUrls = (
+  categoryUrls: CategoryUrl[],
+  sortOrder: SortOrder,
+): CategoryUrl[] => {
+  if (sortOrder === 'default') {
+    return categoryUrls
+  }
+
+  const sorted = [...categoryUrls]
+  sorted.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
+  if (sortOrder === 'desc') {
+    sorted.reverse()
+  }
+  return sorted
+}
+
+const getEmptyCategoryMessage = ({
+  isReorderTarget,
+  isCategoryReorder,
+  isDropTarget,
+}: {
+  isReorderTarget: boolean
+  isCategoryReorder: boolean
+  isDropTarget: boolean
+}): string => {
+  if (isReorderTarget && isCategoryReorder) {
+    return 'カテゴリの順序を変更'
+  }
+  if (isDropTarget) {
+    return 'ここにドロップしてカテゴリに追加'
+  }
+  return 'このカテゴリにはURLがありません。URLをドラッグ＆ドロップで追加できます。'
+}
+
+const getReorderStyle = (isReorderTarget: boolean): React.CSSProperties => {
+  if (!isReorderTarget) {
+    return {}
+  }
+  return {
+    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+    borderColor: 'rgb(59, 130, 246)',
+    borderWidth: '2px',
+  }
+}
+
+interface CategoryHeaderMainProps {
+  attributes: ReturnType<typeof useSortable>['attributes']
+  listeners: ReturnType<typeof useSortable>['listeners']
+  category: string
+  isCollapsed: boolean
+  sortOrder: SortOrder
+  urlCount: number
+  onToggleCollapse: (event: React.MouseEvent) => void
+  onToggleSort: (event: React.MouseEvent) => void
+}
+
+const CategoryHeaderMain = ({
+  attributes,
+  listeners,
+  category,
+  isCollapsed,
+  sortOrder,
+  urlCount,
+  onToggleCollapse,
+  onToggleSort,
+}: CategoryHeaderMainProps) => {
+  const SortOrderIcon = sortOrderIcons[sortOrder]
+  const collapseLabel = getCollapseLabel(isCollapsed)
+  const sortLabel = sortOrderLabels[sortOrder]
+
+  return (
+    <div
+      {...attributes}
+      {...listeners}
+      className='flex grow cursor-grab items-center gap-2 overflow-hidden hover:cursor-grab active:cursor-grabbing'
+    >
+      <Tooltip>
+        <TooltipTrigger asChild={true}>
+          <Button
+            variant='secondary'
+            size='sm'
+            onPointerDown={event => event.stopPropagation()}
+            onClick={onToggleCollapse}
+            className='flex cursor-pointer items-center gap-1'
+            aria-label={collapseLabel}
+          >
+            {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side='top' className='block lg:hidden'>
+          {collapseLabel}
+        </TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild={true}>
+          <Button
+            variant='secondary'
+            size='sm'
+            onPointerDown={event => event.stopPropagation()}
+            onClick={onToggleSort}
+            className='flex cursor-pointer items-center gap-1'
+            aria-label={sortLabel}
+          >
+            <SortOrderIcon size={14} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side='top' className='block lg:hidden'>
+          {sortLabel}
+        </TooltipContent>
+      </Tooltip>
+
+      <div className='shrink-0 text-muted-foreground'>
+        <GripVertical size={16} aria-hidden='true' />
+      </div>
+      <h3 className='m-0 border-none bg-transparent p-0 font-medium text-lg'>
+        {category}
+      </h3>
+      <Badge variant='secondary'>{urlCount}</Badge>
+    </div>
+  )
+}
+
+interface CategoryHeaderActionsProps {
+  isReorderTarget: boolean
+  isCategoryReorder: boolean
+  showManageActions: boolean
+  showBulkActions: boolean
+  onOpenManageDialog: () => void
+  onOpenAllClick: () => void
+  onDeleteAllClick: () => void
+}
+
+const CategoryHeaderActions = ({
+  isReorderTarget,
+  isCategoryReorder,
+  showManageActions,
+  showBulkActions,
+  onOpenManageDialog,
+  onOpenAllClick,
+  onDeleteAllClick,
+}: CategoryHeaderActionsProps) => (
+  <div className='flex items-center gap-1'>
+    {isReorderTarget && isCategoryReorder && (
+      <div className='mr-2 flex items-center text-blue-600 text-sm'>
+        <ArrowUpDown className='mr-1' size={14} />
+        <span>順序を変更</span>
+      </div>
+    )}
+
+    {showManageActions && (
+      <Tooltip>
+        <TooltipTrigger asChild={true}>
+          <Button
+            variant='secondary'
+            size='sm'
+            className='flex cursor-pointer items-center gap-1'
+            onClick={onOpenManageDialog}
+            aria-label='カテゴリ管理'
+          >
+            <Settings size={14} />
+            <span className='hidden lg:inline'>カテゴリ管理</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side='top' className='block lg:hidden'>
+          カテゴリ管理
+        </TooltipContent>
+      </Tooltip>
+    )}
+
+    {showBulkActions && (
+      <>
+        <Tooltip>
+          <TooltipTrigger asChild={true}>
+            <Button
+              variant='secondary'
+              size='sm'
+              className='flex cursor-pointer items-center gap-1'
+              onClick={onOpenAllClick}
+              aria-label='すべて開く'
+            >
+              <ExternalLink size={14} />
+              <span className='hidden lg:inline'>すべて開く</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side='top' className='block lg:hidden'>
+            すべて開く
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild={true}>
+            <Button
+              variant='secondary'
+              size='sm'
+              className='flex cursor-pointer items-center gap-1'
+              onClick={onDeleteAllClick}
+              aria-label='すべて削除'
+            >
+              <Trash2 size={14} />
+              <span className='hidden lg:inline'>すべて削除</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side='top' className='block lg:hidden'>
+            すべて削除
+          </TooltipContent>
+        </Tooltip>
+      </>
+    )}
+  </div>
+)
+
+interface CategoryContentProps {
+  urls: CategoryUrl[]
+  isOver: boolean
+  isDropTarget: boolean
+  isReorderTarget: boolean
+  isCategoryReorder: boolean
+  category: string
+  projectId: string
+  categoryDropId: string
+  setDroppableRef: (node: HTMLElement | null) => void
+  handleOpenUrl: (url: string) => void
+  handleDeleteUrl: (projectId: string, url: string) => void
+  handleSetUrlCategory: (
+    projectId: string,
+    url: string,
+    category?: string,
+  ) => void
+  settings: CustomProjectCategoryProps['settings']
+}
+
+const CategoryContent = ({
+  urls,
+  isOver,
+  isDropTarget,
+  isReorderTarget,
+  isCategoryReorder,
+  category,
+  projectId,
+  categoryDropId,
+  setDroppableRef,
+  handleOpenUrl,
+  handleDeleteUrl,
+  handleSetUrlCategory,
+  settings,
+}: CategoryContentProps) => {
+  const emptyMessage = getEmptyCategoryMessage({
+    isReorderTarget,
+    isCategoryReorder,
+    isDropTarget,
+  })
+
+  return (
+    <CardContent
+      ref={setDroppableRef}
+      className='p-2'
+      data-is-drop-area='true'
+      data-category-name={category}
+      data-project-id={projectId}
+      data-is-category='true'
+      data-type='category'
+      data-category-drop-id={categoryDropId}
+    >
+      {urls.length > 0 ? (
+        <SortableContext
+          items={urls.map(item => item.url)}
+          strategy={verticalListSortingStrategy}
+        >
+          <ul
+            className={`space-y-1 ${isOver ? 'rounded bg-primary/5 p-1' : ''}`}
+          >
+            {urls.map(item => (
+              <ProjectUrlItem
+                key={item.url}
+                item={item}
+                projectId={projectId}
+                handleOpenUrl={handleOpenUrl}
+                handleDeleteUrl={handleDeleteUrl}
+                handleSetCategory={handleSetUrlCategory}
+                availableCategories={['undefined']}
+                settings={settings}
+              />
+            ))}
+          </ul>
+        </SortableContext>
+      ) : (
+        <div
+          className={`rounded border-2 border-dashed p-4 py-2 text-center text-muted-foreground ${
+            isOver ? 'border-primary bg-primary/10' : ''
+          }`}
+        >
+          {emptyMessage}
+        </div>
+      )}
+    </CardContent>
+  )
+}
+
+interface CategoryManageDialogProps {
+  category: string
+  showManageDialog: boolean
+  setShowManageDialog: (open: boolean) => void
+  newCategoryName: string
+  setNewCategoryName: (name: string) => void
+  renameError: string | null
+  showDeleteConfirm: boolean
+  setShowDeleteConfirm: (show: boolean) => void
+  onRename: () => void
+  onConfirmDelete: () => void
+}
+
+const CategoryManageDialog = ({
+  category,
+  showManageDialog,
+  setShowManageDialog,
+  newCategoryName,
+  setNewCategoryName,
+  renameError,
+  showDeleteConfirm,
+  setShowDeleteConfirm,
+  onRename,
+  onConfirmDelete,
+}: CategoryManageDialogProps) => {
+  const handleDialogKeyDown = (event: React.KeyboardEvent) => {
+    if (shouldStopDialogPropagation(event.key)) {
+      event.stopPropagation()
+    }
+  }
+
+  const handleRenameInputKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key !== 'Enter') {
+      return
+    }
+    event.preventDefault()
+    onRename()
+  }
+
+  return (
+    <Dialog open={showManageDialog} onOpenChange={setShowManageDialog}>
+      <DialogContent
+        onClick={event => event.stopPropagation()}
+        onPointerDown={event => event.stopPropagation()}
+        onKeyDown={handleDialogKeyDown}
+      >
+        <DialogHeader>
+          <DialogTitle>カテゴリ管理</DialogTitle>
+          <DialogDescription>
+            カテゴリ「{category}」を編集できます
+          </DialogDescription>
+        </DialogHeader>
+        <div className='space-y-4'>
+          <div>
+            <Label htmlFor='rename-input'>カテゴリ名</Label>
+            <Input
+              id='rename-input'
+              value={newCategoryName}
+              onChange={event => setNewCategoryName(event.target.value)}
+              onBlur={onRename}
+              placeholder='例: 開発資料、参考サイト'
+              className={`w-full rounded border p-2 ${renameError ? 'border-red-500' : ''}`}
+              onKeyDown={handleRenameInputKeyDown}
+            />
+            {renameError && (
+              <p className='mt-1 text-red-500 text-xs'>{renameError}</p>
+            )}
+          </div>
+
+          <div className='border-t pt-4'>
+            <p className='text-gray-600 text-sm'>
+              カテゴリを削除すると、このカテゴリに属するすべてのURLは未分類になります。
+            </p>
+            {showDeleteConfirm ? (
+              <div className='mt-2 flex justify-end gap-2'>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  variant='destructive'
+                  size='sm'
+                  onClick={onConfirmDelete}
+                >
+                  削除する
+                </Button>
+              </div>
+            ) : (
+              <div className='mt-2 flex justify-end'>
+                <Button
+                  variant='destructive'
+                  size='sm'
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  カテゴリを削除
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+interface CategoryBulkConfirmDialogsProps {
+  isOpenAllConfirmOpen: boolean
+  setIsOpenAllConfirmOpen: (open: boolean) => void
+  isDeleteAllConfirmOpen: boolean
+  setIsDeleteAllConfirmOpen: (open: boolean) => void
+  categoryDisplayName: string
+  onConfirmOpenAll: () => void
+  onConfirmDeleteAll: () => Promise<void>
+}
+
+const CategoryBulkConfirmDialogs = ({
+  isOpenAllConfirmOpen,
+  setIsOpenAllConfirmOpen,
+  isDeleteAllConfirmOpen,
+  setIsDeleteAllConfirmOpen,
+  categoryDisplayName,
+  onConfirmOpenAll,
+  onConfirmDeleteAll,
+}: CategoryBulkConfirmDialogsProps) => (
+  <>
+    <AlertDialog
+      open={isOpenAllConfirmOpen}
+      onOpenChange={setIsOpenAllConfirmOpen}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>タブをすべて開きますか？</AlertDialogTitle>
+          <AlertDialogDescription>
+            10個以上のタブを開こうとしています。続行しますか？
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>キャンセル</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirmOpenAll}>開く</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog
+      open={isDeleteAllConfirmOpen}
+      onOpenChange={setIsDeleteAllConfirmOpen}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>タブをすべて削除しますか？</AlertDialogTitle>
+          <AlertDialogDescription>
+            「{categoryDisplayName}
+            」のタブをすべて削除します。この操作は元に戻せません。
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>キャンセル</AlertDialogCancel>
+          <AlertDialogAction onClick={() => void onConfirmDeleteAll()}>
+            削除する
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>
+)
+
 export const CustomProjectCategory = ({
   projectId,
   category,
@@ -76,7 +573,6 @@ export const CustomProjectCategory = ({
     })
 
   const categoryDropId = `category-drop-${projectId}-${category}`
-
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: categoryDropId,
     data: {
@@ -96,35 +592,29 @@ export const CustomProjectCategory = ({
     [setNodeRef, setDroppableRef],
   )
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
-
   const categoryUrls = useMemo(
-    () => (urls || []).filter(u => u.category === category),
+    () => (urls || []).filter(item => item.category === category),
     [urls, category],
   )
+
   const [localCategoryUrls, setLocalCategoryUrls] = useState(categoryUrls)
+  const [sortOrder, setSortOrder] = useState<SortOrder>('default')
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [showManageDialog, setShowManageDialog] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState(category)
+  const [renameError, setRenameError] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
+  const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false)
+
   useEffect(() => {
-    setLocalCategoryUrls(categoryUrls)
-  }, [categoryUrls])
-  // sort order state: 'default' preserves manual order
-  const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>(
-    'default',
-  )
-  useEffect(() => {
-    if (sortOrder === 'default') {
-      setLocalCategoryUrls(categoryUrls)
-    } else {
-      const sorted = [...categoryUrls]
-      sorted.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
-      if (sortOrder === 'desc') {
-        sorted.reverse()
-      }
-      setLocalCategoryUrls(sorted)
-    }
+    setLocalCategoryUrls(sortCategoryUrls(categoryUrls, sortOrder))
   }, [categoryUrls, sortOrder])
+
+  useEffect(() => {
+    setNewCategoryName(category)
+  }, [category])
+
   const isDropTarget = isHighlighted || isOver
   const isSelfDragging = isDraggingCategory && draggedCategoryName === category
   const isReorderTarget =
@@ -133,42 +623,67 @@ export const CustomProjectCategory = ({
     draggedCategoryName !== category &&
     isDropTarget
 
-  const reorderStyle = isReorderTarget
-    ? {
-        backgroundColor: 'rgba(59, 130, 246, 0.05)',
-        borderColor: 'rgb(59, 130, 246)',
-        borderWidth: '2px',
-      }
-    : {}
-
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
   const cardStyle = {
     ...style,
     ...(isOver ? { backgroundColor: 'rgba(0, 255, 0, 0.05)' } : {}),
-    ...reorderStyle,
+    ...getReorderStyle(isReorderTarget),
+  }
+  const cardClassName = `mb-2 overflow-x-hidden ${
+    isDropTarget ? 'border-2 border-primary bg-primary/5' : ''
+  } ${isSelfDragging ? 'opacity-50' : ''}`
+  const categoryDisplayName =
+    category === '__uncategorized' ? '未分類' : category
+  const showManageActions = Boolean(
+    handleRenameCategory || handleDeleteCategory,
+  )
+  const showBulkActions = localCategoryUrls.length > 0
+
+  const handleToggleCollapse = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    setIsCollapsed(prev => !prev)
   }
 
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const handleToggleSort = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    setSortOrder(current => nextSortOrderMap[current])
+  }
 
-  // カテゴリ管理ダイアログ用の状態
-  const [showManageDialog, setShowManageDialog] = useState(false)
-  const [newCategoryName, setNewCategoryName] = useState(category)
-  const [renameError, setRenameError] = useState<string | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const handleOpenAllUrlsConfirmed = () => {
+    if (handleOpenAllUrls) {
+      handleOpenAllUrls(localCategoryUrls)
+      return
+    }
+    for (const item of localCategoryUrls) {
+      window.open(item.url, '_blank', 'noopener,noreferrer')
+    }
+  }
 
-  // AlertDialog 用の状態
-  const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
-  const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false)
+  const handleDeleteAllUrlsConfirmed = async () => {
+    setLocalCategoryUrls([])
+    for (const item of localCategoryUrls) {
+      await handleDeleteUrl(projectId, item.url)
+    }
+  }
 
-  useEffect(() => {
-    setNewCategoryName(category)
-  }, [category])
+  const handleOpenAllClick = () => {
+    if (shouldConfirmBulkOpen(localCategoryUrls.length)) {
+      setIsOpenAllConfirmOpen(true)
+      return
+    }
+    handleOpenAllUrlsConfirmed()
+  }
 
-  const prevCategoryRef = useRef<string>(category)
-
-  useEffect(() => {
-    // update reference without opening the dialog on reorder
-    prevCategoryRef.current = category
-  }, [category])
+  const handleDeleteAllClick = () => {
+    if (settings.confirmDeleteAll) {
+      setIsDeleteAllConfirmOpen(true)
+      return
+    }
+    void handleDeleteAllUrlsConfirmed()
+  }
 
   const handleRename = () => {
     if (!newCategoryName.trim()) {
@@ -190,36 +705,12 @@ export const CustomProjectCategory = ({
     setShowManageDialog(false)
   }
 
-  /** すべて開く処理（確認済みの場合） */
-  const executeOpenAllUrls = () => {
-    if (handleOpenAllUrls) {
-      handleOpenAllUrls(localCategoryUrls)
-    } else {
-      for (const u of localCategoryUrls) {
-        window.open(u.url, '_blank', 'noopener,noreferrer')
-      }
-    }
-  }
-
-  /** すべて削除処理（確認済みの場合） */
-  const executeDeleteAllUrls = async () => {
-    setLocalCategoryUrls([])
-    for (const u of localCategoryUrls) {
-      await handleDeleteUrl(projectId, u.url)
-    }
-  }
-
-  const categoryDisplayName =
-    category === '__uncategorized' ? '未分類' : category
-
   return (
     <>
       <Card
         ref={setRefs}
         style={cardStyle}
-        className={`mb-2 overflow-x-hidden ${
-          isDropTarget ? 'border-2 border-primary bg-primary/5' : ''
-        } ${isSelfDragging ? 'opacity-50' : ''}`}
+        className={cardClassName}
         id={categoryDropId}
         data-category={category}
         data-is-drop-target='true'
@@ -231,333 +722,68 @@ export const CustomProjectCategory = ({
         aria-label={`カテゴリ: ${category}`}
       >
         <CardHeader className='flex-row items-center justify-between px-3 py-2'>
-          <div
-            {...attributes}
-            {...listeners}
-            className='flex grow cursor-grab items-center gap-2 overflow-hidden hover:cursor-grab active:cursor-grabbing'
-          >
-            {/* collapse toggle */}
-            <Tooltip>
-              <TooltipTrigger asChild={true}>
-                <Button
-                  variant='secondary'
-                  size='sm'
-                  onPointerDown={e => e.stopPropagation()}
-                  onClick={e => {
-                    e.stopPropagation()
-                    setIsCollapsed(prev => !prev)
-                  }}
-                  className='flex cursor-pointer items-center gap-1'
-                  aria-label={isCollapsed ? '展開' : '折りたたむ'}
-                >
-                  {isCollapsed ? (
-                    <ChevronDown size={14} />
-                  ) : (
-                    <ChevronUp size={14} />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side='top' className='block lg:hidden'>
-                {isCollapsed ? '展開' : '折りたたむ'}
-              </TooltipContent>
-            </Tooltip>
-            {/* sort toggle */}
-            <Tooltip>
-              <TooltipTrigger asChild={true}>
-                <Button
-                  variant='secondary'
-                  size='sm'
-                  onPointerDown={e => e.stopPropagation()}
-                  onClick={e => {
-                    e.stopPropagation()
-                    setSortOrder(o =>
-                      o === 'default'
-                        ? 'asc'
-                        : o === 'asc'
-                          ? 'desc'
-                          : 'default',
-                    )
-                  }}
-                  className='flex cursor-pointer items-center gap-1'
-                  aria-label={
-                    sortOrder === 'default'
-                      ? 'デフォルト'
-                      : sortOrder === 'asc'
-                        ? '保存日時の昇順'
-                        : '保存日時の降順'
-                  }
-                >
-                  {sortOrder === 'default' ? (
-                    <ArrowUpDown size={14} />
-                  ) : sortOrder === 'asc' ? (
-                    <ArrowUpNarrowWide size={14} />
-                  ) : (
-                    <ArrowUpWideNarrow size={14} />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side='top' className='block lg:hidden'>
-                {sortOrder === 'default'
-                  ? 'デフォルト'
-                  : sortOrder === 'asc'
-                    ? '保存日時の昇順'
-                    : '保存日時の降順'}
-              </TooltipContent>
-            </Tooltip>
-            <div className='shrink-0 text-muted-foreground'>
-              <GripVertical size={16} aria-hidden='true' />
-            </div>
-            <h3 className='m-0 border-none bg-transparent p-0 font-medium text-lg'>
-              {category}
-            </h3>
-            <Badge variant='secondary'>{localCategoryUrls.length}</Badge>
-          </div>
-          <div className='flex items-center gap-1'>
-            {isReorderTarget && isCategoryReorder && (
-              <div className='mr-2 flex items-center text-blue-600 text-sm'>
-                <ArrowUpDown className='mr-1' size={14} />
-                <span>順序を変更</span>
-              </div>
-            )}
-            {(handleRenameCategory || handleDeleteCategory) && (
-              <Tooltip>
-                <TooltipTrigger asChild={true}>
-                  <Button
-                    variant='secondary'
-                    size='sm'
-                    className='flex cursor-pointer items-center gap-1'
-                    onClick={() => setShowManageDialog(true)}
-                    aria-label='カテゴリ管理'
-                  >
-                    <Settings size={14} />
-                    <span className='hidden lg:inline'>カテゴリ管理</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side='top' className='block lg:hidden'>
-                  カテゴリ管理
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {localCategoryUrls.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild={true}>
-                  <Button
-                    variant='secondary'
-                    size='sm'
-                    className='flex cursor-pointer items-center gap-1'
-                    onClick={() => {
-                      if (localCategoryUrls.length >= 10) {
-                        setIsOpenAllConfirmOpen(true)
-                      } else {
-                        executeOpenAllUrls()
-                      }
-                    }}
-                    aria-label='すべて開く'
-                  >
-                    <ExternalLink size={14} />
-                    <span className='hidden lg:inline'>すべて開く</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side='top' className='block lg:hidden'>
-                  すべて開く
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {localCategoryUrls.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild={true}>
-                  <Button
-                    variant='secondary'
-                    size='sm'
-                    className='flex cursor-pointer items-center gap-1'
-                    onClick={() => {
-                      if (settings.confirmDeleteAll) {
-                        setIsDeleteAllConfirmOpen(true)
-                      } else {
-                        void executeDeleteAllUrls()
-                      }
-                    }}
-                    aria-label='すべて削除'
-                  >
-                    <Trash2 size={14} />
-                    <span className='hidden lg:inline'>すべて削除</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side='top' className='block lg:hidden'>
-                  すべて削除
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
+          <CategoryHeaderMain
+            attributes={attributes}
+            listeners={listeners}
+            category={category}
+            isCollapsed={isCollapsed}
+            sortOrder={sortOrder}
+            urlCount={localCategoryUrls.length}
+            onToggleCollapse={handleToggleCollapse}
+            onToggleSort={handleToggleSort}
+          />
+          <CategoryHeaderActions
+            isReorderTarget={isReorderTarget}
+            isCategoryReorder={isCategoryReorder}
+            showManageActions={showManageActions}
+            showBulkActions={showBulkActions}
+            onOpenManageDialog={() => setShowManageDialog(true)}
+            onOpenAllClick={handleOpenAllClick}
+            onDeleteAllClick={handleDeleteAllClick}
+          />
         </CardHeader>
 
         {!isCollapsed && (
-          <CardContent
-            ref={setDroppableRef}
-            className='p-2'
-            data-is-drop-area='true'
-            data-category-name={category}
-            data-project-id={projectId}
-            data-is-category='true'
-            data-type='category'
-            data-category-drop-id={categoryDropId}
-          >
-            {localCategoryUrls.length > 0 ? (
-              <SortableContext
-                items={localCategoryUrls.map(item => item.url)}
-                strategy={verticalListSortingStrategy}
-              >
-                <ul
-                  className={`space-y-1 ${
-                    isOver ? 'rounded bg-primary/5 p-1' : ''
-                  }`}
-                >
-                  {localCategoryUrls.map(item => (
-                    <ProjectUrlItem
-                      key={item.url}
-                      item={item}
-                      projectId={projectId}
-                      handleOpenUrl={handleOpenUrl}
-                      handleDeleteUrl={handleDeleteUrl}
-                      handleSetCategory={handleSetUrlCategory}
-                      availableCategories={['undefined']}
-                      settings={settings}
-                    />
-                  ))}
-                </ul>
-              </SortableContext>
-            ) : (
-              <div
-                className={`rounded border-2 border-dashed p-4 py-2 text-center text-muted-foreground ${
-                  isOver ? 'border-primary bg-primary/10' : ''
-                }`}
-              >
-                {isReorderTarget && isCategoryReorder
-                  ? 'カテゴリの順序を変更'
-                  : isDropTarget
-                    ? 'ここにドロップしてカテゴリに追加'
-                    : 'このカテゴリにはURLがありません。URLをドラッグ＆ドロップで追加できます。'}
-              </div>
-            )}
-          </CardContent>
+          <CategoryContent
+            urls={localCategoryUrls}
+            isOver={isOver}
+            isDropTarget={isDropTarget}
+            isReorderTarget={isReorderTarget}
+            isCategoryReorder={isCategoryReorder}
+            category={category}
+            projectId={projectId}
+            categoryDropId={categoryDropId}
+            setDroppableRef={setDroppableRef}
+            handleOpenUrl={handleOpenUrl}
+            handleDeleteUrl={handleDeleteUrl}
+            handleSetUrlCategory={handleSetUrlCategory}
+            settings={settings}
+          />
         )}
-        <Dialog open={showManageDialog} onOpenChange={setShowManageDialog}>
-          <DialogContent
-            onClick={e => e.stopPropagation()}
-            onPointerDown={e => e.stopPropagation()}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.stopPropagation()
-              }
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>カテゴリ管理</DialogTitle>
-              <DialogDescription>
-                カテゴリ「{category}」を編集できます
-              </DialogDescription>
-            </DialogHeader>
-            <div className='space-y-4'>
-              <div>
-                <Label htmlFor='rename-input'>カテゴリ名</Label>
-                <Input
-                  id='rename-input'
-                  value={newCategoryName}
-                  onChange={e => setNewCategoryName(e.target.value)}
-                  onBlur={handleRename}
-                  placeholder='例: 開発資料、参考サイト'
-                  className={`w-full rounded border p-2 ${renameError ? 'border-red-500' : ''}`}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      handleRename()
-                    }
-                  }}
-                />
-                {renameError && (
-                  <p className='mt-1 text-red-500 text-xs'>{renameError}</p>
-                )}
-              </div>
-              <div className='border-t pt-4'>
-                <p className='text-gray-600 text-sm'>
-                  カテゴリを削除すると、このカテゴリに属するすべてのURLは未分類になります。
-                </p>
-                {showDeleteConfirm ? (
-                  <div className='mt-2 flex justify-end gap-2'>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={() => setShowDeleteConfirm(false)}
-                    >
-                      キャンセル
-                    </Button>
-                    <Button
-                      variant='destructive'
-                      size='sm'
-                      onClick={handleConfirmDelete}
-                    >
-                      削除する
-                    </Button>
-                  </div>
-                ) : (
-                  <div className='mt-2 flex justify-end'>
-                    <Button
-                      variant='destructive'
-                      size='sm'
-                      onClick={() => setShowDeleteConfirm(true)}
-                    >
-                      カテゴリを削除
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+
+        <CategoryManageDialog
+          category={category}
+          showManageDialog={showManageDialog}
+          setShowManageDialog={setShowManageDialog}
+          newCategoryName={newCategoryName}
+          setNewCategoryName={setNewCategoryName}
+          renameError={renameError}
+          showDeleteConfirm={showDeleteConfirm}
+          setShowDeleteConfirm={setShowDeleteConfirm}
+          onRename={handleRename}
+          onConfirmDelete={handleConfirmDelete}
+        />
       </Card>
 
-      {/* 10個以上タブを開く確認ダイアログ */}
-      <AlertDialog
-        open={isOpenAllConfirmOpen}
-        onOpenChange={setIsOpenAllConfirmOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>タブをすべて開きますか？</AlertDialogTitle>
-            <AlertDialogDescription>
-              10個以上のタブを開こうとしています。続行しますか？
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
-            <AlertDialogAction onClick={executeOpenAllUrls}>
-              開く
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* カテゴリ全削除確認ダイアログ */}
-      <AlertDialog
-        open={isDeleteAllConfirmOpen}
-        onOpenChange={setIsDeleteAllConfirmOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>タブをすべて削除しますか？</AlertDialogTitle>
-            <AlertDialogDescription>
-              「{categoryDisplayName}
-              」のタブをすべて削除します。この操作は元に戻せません。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void executeDeleteAllUrls()}>
-              削除する
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CategoryBulkConfirmDialogs
+        isOpenAllConfirmOpen={isOpenAllConfirmOpen}
+        setIsOpenAllConfirmOpen={setIsOpenAllConfirmOpen}
+        isDeleteAllConfirmOpen={isDeleteAllConfirmOpen}
+        setIsDeleteAllConfirmOpen={setIsDeleteAllConfirmOpen}
+        categoryDisplayName={categoryDisplayName}
+        onConfirmOpenAll={handleOpenAllUrlsConfirmed}
+        onConfirmDeleteAll={handleDeleteAllUrlsConfirmed}
+      />
     </>
   )
 }
