@@ -16,11 +16,11 @@ export const DomainCardTitle = () => {
 
   return (
     <div
-      className='flex flex-grow cursor-grab items-center gap-2 overflow-hidden hover:cursor-grab active:cursor-grabbing'
+      className='flex grow cursor-grab items-center gap-2 overflow-hidden hover:cursor-grab active:cursor-grabbing'
       {...sortable.attributes}
       {...sortable.listeners}
     >
-      <div className='flex-shrink-0 text-muted-foreground/80'>
+      <div className='shrink-0 text-muted-foreground/80'>
         <GripVertical size={16} aria-hidden='true' />
       </div>
       <h2 className='truncate font-semibold text-foreground text-lg'>

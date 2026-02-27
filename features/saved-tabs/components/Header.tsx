@@ -71,7 +71,7 @@ export const Header = ({
           )}
         </div>
       </div>
-      <div className='flex flex-shrink-0 items-center gap-1 whitespace-nowrap'>
+      <div className='flex shrink-0 items-center gap-1 whitespace-nowrap'>
         {currentMode === 'domain' && (
           <Tooltip>
             <TooltipTrigger asChild={true}>

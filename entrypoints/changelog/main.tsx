@@ -102,7 +102,7 @@ const App: React.FC = () => (
                       key={`${item.version}-${feature.text}`}
                       className='group flex items-start rounded-lg p-3 transition-colors duration-200 hover:bg-accent/10'
                     >
-                      <div className='flex-shrink-0'>
+                      <div className='shrink-0'>
                         <Check
                           aria-hidden='true'
                           className='h-6 w-6 text-chart-1 transition-colors duration-200 group-hover:text-chart-4'

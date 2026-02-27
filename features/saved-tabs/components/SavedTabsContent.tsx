@@ -122,7 +122,7 @@ export const SortableCategorySection = ({
         <div className='category-header mb-0.5 flex items-center justify-between border-border border-b pb-0.5'>
           {/* ドラッグハンドル部分 */}
           <div
-            className={`flex flex-grow items-center ${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab active:cursor-grabbing'}`}
+            className={`flex grow items-center ${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab active:cursor-grabbing'}`}
             {...attributes}
             {...listeners}
           >
