@@ -35,9 +35,10 @@ const createSettings = (overrides: Record<string, unknown> = {}) =>
   }) as Awaited<ReturnType<typeof getUserSettings>>
 
 type StorageState = {
-  savedTabs: Array<{
+  savedTabs?: Array<{
     id: string
     domain: string
+    parentCategoryId?: string
     urls?: Array<{ url: string; title: string }>
     urlIds?: string[]
     urlSubCategories?: Record<string, string>
@@ -415,7 +416,10 @@ describe('url-storage', () => {
   })
 
   it('savedTabs が未定義でも空配列として保存する', async () => {
-    vi.mocked(chrome.storage.local.get).mockResolvedValue({})
+    storageState = {
+      parentCategories: [],
+    }
+    setupChromeMock()
 
     await removeUrlFromStorage('https://example.com')
 
@@ -573,12 +577,16 @@ describe('url-storage', () => {
   it('setTimeoutコールバック即時実行時は timeoutId を設定しない分岐を通る', () => {
     const setTimeoutSpy = vi
       .spyOn(globalThis, 'setTimeout')
-      .mockImplementation(((callback: TimerHandler) => {
+      .mockImplementation(((
+        callback: TimerHandler,
+        _delay?: number,
+        ...args: unknown[]
+      ) => {
         if (typeof callback === 'function') {
-          callback()
+          callback(...args)
         }
-        return 1 as unknown as NodeJS.Timeout
-      }) as typeof setTimeout)
+        return 1 as unknown as ReturnType<typeof setTimeout>
+      }) as unknown as typeof setTimeout)
 
     handleUrlDragStarted('https://instant.example.com')
 
