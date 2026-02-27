@@ -10,7 +10,7 @@ export const CategoryDeleteConfirm = () => {
   const { state } = useCategoryModalContext()
   const { deletion, isLoading } = state
 
-  if (!deletion.showDeleteConfirm || !deletion.categoryToDelete) {
+  if (!(deletion.showDeleteConfirm && deletion.categoryToDelete)) {
     return null
   }
 
@@ -19,7 +19,7 @@ export const CategoryDeleteConfirm = () => {
       <p className='mb-2 text-gray-700 dark:text-gray-300'>
         親カテゴリ「{deletion.categoryToDelete.name}
         」を削除しますか？この操作は取り消せません。
-        {deletion.categoryToDelete.domainNames?.length ? (
+        {deletion.categoryToDelete.domainNames?.length > 0 ? (
           <span className='mt-1 block text-xs'>
             このカテゴリには {deletion.categoryToDelete.domainNames.length}
             件のドメインが関連付けられています。

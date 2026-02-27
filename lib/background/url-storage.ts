@@ -60,7 +60,7 @@ export async function removeUrlFromStorage(url: string): Promise<void> {
     // URLを含むグループのみを更新（新形式 urlIds / 旧形式 urls の両方に対応）
     const updatedGroups: TabGroup[] = savedTabs.flatMap((group: TabGroup) => {
       if (Array.isArray(group.urlIds)) {
-        if (!matchedUrlId || !group.urlIds.includes(matchedUrlId)) {
+        if (!(matchedUrlId && group.urlIds.includes(matchedUrlId))) {
           return [group]
         }
 
@@ -148,7 +148,7 @@ async function removeFromParentCategories(groupId: string): Promise<void> {
     )
     const domainName = groupToRemove?.domain
 
-    if (!groupToRemove || !domainName) {
+    if (!(groupToRemove && domainName)) {
       console.log(
         `削除対象のグループID ${groupId} が見つからないか、ドメイン名がありません`,
       )
@@ -169,12 +169,14 @@ async function removeFromParentCategories(groupId: string): Promise<void> {
         }
 
         // ドメイン名がdomainNamesにあるか確認してログ出力
-        if (category.domainNames && Array.isArray(category.domainNames)) {
-          if (category.domainNames.includes(domainName)) {
-            console.log(
-              `ドメイン名 ${domainName} は ${category.name} のdomainNamesに保持されます`,
-            )
-          }
+        if (
+          category.domainNames &&
+          Array.isArray(category.domainNames) &&
+          category.domainNames.includes(domainName)
+        ) {
+          console.log(
+            `ドメイン名 ${domainName} は ${category.name} のdomainNamesに保持されます`,
+          )
         }
 
         return updated
@@ -209,7 +211,7 @@ export function handleUrlDragStarted(url: string): void {
 
   // ドラッグ情報を一時保存
   draggedUrlInfo = {
-    url: url,
+    url,
     timestamp: Date.now(),
     processed: false,
   }

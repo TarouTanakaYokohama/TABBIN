@@ -11,7 +11,7 @@ const categoryNameSchema = z
   .max(25, { message: 'カテゴリ名は25文字以下にしてください' })
 
 /** useCategoryKeywordModal フックの引数 */
-type UseCategoryKeywordModalParams = {
+interface UseCategoryKeywordModalParams {
   /** タブグループデータ */
   group: TabGroup
   /** モーダル開閉状態 */
@@ -106,7 +106,9 @@ export function useCategoryKeywordModal({
 
   // --- 親カテゴリ読み込み ---
   const loadParentCategories = useCallback(async () => {
-    if (!isOpen) return
+    if (!isOpen) {
+      return
+    }
 
     try {
       const { parentCategories: stored = [] } =
@@ -152,7 +154,6 @@ export function useCategoryKeywordModal({
   ])
 
   // --- モーダル開閉時の初期化 ---
-  // biome-ignore lint/correctness/useExhaustiveDependencies: loadParentCategoriesは変更されない
   useEffect(() => {
     const initializeCategories = async () => {
       if (isOpen) {
@@ -197,7 +198,9 @@ export function useCategoryKeywordModal({
 
   // --- キーワード追加 ---
   const handleAddKeyword = useCallback(() => {
-    if (!newKeyword.trim()) return
+    if (!newKeyword.trim()) {
+      return
+    }
 
     const trimmedKeyword = newKeyword.trim()
 
@@ -271,7 +274,9 @@ export function useCategoryKeywordModal({
 
   // --- サブカテゴリ追加 ---
   const handleAddSubCategory = useCallback(async () => {
-    if (!newSubCategory.trim() || isProcessing) return
+    if (!newSubCategory.trim() || isProcessing) {
+      return
+    }
 
     if (!validateCategoryName(newSubCategory.trim(), setSubCategoryNameError)) {
       return
@@ -322,7 +327,9 @@ export function useCategoryKeywordModal({
 
   // --- カテゴリ削除 ---
   const handleDeleteCategory = useCallback(async () => {
-    if (!activeCategory) return
+    if (!activeCategory) {
+      return
+    }
 
     if (typeof onDeleteCategory !== 'function') {
       console.error('削除関数が定義されていません')
@@ -382,14 +389,18 @@ export function useCategoryKeywordModal({
       return
     }
 
-    if (isProcessing) return
+    if (isProcessing) {
+      return
+    }
 
     if (!validateCategoryName(newCategoryName.trim(), setCategoryRenameError)) {
       requestAnimationFrame(() => {
         const inputElement = document.querySelector(
           'input[data-rename-input]',
         ) as HTMLInputElement
-        if (inputElement) inputElement.focus()
+        if (inputElement) {
+          inputElement.focus()
+        }
       })
       return
     }
@@ -401,7 +412,9 @@ export function useCategoryKeywordModal({
         const inputElement = document.querySelector(
           'input[data-rename-input]',
         ) as HTMLInputElement
-        if (inputElement) inputElement.focus()
+        if (inputElement) {
+          inputElement.focus()
+        }
       })
       return
     }

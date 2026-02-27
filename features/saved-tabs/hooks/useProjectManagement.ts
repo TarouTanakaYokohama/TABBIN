@@ -40,7 +40,7 @@ import type {
 } from '@/types/storage'
 
 /** useProjectManagement フックの戻り値型 */
-export type UseProjectManagementReturn = {
+export interface UseProjectManagementReturn {
   /** カスタムプロジェクト一覧 */
   customProjects: CustomProject[]
   /** customProjects を直接更新するセッター */
@@ -383,7 +383,9 @@ export function useProjectManagement(
     async (projectId: string): Promise<void> => {
       try {
         const project = customProjectsRef.current.find(p => p.id === projectId)
-        if (!project) return
+        if (!project) {
+          return
+        }
 
         await deleteCustomProject(projectId)
         setCustomProjects(prev => prev.filter(p => p.id !== projectId))
@@ -463,7 +465,9 @@ export function useProjectManagement(
         await addCategoryToProject(projectId, categoryName)
         setCustomProjects(prev =>
           prev.map(p => {
-            if (p.id !== projectId) return p
+            if (p.id !== projectId) {
+              return p
+            }
             const updatedCategories = [...p.categories, categoryName]
             return {
               ...p,
@@ -573,8 +577,12 @@ export function useProjectManagement(
           [...prev].sort((a, b) => {
             const indexA = newOrder.indexOf(a.id)
             const indexB = newOrder.indexOf(b.id)
-            if (indexA === -1) return 1
-            if (indexB === -1) return -1
+            if (indexA === -1) {
+              return 1
+            }
+            if (indexB === -1) {
+              return -1
+            }
             return indexA - indexB
           }),
         )

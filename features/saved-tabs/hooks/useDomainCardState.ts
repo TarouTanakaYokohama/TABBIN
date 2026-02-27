@@ -10,7 +10,7 @@ import { removeUrlFromTabGroup } from '@/lib/storage/tabs'
 import type { ParentCategory, TabGroup } from '@/types/storage'
 
 /** useDomainCardState フックの引数 */
-type UseDomainCardStateParams = {
+interface UseDomainCardStateParams {
   /** タブグループデータ */
   group: TabGroup
   /** URL更新ハンドラ */
@@ -23,9 +23,13 @@ type UseDomainCardStateParams = {
 
 /** 配列の同値比較ユーティリティ */
 const arraysEqual = (a: readonly string[], b: readonly string[]): boolean => {
-  if (a.length !== b.length) return false
+  if (a.length !== b.length) {
+    return false
+  }
   for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false
+    if (a[i] !== b[i]) {
+      return false
+    }
   }
   return true
 }
@@ -64,7 +68,7 @@ export function useDomainCardState({
 
   // --- カテゴリ別URL整理（useMemo最適化）---
   const categorizedUrls = useMemo(() => {
-    type UrlType = {
+    interface UrlType {
       url: string
       title: string
       subCategory?: string
@@ -74,7 +78,9 @@ export function useDomainCardState({
     if (sortOrder !== 'default') {
       urlsToGroup = [...(group.urls || [])]
       urlsToGroup.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
-      if (sortOrder === 'desc') urlsToGroup.reverse()
+      if (sortOrder === 'desc') {
+        urlsToGroup.reverse()
+      }
     }
     const categorizedUrls: Record<string, UrlType[]> = {
       __uncategorized: [],
@@ -126,7 +132,9 @@ export function useDomainCardState({
     ) {
       const filteredOrder = group.subCategoryOrderWithUncategorized.filter(
         id => {
-          if (id === '__uncategorized') return hasUncategorized
+          if (id === '__uncategorized') {
+            return hasUncategorized
+          }
           return regularCategories.includes(id)
         },
       )
@@ -160,9 +168,10 @@ export function useDomainCardState({
   ])
 
   // --- 計算済みカテゴリIDs ---
-  const computedCategoryIds = useMemo(() => {
-    return getActiveCategoryIds()
-  }, [getActiveCategoryIds])
+  const computedCategoryIds = useMemo(
+    () => getActiveCategoryIds(),
+    [getActiveCategoryIds],
+  )
 
   // --- 保存済みカテゴリ順序の初期化 ---
   useEffect(() => {
@@ -215,7 +224,6 @@ export function useDomainCardState({
   )
 
   // --- 新規カテゴリ順序の自動保存 ---
-  // biome-ignore lint/correctness/useExhaustiveDependencies: handleUpdateCategoryOrderは安定した関数のため除外
   useEffect(() => {
     if (
       allCategoryIds.length > 0 &&
@@ -294,11 +302,11 @@ export function useDomainCardState({
             newIndex,
           )
 
-          if (!isCategoryReorderMode) {
-            setIsCategoryReorderMode(true)
-            setOriginalCategoryOrder([...allCategoryIds])
+          if (isCategoryReorderMode) {
             setTempCategoryOrder(updatedAllCategoryIds)
           } else {
+            setIsCategoryReorderMode(true)
+            setOriginalCategoryOrder([...allCategoryIds])
             setTempCategoryOrder(updatedAllCategoryIds)
           }
 
@@ -311,7 +319,9 @@ export function useDomainCardState({
 
   // --- 並び替え確定 ---
   const handleConfirmCategoryReorder = useCallback(async () => {
-    if (!isCategoryReorderMode) return
+    if (!isCategoryReorderMode) {
+      return
+    }
 
     try {
       const updatedCategoryOrder = tempCategoryOrder.filter(
@@ -339,7 +349,9 @@ export function useDomainCardState({
 
   // --- 並び替えキャンセル ---
   const handleCancelCategoryReorder = useCallback(() => {
-    if (!isCategoryReorderMode) return
+    if (!isCategoryReorderMode) {
+      return
+    }
 
     setTempCategoryOrder([])
     setIsCategoryReorderMode(false)
@@ -477,7 +489,7 @@ export function useDomainCardState({
   useEffect(() => {
     if (isDraggingGlobal || isReorderMode) {
       setIsCollapsed(true)
-    } else if (!isDraggingGlobal && !isReorderMode) {
+    } else if (!(isDraggingGlobal || isReorderMode)) {
       setIsCollapsed(userCollapsedState)
     }
   }, [isDraggingGlobal, isReorderMode, userCollapsedState])

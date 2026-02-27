@@ -36,7 +36,7 @@ export const CategorySelector = () => {
           selection.selectedCategoryId &&
           selection.selectedCategoryId !== 'uncategorized' && (
             <Tooltip>
-              <TooltipTrigger asChild>
+              <TooltipTrigger asChild={true}>
                 <Button
                   variant='secondary'
                   size='sm'

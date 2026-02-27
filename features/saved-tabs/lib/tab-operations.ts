@@ -135,7 +135,7 @@ export async function safelyUpdateGroupUrls(
           .catch(() => {
             // エラーは無視（拡張がアクティブでない場合など）
           })
-      } catch (_e) {
+      } catch {
         // メッセージ送信エラーは無視
       }
     } else {

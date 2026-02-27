@@ -127,7 +127,9 @@ const App: React.FC = () => (
 
 document.addEventListener('DOMContentLoaded', () => {
   const appContainer = document.getElementById('app')
-  if (!appContainer) throw new Error('Failed to find the app container')
+  if (!appContainer) {
+    throw new Error('Failed to find the app container')
+  }
 
   const root = createRoot(appContainer)
   root.render(

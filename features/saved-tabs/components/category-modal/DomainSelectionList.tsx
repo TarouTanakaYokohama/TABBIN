@@ -29,8 +29,12 @@ export const DomainSelectionList = () => {
               const aHasCategory = !!domains.domainCategories[a.id]
               const bHasCategory = !!domains.domainCategories[b.id]
 
-              if (!aHasCategory && bHasCategory) return -1
-              if (aHasCategory && !bHasCategory) return 1
+              if (!aHasCategory && bHasCategory) {
+                return -1
+              }
+              if (aHasCategory && !bHasCategory) {
+                return 1
+              }
 
               return a.domain.localeCompare(b.domain)
             })
@@ -58,7 +62,7 @@ export const DomainSelectionList = () => {
                 >
                   <Checkbox
                     id={`domain-${group.id}`}
-                    checked={domains.selectedDomains[group.id] || false}
+                    checked={domains.selectedDomains[group.id]}
                     onCheckedChange={() =>
                       domains.toggleDomainSelection(group.id)
                     }

@@ -69,7 +69,9 @@ export const SortableCategorySection = ({
    * カテゴリ内の全タブを削除する処理（確認済みの場合に呼び出す）
    */
   const executeDeleteAllTabs = useCallback(async () => {
-    if (isDeleting) return
+    if (isDeleting) {
+      return
+    }
     setIsDeleting(true)
     try {
       const urlsToDelete = [...urls]
@@ -140,7 +142,7 @@ export const SortableCategorySection = ({
           {/* ボタンコンテナ */}
           <div className='flex items-center gap-2'>
             <Tooltip>
-              <TooltipTrigger asChild>
+              <TooltipTrigger asChild={true}>
                 <Button
                   variant='secondary'
                   size='sm'
@@ -168,7 +170,7 @@ export const SortableCategorySection = ({
             {/* 削除ボタンを追加 */}
             {handleDeleteAllTabs && (
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger asChild={true}>
                   <Button
                     variant='secondary'
                     size='sm'

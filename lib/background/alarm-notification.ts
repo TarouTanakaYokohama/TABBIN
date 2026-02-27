@@ -102,9 +102,9 @@ export async function showNotification(
 
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: iconUrl,
-      title: title,
-      message: message,
+      iconUrl,
+      title,
+      message,
     })
   } catch (notificationError) {
     // 通知エラーをキャッチしても処理を続行

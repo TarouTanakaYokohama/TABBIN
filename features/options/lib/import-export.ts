@@ -329,8 +329,7 @@ function convertTabGroupToExportUrls(
 ): NonNullable<TabGroup['urls']> {
   if (Array.isArray(tab.urls) && tab.urls.length > 0) {
     return tab.urls.filter(
-      (item): item is NonNullable<TabGroup['urls']>[number] =>
-        Boolean(item?.url),
+      (item): item is NonNullable<TabGroup['urls']>[number] => !!item?.url,
     )
   }
 
@@ -355,7 +354,7 @@ function convertTabGroupToExportUrls(
           ? tab.savedAt + offset
           : Date.now() + offset,
     }
-    if (!urlRecord && !placeholderUrlRecordMap.has(urlId)) {
+    if (!(urlRecord || placeholderUrlRecordMap.has(urlId))) {
       placeholderUrlRecordMap.set(urlId, resolvedUrlRecord)
     }
     offset += 1
@@ -388,7 +387,9 @@ function restoreImportedUrlsFromIds(
   for (const urlId of tab.urlIds) {
     const urlRecord =
       importedUrlRecordMap.get(urlId) || currentUrlRecordMap.get(urlId)
-    if (!urlRecord) continue
+    if (!urlRecord) {
+      continue
+    }
 
     restoredUrls.push({
       url: urlRecord.url,

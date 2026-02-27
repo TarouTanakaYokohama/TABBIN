@@ -77,10 +77,14 @@ export const SortableCategorySection = ({
   const urlCount = urls.length
   // derive sorted urls by savedAt (default = original order)
   const sortedUrls = useMemo(() => {
-    if (sortOrder === 'default') return urls
+    if (sortOrder === 'default') {
+      return urls
+    }
     const arr = [...urls]
     arr.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
-    if (sortOrder === 'desc') arr.reverse()
+    if (sortOrder === 'desc') {
+      arr.reverse()
+    }
     return arr
   }, [urls, sortOrder])
 
@@ -162,7 +166,7 @@ export const SortableCategorySection = ({
         >
           {/* 折りたたみ切り替えボタン */}
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger asChild={true}>
               <Button
                 variant='secondary'
                 size='sm'
@@ -197,7 +201,7 @@ export const SortableCategorySection = ({
           </Tooltip>
           {/* ソート順切り替え */}
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger asChild={true}>
               <Button
                 variant='secondary'
                 size='sm'
@@ -255,7 +259,7 @@ export const SortableCategorySection = ({
           {/* ボタンコンテナ */}
           <div className='flex items-center gap-2'>
             <Tooltip>
-              <TooltipTrigger asChild>
+              <TooltipTrigger asChild={true}>
                 <Button
                   variant='secondary'
                   size='sm'
@@ -282,7 +286,7 @@ export const SortableCategorySection = ({
             {/* 削除ボタンを追加 */}
             {handleDeleteAllTabs && (
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger asChild={true}>
                   <Button
                     variant='secondary'
                     size='sm'

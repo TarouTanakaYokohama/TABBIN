@@ -14,7 +14,7 @@ describe('Buttonコンポーネント', () => {
 
   it('asChild が true のとき子要素を描画する', () => {
     render(
-      <Button asChild>
+      <Button asChild={true}>
         <a href='/docs'>Read Docs</a>
       </Button>,
     )

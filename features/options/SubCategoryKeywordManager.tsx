@@ -201,7 +201,9 @@ export const SubCategoryKeywordManager = ({
 
   // リネームモードを開始する関数
   const startRenameMode = () => {
-    if (!activeCategory) return
+    if (!activeCategory) {
+      return
+    }
 
     setIsRenamingSubCategory(true)
     setNewCategoryName(activeCategory)
@@ -217,7 +219,7 @@ export const SubCategoryKeywordManager = ({
 
   // リネームを完了する関数
   const completeRename = async () => {
-    if (!isRenamingSubCategory || !activeCategory || !newCategoryName.trim()) {
+    if (!(isRenamingSubCategory && activeCategory && newCategoryName.trim())) {
       setIsRenamingSubCategory(false)
       return
     }
@@ -249,7 +251,9 @@ export const SubCategoryKeywordManager = ({
 
   // カテゴリ名変更の処理関数
   const handleRenameCategory = async (oldName: string, newName: string) => {
-    if (!oldName || !newName || oldName === newName) return
+    if (!(oldName && newName) || oldName === newName) {
+      return
+    }
 
     console.log(`カテゴリ名を変更: ${oldName} → ${newName}`)
 
@@ -516,9 +520,9 @@ export const SubCategoryKeywordManager = ({
                 disabled={!newKeyword.trim()}
                 variant='secondary'
                 className={`flex-shrink-0 cursor-pointer rounded-l-none ${
-                  !newKeyword.trim()
-                    ? 'cursor-not-allowed bg-secondary/50 text-muted-foreground'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  newKeyword.trim()
+                    ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    : 'cursor-not-allowed bg-secondary/50 text-muted-foreground'
                 }`}
                 aria-label='キーワードを追加'
               >

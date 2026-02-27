@@ -32,7 +32,9 @@ export async function filterTabsByUserSettings(
 
     // 除外パターンに一致するタブもフィルタリング
     filteredTabs = filteredTabs.filter(tab => {
-      if (!tab.url) return false
+      if (!tab.url) {
+        return false
+      }
       return !settings.excludePatterns.some(pattern =>
         tab.url?.includes(pattern),
       )

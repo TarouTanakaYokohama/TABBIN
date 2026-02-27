@@ -18,7 +18,7 @@ import {
 } from './ProjectCardContext'
 
 /** ProjectCardRoot の props */
-type ProjectCardRootProps = {
+interface ProjectCardRootProps {
   /** プロジェクトデータ */
   project: CustomProjectCardProps['project']
   /** 設定 */

@@ -9,16 +9,16 @@ if (!import.meta.env.DEV) {
 
 import type { DragEndEvent } from '@dnd-kit/core'
 import {
-  closestCenter,
   DndContext,
   KeyboardSensor,
   PointerSensor,
+  closestCenter,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import {
-  arrayMove,
   SortableContext,
+  arrayMove,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
@@ -87,7 +87,7 @@ import type {
   UserSettings,
 } from '@/types/storage'
 
-type SavedTabsProfilerStats = {
+interface SavedTabsProfilerStats {
   commits: number
   phase: string
   actualDuration: number
@@ -99,7 +99,7 @@ type SavedTabsProfilerGlobal = typeof globalThis & {
 
 const isDevProfileEnabled =
   import.meta.env.DEV &&
-  Boolean((globalThis as SavedTabsProfilerGlobal).__ENABLE_SAVED_TABS_PROFILER)
+  !!(globalThis as SavedTabsProfilerGlobal).__ENABLE_SAVED_TABS_PROFILER
 let savedTabsCommitCount = 0
 
 const handleSavedTabsRender: ProfilerOnRenderCallback = (
@@ -315,7 +315,9 @@ const SavedTabs = () => {
           ? storageResult.savedTabs
           : []
         const groupToDelete = savedTabs.find(group => group.id === id)
-        if (!groupToDelete) return
+        if (!groupToDelete) {
+          return
+        }
         console.log(`グループを削除: ${groupToDelete.domain}`)
 
         // 専用の削除前処理関数を呼び出し（インポートした関数を使用）
@@ -427,7 +429,9 @@ const SavedTabs = () => {
 
   // 未分類ドメインの並び替えをキャンセルする
   const handleCancelUncategorizedReorder = useCallback(() => {
-    if (!isUncategorizedReorderMode) return
+    if (!isUncategorizedReorderMode) {
+      return
+    }
 
     // 元の順序に戻す
     setTempUncategorizedOrder([])
@@ -523,7 +527,7 @@ const SavedTabs = () => {
             }
           }
 
-          if (!g.parentCategoryId && !matchesParentCategory) {
+          if (!(g.parentCategoryId || matchesParentCategory)) {
             console.log(
               `親カテゴリ検索デバッグ: ドメイン ${g.domain}, parentCategoryIdが未設定かつカテゴリマッチなし`,
             )
@@ -639,8 +643,12 @@ const SavedTabs = () => {
           const indexA = domainArray.indexOf(a.id)
           const indexB = domainArray.indexOf(b.id)
           // 見つからない場合は最後に配置
-          if (indexA === -1) return 1
-          if (indexB === -1) return -1
+          if (indexA === -1) {
+            return 1
+          }
+          if (indexB === -1) {
+            return -1
+          }
           return indexA - indexB
         })
       }
@@ -660,8 +668,12 @@ const SavedTabs = () => {
   // tabGroupsWithUrls と categories が変わったとき、カテゴリ割り当ての不一致を
   // ストレージに反映するための副作用（organizeTabGroups から分離した副作用）
   useEffect(() => {
-    if (!settings.enableCategories) return
-    if (tabGroupsWithUrls.length === 0 || categories.length === 0) return
+    if (!settings.enableCategories) {
+      return
+    }
+    if (tabGroupsWithUrls.length === 0 || categories.length === 0) {
+      return
+    }
 
     const syncCategoryAssignments = async () => {
       try {
@@ -767,13 +779,13 @@ const SavedTabs = () => {
         if (oldIndex !== -1 && newIndex !== -1) {
           const updatedOrder = arrayMove(currentOrder, oldIndex, newIndex)
 
-          if (!isUncategorizedReorderMode) {
+          if (isUncategorizedReorderMode) {
+            // 既に並び替えモード中：一時的な順序を更新
+            setTempUncategorizedOrder(updatedOrder)
+          } else {
             // 初回の並び替え時：並び替えモードを開始
             setIsUncategorizedReorderMode(true)
             setOriginalUncategorizedOrder([...uncategorized])
-            setTempUncategorizedOrder(updatedOrder)
-          } else {
-            // 既に並び替えモード中：一時的な順序を更新
             setTempUncategorizedOrder(updatedOrder)
           }
         }
@@ -784,7 +796,9 @@ const SavedTabs = () => {
 
   // 未分類ドメインの並び替えを確定する
   const handleConfirmUncategorizedReorder = useCallback(async () => {
-    if (!isUncategorizedReorderMode) return
+    if (!isUncategorizedReorderMode) {
+      return
+    }
 
     try {
       const categorizedDomains = Object.values(categorized).flat()
@@ -822,7 +836,9 @@ const SavedTabs = () => {
   // カスタムモード検索用にプロジェクトとURLをフィルタリング
   const filteredCustomProjects = useMemo(() => {
     const q = searchQuery.trim()
-    if (!q) return customProjects
+    if (!q) {
+      return customProjects
+    }
 
     const query = q.toLowerCase()
 
@@ -847,8 +863,10 @@ const SavedTabs = () => {
     const urlMatchedProjects = customProjects
       .filter(
         proj =>
-          !matchedProjects.includes(proj) &&
-          !categoryMatchedProjects.includes(proj),
+          !(
+            matchedProjects.includes(proj) ||
+            categoryMatchedProjects.includes(proj)
+          ),
       )
       .map(proj => {
         const projectUrls = proj.urls || []
@@ -867,7 +885,9 @@ const SavedTabs = () => {
             self.findIndex(u => u.url === url.url) === index,
         )
 
-        return uniqueMatches.length ? { ...proj, urls: uniqueMatches } : null
+        return uniqueMatches.length > 0
+          ? { ...proj, urls: uniqueMatches }
+          : null
       })
       .filter(
         (proj: CustomProject | null): proj is CustomProject => proj !== null,
@@ -887,8 +907,8 @@ const SavedTabs = () => {
     }) => {
       console.log('ストレージ変更を検出:', changes)
 
-      const hasSavedTabsChange = Boolean(changes.savedTabs)
-      const hasUrlsChange = Boolean(changes.urls)
+      const hasSavedTabsChange = !!changes.savedTabs
+      const hasUrlsChange = !!changes.urls
 
       // 新形式URLストレージが更新されたら、ページ側のURLキャッシュを破棄する
       if (hasUrlsChange) {
@@ -959,7 +979,7 @@ const SavedTabs = () => {
         const targetProject = customProjectsRef.current.find(
           p => p.id === targetProjectId,
         )
-        if (!sourceProject || !targetProject) {
+        if (!(sourceProject && targetProject)) {
           console.error('プロジェクトが見つかりません')
           return null
         }
@@ -969,8 +989,9 @@ const SavedTabs = () => {
           return null
         }
 
-        const existsInTarget =
-          targetProject.urls?.some(item => item.url === url) || false
+        const existsInTarget = targetProject.urls?.some(
+          item => item.url === url,
+        )
         if (existsInTarget) {
           console.log('移動先に既にURLが存在するため、移動をスキップします')
           toast.info('移動先のプロジェクトに既にこのURLが存在します')
@@ -1058,7 +1079,9 @@ const SavedTabs = () => {
           )
           setCustomProjects(prev =>
             prev.map(p => {
-              if (p.id !== projectId) return p
+              if (p.id !== projectId) {
+                return p
+              }
               return {
                 ...p,
                 categories: p.categories.filter(c => c !== sourceCategoryName),
@@ -1084,7 +1107,9 @@ const SavedTabs = () => {
 
         setCustomProjects(prev =>
           prev.map(p => {
-            if (p.id !== projectId) return p
+            if (p.id !== projectId) {
+              return p
+            }
             return {
               ...p,
               urls:
@@ -1189,13 +1214,19 @@ const SavedTabs = () => {
                         ? tempCategoryOrder
                         : categoryOrder
                       ).map(categoryId => {
-                        if (!categoryId) return null
+                        if (!categoryId) {
+                          return null
+                        }
                         const category = categories.find(
                           c => c.id === categoryId,
                         )
-                        if (!category) return null
+                        if (!category) {
+                          return null
+                        }
                         const domainGroups = categorized[categoryId] || []
-                        if (domainGroups.length === 0) return null
+                        if (domainGroups.length === 0) {
+                          return null
+                        }
 
                         return (
                           <CategoryGroup
@@ -1252,7 +1283,7 @@ const SavedTabs = () => {
                 {isUncategorizedReorderMode && (
                   <div className='pointer-events-auto ml-2 flex flex-shrink-0 gap-2'>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild={true}>
                         <Button
                           variant='outline'
                           size='sm'
@@ -1270,7 +1301,7 @@ const SavedTabs = () => {
                     </Tooltip>
 
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild={true}>
                         <Button
                           variant='default'
                           size='sm'
@@ -1401,7 +1432,7 @@ const SavedTabs = () => {
               />
               <DialogFooter>
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger asChild={true}>
                     <Button
                       variant='ghost'
                       size='sm'
@@ -1417,7 +1448,7 @@ const SavedTabs = () => {
                 </Tooltip>
 
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger asChild={true}>
                     <Button
                       variant='default'
                       size='sm'
@@ -1452,7 +1483,9 @@ const SavedTabs = () => {
 // Reactコンポーネントをレンダリング
 document.addEventListener('DOMContentLoaded', () => {
   const appContainer = document.getElementById('app')
-  if (!appContainer) throw new Error('Failed to find the app container')
+  if (!appContainer) {
+    throw new Error('Failed to find the app container')
+  }
 
   const root = createRoot(appContainer)
   root.render(

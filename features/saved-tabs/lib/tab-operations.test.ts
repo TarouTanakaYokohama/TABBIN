@@ -16,7 +16,7 @@ import {
 } from '@/lib/storage/categories'
 import { handleTabGroupRemoval, safelyUpdateGroupUrls } from './tab-operations'
 
-type LocalStore = {
+interface LocalStore {
   savedTabs?: TabGroup[]
 }
 

@@ -20,7 +20,7 @@ vi.mock('@dnd-kit/utilities', () => ({
   },
 }))
 
-import { getCategoryDisplayName, ProjectUrlItem } from './ProjectUrlItem'
+import { ProjectUrlItem, getCategoryDisplayName } from './ProjectUrlItem'
 
 const sendMessageMock = vi.fn()
 

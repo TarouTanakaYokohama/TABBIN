@@ -16,7 +16,7 @@ const categoryNameSchema = z
   .max(25, '新規親カテゴリ名は25文字以下にしてください')
 
 /** useCategoryModal フックの引数 */
-type UseCategoryModalParams = {
+interface UseCategoryModalParams {
   /** タブグループ一覧 */
   tabGroups: TabGroup[]
 }
@@ -66,8 +66,9 @@ export function useCategoryModal({ tabGroups }: UseCategoryModalParams) {
         if (category === 'uncategorized') {
           newSelectedDomains[group.id] = !domainCategories[group.id]
         } else {
-          const isDomainInCategory =
-            category.domainNames?.includes(group.domain) || false
+          const isDomainInCategory = category.domainNames?.includes(
+            group.domain,
+          )
           newSelectedDomains[group.id] = isDomainInCategory
         }
       }
@@ -122,7 +123,9 @@ export function useCategoryModal({ tabGroups }: UseCategoryModalParams) {
 
   // --- 選択カテゴリ変更時のドメイン選択更新 ---
   useEffect(() => {
-    if (!selectedCategoryId) return
+    if (!selectedCategoryId) {
+      return
+    }
 
     const selectedCategory = categories.find(c => c.id === selectedCategoryId)
     if (selectedCategory) {
@@ -226,7 +229,9 @@ export function useCategoryModal({ tabGroups }: UseCategoryModalParams) {
 
   // --- カテゴリ削除ハンドラ ---
   const handleDeleteCategory = useCallback(async () => {
-    if (!categoryToDelete) return
+    if (!categoryToDelete) {
+      return
+    }
 
     try {
       setIsLoading(true)
@@ -297,10 +302,14 @@ export function useCategoryModal({ tabGroups }: UseCategoryModalParams) {
           [domainId]: newChecked,
         }))
 
-        if (!selectedCategoryId) return
+        if (!selectedCategoryId) {
+          return
+        }
 
         const group = tabGroups.find(g => g.id === domainId)
-        if (!group) return
+        if (!group) {
+          return
+        }
 
         if (selectedCategoryId === 'uncategorized') {
           if (newChecked) {
@@ -327,7 +336,9 @@ export function useCategoryModal({ tabGroups }: UseCategoryModalParams) {
           c => c.id === selectedCategoryId,
         )
 
-        if (!selectedCategory) return
+        if (!selectedCategory) {
+          return
+        }
 
         if (newChecked) {
           updatedDomainCategories[domainId] = {

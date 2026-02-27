@@ -60,12 +60,12 @@ export async function getCustomProjects(): Promise<CustomProject[]> {
       )
       .map((project: CustomProject) => {
         // 新形式のURLIDsが存在しない場合は初期化
-        if (!project.urlIds || !Array.isArray(project.urlIds)) {
+        if (!(project.urlIds && Array.isArray(project.urlIds))) {
           project.urlIds = []
         }
 
         // 必須フィールドの確認と修正
-        if (!project.categories || !Array.isArray(project.categories)) {
+        if (!(project.categories && Array.isArray(project.categories))) {
           project.categories = []
         }
 
@@ -94,8 +94,12 @@ export async function getCustomProjects(): Promise<CustomProject[]> {
         const indexA = projectOrder.indexOf(a.id)
         const indexB = projectOrder.indexOf(b.id)
         // 順序にないプロジェクトは最後に
-        if (indexA === -1) return 1
-        if (indexB === -1) return -1
+        if (indexA === -1) {
+          return 1
+        }
+        if (indexB === -1) {
+          return -1
+        }
         return indexA - indexB
       })
     }
@@ -225,7 +229,15 @@ export async function addUrlToCustomProject(
         (group: TabGroup) => group.domain === domain,
       )
 
-      if (!domainGroup) {
+      if (domainGroup) {
+        // 既存のドメイングループに追加（新形式のみ）
+        if (!domainGroup.urlIds) {
+          domainGroup.urlIds = []
+        }
+        if (!domainGroup.urlIds.includes(urlRecord.id)) {
+          domainGroup.urlIds.push(urlRecord.id)
+        }
+      } else {
         // ドメイングループが存在しなければ作成（新形式のみ）
         domainGroup = {
           id: uuidv4(),
@@ -234,14 +246,6 @@ export async function addUrlToCustomProject(
           savedAt: Date.now(),
         }
         savedTabs.push(domainGroup)
-      } else {
-        // 既存のドメイングループに追加（新形式のみ）
-        if (!domainGroup.urlIds) {
-          domainGroup.urlIds = []
-        }
-        if (!domainGroup.urlIds.includes(urlRecord.id)) {
-          domainGroup.urlIds.push(urlRecord.id)
-        }
       }
 
       // 保存
@@ -401,11 +405,11 @@ export async function addCategoryToProject(
   project.updatedAt = Date.now()
 
   // カテゴリ順序が存在しなければ初期化
-  if (!project.categoryOrder) {
-    project.categoryOrder = project.categories
-  } else {
+  if (project.categoryOrder) {
     // 新しいカテゴリを順序にも追加
     project.categoryOrder = [...project.categoryOrder, categoryName]
+  } else {
+    project.categoryOrder = project.categories
   }
 
   projects[projectIndex] = project
@@ -536,7 +540,9 @@ export async function updateProjectOrder(projectIds: string[]): Promise<void> {
   try {
     // 現在のプロジェクトを取得
     const projects = await getCustomProjects()
-    if (projects.length === 0) return
+    if (projects.length === 0) {
+      return
+    }
 
     // プロジェクト順序の保存
     await chrome.storage.local.set({ customProjectOrder: projectIds })

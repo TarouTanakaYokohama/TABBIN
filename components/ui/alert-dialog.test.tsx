@@ -13,7 +13,7 @@ import {
 describe('AlertDialogコンポーネント', () => {
   it('Triggerにdata-slotを付与して描画する', () => {
     render(
-      <AlertDialog open>
+      <AlertDialog open={true}>
         <AlertDialogTrigger>Open Alert</AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogTitle>Title</AlertDialogTitle>

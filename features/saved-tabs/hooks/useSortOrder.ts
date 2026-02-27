@@ -13,10 +13,14 @@ export function useSortOrder<T>(items: T[], getKey: (item: T) => string) {
   const [sortOrder, setSortOrder] = useState<SortOrder>('default')
 
   const sortedItems = useMemo(() => {
-    if (sortOrder === 'default') return items
+    if (sortOrder === 'default') {
+      return items
+    }
     const arr = [...items]
     arr.sort((a, b) => getKey(a).localeCompare(getKey(b)))
-    if (sortOrder === 'desc') arr.reverse()
+    if (sortOrder === 'desc') {
+      arr.reverse()
+    }
     return arr
   }, [items, sortOrder, getKey])
 

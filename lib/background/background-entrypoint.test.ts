@@ -57,7 +57,7 @@ type InstalledListener = (details: {
 
 type StartupListener = () => void | Promise<void>
 
-type ChromeHarness = {
+interface ChromeHarness {
   onInstalledListeners: InstalledListener[]
   onStartupListeners: StartupListener[]
   storageSet: ReturnType<typeof vi.fn>
@@ -169,7 +169,7 @@ async function flushMicrotasks(): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 0))
 }
 
-type LoadBackgroundOptions = {
+interface LoadBackgroundOptions {
   initialStorage?: Record<string, unknown>
   clearAfterImport?: boolean
   setupMocks?: () => void

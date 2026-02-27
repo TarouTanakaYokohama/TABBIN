@@ -27,7 +27,7 @@ export const SubCategoryRenameForm = () => {
         onChange={rename.handleRenameCategoryNameChange}
         placeholder='例: ニュース、ブログ、コラム'
         className={`w-full rounded border p-2 ${rename.categoryRenameError ? 'border-red-500' : ''}`}
-        autoFocus
+        autoFocus={true}
         data-rename-input='true'
         onBlur={rename.handleSaveRenaming}
         onKeyDown={e => {

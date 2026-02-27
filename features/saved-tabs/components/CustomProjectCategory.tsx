@@ -119,7 +119,9 @@ export const CustomProjectCategory = ({
     } else {
       const sorted = [...categoryUrls]
       sorted.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
-      if (sortOrder === 'desc') sorted.reverse()
+      if (sortOrder === 'desc') {
+        sorted.reverse()
+      }
       setLocalCategoryUrls(sorted)
     }
   }, [categoryUrls, sortOrder])
@@ -236,7 +238,7 @@ export const CustomProjectCategory = ({
           >
             {/* collapse toggle */}
             <Tooltip>
-              <TooltipTrigger asChild>
+              <TooltipTrigger asChild={true}>
                 <Button
                   variant='secondary'
                   size='sm'
@@ -261,7 +263,7 @@ export const CustomProjectCategory = ({
             </Tooltip>
             {/* sort toggle */}
             <Tooltip>
-              <TooltipTrigger asChild>
+              <TooltipTrigger asChild={true}>
                 <Button
                   variant='secondary'
                   size='sm'
@@ -319,7 +321,7 @@ export const CustomProjectCategory = ({
             )}
             {(handleRenameCategory || handleDeleteCategory) && (
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger asChild={true}>
                   <Button
                     variant='secondary'
                     size='sm'
@@ -338,7 +340,7 @@ export const CustomProjectCategory = ({
             )}
             {localCategoryUrls.length > 0 && (
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger asChild={true}>
                   <Button
                     variant='secondary'
                     size='sm'
@@ -363,16 +365,16 @@ export const CustomProjectCategory = ({
             )}
             {localCategoryUrls.length > 0 && (
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger asChild={true}>
                   <Button
                     variant='secondary'
                     size='sm'
                     className='flex cursor-pointer items-center gap-1'
                     onClick={() => {
-                      if (!settings.confirmDeleteAll) {
-                        void executeDeleteAllUrls()
-                      } else {
+                      if (settings.confirmDeleteAll) {
                         setIsDeleteAllConfirmOpen(true)
+                      } else {
+                        void executeDeleteAllUrls()
                       }
                     }}
                     aria-label='すべて削除'

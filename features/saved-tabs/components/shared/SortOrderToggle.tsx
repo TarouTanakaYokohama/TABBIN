@@ -8,7 +8,7 @@ import {
 import type { SortOrder } from '../../hooks/useSortOrder'
 
 /** SortOrderToggle の props */
-type SortOrderToggleProps = {
+interface SortOrderToggleProps {
   /** 現在のソート順 */
   sortOrder: SortOrder
   /** ソート順を設定する関数 */
@@ -34,7 +34,7 @@ export const SortOrderToggle = ({
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
+      <TooltipTrigger asChild={true}>
         <Button
           variant='secondary'
           size='sm'

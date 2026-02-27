@@ -6,7 +6,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-type CategoryReorderFooterProps = {
+interface CategoryReorderFooterProps {
   onConfirmCategoryReorder?: () => void
   onCancelCategoryReorder?: () => void
 }
@@ -14,48 +14,44 @@ type CategoryReorderFooterProps = {
 export const CategoryReorderFooter = ({
   onConfirmCategoryReorder = () => {},
   onCancelCategoryReorder = () => {},
-}: CategoryReorderFooterProps) => {
-  return (
-    <div className='fixed right-0 bottom-0 left-0 z-50 border-border border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'>
-      <div className='container mx-auto flex items-center justify-center gap-4 px-4 py-3'>
-        <div className='flex items-center gap-2'>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={onCancelCategoryReorder}
-                className='flex cursor-pointer items-center gap-1'
-                aria-label='親カテゴリの並び替えをキャンセル'
-              >
-                <X size={16} />
-                <span>キャンセル</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side='top'>
-              親カテゴリの並び替えをキャンセル
-            </TooltipContent>
-          </Tooltip>
+}: CategoryReorderFooterProps) => (
+  <div className='fixed right-0 bottom-0 left-0 z-50 border-border border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'>
+    <div className='container mx-auto flex items-center justify-center gap-4 px-4 py-3'>
+      <div className='flex items-center gap-2'>
+        <Tooltip>
+          <TooltipTrigger asChild={true}>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={onCancelCategoryReorder}
+              className='flex cursor-pointer items-center gap-1'
+              aria-label='親カテゴリの並び替えをキャンセル'
+            >
+              <X size={16} />
+              <span>キャンセル</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side='top'>
+            親カテゴリの並び替えをキャンセル
+          </TooltipContent>
+        </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant='default'
-                size='sm'
-                onClick={onConfirmCategoryReorder}
-                className='flex cursor-pointer items-center gap-1'
-                aria-label='親カテゴリの並び替えを確定'
-              >
-                <Check size={16} />
-                <span>確定</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side='top'>
-              親カテゴリの並び替えを確定
-            </TooltipContent>
-          </Tooltip>
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild={true}>
+            <Button
+              variant='default'
+              size='sm'
+              onClick={onConfirmCategoryReorder}
+              className='flex cursor-pointer items-center gap-1'
+              aria-label='親カテゴリの並び替えを確定'
+            >
+              <Check size={16} />
+              <span>確定</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side='top'>親カテゴリの並び替えを確定</TooltipContent>
+        </Tooltip>
       </div>
     </div>
-  )
-}
+  </div>
+)

@@ -6,7 +6,7 @@ import type { ParentCategory, TabGroup } from '@/types/storage'
 import { useSortOrder } from './useSortOrder'
 
 /** useCategoryGroupState フックの引数 */
-type UseCategoryGroupStateParams = {
+interface UseCategoryGroupStateParams {
   /** 親カテゴリデータ */
   category: ParentCategory
   /** ドメイン一覧 */
@@ -153,7 +153,7 @@ export function useCategoryGroupState({
   }, [])
   const handleGlobalDragFinish = useCallback(() => {
     setIsDraggingGlobal(false)
-    if (!isReorderMode && !isCategoryReorderMode) {
+    if (!(isReorderMode || isCategoryReorderMode)) {
       setIsCollapsed(false)
     }
   }, [isReorderMode, isCategoryReorderMode])
@@ -216,14 +216,16 @@ export function useCategoryGroupState({
       const domainId = event.dataTransfer.getData('domain-id')
       const fromCategoryId = event.dataTransfer.getData('from-category-id')
 
-      if (domainId && handleMoveDomainToCategory) {
-        if (fromCategoryId !== category.id) {
-          handleMoveDomainToCategory(
-            domainId,
-            fromCategoryId || null,
-            category.id,
-          )
-        }
+      if (
+        domainId &&
+        handleMoveDomainToCategory &&
+        fromCategoryId !== category.id
+      ) {
+        handleMoveDomainToCategory(
+          domainId,
+          fromCategoryId || null,
+          category.id,
+        )
       }
     },
     [category.id],
@@ -244,7 +246,9 @@ export function useCategoryGroupState({
         if (oldIndex !== -1 && newIndex !== -1) {
           const updatedDomains = arrayMove(currentOrder, oldIndex, newIndex)
 
-          if (!isReorderMode) {
+          if (isReorderMode) {
+            setTempDomainOrder(updatedDomains)
+          } else {
             setIsReorderMode(true)
             setOriginalDomainOrder(
               localDomains.map(domain => {
@@ -258,8 +262,6 @@ export function useCategoryGroupState({
                 return { ...rest, urls: urls ?? [] }
               }),
             )
-          } else {
-            setTempDomainOrder(updatedDomains)
           }
         }
       }
@@ -274,7 +276,9 @@ export function useCategoryGroupState({
 
   // --- 並び替え確定 ---
   const handleConfirmReorder = useCallback(async () => {
-    if (!isReorderMode) return
+    if (!isReorderMode) {
+      return
+    }
 
     try {
       if (handleUpdateDomainsOrder) {
@@ -295,7 +299,9 @@ export function useCategoryGroupState({
 
   // --- 並び替えキャンセル ---
   const handleCancelReorder = useCallback(() => {
-    if (!isReorderMode) return
+    if (!isReorderMode) {
+      return
+    }
 
     setTempDomainOrder([])
     setIsReorderMode(false)

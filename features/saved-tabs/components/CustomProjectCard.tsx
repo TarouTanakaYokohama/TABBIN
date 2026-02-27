@@ -23,32 +23,30 @@ export const CustomProjectCard = ({
   settings,
   draggedItem,
   isDropTarget = false,
-}: CustomProjectCardProps) => {
-  return (
-    <ProjectCardRoot
-      project={project}
-      settings={settings}
-      draggedItem={draggedItem}
-      isDropTarget={isDropTarget}
-      handlers={{
-        handleOpenUrl,
-        handleDeleteUrl,
-        handleAddCategory,
-        handleDeleteCategory,
-        handleRenameCategory,
-        handleSetUrlCategory,
-        handleOpenAllUrls,
-      }}
-      hookHandlers={{
-        handleDeleteUrl,
-        handleSetUrlCategory,
-        handleUpdateCategoryOrder,
-        handleReorderUrls,
-      }}
-    >
-      <ProjectCardCategoryList />
-      <ProjectCardUncategorizedArea />
-      <ProjectCardDragOverlay />
-    </ProjectCardRoot>
-  )
-}
+}: CustomProjectCardProps) => (
+  <ProjectCardRoot
+    project={project}
+    settings={settings}
+    draggedItem={draggedItem}
+    isDropTarget={isDropTarget}
+    handlers={{
+      handleOpenUrl,
+      handleDeleteUrl,
+      handleAddCategory,
+      handleDeleteCategory,
+      handleRenameCategory,
+      handleSetUrlCategory,
+      handleOpenAllUrls,
+    }}
+    hookHandlers={{
+      handleDeleteUrl,
+      handleSetUrlCategory,
+      handleUpdateCategoryOrder,
+      handleReorderUrls,
+    }}
+  >
+    <ProjectCardCategoryList />
+    <ProjectCardUncategorizedArea />
+    <ProjectCardDragOverlay />
+  </ProjectCardRoot>
+)

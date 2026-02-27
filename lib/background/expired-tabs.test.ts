@@ -7,7 +7,7 @@ import {
   updateTabTimestamps,
 } from './expired-tabs'
 
-type Store = {
+interface Store {
   userSettings?: { autoDeletePeriod?: string }
   savedTabs?: TabGroup[]
 }
@@ -71,15 +71,15 @@ describe('expired-tabs ユーティリティ', () => {
   })
 
   it('自動削除期間をミリ秒に変換する', () => {
-    expect(getExpirationPeriodMs('30sec')).toBe(30_000)
-    expect(getExpirationPeriodMs('1min')).toBe(60_000)
-    expect(getExpirationPeriodMs('1hour')).toBe(3_600_000)
-    expect(getExpirationPeriodMs('1day')).toBe(86_400_000)
-    expect(getExpirationPeriodMs('7days')).toBe(7 * 86_400_000)
-    expect(getExpirationPeriodMs('14days')).toBe(14 * 86_400_000)
-    expect(getExpirationPeriodMs('30days')).toBe(30 * 86_400_000)
-    expect(getExpirationPeriodMs('180days')).toBe(180 * 86_400_000)
-    expect(getExpirationPeriodMs('365days')).toBe(365 * 86_400_000)
+    expect(getExpirationPeriodMs('30sec')).toBe(30000)
+    expect(getExpirationPeriodMs('1min')).toBe(60000)
+    expect(getExpirationPeriodMs('1hour')).toBe(3600000)
+    expect(getExpirationPeriodMs('1day')).toBe(86400000)
+    expect(getExpirationPeriodMs('7days')).toBe(7 * 86400000)
+    expect(getExpirationPeriodMs('14days')).toBe(14 * 86400000)
+    expect(getExpirationPeriodMs('30days')).toBe(30 * 86400000)
+    expect(getExpirationPeriodMs('180days')).toBe(180 * 86400000)
+    expect(getExpirationPeriodMs('365days')).toBe(365 * 86400000)
     expect(getExpirationPeriodMs('never')).toBeNull()
   })
 
@@ -331,25 +331,25 @@ describe('expired-tabs ユーティリティ', () => {
       const result = await updateTabTimestamps('30sec')
 
       expect(result.success).toBe(true)
-      expect(result.timestamp).toBe(now - 40_000)
+      expect(result.timestamp).toBe(now - 40000)
       expect(set).toHaveBeenCalledWith({
         savedTabs: [
           {
             id: 'group-1',
             domain: 'example.com',
-            savedAt: now - 40_000,
+            savedAt: now - 40000,
             urls: [],
           },
           {
             id: 'group-2',
             domain: 'other.com',
-            savedAt: now - 40_000,
+            savedAt: now - 40000,
             urls: [],
           },
         ],
       })
       expect(
-        store.savedTabs?.every(group => group.savedAt === now - 40_000),
+        store.savedTabs?.every(group => group.savedAt === now - 40000),
       ).toBe(true)
     })
 
@@ -367,8 +367,8 @@ describe('expired-tabs ユーティリティ', () => {
 
       const result = await updateTabTimestamps('1min')
 
-      expect(result).toEqual({ success: true, timestamp: now - 70_000 })
-      expect(store.savedTabs?.[0]?.savedAt).toBe(now - 70_000)
+      expect(result).toEqual({ success: true, timestamp: now - 70000 })
+      expect(store.savedTabs?.[0]?.savedAt).toBe(now - 70000)
     })
 
     it('期間が省略された場合は現在時刻を使う', async () => {

@@ -11,7 +11,6 @@ if (!import.meta.env.DEV) {
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { createRoot } from 'react-dom/client'
 import { ThemeProvider } from '@/components/theme-provider'
-
 // UIコンポーネントのインポート
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox' // Switchの代わりにCheckboxをインポート
@@ -541,7 +540,9 @@ const OptionsPage = () => {
 // Reactコンポーネントをレンダリング
 document.addEventListener('DOMContentLoaded', () => {
   const appContainer = document.getElementById('options-app')
-  if (!appContainer) throw new Error('Failed to find the options app container')
+  if (!appContainer) {
+    throw new Error('Failed to find the options app container')
+  }
 
   const root = createRoot(appContainer)
   root.render(

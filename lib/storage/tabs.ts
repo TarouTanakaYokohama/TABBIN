@@ -42,7 +42,9 @@ export async function addUrlToTabGroup(
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
   const groupIndex = savedTabs.findIndex((g: TabGroup) => g.id === groupId)
 
-  if (groupIndex === -1) return
+  if (groupIndex === -1) {
+    return
+  }
 
   // URLレコードを作成または更新
   const urlRecord = await createOrUpdateUrlRecord(url, title)
@@ -79,7 +81,9 @@ export async function addSubCategoryToGroup(
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
 
   const group = savedTabs.find((g: TabGroup) => g.id === groupId)
-  if (!group) return
+  if (!group) {
+    return
+  }
 
   const updatedGroups = savedTabs.map((existingGroup: TabGroup) => {
     if (existingGroup.id === groupId) {
@@ -132,7 +136,9 @@ export async function setUrlSubCategory(
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
   const groupIndex = savedTabs.findIndex((g: TabGroup) => g.id === groupId)
 
-  if (groupIndex === -1) return
+  if (groupIndex === -1) {
+    return
+  }
 
   const group = savedTabs[groupIndex]
 
@@ -162,7 +168,9 @@ export async function setCategoryKeywords(
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
 
   const group = savedTabs.find((g: TabGroup) => g.id === groupId)
-  if (!group) return
+  if (!group) {
+    return
+  }
 
   // 更新するグループを見つける
   const updatedGroups = savedTabs.map((currentGroup: TabGroup) => {
@@ -250,13 +258,13 @@ export async function autoCategorizeTabs(groupId: string): Promise<void> {
   const uniqueGroups: TabGroup[] = []
 
   for (const group of savedTabs) {
-    if (!uniqueIds.has(group.id)) {
-      uniqueIds.add(group.id)
-      uniqueGroups.push(group)
-    } else {
+    if (uniqueIds.has(group.id)) {
       console.warn(
         `自動カテゴリ実行前に重複検出: ${group.id} (${group.domain})`,
       )
+    } else {
+      uniqueIds.add(group.id)
+      uniqueGroups.push(group)
     }
   }
 
@@ -271,8 +279,7 @@ export async function autoCategorizeTabs(groupId: string): Promise<void> {
     (group: TabGroup) => group.id === groupId,
   )
   if (
-    !targetGroup ||
-    !targetGroup.categoryKeywords ||
+    !targetGroup?.categoryKeywords ||
     targetGroup.categoryKeywords.length === 0
   ) {
     console.log('カテゴリキーワードがないか、グループが見つかりません')
@@ -361,7 +368,9 @@ export async function reorderTabGroupUrls(
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
   const groupIndex = savedTabs.findIndex((g: TabGroup) => g.id === groupId)
 
-  if (groupIndex === -1) return
+  if (groupIndex === -1) {
+    return
+  }
 
   const group = savedTabs[groupIndex]
 
@@ -411,7 +420,9 @@ export async function removeUrlFromTabGroup(
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
   const groupIndex = savedTabs.findIndex((g: TabGroup) => g.id === groupId)
 
-  if (groupIndex === -1) return
+  if (groupIndex === -1) {
+    return
+  }
 
   const group = savedTabs[groupIndex]
 

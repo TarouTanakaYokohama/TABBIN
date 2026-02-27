@@ -95,7 +95,7 @@ vi.mock('@/components/ui/dialog', () => ({
 import { Header } from './Header'
 
 const openSpy = vi.fn()
-const getURLSpy = vi.fn((path: string) => `chrome-extension://id/${path}`)
+const getUrlSpy = vi.fn((path: string) => `chrome-extension://id/${path}`)
 
 const createTabGroups = (): TabGroup[] => [
   {
@@ -145,7 +145,7 @@ describe('Header', () => {
     const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
     chromeGlobal.chrome = {
       runtime: {
-        getURL: getURLSpy,
+        getURL: getUrlSpy,
       },
     } as unknown as typeof chrome
   })
@@ -183,7 +183,7 @@ describe('Header', () => {
     expect(onSearchChange).toHaveBeenCalledWith('')
 
     fireEvent.click(screen.getByRole('button', { name: /オプション/ }))
-    expect(getURLSpy).toHaveBeenCalledWith('options.html')
+    expect(getUrlSpy).toHaveBeenCalledWith('options.html')
     expect(openSpy).toHaveBeenCalledWith(
       'chrome-extension://id/options.html',
       '_blank',

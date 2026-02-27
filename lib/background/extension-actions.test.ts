@@ -44,7 +44,7 @@ import {
   syncToCustomProjects,
 } from './extension-actions'
 
-type TabsHarness = {
+interface TabsHarness {
   query: ReturnType<typeof vi.fn>
   remove: ReturnType<typeof vi.fn>
 }

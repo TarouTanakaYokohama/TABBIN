@@ -22,7 +22,7 @@ export const CategoryGroupReorderControls = () => {
   return (
     <div className='pointer-events-auto ml-2 flex flex-shrink-0 gap-2'>
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger asChild={true}>
           <Button
             variant='outline'
             size='sm'
@@ -40,7 +40,7 @@ export const CategoryGroupReorderControls = () => {
       </Tooltip>
 
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger asChild={true}>
           <Button
             variant='default'
             size='sm'

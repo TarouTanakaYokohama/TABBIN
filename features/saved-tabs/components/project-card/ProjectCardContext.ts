@@ -4,7 +4,7 @@ import type { useCustomProjectCard } from '../../hooks/useCustomProjectCard'
 import type { CustomProjectCardProps } from '../../types/CustomProjectCard.types'
 
 /** ProjectCard のコンテキスト型 */
-export type ProjectCardContextType = {
+export interface ProjectCardContextType {
   /** フック戻り値 */
   hookState: ReturnType<typeof useCustomProjectCard>
   /** プロジェクトデータ */
