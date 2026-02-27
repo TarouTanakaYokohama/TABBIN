@@ -14,6 +14,7 @@ import { filterTabsByUserSettings } from './utils'
 
 const buildSettings = (override: Partial<UserSettings> = {}): UserSettings => ({
   removeTabAfterOpen: true,
+  removeTabAfterExternalDrop: true,
   excludePatterns: ['chrome://', 'chrome-extension://'],
   enableCategories: true,
   autoDeletePeriod: 'never',

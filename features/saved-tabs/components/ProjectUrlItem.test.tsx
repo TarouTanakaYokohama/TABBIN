@@ -22,8 +22,11 @@ vi.mock('@dnd-kit/utilities', () => ({
 
 import { getCategoryDisplayName, ProjectUrlItem } from './ProjectUrlItem'
 
+const sendMessageMock = vi.fn()
+
 const defaultSettings: UserSettings = {
   removeTabAfterOpen: true,
+  removeTabAfterExternalDrop: true,
   excludePatterns: [],
   enableCategories: true,
   autoDeletePeriod: 'never',
@@ -59,6 +62,18 @@ const createProps = (
 describe('ProjectUrlItem', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sendMessageMock.mockImplementation(
+      (_message: unknown, callback?: (response: { ok: boolean }) => void) => {
+        callback?.({ ok: true })
+      },
+    )
+    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
+    chromeGlobal.chrome = {
+      runtime: {
+        sendMessage: sendMessageMock,
+      },
+    } as unknown as typeof chrome
+
     useSortableMock.mockReturnValue({
       attributes: {},
       listeners: {},
@@ -199,5 +214,135 @@ describe('ProjectUrlItem', () => {
 
   it('カテゴリ表示名ヘルパーは未指定時に空文字を返す', () => {
     expect(getCategoryDisplayName()).toBe('')
+  })
+
+  it('外部D&D成立時にurlDroppedメッセージを送る', () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener')
+    const item = {
+      url: 'https://example.com/doc',
+      title: 'Doc',
+      category: undefined,
+    }
+
+    render(<ProjectUrlItem {...createProps({ item })} />)
+
+    const link = screen.getByRole('link', { name: 'Doc' })
+    const dataTransfer = {
+      setData: vi.fn(),
+      dropEffect: 'link',
+    }
+
+    fireEvent.dragStart(link, { dataTransfer })
+    const blurCall = [...addEventListenerSpy.mock.calls]
+      .reverse()
+      .find(([eventName]) => eventName === 'blur')
+    if (!blurCall || typeof blurCall[1] !== 'function') {
+      throw new Error('blur handler was not captured')
+    }
+    blurCall[1](new Event('blur'))
+    fireEvent.dragEnd(link, { dataTransfer })
+
+    expect(sendMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'urlDropped',
+        url: item.url,
+        groupId: 'project-1',
+        fromExternal: true,
+      }),
+      expect.any(Function),
+    )
+  })
+
+  it('dropEffectがlink以外ならurlDroppedメッセージを送らない', () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener')
+    const item = {
+      url: 'https://example.com/doc',
+      title: 'Doc',
+      category: undefined,
+    }
+
+    render(<ProjectUrlItem {...createProps({ item })} />)
+
+    const link = screen.getByRole('link', { name: 'Doc' })
+    const dataTransfer = {
+      setData: vi.fn(),
+      dropEffect: 'none',
+    }
+
+    fireEvent.dragStart(link, { dataTransfer })
+    const blurCall = [...addEventListenerSpy.mock.calls]
+      .reverse()
+      .find(([eventName]) => eventName === 'blur')
+    if (!blurCall || typeof blurCall[1] !== 'function') {
+      throw new Error('blur handler was not captured')
+    }
+    blurCall[1](new Event('blur'))
+    fireEvent.dragEnd(link, { dataTransfer })
+
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'urlDropped' }),
+      expect.any(Function),
+    )
+  })
+
+  it('ドラッグ終了後にblurが発生してもurlDroppedメッセージを送らない', () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener')
+    const item = {
+      url: 'https://example.com/doc',
+      title: 'Doc',
+      category: undefined,
+    }
+
+    render(<ProjectUrlItem {...createProps({ item })} />)
+
+    const link = screen.getByRole('link', { name: 'Doc' })
+    const dataTransfer = {
+      setData: vi.fn(),
+      dropEffect: 'link',
+    }
+
+    fireEvent.dragStart(link, { dataTransfer })
+    const blurCall = [...addEventListenerSpy.mock.calls]
+      .reverse()
+      .find(([eventName]) => eventName === 'blur')
+    if (!blurCall || typeof blurCall[1] !== 'function') {
+      throw new Error('blur handler was not captured')
+    }
+    fireEvent.dragEnd(link, { dataTransfer })
+    blurCall[1](new Event('blur'))
+
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'urlDropped' }),
+      expect.any(Function),
+    )
+  })
+
+  it('dropEffectがcopyならblurなしでもurlDroppedメッセージを送る', () => {
+    const item = {
+      url: 'https://example.com/doc',
+      title: 'Doc',
+      category: undefined,
+    }
+
+    render(<ProjectUrlItem {...createProps({ item })} />)
+
+    const link = screen.getByRole('link', { name: 'Doc' })
+    const dataTransfer = {
+      setData: vi.fn(),
+      dropEffect: 'copy',
+    }
+
+    fireEvent.dragStart(link, { dataTransfer })
+    fireEvent.dragEnd(link, { dataTransfer })
+
+    expect(sendMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'urlDropped',
+        url: item.url,
+        groupId: 'project-1',
+        fromExternal: true,
+      }),
+      expect.any(Function),
+    )
   })
 })

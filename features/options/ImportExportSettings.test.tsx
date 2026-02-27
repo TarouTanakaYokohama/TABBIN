@@ -118,6 +118,7 @@ describe('ImportExportSettingsコンポーネント', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,

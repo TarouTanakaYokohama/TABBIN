@@ -116,6 +116,7 @@ import { CustomProjectSection } from './CustomProjectSection'
 
 const defaultSettings: UserSettings = {
   removeTabAfterOpen: true,
+  removeTabAfterExternalDrop: true,
   excludePatterns: [],
   enableCategories: true,
   autoDeletePeriod: 'never',

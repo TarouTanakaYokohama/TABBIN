@@ -57,6 +57,7 @@ type SortableDomainCardComponentProps = SortableDomainCardProps & {
 
 const defaultSettings: UserSettings = {
   removeTabAfterOpen: true,
+  removeTabAfterExternalDrop: true,
   excludePatterns: [],
   enableCategories: true,
   autoDeletePeriod: 'never',

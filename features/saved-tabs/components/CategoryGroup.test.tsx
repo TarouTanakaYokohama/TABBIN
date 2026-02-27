@@ -60,6 +60,7 @@ import { CategoryGroup } from './CategoryGroup'
 
 const defaultSettings: UserSettings = {
   removeTabAfterOpen: true,
+  removeTabAfterExternalDrop: true,
   excludePatterns: [],
   enableCategories: true,
   autoDeletePeriod: 'never',

@@ -47,19 +47,71 @@ export function normalizeUrl(url: string): string {
  */
 export async function removeUrlFromStorage(url: string): Promise<void> {
   try {
-    const storageResult = await chrome.storage.local.get('savedTabs')
-    const savedTabs: TabGroup[] = storageResult.savedTabs || []
+    const storageResult = await chrome.storage.local.get(['savedTabs', 'urls'])
+    const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
+      ? storageResult.savedTabs
+      : []
+    const urlRecords = Array.isArray(storageResult.urls)
+      ? storageResult.urls
+      : []
+    const matchedUrlId = urlRecords.find(record => record.url === url)?.id
+    const removedGroupIds: string[] = []
 
-    // URLを含むグループを更新
+    // URLを含むグループのみを更新（新形式 urlIds / 旧形式 urls の両方に対応）
     const updatedGroups: TabGroup[] = savedTabs.flatMap((group: TabGroup) => {
-      const updatedUrls = (group.urls ?? []).filter(item => item.url !== url)
-      if (updatedUrls.length === 0) {
-        // グループが空になる場合は専用の処理関数を呼び出し
-        handleTabGroupRemoval(group.id)
-        return [] // 空グループを削除
+      if (Array.isArray(group.urlIds)) {
+        if (!matchedUrlId || !group.urlIds.includes(matchedUrlId)) {
+          return [group]
+        }
+
+        const updatedUrlIds = group.urlIds.filter(id => id !== matchedUrlId)
+        const updatedUrlSubCategories = group.urlSubCategories
+          ? Object.fromEntries(
+              Object.entries(group.urlSubCategories).filter(
+                ([urlId]) => urlId !== matchedUrlId,
+              ),
+            )
+          : undefined
+
+        if (updatedUrlIds.length === 0) {
+          removedGroupIds.push(group.id)
+          return []
+        }
+
+        return [
+          {
+            ...group,
+            urlIds: updatedUrlIds,
+            urlSubCategories:
+              updatedUrlSubCategories &&
+              Object.keys(updatedUrlSubCategories).length > 0
+                ? updatedUrlSubCategories
+                : undefined,
+          },
+        ]
       }
-      return [{ ...group, urls: updatedUrls }]
+
+      if (Array.isArray(group.urls)) {
+        const updatedUrls = group.urls.filter(item => item.url !== url)
+        if (updatedUrls.length === group.urls.length) {
+          return [group]
+        }
+
+        if (updatedUrls.length === 0) {
+          removedGroupIds.push(group.id)
+          return []
+        }
+
+        return [{ ...group, urls: updatedUrls }]
+      }
+
+      return [group]
     })
+
+    // 空になったグループに紐づくカテゴリ更新を先に実行する
+    await Promise.all(
+      removedGroupIds.map(groupId => handleTabGroupRemoval(groupId)),
+    )
 
     // 更新したグループをストレージに保存
     await chrome.storage.local.set({ savedTabs: updatedGroups })
@@ -189,7 +241,7 @@ export async function handleUrlDropped(
   if (fromExternal === true) {
     try {
       const settings = await getUserSettings()
-      if (settings.removeTabAfterOpen) {
+      if (settings.removeTabAfterExternalDrop) {
         await removeUrlFromStorage(url)
         console.log('外部ドロップ後にURLを削除しました:', url)
         return 'removed'

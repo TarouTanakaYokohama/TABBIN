@@ -37,15 +37,20 @@ export const SortableUrlItem = ({
       },
     })
 
-  const [isDragging, setIsDragging] = useState(false)
-  const [leftWindow, setLeftWindow] = useState(false)
-  const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isDraggingRef = useRef(false)
+  const windowBlurredDuringDragRef = useRef(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+
+  const handleWindowBlur = useCallback(() => {
+    if (isDraggingRef.current) {
+      windowBlurredDuringDragRef.current = true
+    }
+  }, [])
 
   // ドラッグが開始されたとき
   const handleDragStart = (e: React.DragEvent<HTMLElement>, url: string) => {
-    setIsDragging(true)
-    setLeftWindow(false)
+    isDraggingRef.current = true
+    windowBlurredDuringDragRef.current = false
     // URLをテキストとして設定
     e.dataTransfer.setData('text/plain', url)
     // URI-listとしても設定（多くのブラウザやアプリがこのフォーマットを認識）
@@ -53,8 +58,8 @@ export const SortableUrlItem = ({
 
     console.log('ドラッグ開始:', url)
 
-    // ドキュメント全体のmouseleaveイベントを監視
-    document.addEventListener('mouseleave', handleMouseLeave)
+    // 外部ブラウザへのドラッグ判定のため、ウィンドウのblurを監視
+    window.addEventListener('blur', handleWindowBlur)
 
     // ドラッグ開始をバックグラウンドに通知
     chrome.runtime.sendMessage(
@@ -87,47 +92,31 @@ export const SortableUrlItem = ({
 
   const handleDragEnd = (e: React.DragEvent<HTMLElement>) => {
     // リスナーをクリーンアップ
-    document.removeEventListener('mouseleave', handleMouseLeave)
+    window.removeEventListener('blur', handleWindowBlur)
 
-    // タイムアウトをクリア
-    if (dragTimeoutRef.current) {
-      clearTimeout(dragTimeoutRef.current)
-      dragTimeoutRef.current = null
+    const shouldHandleAsExternalDrop =
+      isDraggingRef.current &&
+      (e.dataTransfer.dropEffect === 'copy' ||
+        (windowBlurredDuringDragRef.current &&
+          e.dataTransfer.dropEffect === 'link'))
+
+    if (shouldHandleAsExternalDrop) {
+      handleExternalDrop()
     }
 
-    setIsDragging(false)
+    isDraggingRef.current = false
+    windowBlurredDuringDragRef.current = false
     console.log('ドラッグ終了:', e.dataTransfer.dropEffect)
-
-    // 内部で完了した場合は、leftWindowフラグをリセット
-    setLeftWindow(false)
   }
-
-  // マウスリーブハンドラをメモ化
-  const handleMouseLeave = useCallback(() => {
-    // マウスがウィンドウを出たことを記録
-    setLeftWindow(true)
-    console.log('マウスがウィンドウから出ました')
-
-    // windowに戻ってこなければ、タイムアウト後に外部ウィンドウへのドロップと判定
-    if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current)
-    // ドラッグの外部ウィンドウタイムアウト検出（1秒）
-    dragTimeoutRef.current = setTimeout(() => {
-      if (isDragging && leftWindow) {
-        console.log('外部ウィンドウへのドラッグを検出:', url)
-        handleExternalDrop()
-      }
-    }, 1000)
-  }, [isDragging, leftWindow, url, handleExternalDrop])
 
   // コンポーネントのアンマウント時にクリーンアップ
   useEffect(() => {
     return () => {
-      document.removeEventListener('mouseleave', handleMouseLeave)
-      if (dragTimeoutRef.current) {
-        clearTimeout(dragTimeoutRef.current)
-      }
+      window.removeEventListener('blur', handleWindowBlur)
+      isDraggingRef.current = false
+      windowBlurredDuringDragRef.current = false
     }
-  }, [handleMouseLeave])
+  }, [handleWindowBlur])
 
   const handleDeleteButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation()
