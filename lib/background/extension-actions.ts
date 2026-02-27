@@ -15,9 +15,8 @@ import { filterTabsByUserSettings, showNotification } from './utils'
 /**
  * ブラウザアクション（拡張機能アイコン）クリック時の処理
  */
-export async function handleExtensionActionClick(): Promise<void> {
+export const handleExtensionActionClick = async (): Promise<void> => {
   console.log('拡張機能アイコンがクリックされました')
-
   try {
     // ユーザー設定を取得
     const settings = await getUserSettings()
@@ -27,7 +26,10 @@ export async function handleExtensionActionClick(): Promise<void> {
     console.log(`選択されたクリック挙動: ${clickBehavior}`)
 
     // 保存したTabsとURLsを追跡するための配列（カスタムプロジェクト同期用）
-    let savedUrls: { url: string; title: string }[] = []
+    let savedUrls: {
+      url: string
+      title: string
+    }[] = []
 
     // 選択された挙動に基づいて処理を実行
     switch (clickBehavior) {
@@ -55,13 +57,15 @@ export async function handleExtensionActionClick(): Promise<void> {
     )
   }
 }
-
 /**
  * 現在のタブのみを保存
  */
-export async function handleSaveCurrentTab(): Promise<
-  { url: string; title: string }[]
-> {
+export const handleSaveCurrentTab = async (): Promise<
+  {
+    url: string
+    title: string
+  }[]
+> => {
   // 現在アクティブなタブのみを保存
   const activeTabs = await chrome.tabs.query({
     active: true,
@@ -76,7 +80,6 @@ export async function handleSaveCurrentTab(): Promise<
     )
     return []
   }
-
   const activeTab = filteredTabs[0]
   console.log(`現在のタブを保存: ${activeTab.url}`)
 
@@ -95,7 +98,6 @@ export async function handleSaveCurrentTab(): Promise<
       console.error('タブを閉じる際にエラー:', error)
     }
   }
-
   return [
     {
       // filterTabsByUserSettings で URL なしタブは除外済み
@@ -104,22 +106,22 @@ export async function handleSaveCurrentTab(): Promise<
     },
   ]
 }
-
 /**
  * 現在のドメインのタブをすべて保存
  */
-export async function handleSaveSameDomainTabs(): Promise<
-  { url: string; title: string }[]
-> {
+export const handleSaveSameDomainTabs = async (): Promise<
+  {
+    url: string
+    title: string
+  }[]
+> => {
   const currentTabs = await chrome.tabs.query({
     active: true,
     currentWindow: true,
   })
-
   if (currentTabs.length === 0 || !currentTabs[0].url) {
     return []
   }
-
   try {
     // 現在のタブからドメインを取得
     const url = new URL(currentTabs[0].url)
@@ -127,7 +129,9 @@ export async function handleSaveSameDomainTabs(): Promise<
     console.log(`現在のドメイン: ${currentDomain}`)
 
     // 現在のウィンドウの同じドメインのタブをすべて取得
-    const tabs = await chrome.tabs.query({ currentWindow: true })
+    const tabs = await chrome.tabs.query({
+      currentWindow: true,
+    })
     const sameDomainTabs = tabs.filter(tab => {
       if (!tab.url) {
         return false
@@ -148,12 +152,10 @@ export async function handleSaveSameDomainTabs(): Promise<
       )
       return []
     }
-
     console.log(`同じドメインのタブ数: ${filteredTabs.length}`)
 
     // タブを保存
     await saveTabsWithAutoCategory(filteredTabs)
-
     const [settings] = await Promise.all([
       getUserSettings(),
       showNotification(
@@ -171,7 +173,6 @@ export async function handleSaveSameDomainTabs(): Promise<
       )
       .map(tab => tab.id)
       .filter((id): id is number => id !== undefined)
-
     if (tabIdsToClose.length > 0) {
       try {
         await chrome.tabs.remove(tabIdsToClose)
@@ -180,7 +181,6 @@ export async function handleSaveSameDomainTabs(): Promise<
         console.error('タブを閉じる際にエラー:', error)
       }
     }
-
     return filteredTabs.map(tab => ({
       // filterTabsByUserSettings と同一ドメイン抽出で URL なしタブは除外済み
       url: tab.url as string,
@@ -191,13 +191,15 @@ export async function handleSaveSameDomainTabs(): Promise<
     return []
   }
 }
-
 /**
  * すべてのウィンドウのタブを保存
  */
-export async function handleSaveAllWindowsTabs(): Promise<
-  { url: string; title: string }[]
-> {
+export const handleSaveAllWindowsTabs = async (): Promise<
+  {
+    url: string
+    title: string
+  }[]
+> => {
   try {
     // すべてのウィンドウのタブを取得
     const allTabs = await chrome.tabs.query({})
@@ -211,12 +213,10 @@ export async function handleSaveAllWindowsTabs(): Promise<
       )
       return []
     }
-
     console.log(`保存対象タブ数: ${filteredTabs.length}`)
 
     // タブを保存
     await saveTabsWithAutoCategory(filteredTabs)
-
     const [, savedTabsTabId] = await Promise.all([
       showNotification(
         'タブ保存',
@@ -230,7 +230,6 @@ export async function handleSaveAllWindowsTabs(): Promise<
       .filter(tab => tab.id && tab.id !== savedTabsTabId)
       .map(tab => tab.id)
       .filter((id): id is number => id !== undefined)
-
     if (tabIdsToClose.length > 0) {
       try {
         await chrome.tabs.remove(tabIdsToClose)
@@ -239,7 +238,6 @@ export async function handleSaveAllWindowsTabs(): Promise<
         console.error('タブを閉じる際にエラー:', error)
       }
     }
-
     return filteredTabs.map(tab => ({
       // filterTabsByUserSettings で URL なしタブは除外済み
       url: tab.url as string,
@@ -250,14 +248,18 @@ export async function handleSaveAllWindowsTabs(): Promise<
     return []
   }
 }
-
 /**
  * 現在のウィンドウのタブをすべて保存（デフォルト）
  */
-export async function handleSaveWindowTabs(): Promise<
-  { url: string; title: string }[]
-> {
-  const allTabs = await chrome.tabs.query({ currentWindow: true })
+export const handleSaveWindowTabs = async (): Promise<
+  {
+    url: string
+    title: string
+  }[]
+> => {
+  const allTabs = await chrome.tabs.query({
+    currentWindow: true,
+  })
   console.log(`取得したタブ: ${allTabs.length}個`)
 
   // タブをフィルタリング（固定タブと除外パターンを除外）
@@ -268,14 +270,11 @@ export async function handleSaveWindowTabs(): Promise<
     )
     return []
   }
-
   console.log(`保存対象タブ: ${filteredTabs.length}個`)
 
   // タブを保存して自動カテゴライズする
   await saveTabsWithAutoCategory(filteredTabs)
-
   console.log('タブの保存と自動カテゴライズが完了しました')
-
   const [savedTabsTabId, settings] = await Promise.all([
     openSavedTabsPage(),
     getUserSettings(),
@@ -287,7 +286,6 @@ export async function handleSaveWindowTabs(): Promise<
 
   // 閉じるタブを収集
   const tabIdsToClose: number[] = []
-
   for (const tab of filteredTabs) {
     if (
       tab.id &&
@@ -302,7 +300,6 @@ export async function handleSaveWindowTabs(): Promise<
   // タブを閉じる（一括処理）
   if (tabIdsToClose.length > 0) {
     console.log(`${tabIdsToClose.length}個のタブを閉じます:`, tabIdsToClose)
-
     try {
       await chrome.tabs.remove(tabIdsToClose)
       console.log(`${tabIdsToClose.length}個のタブを一括で閉じました`)
@@ -315,20 +312,21 @@ export async function handleSaveWindowTabs(): Promise<
   } else {
     console.log('閉じるべきタブはありません')
   }
-
   return filteredTabs.map(tab => ({
     // filterTabsByUserSettings で URL なしタブは除外済み
     url: tab.url as string,
     title: tab.title || '',
   }))
 }
-
 /**
  * カスタムプロジェクトに同期保存（新形式対応）
  */
-export async function syncToCustomProjects(
-  savedUrls: { url: string; title: string }[],
-): Promise<void> {
+export const syncToCustomProjects = async (
+  savedUrls: {
+    url: string
+    title: string
+  }[],
+): Promise<void> => {
   try {
     // 新形式でカスタムプロジェクトを取得
     const customProjects = await getCustomProjects()
@@ -349,7 +347,6 @@ export async function syncToCustomProjects(
       for (const item of savedUrls) {
         await addUrlToCustomProject(defaultProject.id, item.url, item.title)
       }
-
       console.log('デフォルトプロジェクトを作成し、URLを追加しました')
     } else {
       // 最初のプロジェクトに追加
@@ -360,7 +357,6 @@ export async function syncToCustomProjects(
       for (const item of savedUrls) {
         await addUrlToCustomProject(firstProject.id, item.url, item.title)
       }
-
       console.log('既存プロジェクトにURLを追加しました')
     }
   } catch (syncError) {

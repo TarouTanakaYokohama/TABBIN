@@ -20,14 +20,12 @@ interface UseDomainCardStateParams {
   /** 並び替えモード状態 */
   isReorderMode: boolean
 }
-
 interface CategorizedUrlItem {
   url: string
   title: string
   subCategory?: string
   savedAt?: number
 }
-
 type CategorizedUrls = Record<string, CategorizedUrlItem[]>
 
 /** 配列の同値比較ユーティリティ */
@@ -42,16 +40,14 @@ const arraysEqual = (a: readonly string[], b: readonly string[]): boolean => {
   }
   return true
 }
-
-function sortUrlsByOrder(
+const sortUrlsByOrder = (
   urls: TabGroup['urls'],
   sortOrder: 'default' | 'asc' | 'desc',
-): TabGroup['urls'] {
+): TabGroup['urls'] => {
   const sourceUrls = urls || []
   if (sortOrder === 'default') {
     return sourceUrls
   }
-
   const sortedUrls = [...sourceUrls]
   sortedUrls.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
   if (sortOrder === 'desc') {
@@ -59,62 +55,57 @@ function sortUrlsByOrder(
   }
   return sortedUrls
 }
-
-function buildCategorizedUrls(
+const buildCategorizedUrls = (
   urls: TabGroup['urls'],
   subCategories: TabGroup['subCategories'],
-): CategorizedUrls {
-  const categorizedUrls: CategorizedUrls = { __uncategorized: [] }
+): CategorizedUrls => {
+  const uncategorizedCategoryId = '__uncategorized'
+  const categorizedUrls: CategorizedUrls = {}
+  categorizedUrls[uncategorizedCategoryId] = []
   for (const category of subCategories || []) {
     categorizedUrls[category] = []
   }
-
   for (const url of urls || []) {
     if (url.subCategory && subCategories?.includes(url.subCategory)) {
       categorizedUrls[url.subCategory].push(url)
     } else {
-      categorizedUrls.__uncategorized.push(url)
+      categorizedUrls[uncategorizedCategoryId].push(url)
     }
   }
   return categorizedUrls
 }
-
-function buildCategoryOrderFromSaved(
+const buildCategoryOrderFromSaved = (
   savedOrder: string[],
   regularCategories: string[],
   hasUncategorized: boolean,
-): string[] {
+): string[] => {
   const filteredOrder = savedOrder.filter(id => {
     if (id === '__uncategorized') {
       return hasUncategorized
     }
     return regularCategories.includes(id)
   })
-
   for (const category of regularCategories) {
     if (!filteredOrder.includes(category)) {
       filteredOrder.push(category)
     }
   }
-
   if (hasUncategorized && !filteredOrder.includes('__uncategorized')) {
     filteredOrder.push('__uncategorized')
   }
-
   return filteredOrder
 }
-
 /**
  * SortableDomainCard の状態ロジックを管理するカスタムフック
  * @param params フックの引数
  * @returns 折りたたみ・ソート・カテゴリ並び替え・キーワードモーダル・親カテゴリ関連の状態と操作
  */
-export function useDomainCardState({
+export const useDomainCardState = ({
   group,
   handleUpdateUrls,
   handleDeleteCategory,
   isReorderMode,
-}: UseDomainCardStateParams) {
+}: UseDomainCardStateParams) => {
   // --- 基本状態 ---
   const [showKeywordModal, setShowKeywordModal] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -145,7 +136,6 @@ export function useDomainCardState({
   // --- 空でないカテゴリIDsを取得 ---
   const getActiveCategoryIds = useCallback(() => {
     console.log('getActiveCategoryIds 関数実行...')
-
     const usedCategories = new Set<string>()
     for (const url of group.urls || []) {
       if (url.subCategory) {
@@ -153,16 +143,13 @@ export function useDomainCardState({
       }
     }
     console.log('使用されているカテゴリ:', Array.from(usedCategories))
-
     const regularCategories = (group.subCategories || []).filter(
       categoryName =>
         categorizedUrls[categoryName] &&
         categorizedUrls[categoryName].length > 0,
     )
     console.log('表示すべき通常カテゴリ:', regularCategories)
-
     const hasUncategorized = (categorizedUrls.__uncategorized?.length || 0) > 0
-
     if (
       group.subCategoryOrderWithUncategorized &&
       group.subCategoryOrderWithUncategorized.length > 0
@@ -172,16 +159,13 @@ export function useDomainCardState({
         regularCategories,
         hasUncategorized,
       )
-
       console.log('保存された順序から構築（空カテゴリ除外）:', filteredOrder)
       return filteredOrder
     }
-
     const initialOrder = [...regularCategories]
     if (hasUncategorized) {
       initialOrder.push('__uncategorized')
     }
-
     console.log('新規作成されたカテゴリ順序:', initialOrder)
     return initialOrder
   }, [
@@ -218,7 +202,6 @@ export function useDomainCardState({
         if (updatedAllOrder) {
           setAllCategoryIds(updatedAllOrder)
         }
-
         const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
         const updatedTabs = savedTabs.map((tab: TabGroup) => {
           if (tab.id === group.id) {
@@ -236,8 +219,9 @@ export function useDomainCardState({
           }
           return tab
         })
-
-        await chrome.storage.local.set({ savedTabs: updatedTabs })
+        await chrome.storage.local.set({
+          savedTabs: updatedTabs,
+        })
         console.log('カテゴリ順序を更新しました:', updatedOrder)
         console.log('未分類含む順序も更新:', updatedAllOrder || allCategoryIds)
       } catch (error) {
@@ -283,7 +267,6 @@ export function useDomainCardState({
   useEffect(() => {
     const prevUrls = prevUrlsRef.current
     const currentUrls = group.urls
-
     const hasSubCategoryChanges =
       (prevUrls?.length || 0) > 0 &&
       ((prevUrls?.length || 0) !== (currentUrls?.length || 0) ||
@@ -292,7 +275,6 @@ export function useDomainCardState({
             i >= (currentUrls?.length || 0) ||
             prevUrl.subCategory !== currentUrls?.[i]?.subCategory,
         ))
-
     if (
       hasSubCategoryChanges &&
       !arraysEqual(computedCategoryIds, allCategoryIds)
@@ -300,32 +282,32 @@ export function useDomainCardState({
       console.log('タブのサブカテゴリ変更を検出 - 表示を更新')
       setAllCategoryIds(computedCategoryIds)
     }
-
     prevUrlsRef.current = [...(currentUrls || [])]
   }, [group.urls, computedCategoryIds, allCategoryIds])
 
   // --- カテゴリDnDハンドラ ---
   const handleCategoryDragEnd = useCallback(
     (event: {
-      active: { id: string | number }
-      over: { id: string | number } | null
+      active: {
+        id: string | number
+      }
+      over: {
+        id: string | number
+      } | null
     }) => {
       const { active, over } = event
-
       if (over && active.id !== over.id) {
         const currentOrder = isCategoryReorderMode
           ? tempCategoryOrder
           : allCategoryIds
         const oldIndex = currentOrder.indexOf(active.id as string)
         const newIndex = currentOrder.indexOf(over.id as string)
-
         if (oldIndex !== -1 && newIndex !== -1) {
           const updatedAllCategoryIds = arrayMove(
             currentOrder,
             oldIndex,
             newIndex,
           )
-
           if (isCategoryReorderMode) {
             setTempCategoryOrder(updatedAllCategoryIds)
           } else {
@@ -333,7 +315,6 @@ export function useDomainCardState({
             setOriginalCategoryOrder([...allCategoryIds])
             setTempCategoryOrder(updatedAllCategoryIds)
           }
-
           console.log('一時的なカテゴリ順序:', updatedAllCategoryIds)
         }
       }
@@ -346,19 +327,15 @@ export function useDomainCardState({
     if (!isCategoryReorderMode) {
       return
     }
-
     try {
       const updatedCategoryOrder = tempCategoryOrder.filter(
         id => id !== '__uncategorized' && group.subCategories?.includes(id),
       )
-
       await handleUpdateCategoryOrder(updatedCategoryOrder, tempCategoryOrder)
-
       setAllCategoryIds(tempCategoryOrder)
       setIsCategoryReorderMode(false)
       setOriginalCategoryOrder([])
       setTempCategoryOrder([])
-
       toast.success('子カテゴリの順序を変更しました')
     } catch (error) {
       console.error('子カテゴリ順序の更新に失敗しました:', error)
@@ -376,11 +353,9 @@ export function useDomainCardState({
     if (!isCategoryReorderMode) {
       return
     }
-
     setTempCategoryOrder([])
     setIsCategoryReorderMode(false)
     setOriginalCategoryOrder([])
-
     toast.info('子カテゴリの並び替えをキャンセルしました')
   }, [isCategoryReorderMode])
 
@@ -388,7 +363,6 @@ export function useDomainCardState({
   const handleCloseKeywordModal = useCallback(() => {
     setShowKeywordModal(false)
     setCategoryUpdateTrigger(prev => prev + 1)
-
     Promise.resolve().then(async () => {
       await new Promise(resolve => requestAnimationFrame(resolve))
       setCategoryUpdateTrigger(prev => prev + 1)
@@ -408,28 +382,29 @@ export function useDomainCardState({
 
   // --- カテゴリ内の全タブ削除 ---
   const handleDeleteAllTabsInCategory = useCallback(
-    async (categoryName: string, urlsToDelete: Array<{ url: string }>) => {
+    async (
+      categoryName: string,
+      urlsToDelete: Array<{
+        url: string
+      }>,
+    ) => {
       try {
         const urlsToRemove = urlsToDelete.map(item => item.url)
         console.log(
           `「${categoryName}」から${urlsToRemove.length}件のタブを削除します`,
         )
-
         for (const url of urlsToRemove) {
           await removeUrlFromTabGroup(group.id, url)
           await new Promise(resolve => setTimeout(resolve, 10))
         }
-
         if (handleUpdateUrls) {
           handleUpdateUrls(group.id, [])
         }
-
         requestAnimationFrame(() => {
           const newActiveIds = getActiveCategoryIds()
           setAllCategoryIds(newActiveIds)
           setCategoryUpdateTrigger(prev => prev + 1)
         })
-
         console.log(
           `「${categoryName}」カテゴリから${urlsToRemove.length}件のタブを削除完了`,
         )
@@ -450,7 +425,6 @@ export function useDomainCardState({
         console.error('親カテゴリの読み込みに失敗しました:', error)
       }
     }
-
     loadParentCategories()
   }, [])
 
@@ -517,7 +491,6 @@ export function useDomainCardState({
       setIsCollapsed(userCollapsedState)
     }
   }, [isDraggingGlobal, isReorderMode, userCollapsedState])
-
   return {
     /** 折りたたみ関連 */
     collapse: {

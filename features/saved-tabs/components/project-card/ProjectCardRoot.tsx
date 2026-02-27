@@ -118,7 +118,7 @@ export const ProjectCardRoot = ({
   // 別プロジェクトからドラッグされているかを判定
   const isExternalItemOver =
     (isProjectOver || isDropTarget) &&
-    !!draggedItem &&
+    draggedItem != null &&
     draggedItem.projectId !== project.id
 
   const contextValue: ProjectCardContextType = useMemo(

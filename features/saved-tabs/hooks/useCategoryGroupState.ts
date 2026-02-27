@@ -21,17 +21,15 @@ interface UseCategoryGroupStateParams {
   /** 親カテゴリ並び替えモード状態 */
   isCategoryReorderMode: boolean
 }
-
-function ensureCategoryPresence(
+const ensureCategoryPresence = (
   categoryGroups: ParentCategory[],
   categoryId: string,
   newName: string,
-): ParentCategory[] {
+): ParentCategory[] => {
   const existingCategory = categoryGroups.find(cat => cat.id === categoryId)
   if (existingCategory) {
     return categoryGroups
   }
-
   return [
     ...categoryGroups,
     {
@@ -42,12 +40,11 @@ function ensureCategoryPresence(
     },
   ]
 }
-
-function renameCategoryInGroups(
+const renameCategoryInGroups = (
   categoryGroups: ParentCategory[],
   categoryId: string,
   newName: string,
-): ParentCategory[] {
+): ParentCategory[] => {
   return categoryGroups.map(cat => {
     if (cat.id !== categoryId) {
       return cat
@@ -59,30 +56,28 @@ function renameCategoryInGroups(
     }
   })
 }
-
-async function confirmCategorySaved(
+const confirmCategorySaved = async (
   categoryId: string,
   newName: string,
   updatedGroups: ParentCategory[],
-): Promise<void> {
+): Promise<void> => {
   const maxRetries = 3
   for (let retryCount = 0; retryCount < maxRetries; retryCount++) {
     const checkResult = await chrome.storage.local.get('parentCategories')
     const savedCategory = checkResult.parentCategories?.find(
       (cat: ParentCategory) => cat.id === categoryId,
     )
-
     if (savedCategory?.name === newName) {
       console.log('CategoryGroup - 保存の確認に成功:', savedCategory)
       break
     }
-
     console.log(
       `CategoryGroup - 保存の確認に失敗 (試行 ${retryCount + 1}/${maxRetries})`,
     )
-    await chrome.storage.local.set({ parentCategories: updatedGroups })
+    await chrome.storage.local.set({
+      parentCategories: updatedGroups,
+    })
   }
-
   const finalCheck = await chrome.storage.local.get('parentCategories')
   const finalCategory = finalCheck.parentCategories?.find(
     (cat: ParentCategory) => cat.id === categoryId,
@@ -90,22 +85,20 @@ async function confirmCategorySaved(
   if (finalCategory?.name !== newName) {
     throw new Error('カテゴリ名の更新が反映されていません')
   }
-
   console.log('CategoryGroup - カテゴリ更新が完了しました:', finalCategory)
 }
-
 /**
  * CategoryGroup の状態ロジックを管理するカスタムフック
  * @param params フックの引数
  * @returns 折りたたみ・ソート・並び替え・モーダル・DnD関連の状態と操作
  */
-export function useCategoryGroupState({
+export const useCategoryGroupState = ({
   category,
   domains,
   handleUpdateDomainsOrder,
   handleDeleteGroup,
   isCategoryReorderMode,
-}: UseCategoryGroupStateParams) {
+}: UseCategoryGroupStateParams) => {
   // --- 基本状態 ---
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [userCollapsedState, setUserCollapsedState] = useState(false)
@@ -138,7 +131,6 @@ export function useCategoryGroupState({
           newName,
           currentCategory: category,
         })
-
         const result = await chrome.storage.local.get(['parentCategories'])
         const baseGroups: ParentCategory[] = result.parentCategories || []
         const categoryGroups = ensureCategoryPresence(
@@ -151,8 +143,9 @@ export function useCategoryGroupState({
           categoryId,
           newName,
         )
-
-        await chrome.storage.local.set({ parentCategories: updatedGroups })
+        await chrome.storage.local.set({
+          parentCategories: updatedGroups,
+        })
         await confirmCategorySaved(categoryId, newName, updatedGroups)
       } catch (error) {
         console.error('CategoryGroup - カテゴリ名の更新に失敗:', error)
@@ -211,11 +204,9 @@ export function useCategoryGroupState({
     event.preventDefault()
     setIsDraggingOver(true)
   }, [])
-
   const handleDragLeave = useCallback(() => {
     setIsDraggingOver(false)
   }, [])
-
   const handleDrop = useCallback(
     (
       event: React.DragEvent,
@@ -227,10 +218,8 @@ export function useCategoryGroupState({
     ) => {
       event.preventDefault()
       setIsDraggingOver(false)
-
       const domainId = event.dataTransfer.getData('domain-id')
       const fromCategoryId = event.dataTransfer.getData('from-category-id')
-
       if (
         domainId &&
         handleMoveDomainToCategory &&
@@ -250,17 +239,14 @@ export function useCategoryGroupState({
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
-
       if (over && active.id !== over.id) {
         const currentOrder = isReorderMode ? tempDomainOrder : localDomains
         const oldIndex = currentOrder.findIndex(
           domain => domain.id === active.id,
         )
         const newIndex = currentOrder.findIndex(domain => domain.id === over.id)
-
         if (oldIndex !== -1 && newIndex !== -1) {
           const updatedDomains = arrayMove(currentOrder, oldIndex, newIndex)
-
           if (isReorderMode) {
             setTempDomainOrder(updatedDomains)
           } else {
@@ -268,13 +254,19 @@ export function useCategoryGroupState({
             setOriginalDomainOrder(
               localDomains.map(domain => {
                 const { urls, ...rest } = domain
-                return { ...rest, urls: urls ?? [] }
+                return {
+                  ...rest,
+                  urls: urls ?? [],
+                }
               }),
             )
             setTempDomainOrder(
               updatedDomains.map(domain => {
                 const { urls, ...rest } = domain
-                return { ...rest, urls: urls ?? [] }
+                return {
+                  ...rest,
+                  urls: urls ?? [],
+                }
               }),
             )
           }
@@ -284,7 +276,6 @@ export function useCategoryGroupState({
     },
     [isReorderMode, tempDomainOrder, localDomains],
   )
-
   const handleDragStart = useCallback(() => {
     setIsDraggingDomains(true)
   }, [])
@@ -294,17 +285,14 @@ export function useCategoryGroupState({
     if (!isReorderMode) {
       return
     }
-
     try {
       if (handleUpdateDomainsOrder) {
         await handleUpdateDomainsOrder(category.id, tempDomainOrder)
       }
-
       setLocalDomains(tempDomainOrder)
       setIsReorderMode(false)
       setOriginalDomainOrder([])
       setTempDomainOrder([])
-
       toast.success('ドメインの順序を変更しました')
     } catch (error) {
       console.error('ドメイン順序の更新に失敗しました:', error)
@@ -317,11 +305,9 @@ export function useCategoryGroupState({
     if (!isReorderMode) {
       return
     }
-
     setTempDomainOrder([])
     setIsReorderMode(false)
     setOriginalDomainOrder([])
-
     toast.info('並び替えをキャンセルしました')
   }, [isReorderMode])
 
@@ -329,13 +315,11 @@ export function useCategoryGroupState({
   const handleDeleteSingleDomain = useCallback(
     async (domainId: string) => {
       await handleDeleteGroup(domainId)
-
       if (isReorderMode) {
         const filteredTempOrder = tempDomainOrder.filter(
           domain => domain.id !== domainId,
         )
         setTempDomainOrder(filteredTempOrder)
-
         if (filteredTempOrder.length === 0) {
           setIsReorderMode(false)
           setOriginalDomainOrder([])
@@ -344,7 +328,6 @@ export function useCategoryGroupState({
     },
     [handleDeleteGroup, isReorderMode, tempDomainOrder],
   )
-
   return {
     /** 折りたたみ関連 */
     collapse: {

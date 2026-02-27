@@ -16,7 +16,7 @@ import type {
 } from '@/types/storage'
 
 // バックアップデータの型定義
-export interface BackupData {
+interface BackupData {
   version: string
   timestamp: string
   userSettings: UserSettings
@@ -35,7 +35,6 @@ interface ImportedUrlData {
   subCategory?: string
   savedAt?: number
 }
-
 interface ImportedUrlRecordData {
   id: string
   url: string
@@ -43,7 +42,6 @@ interface ImportedUrlRecordData {
   savedAt?: number
   favIconUrl?: string
 }
-
 interface ImportedTabData {
   id: string
   domain: string
@@ -62,12 +60,10 @@ interface ImportedKeywordData {
   keywords?: string[] // オプショナルのままにする
   [key: string]: unknown // その他の可能性のあるプロパティ
 }
-
 interface ConvertedUrlData {
   urlIds: string[]
   urlSubCategories?: Record<string, string>
 }
-
 const importedUrlDataSchema = z.object({
   url: z.string(),
   title: z.string().optional(),
@@ -78,7 +74,6 @@ const importedUrlDataSchema = z.object({
   subCategory: z.string().optional(),
   savedAt: z.number().optional(),
 })
-
 const importedUrlRecordSchema = z.object({
   id: z.string(),
   url: z.string(),
@@ -139,12 +134,11 @@ const backupDataSchema = z.object({
  * @param urls インポートされたURL配列
  * @returns 新形式のTabGroup（urlIdsとurlSubCategoriesを含む）
  */
-async function convertImportedUrlsToNewFormat(
+const convertImportedUrlsToNewFormat = async (
   urls: ImportedUrlData[],
-): Promise<ConvertedUrlData> {
+): Promise<ConvertedUrlData> => {
   const urlIds: string[] = []
   const urlSubCategories: Record<string, string> = {}
-
   for (const urlData of urls) {
     try {
       // URLレコードを作成または更新
@@ -153,37 +147,32 @@ async function convertImportedUrlsToNewFormat(
         urlData.title || '',
         urlData.favIconUrl,
       )
-
       urlIds.push(urlRecord.id)
 
       // サブカテゴリ情報があれば保存
       if (urlData.subCategory) {
         urlSubCategories[urlRecord.id] = urlData.subCategory
       }
-
       console.log(`URL変換完了: ${urlData.url} -> ${urlRecord.id}`)
     } catch (error) {
       console.error(`URL変換エラー: ${urlData.url}`, error)
     }
   }
-
   return {
     urlIds,
     urlSubCategories:
       Object.keys(urlSubCategories).length > 0 ? urlSubCategories : undefined,
   }
 }
-
 /**
  * categoryKeywordsを型安全に正規化する
  */
-function normalizeCategoryKeywords(
+const normalizeCategoryKeywords = (
   keywords: unknown[] | undefined,
-): SubCategoryKeyword[] {
+): SubCategoryKeyword[] => {
   if (!Array.isArray(keywords)) {
     return []
   }
-
   return keywords
     .filter(
       (k): k is ImportedKeywordData =>
@@ -197,7 +186,6 @@ function normalizeCategoryKeywords(
         categoryName: string
         keywords?: unknown
       }
-
       return {
         categoryName: k.categoryName,
         keywords: Array.isArray(keywordData.keywords)
@@ -206,60 +194,52 @@ function normalizeCategoryKeywords(
       }
     })
 }
-
 /**
  * サブカテゴリ配列を文字列配列に正規化する
  */
-function normalizeSubCategories(items: unknown[] | undefined): string[] {
+const normalizeSubCategories = (items: unknown[] | undefined): string[] => {
   if (!Array.isArray(items)) {
     return []
   }
-
   const names: string[] = []
   const seen = new Set<string>()
-
   for (const item of items) {
-    const name =
-      typeof item === 'string'
-        ? item
-        : typeof item === 'object' &&
-            item !== null &&
-            'name' in item &&
-            typeof item.name === 'string'
-          ? item.name
-          : null
-
+    let name: string | null = null
+    if (typeof item === 'string') {
+      name = item
+    } else if (
+      typeof item === 'object' &&
+      item !== null &&
+      'name' in item &&
+      typeof item.name === 'string'
+    ) {
+      name = item.name
+    }
     if (!name || seen.has(name)) {
       continue
     }
-
     seen.add(name)
     names.push(name)
   }
-
   return names
 }
-
 /**
  * categoryKeywordsをカテゴリ名単位でマージする
  */
-function mergeCategoryKeywords(
+const mergeCategoryKeywords = (
   existing: SubCategoryKeyword[] | undefined,
   imported: unknown[] | undefined,
-): SubCategoryKeyword[] {
+): SubCategoryKeyword[] => {
   const keywordMap = new Map<string, SubCategoryKeyword>()
-
   for (const keyword of existing || []) {
     keywordMap.set(keyword.categoryName, keyword)
   }
-
   for (const keyword of normalizeCategoryKeywords(imported)) {
     const existingKeyword = keywordMap.get(keyword.categoryName)
     if (!existingKeyword) {
       keywordMap.set(keyword.categoryName, keyword)
       continue
     }
-
     keywordMap.set(keyword.categoryName, {
       categoryName: keyword.categoryName,
       keywords: [
@@ -267,21 +247,18 @@ function mergeCategoryKeywords(
       ],
     })
   }
-
   return Array.from(keywordMap.values())
 }
-
 /**
  * サブカテゴリを順序を保ってマージする（既存優先）
  */
-function mergeSubCategories(
+const mergeSubCategories = (
   existing: unknown[] | undefined,
   imported: unknown[] | undefined,
-): string[] {
+): string[] => {
   const existingNames = normalizeSubCategories(existing)
   const merged = [...existingNames]
   const seen = new Set(existingNames)
-
   for (const name of normalizeSubCategories(imported)) {
     if (seen.has(name)) {
       continue
@@ -289,27 +266,23 @@ function mergeSubCategories(
     seen.add(name)
     merged.push(name)
   }
-
   return merged
 }
-
 /**
  * URL参照情報（urlIds/urlSubCategories）をマージする
  */
-function mergeUrlData(
+const mergeUrlData = (
   existingTab: TabGroup,
   importedUrlData: ConvertedUrlData,
-): ConvertedUrlData {
+): ConvertedUrlData => {
   const urlIdSet = new Set(existingTab.urlIds || [])
   for (const urlId of importedUrlData.urlIds) {
     urlIdSet.add(urlId)
   }
-
   const mergedUrlSubCategories = {
     ...(existingTab.urlSubCategories || {}),
     ...(importedUrlData.urlSubCategories || {}),
   }
-
   return {
     urlIds: Array.from(urlIdSet),
     urlSubCategories:
@@ -318,33 +291,29 @@ function mergeUrlData(
         : undefined,
   }
 }
-
 /**
  * TabGroupのURL情報をエクスポート用の旧形式配列に変換する
  */
-function convertTabGroupToExportUrls(
+const convertTabGroupToExportUrls = (
   tab: TabGroup,
   urlRecordMap: Map<string, UrlRecord>,
   placeholderUrlRecordMap: Map<string, UrlRecord>,
-): NonNullable<TabGroup['urls']> {
+): NonNullable<TabGroup['urls']> => {
   if (Array.isArray(tab.urls) && tab.urls.length > 0) {
     return tab.urls.filter(
-      (item): item is NonNullable<TabGroup['urls']>[number] => !!item?.url,
+      (item): item is NonNullable<TabGroup['urls']>[number] =>
+        Boolean(item?.url),
     )
   }
-
   if (!Array.isArray(tab.urlIds) || tab.urlIds.length === 0) {
     return []
   }
-
   const exportedUrls: NonNullable<TabGroup['urls']> = []
   const baseDomain = tab.domain.replace(/\/+$/, '')
   let offset = 0
-
   for (const urlId of tab.urlIds) {
     const urlRecord =
       urlRecordMap.get(urlId) || placeholderUrlRecordMap.get(urlId)
-
     const resolvedUrlRecord = urlRecord || {
       id: urlId,
       url: `${baseDomain}/#tabbin-export-missing-${urlId}`,
@@ -358,7 +327,6 @@ function convertTabGroupToExportUrls(
       placeholderUrlRecordMap.set(urlId, resolvedUrlRecord)
     }
     offset += 1
-
     exportedUrls.push({
       url: resolvedUrlRecord.url,
       title: resolvedUrlRecord.title || '',
@@ -366,31 +334,26 @@ function convertTabGroupToExportUrls(
       subCategory: tab.urlSubCategories?.[urlId],
     })
   }
-
   return exportedUrls
 }
-
 /**
  * urlIds形式のタブデータをURL配列に復元する
  */
-function restoreImportedUrlsFromIds(
+const restoreImportedUrlsFromIds = (
   tab: ImportedTabData,
   importedUrlRecordMap: Map<string, ImportedUrlRecordData>,
   currentUrlRecordMap: Map<string, UrlRecord>,
-): ImportedUrlData[] {
+): ImportedUrlData[] => {
   if (!Array.isArray(tab.urlIds) || tab.urlIds.length === 0) {
     return []
   }
-
   const restoredUrls: ImportedUrlData[] = []
-
   for (const urlId of tab.urlIds) {
     const urlRecord =
       importedUrlRecordMap.get(urlId) || currentUrlRecordMap.get(urlId)
     if (!urlRecord) {
       continue
     }
-
     restoredUrls.push({
       url: urlRecord.url,
       title: urlRecord.title || '',
@@ -399,30 +362,33 @@ function restoreImportedUrlsFromIds(
       subCategory: tab.urlSubCategories?.[urlId],
     })
   }
-
   return restoredUrls
 }
-
-function normalizeImportedTabsForImport(
+const normalizeImportedTabsForImport = (
   importedTabs: ImportedTabData[],
   importedUrlRecordMap: Map<string, ImportedUrlRecordData>,
   currentUrlRecordMap: Map<string, UrlRecord>,
 ): {
-  normalizedImportedTabs: Array<ImportedTabData & { urls: ImportedUrlData[] }>
+  normalizedImportedTabs: Array<
+    ImportedTabData & {
+      urls: ImportedUrlData[]
+    }
+  >
   unresolvedTabs: Array<{
     domain: string
     urlIds: string[]
     savedAt?: number
   }>
-} {
+} => {
   const unresolvedTabs: Array<{
     domain: string
     urlIds: string[]
     savedAt?: number
   }> = []
-
   const normalizedImportedTabs: Array<
-    ImportedTabData & { urls: ImportedUrlData[] }
+    ImportedTabData & {
+      urls: ImportedUrlData[]
+    }
   > = importedTabs.map(tab => {
     if (Array.isArray(tab.urls)) {
       return {
@@ -430,13 +396,11 @@ function normalizeImportedTabsForImport(
         urls: tab.urls,
       }
     }
-
     const restoredUrls = restoreImportedUrlsFromIds(
       tab,
       importedUrlRecordMap,
       currentUrlRecordMap,
     )
-
     if (
       Array.isArray(tab.urlIds) &&
       tab.urlIds.length > 0 &&
@@ -448,30 +412,34 @@ function normalizeImportedTabsForImport(
         savedAt: tab.savedAt,
       })
     }
-
     return {
       ...tab,
       urls: restoredUrls,
     }
   })
-
-  return { normalizedImportedTabs, unresolvedTabs }
+  return {
+    normalizedImportedTabs,
+    unresolvedTabs,
+  }
 }
-
 /**
  * 変換結果が空のときは、インポート元のurlIdsをそのまま保持して復元性を高める
  */
-function resolveUrlDataForStorage(
-  tab: ImportedTabData & { urls: ImportedUrlData[] },
+const resolveUrlDataForStorage = (
+  tab: ImportedTabData & {
+    urls: ImportedUrlData[]
+  },
   convertedUrlData: {
     urlIds: string[]
     urlSubCategories?: Record<string, string>
   },
-): { urlIds: string[]; urlSubCategories?: Record<string, string> } {
+): {
+  urlIds: string[]
+  urlSubCategories?: Record<string, string>
+} => {
   if (convertedUrlData.urlIds.length > 0) {
     return convertedUrlData
   }
-
   if (
     tab.urls.length > 0 ||
     !Array.isArray(tab.urlIds) ||
@@ -479,7 +447,6 @@ function resolveUrlDataForStorage(
   ) {
     return convertedUrlData
   }
-
   const rawUrlIds = Array.from(new Set(tab.urlIds))
   const rawSubCategories = tab.urlSubCategories
     ? Object.fromEntries(
@@ -488,7 +455,6 @@ function resolveUrlDataForStorage(
         ),
       )
     : undefined
-
   return {
     urlIds: rawUrlIds,
     urlSubCategories:
@@ -497,28 +463,27 @@ function resolveUrlDataForStorage(
         : undefined,
   }
 }
-
 /**
  * バックアップ内にURL実体が無いurlIdsに対して、代替URLレコードを生成する
  */
-async function ensurePlaceholderUrlRecords(
+const ensurePlaceholderUrlRecords = async (
   unresolvedTabs: Array<{
     domain: string
     urlIds: string[]
     savedAt?: number
   }>,
-): Promise<number> {
+): Promise<number> => {
   if (unresolvedTabs.length === 0) {
     return 0
   }
-
-  const urlsData = await chrome.storage.local.get({ urls: [] })
+  const urlsData = await chrome.storage.local.get({
+    urls: [],
+  })
   const currentUrlRecords: UrlRecord[] = Array.isArray(urlsData.urls)
     ? urlsData.urls
     : []
   const existingIdSet = new Set(currentUrlRecords.map(record => record.id))
   const newRecords: UrlRecord[] = []
-
   let offset = 0
   for (const tab of unresolvedTabs) {
     const baseDomain = tab.domain.replace(/\/+$/, '')
@@ -526,7 +491,6 @@ async function ensurePlaceholderUrlRecords(
       if (existingIdSet.has(urlId)) {
         continue
       }
-
       existingIdSet.add(urlId)
       newRecords.push({
         id: urlId,
@@ -538,27 +502,22 @@ async function ensurePlaceholderUrlRecords(
       offset += 1
     }
   }
-
   if (newRecords.length === 0) {
     return 0
   }
-
   await chrome.storage.local.set({
     urls: [...currentUrlRecords, ...newRecords],
   })
-
   return newRecords.length
 }
-
 /**
  * 現在の設定とタブデータをエクスポートする
  * @returns エクスポートされたデータを含むJSONオブジェクト
  */
-export const exportSettings = async (): Promise<BackupData> => {
+const exportSettings = async (): Promise<BackupData> => {
   try {
     // 先にマイグレーションを実行し、新形式URLデータの整合性を高める
     await migrateToUrlsStorage()
-
     const [userSettings, storageData] = await Promise.all([
       getUserSettings(),
       chrome.storage.local.get({
@@ -578,12 +537,10 @@ export const exportSettings = async (): Promise<BackupData> => {
     const urlRecords: UrlRecord[] = Array.isArray(storageData.urls)
       ? storageData.urls
       : []
-
     const urlRecordMap = new Map(
       urlRecords.map(urlRecord => [urlRecord.id, urlRecord]),
     )
     const placeholderUrlRecordMap = new Map<string, UrlRecord>()
-
     const normalizedSavedTabs: TabGroup[] = savedTabs.map(tab => ({
       ...tab,
       urls: convertTabGroupToExportUrls(
@@ -592,7 +549,6 @@ export const exportSettings = async (): Promise<BackupData> => {
         placeholderUrlRecordMap,
       ),
     }))
-
     const mergedUrlRecordMap = new Map(urlRecordMap)
     for (const [id, urlRecord] of placeholderUrlRecordMap) {
       if (!mergedUrlRecordMap.has(id)) {
@@ -600,7 +556,6 @@ export const exportSettings = async (): Promise<BackupData> => {
       }
     }
     const exportUrlRecords = Array.from(mergedUrlRecordMap.values())
-
     if (placeholderUrlRecordMap.size > 0) {
       console.warn(
         `エクスポート補完: ${placeholderUrlRecordMap.size}件の欠損URLに代替URLを付与`,
@@ -616,7 +571,6 @@ export const exportSettings = async (): Promise<BackupData> => {
       savedTabs: normalizedSavedTabs,
       urls: exportUrlRecords,
     }
-
     return backupData
   } catch (error) {
     console.error('エクスポート中にエラーが発生しました:', error)
@@ -629,11 +583,12 @@ export const exportSettings = async (): Promise<BackupData> => {
  * @param data ダウンロードするデータ
  * @param filename ファイル名
  */
-export const downloadAsJson = (data: BackupData, filename: string): void => {
+const downloadAsJson = (data: BackupData, filename: string): void => {
   const json = JSON.stringify(data, null, 2)
-  const blob = new Blob([json], { type: 'application/json' })
+  const blob = new Blob([json], {
+    type: 'application/json',
+  })
   const url = URL.createObjectURL(blob)
-
   const a = document.createElement('a')
   a.href = url
   a.download = filename
@@ -661,8 +616,7 @@ type NormalizedImportResult = ReturnType<typeof normalizeImportedTabsForImport>
 type NormalizedImportedTab =
   NormalizedImportResult['normalizedImportedTabs'][number]
 type UnresolvedImportTab = NormalizedImportResult['unresolvedTabs'][number]
-
-function parseBackupData(jsonData: string): BackupData | null {
+const parseBackupData = (jsonData: string): BackupData | null => {
   const parsedData = JSON.parse(jsonData)
   const validationResult = backupDataSchema.safeParse(parsedData)
   if (!validationResult.success) {
@@ -671,27 +625,26 @@ function parseBackupData(jsonData: string): BackupData | null {
   }
   return validationResult.data as BackupData
 }
-
-function createImportedUrlRecordMap(
+const createImportedUrlRecordMap = (
   importedData: BackupData,
-): Map<string, ImportedUrlRecordData> {
+): Map<string, ImportedUrlRecordData> => {
   return new Map(
     (importedData.urls || []).map(urlRecord => [urlRecord.id, urlRecord]),
   )
 }
-
-async function createCurrentUrlRecordMap(): Promise<Map<string, UrlRecord>> {
-  const currentUrlsData = await chrome.storage.local.get({ urls: [] })
+const createCurrentUrlRecordMap = async (): Promise<Map<string, UrlRecord>> => {
+  const currentUrlsData = await chrome.storage.local.get({
+    urls: [],
+  })
   const currentUrlRecords: UrlRecord[] = Array.isArray(currentUrlsData.urls)
     ? currentUrlsData.urls
     : []
   return new Map(currentUrlRecords.map(urlRecord => [urlRecord.id, urlRecord]))
 }
-
-function mergeUserSettings(
+const mergeUserSettings = (
   currentSettings: UserSettings,
   importedSettings: UserSettings,
-): UserSettings {
+): UserSettings => {
   return {
     ...currentSettings,
     ...importedSettings,
@@ -703,23 +656,22 @@ function mergeUserSettings(
     ],
   }
 }
-
-function normalizeImportedCategory(category: ParentCategory): ParentCategory {
+const normalizeImportedCategory = (
+  category: ParentCategory,
+): ParentCategory => {
   const { keywords, ...rest } = category as ParentCategory & {
     keywords?: string[]
   }
   return rest
 }
-
-function mergeParentCategoriesData(
+const mergeParentCategoriesData = (
   currentCategories: ParentCategory[],
   importedCategories: ParentCategory[],
-): ParentCategory[] {
+): ParentCategory[] => {
   const categoryMap = new Map<string, ParentCategory>()
   for (const category of currentCategories) {
     categoryMap.set(category.id, category)
   }
-
   for (const importedCategory of importedCategories) {
     const existing = categoryMap.get(importedCategory.id)
     if (!existing) {
@@ -729,7 +681,6 @@ function mergeParentCategoriesData(
       )
       continue
     }
-
     categoryMap.set(importedCategory.id, {
       ...existing,
       name: importedCategory.name,
@@ -739,33 +690,29 @@ function mergeParentCategoriesData(
       ],
     })
   }
-
   return Array.from(categoryMap.values())
 }
-
-async function resolveImportedTabUrlData(
+const resolveImportedTabUrlData = async (
   importedTab: NormalizedImportedTab,
-): Promise<ConvertedUrlData> {
+): Promise<ConvertedUrlData> => {
   const convertedUrlData = await convertImportedUrlsToNewFormat(
     importedTab.urls,
   )
   return resolveUrlDataForStorage(importedTab, convertedUrlData)
 }
-
-function resolveMergedSavedAt(
+const resolveMergedSavedAt = (
   existingSavedAt?: number,
   importedSavedAt?: number,
-): number | undefined {
+): number | undefined => {
   if (existingSavedAt && importedSavedAt) {
     return Math.min(existingSavedAt, importedSavedAt)
   }
   return existingSavedAt || importedSavedAt
 }
-
-async function buildMergedExistingDomainTab(
+const buildMergedExistingDomainTab = async (
   existingTab: TabGroup,
   importedTab: NormalizedImportedTab,
-): Promise<TabGroup> {
+): Promise<TabGroup> => {
   const resolvedUrlData = await resolveImportedTabUrlData(importedTab)
   const mergedUrlData = mergeUrlData(existingTab, resolvedUrlData)
   const mergedKeywords = mergeCategoryKeywords(
@@ -776,7 +723,6 @@ async function buildMergedExistingDomainTab(
     existingTab.subCategories,
     importedTab.subCategories,
   )
-
   return {
     id: existingTab.id,
     domain: existingTab.domain,
@@ -789,10 +735,9 @@ async function buildMergedExistingDomainTab(
     savedAt: resolveMergedSavedAt(existingTab.savedAt, importedTab.savedAt),
   }
 }
-
-async function buildMergedNewDomainTab(
+const buildMergedNewDomainTab = async (
   importedTab: NormalizedImportedTab,
-): Promise<TabGroup> {
+): Promise<TabGroup> => {
   const resolvedUrlData = await resolveImportedTabUrlData(importedTab)
   const normalizedKeywords = normalizeCategoryKeywords(
     importedTab.categoryKeywords,
@@ -800,7 +745,6 @@ async function buildMergedNewDomainTab(
   const normalizedSubCategories = normalizeSubCategories(
     importedTab.subCategories,
   )
-
   return {
     id: importedTab.id,
     domain: importedTab.domain,
@@ -812,16 +756,14 @@ async function buildMergedNewDomainTab(
     savedAt: importedTab.savedAt,
   }
 }
-
-async function mergeTabsByDomain(
+const mergeTabsByDomain = async (
   currentTabs: TabGroup[],
   normalizedImportedTabs: NormalizedImportedTab[],
-): Promise<TabGroup[]> {
+): Promise<TabGroup[]> => {
   const tabMapByDomain = new Map<string, TabGroup>()
   for (const tab of currentTabs) {
     tabMapByDomain.set(tab.domain, tab)
   }
-
   for (const importedTab of normalizedImportedTabs) {
     const existingTab = tabMapByDomain.get(importedTab.domain)
     if (existingTab) {
@@ -833,18 +775,15 @@ async function mergeTabsByDomain(
       tabMapByDomain.set(importedTab.domain, mergedTab)
       continue
     }
-
     console.log(`マージ処理: 新規ドメイン ${importedTab.domain}`)
     const newTab = await buildMergedNewDomainTab(importedTab)
     tabMapByDomain.set(importedTab.domain, newTab)
   }
-
   return Array.from(tabMapByDomain.values())
 }
-
-async function buildOverwriteTabs(
+const buildOverwriteTabs = async (
   normalizedImportedTabs: NormalizedImportedTab[],
-): Promise<TabGroup[]> {
+): Promise<TabGroup[]> => {
   return Promise.all(
     normalizedImportedTabs.map(async importedTab => {
       console.log(`上書きモード: ${importedTab.domain} を新形式に変換中...`)
@@ -852,40 +791,36 @@ async function buildOverwriteTabs(
     }),
   )
 }
-
-async function createUnresolvedWarning(
+const createUnresolvedWarning = async (
   unresolvedTabs: UnresolvedImportTab[],
-): Promise<string> {
+): Promise<string> => {
   const placeholderCount = await ensurePlaceholderUrlRecords(unresolvedTabs)
   if (unresolvedTabs.length === 0) {
     return ''
   }
   return `（注意: ${unresolvedTabs.length}個のドメインでURL実体が欠損していたため、${placeholderCount}件の代替URLを生成しました）`
 }
-
-function countAddedCategories(
+const countAddedCategories = (
   importedCategories: ParentCategory[],
   currentCategories: ParentCategory[],
-): number {
+): number => {
   return importedCategories.filter(
     imported => !currentCategories.some(current => current.id === imported.id),
   ).length
 }
-
-function countAddedDomains(
+const countAddedDomains = (
   normalizedImportedTabs: NormalizedImportedTab[],
   currentTabs: TabGroup[],
-): number {
+): number => {
   const currentDomains = new Set(currentTabs.map(tab => tab.domain))
   return normalizedImportedTabs.filter(tab => !currentDomains.has(tab.domain))
     .length
 }
-
-async function importWithMerge(
+const importWithMerge = async (
   importedData: BackupData,
   normalizedImportedTabs: NormalizedImportedTab[],
   unresolvedTabs: UnresolvedImportTab[],
-): Promise<ImportResult> {
+): Promise<ImportResult> => {
   const [currentSettings, storageData] = await Promise.all([
     getUserSettings(),
     chrome.storage.local.get(['parentCategories', 'savedTabs']),
@@ -898,7 +833,6 @@ async function importWithMerge(
   const currentTabs: TabGroup[] = Array.isArray(storageData.savedTabs)
     ? storageData.savedTabs
     : []
-
   const mergedSettings = mergeUserSettings(
     currentSettings,
     importedData.userSettings,
@@ -911,13 +845,13 @@ async function importWithMerge(
     currentTabs,
     normalizedImportedTabs,
   )
-
   await Promise.all([
     saveUserSettings(mergedSettings),
     saveParentCategories(mergedCategories),
-    chrome.storage.local.set({ savedTabs: mergedTabs }),
+    chrome.storage.local.set({
+      savedTabs: mergedTabs,
+    }),
   ])
-
   const unresolvedWarning = await createUnresolvedWarning(unresolvedTabs)
   const addedCategories = countAddedCategories(
     importedData.parentCategories,
@@ -925,42 +859,44 @@ async function importWithMerge(
   )
   const addedDomains = countAddedDomains(normalizedImportedTabs, currentTabs)
   console.log('マージ完了: 新形式URLデータで保存済み')
-
   return {
     success: true,
     message: `データをマージしました (${addedCategories}個のカテゴリと${addedDomains}個のドメインを追加)${unresolvedWarning}`,
   }
 }
-
-async function importWithOverwrite(
+const importWithOverwrite = async (
   importedData: BackupData,
   normalizedImportedTabs: NormalizedImportedTab[],
   unresolvedTabs: UnresolvedImportTab[],
-): Promise<ImportResult> {
+): Promise<ImportResult> => {
   const cleanParentCategories = importedData.parentCategories.map(
     normalizeImportedCategory,
   )
   const cleanTabGroups = await buildOverwriteTabs(normalizedImportedTabs)
-
   await Promise.all([
-    saveUserSettings({ ...defaultSettings, ...importedData.userSettings }),
+    saveUserSettings({
+      ...defaultSettings,
+      ...importedData.userSettings,
+    }),
     saveParentCategories(cleanParentCategories),
-    chrome.storage.local.set({ savedTabs: cleanTabGroups }),
+    chrome.storage.local.set({
+      savedTabs: cleanTabGroups,
+    }),
   ])
-
   const unresolvedWarning = await createUnresolvedWarning(unresolvedTabs)
   await migrateToUrlsStorage()
-
   return {
     success: true,
     message: `設定とタブデータを置き換えました（バージョン: ${importedData.version}、作成日時: ${new Date(importedData.timestamp).toLocaleString()}）${unresolvedWarning}`,
   }
 }
-
-export const importSettings = async (
+const importSettings = async (
   jsonData: string,
   mergeData = true, // デフォルトでマージを有効に
-): Promise<{ success: boolean; message: string }> => {
+): Promise<{
+  success: boolean
+  message: string
+}> => {
   try {
     await migrateToUrlsStorage()
     const importedData = parseBackupData(jsonData)
@@ -970,7 +906,6 @@ export const importSettings = async (
         message: 'インポートされたデータの形式が正しくありません',
       }
     }
-
     const importedUrlRecordMap = createImportedUrlRecordMap(importedData)
     const currentUrlRecordMap = await createCurrentUrlRecordMap()
     const { normalizedImportedTabs, unresolvedTabs } =
@@ -979,14 +914,12 @@ export const importSettings = async (
         importedUrlRecordMap,
         currentUrlRecordMap,
       )
-
     if (unresolvedTabs.length > 0) {
       console.warn(
         'URLデータ未解決ドメイン（代替URLを生成して継続）:',
         unresolvedTabs.map(tab => tab.domain).join(', '),
       )
     }
-
     if (mergeData) {
       return importWithMerge(
         importedData,
@@ -994,7 +927,6 @@ export const importSettings = async (
         unresolvedTabs,
       )
     }
-
     return importWithOverwrite(
       importedData,
       normalizedImportedTabs,
@@ -1008,3 +940,5 @@ export const importSettings = async (
     }
   }
 }
+export { downloadAsJson, exportSettings, importSettings }
+export type { BackupData }

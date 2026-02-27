@@ -31,58 +31,51 @@ interface UseCustomProjectCardParams {
   /** URL並び替えハンドラ */
   handleReorderUrls: (projectId: string, urls: CustomProject['urls']) => void
 }
-
-type ProjectUrlItem = UrlRecord & { notes?: string; category?: string }
-
-function isPointerDroppedInUncategorizedArea(
+type ProjectUrlItem = UrlRecord & {
+  notes?: string
+  category?: string
+}
+const isPointerDroppedInUncategorizedArea = (
   event: DragEndEvent,
   hasSourceCategory: boolean,
-): boolean {
+): boolean => {
   if (!hasSourceCategory || !(event.activatorEvent instanceof MouseEvent)) {
     return false
   }
-
   const activatorEvent = event.activatorEvent as MouseEvent
   const { delta } = event
   const dropX = activatorEvent.clientX + delta.x
   const dropY = activatorEvent.clientY + delta.y
   const dropEl = document.elementFromPoint(dropX, dropY) as HTMLElement | null
-
   return Boolean(dropEl?.closest('[data-uncategorized-area="true"]'))
 }
-
-function isUncategorizedDropTarget(
+const isUncategorizedDropTarget = (
   over: DragEndEvent['over'],
   projectId: string,
-): boolean {
+): boolean => {
   if (!over) {
     return false
   }
-
   if (over.data?.current?.type === 'uncategorized') {
     return true
   }
-
   if (over.id === `uncategorized-${projectId}`) {
     return true
   }
-
   return typeof over.id === 'string' && over.id.includes('uncategorized')
 }
-
-function reorderUrlsInBucket(
+const reorderUrlsInBucket = (
   projectUrls: ProjectUrlItem[],
   sourceCategory: string | undefined,
   actualUrl: string,
   overId: string,
-): ProjectUrlItem[] | null {
+): ProjectUrlItem[] | null => {
   const urlsInTarget = projectUrls.filter(u => u.category === sourceCategory)
   const oldIndex = urlsInTarget.findIndex(u => u.url === actualUrl)
   const newIndex = urlsInTarget.findIndex(u => u.url === overId)
   if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
     return null
   }
-
   const moved = arrayMove(urlsInTarget, oldIndex, newIndex)
   let movedIndex = 0
   return projectUrls.map(u => {
@@ -92,8 +85,9 @@ function reorderUrlsInBucket(
     return u
   })
 }
-
-function resolveOverCategory(over: DragEndEvent['over']): string | undefined {
+const resolveOverCategory = (
+  over: DragEndEvent['over'],
+): string | undefined => {
   if (!over) {
     return undefined
   }
@@ -102,32 +96,35 @@ function resolveOverCategory(over: DragEndEvent['over']): string | undefined {
   }
   return over.data?.current?.category
 }
-
 type UrlToUrlDropResult =
-  | { kind: 'noop' }
-  | { kind: 'reordered'; reorderedUrls: ProjectUrlItem[] }
-  | { kind: 'moved'; overCategory: string | undefined }
-
-function detectUrlDragCollisions(
+  | {
+      kind: 'noop'
+    }
+  | {
+      kind: 'reordered'
+      reorderedUrls: ProjectUrlItem[]
+    }
+  | {
+      kind: 'moved'
+      overCategory: string | undefined
+    }
+const detectUrlDragCollisions = (
   args: Parameters<CollisionDetection>[0],
-): ReturnType<CollisionDetection> {
+): ReturnType<CollisionDetection> => {
   const pointerCollisions = pointerWithin(args)
   if (pointerCollisions.length > 0) {
     return pointerCollisions
   }
-
   const intersections = rectIntersection(args)
   if (intersections.length > 0) {
     return intersections
   }
-
   return closestCenter(args)
 }
-
-function detectCategoryDragCollisions(
+const detectCategoryDragCollisions = (
   args: Parameters<CollisionDetection>[0],
   uncategorizedId: string,
-): ReturnType<CollisionDetection> {
+): ReturnType<CollisionDetection> => {
   const pointerCollisions = pointerWithin(args)
   const uncategorizedPointer = pointerCollisions.find(
     collision => collision.id === uncategorizedId,
@@ -135,7 +132,6 @@ function detectCategoryDragCollisions(
   if (uncategorizedPointer) {
     return [uncategorizedPointer]
   }
-
   const intersections = rectIntersection(args)
   const uncategorizedRect = intersections.find(
     collision => collision.id === uncategorizedId,
@@ -149,17 +145,15 @@ function detectCategoryDragCollisions(
   if (pointerCollisions.length > 0) {
     return pointerCollisions
   }
-
   return closestCenter(args)
 }
-
-function shouldMoveToUncategorized(params: {
+const shouldMoveToUncategorized = (params: {
   event: DragEndEvent
   isUncategorizedOver: boolean
   dragSourceCategory: string | undefined
   over: DragEndEvent['over']
   projectId: string
-}): boolean {
+}): boolean => {
   const { event, isUncategorizedOver, dragSourceCategory, over, projectId } =
     params
   if (!dragSourceCategory) {
@@ -173,18 +167,21 @@ function shouldMoveToUncategorized(params: {
   }
   return isUncategorizedDropTarget(over, projectId)
 }
-
-function applyMovedCategoryToUrls(
+const applyMovedCategoryToUrls = (
   urls: ProjectUrlItem[],
   actualUrl: string,
   overCategory: string | undefined,
-): ProjectUrlItem[] {
+): ProjectUrlItem[] => {
   return urls.map(url =>
-    url.url === actualUrl ? { ...url, category: overCategory } : url,
+    url.url === actualUrl
+      ? {
+          ...url,
+          category: overCategory,
+        }
+      : url,
   )
 }
-
-function handleProcessedUrlDrop(params: {
+const handleProcessedUrlDrop = (params: {
   projectId: string
   actualUrl: string
   dragSourceCategory: string | undefined
@@ -200,7 +197,7 @@ function handleProcessedUrlDrop(params: {
   handleReorderUrls: (projectId: string, urls: CustomProject['urls']) => void
   setProjectUrls: Dispatch<SetStateAction<ProjectUrlItem[]>>
   clearDragState: () => void
-}): void {
+}): void => {
   const {
     projectId,
     actualUrl,
@@ -214,13 +211,11 @@ function handleProcessedUrlDrop(params: {
     setProjectUrls,
     clearDragState,
   } = params
-
   const moveToUncategorized = () => {
     handleSetUrlCategory(projectId, actualUrl, undefined)
     toast.success('URLを未分類に移動しました')
     clearDragState()
   }
-
   if (
     shouldMoveToUncategorized({
       event,
@@ -233,7 +228,6 @@ function handleProcessedUrlDrop(params: {
     moveToUncategorized()
     return
   }
-
   const urlToUrlDropResult = processUrlToUrlDrop({
     active: event.active,
     over,
@@ -241,7 +235,6 @@ function handleProcessedUrlDrop(params: {
     dragSourceCategory,
     actualUrl,
   })
-
   if (urlToUrlDropResult.kind === 'reordered') {
     handleReorderUrls(projectId, urlToUrlDropResult.reorderedUrls)
     setProjectUrls(urlToUrlDropResult.reorderedUrls)
@@ -249,7 +242,6 @@ function handleProcessedUrlDrop(params: {
     clearDragState()
     return
   }
-
   if (urlToUrlDropResult.kind === 'moved') {
     handleSetUrlCategory(projectId, actualUrl, urlToUrlDropResult.overCategory)
     setProjectUrls(prev =>
@@ -267,7 +259,6 @@ function handleProcessedUrlDrop(params: {
     clearDragState()
     return
   }
-
   if (over?.data?.current?.type === 'category') {
     const targetCategory = over.data.current.categoryName
     if (targetCategory && targetCategory !== dragSourceCategory) {
@@ -277,34 +268,34 @@ function handleProcessedUrlDrop(params: {
       return
     }
   }
-
   clearDragState()
 }
-
-function processUrlToUrlDrop(params: {
+const processUrlToUrlDrop = (params: {
   active: DragEndEvent['active']
   over: DragEndEvent['over']
   projectUrls: ProjectUrlItem[]
   dragSourceCategory: string | undefined
   actualUrl: string
-}): UrlToUrlDropResult {
+}): UrlToUrlDropResult => {
   const { active, over, projectUrls, dragSourceCategory, actualUrl } = params
-
   const isUrlToUrlDrop =
     active.data.current?.type === 'url' &&
     over?.data.current?.type === 'url' &&
     over.id !== active.id
   if (!isUrlToUrlDrop) {
-    return { kind: 'noop' }
+    return {
+      kind: 'noop',
+    }
   }
-
   const overCategory = resolveOverCategory(over)
   const isSameBucket =
     !(dragSourceCategory || overCategory) || dragSourceCategory === overCategory
   if (!isSameBucket) {
-    return { kind: 'moved', overCategory }
+    return {
+      kind: 'moved',
+      overCategory,
+    }
   }
-
   const reorderedUrls = reorderUrlsInBucket(
     projectUrls,
     dragSourceCategory,
@@ -312,32 +303,34 @@ function processUrlToUrlDrop(params: {
     String(over.id),
   )
   if (!reorderedUrls) {
-    return { kind: 'noop' }
+    return {
+      kind: 'noop',
+    }
   }
-  return { kind: 'reordered', reorderedUrls }
+  return {
+    kind: 'reordered',
+    reorderedUrls,
+  }
 }
-
 /**
  * CustomProjectCard の状態ロジックを管理するカスタムフック
  * @param params フックの引数
  * @returns プロジェクトURL・DnD・衝突検出関連の状態と操作
  */
-export function useCustomProjectCard({
+export const useCustomProjectCard = ({
   project,
   handleSetUrlCategory,
   handleUpdateCategoryOrder,
   handleReorderUrls,
-}: UseCustomProjectCardParams) {
+}: UseCustomProjectCardParams) => {
   // --- プロジェクトURL状態 ---
   const [projectUrls, setProjectUrls] = useState<ProjectUrlItem[]>([])
   const [isLoadingUrls, setIsLoadingUrls] = useState(true)
   const projectUrlsRef = useRef(projectUrls)
   const handleSetUrlCategoryRef = useRef(handleSetUrlCategory)
-
   useEffect(() => {
     projectUrlsRef.current = projectUrls
   }, [projectUrls])
-
   useEffect(() => {
     handleSetUrlCategoryRef.current = handleSetUrlCategory
   }, [handleSetUrlCategory])
@@ -369,7 +362,6 @@ export function useCustomProjectCard({
         setIsLoadingUrls(false)
       }
     }
-
     loadProjectUrls()
   }, [project])
 
@@ -380,7 +372,6 @@ export function useCustomProjectCard({
       if (active.data.current?.type === 'url') {
         return detectUrlDragCollisions(args)
       }
-
       const uncategorizedId = `uncategorized-${project.id}`
       return detectCategoryDragCollisions(args, uncategorizedId)
     },
@@ -391,14 +382,10 @@ export function useCustomProjectCard({
   const handleUrlDragEnd = useCallback(
     (event: DragEndEvent, isUncategorizedOver: boolean) => {
       const { active, over } = event
-
       const actualUrl = active.data.current?.url || String(active.id)
       const dragSourceCategory = active.data.current?.category
-
       setActiveId(null)
-
       const clearDragState = () => setDraggedOverCategory(null)
-
       if (!over) {
         clearDragState()
         return
@@ -476,7 +463,6 @@ export function useCustomProjectCard({
           const urlAttr =
             targetElement.getAttribute('data-url') ||
             targetElement.closest('[data-url]')?.getAttribute('data-url')
-
           if (urlAttr && projectUrlsRef.current.some(u => u.url === urlAttr)) {
             handleSetUrlCategoryRef.current(project.id, urlAttr, undefined)
             toast.success('URLのカテゴリを解除しました（Alt+クリック）')
@@ -484,7 +470,6 @@ export function useCustomProjectCard({
         }
       }
     }
-
     document.addEventListener('click', handleManualCategoryReset)
     return () =>
       document.removeEventListener('click', handleManualCategoryReset)
@@ -493,7 +478,6 @@ export function useCustomProjectCard({
   // --- 計算済みデータ ---
   const uncategorizedUrls = projectUrls.filter(url => !url.category)
   const categoryOrder = project.categoryOrder || project.categories
-
   return {
     /** プロジェクトURL関連 */
     urls: {

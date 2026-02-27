@@ -15,8 +15,7 @@ interface UserSettings {
   confirmDeleteEach: boolean
   colors: Record<string, string>
 }
-
-export interface MockChromeStore {
+interface MockChromeStore {
   userSettings: UserSettings
   parentCategories: unknown[]
   savedTabs: unknown[]
@@ -29,10 +28,8 @@ export interface MockChromeStore {
   'tab-manager-theme': string
   [key: string]: unknown
 }
-
 type MockRuntimeMessage = Record<string, unknown>
 type MockSetCall = Record<string, unknown>
-
 const defaultStore: MockChromeStore = {
   userSettings: {
     removeTabAfterOpen: true,
@@ -59,9 +56,7 @@ const defaultStore: MockChromeStore = {
   domainCategoryMappings: [],
   'tab-manager-theme': 'system',
 }
-
 const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
-
 const createInitialStore = (
   overrides: Partial<MockChromeStore>,
 ): MockChromeStore => ({
@@ -72,13 +67,11 @@ const createInitialStore = (
     ...(overrides.userSettings ?? {}),
   },
 })
-
-export async function installChromeMock(
+export const installChromeMock = async (
   page: Page,
   overrides: Partial<MockChromeStore> = {},
-) {
+) => {
   const initialStore = createInitialStore(overrides)
-
   await page.addInitScript(
     ({ seedStore }) => {
       interface StorageChange {
@@ -86,10 +79,11 @@ export async function installChromeMock(
         newValue?: unknown
       }
       type Listener = (
-        changes: { [key: string]: StorageChange },
+        changes: {
+          [key: string]: StorageChange
+        },
         areaName: string,
       ) => void
-
       const listeners: Listener[] = []
       const runtimeMessages: Record<string, unknown>[] = []
       const setCalls: Record<string, unknown>[] = []
@@ -97,22 +91,21 @@ export async function installChromeMock(
         string,
         unknown
       >
-
       const clone = <T>(value: T): T => {
         if (value === undefined) {
           return value
         }
         return JSON.parse(JSON.stringify(value)) as T
       }
-
       const emitChanges = (changes: { [key: string]: StorageChange }) => {
         for (const listener of listeners.slice()) {
           listener(changes, 'local')
         }
       }
-
       const readAllStore = () => clone(store)
-      const readStoreByKey = (key: string) => ({ [key]: clone(store[key]) })
+      const readStoreByKey = (key: string) => ({
+        [key]: clone(store[key]),
+      })
       const readStoreByArray = (keys: string[]) => {
         const result: Record<string, unknown> = {}
         for (const key of keys) {
@@ -128,30 +121,26 @@ export async function installChromeMock(
         }
         return result
       }
-
       const local = {
         async get(keys?: string | string[] | Record<string, unknown>) {
           if (keys == null) {
             return readAllStore()
           }
-
           if (typeof keys === 'string') {
             return readStoreByKey(keys)
           }
-
           if (Array.isArray(keys)) {
             return readStoreByArray(keys)
           }
-
           return readStoreByDefaults(keys)
         },
-
         async set(
           next: Record<string, unknown>,
           callback?: () => void,
         ): Promise<void> {
-          const changes: { [key: string]: StorageChange } = {}
-
+          const changes: {
+            [key: string]: StorageChange
+          } = {}
           for (const [key, value] of Object.entries(next)) {
             changes[key] = {
               oldValue: clone(store[key]),
@@ -159,19 +148,18 @@ export async function installChromeMock(
             }
             store[key] = clone(value)
           }
-
           setCalls.push(clone(next))
           emitChanges(changes)
           callback?.()
         },
-
         async remove(
           keys: string | string[],
           callback?: () => void,
         ): Promise<void> {
           const entries = Array.isArray(keys) ? keys : [keys]
-          const changes: { [key: string]: StorageChange } = {}
-
+          const changes: {
+            [key: string]: StorageChange
+          } = {}
           for (const key of entries) {
             changes[key] = {
               oldValue: clone(store[key]),
@@ -179,15 +167,14 @@ export async function installChromeMock(
             }
             delete store[key]
           }
-
           emitChanges(changes)
           callback?.()
         },
-
         async clear(callback?: () => void): Promise<void> {
           const keys = Object.keys(store)
-          const changes: { [key: string]: StorageChange } = {}
-
+          const changes: {
+            [key: string]: StorageChange
+          } = {}
           for (const key of keys) {
             changes[key] = {
               oldValue: clone(store[key]),
@@ -195,26 +182,27 @@ export async function installChromeMock(
             }
             delete store[key]
           }
-
           emitChanges(changes)
           callback?.()
         },
       }
-
       const runtime = {
-        getManifest: () => ({ version: 'test' }),
+        getManifest: () => ({
+          version: 'test',
+        }),
         getURL: (path: string) => `chrome-extension://tabbin/${path}`,
         sendMessage: (
           message: Record<string, unknown>,
           callback?: (response: Record<string, unknown>) => void,
         ) => {
           runtimeMessages.push(clone(message))
-          const response = { ok: true }
+          const response = {
+            ok: true,
+          }
           callback?.(response)
           return Promise.resolve(response)
         },
       }
-
       const chromeMock = {
         storage: {
           local,
@@ -232,14 +220,12 @@ export async function installChromeMock(
         },
         runtime,
       } as unknown as typeof chrome
-
       Object.defineProperty(globalThis, 'chrome', {
         configurable: true,
         writable: true,
         value: chromeMock,
       })
-
-      Object.defineProperty(globalThis, '__tabbinE2E', {
+      Object.defineProperty(globalThis, 'tabbinE2E', {
         configurable: true,
         writable: true,
         value: {
@@ -248,7 +234,6 @@ export async function installChromeMock(
           setCalls,
         },
       })
-
       if (!globalThis.matchMedia) {
         Object.defineProperty(globalThis, 'matchMedia', {
           writable: true,
@@ -265,33 +250,37 @@ export async function installChromeMock(
         })
       }
     },
-    { seedStore: initialStore },
+    {
+      seedStore: initialStore,
+    },
   )
 }
-
-export async function getMockStore(page: Page): Promise<MockChromeStore> {
+export const getMockStore = async (page: Page): Promise<MockChromeStore> => {
   return page.evaluate(() => {
     const state = (
       globalThis as typeof globalThis & {
-        __tabbinE2E?: { store: MockChromeStore }
+        tabbinE2E?: {
+          store: MockChromeStore
+        }
       }
-    ).__tabbinE2E
+    ).tabbinE2E
     if (!state) {
       throw new Error('Mock state not found')
     }
     return JSON.parse(JSON.stringify(state.store)) as MockChromeStore
   })
 }
-
-export async function getMockRuntimeMessages(
+export const getMockRuntimeMessages = async (
   page: Page,
-): Promise<MockRuntimeMessage[]> {
+): Promise<MockRuntimeMessage[]> => {
   return page.evaluate(() => {
     const state = (
       globalThis as typeof globalThis & {
-        __tabbinE2E?: { runtimeMessages: MockRuntimeMessage[] }
+        tabbinE2E?: {
+          runtimeMessages: MockRuntimeMessage[]
+        }
       }
-    ).__tabbinE2E
+    ).tabbinE2E
     if (!state) {
       throw new Error('Mock state not found')
     }
@@ -300,19 +289,20 @@ export async function getMockRuntimeMessages(
     ) as MockRuntimeMessage[]
   })
 }
-
-export async function getMockSetCalls(page: Page): Promise<MockSetCall[]> {
+export const getMockSetCalls = async (page: Page): Promise<MockSetCall[]> => {
   return page.evaluate(() => {
     const state = (
       globalThis as typeof globalThis & {
-        __tabbinE2E?: { setCalls: MockSetCall[] }
+        tabbinE2E?: {
+          setCalls: MockSetCall[]
+        }
       }
-    ).__tabbinE2E
+    ).tabbinE2E
     if (!state) {
       throw new Error('Mock state not found')
     }
     return JSON.parse(JSON.stringify(state.setCalls)) as MockSetCall[]
   })
 }
-
 export const getDefaultMockStore = () => deepClone(defaultStore)
+export type { MockChromeStore }

@@ -1,6 +1,6 @@
 const { chromium } = require('playwright')
 
-async function run() {
+const run = async () => {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext()
 
@@ -120,6 +120,8 @@ async function run() {
         sendMessage: async () => ({}),
       },
     }
+
+    globalThis.enableSavedTabsProfiler = true
   })
 
   const page = await context.newPage()
@@ -145,7 +147,7 @@ async function run() {
   await page.waitForTimeout(800)
 
   const initial = await page.evaluate(
-    () => globalThis.__savedTabsProfiler || { commits: 0 },
+    () => globalThis.savedTabsProfiler || { commits: 0 },
   )
 
   const search = page.locator('input[placeholder="検索"]').first()
@@ -157,7 +159,7 @@ async function run() {
   await page.waitForTimeout(400)
 
   const final = await page.evaluate(
-    () => globalThis.__savedTabsProfiler || { commits: 0 },
+    () => globalThis.savedTabsProfiler || { commits: 0 },
   )
 
   console.log(

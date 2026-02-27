@@ -31,31 +31,38 @@ export const CollapseToggle = ({
   setUserCollapsedState,
   isDisabled = false,
   disabledMessage = '並び替えモード中',
-}: CollapseToggleProps) => (
-  <Tooltip>
-    <TooltipTrigger asChild={true}>
-      <Button
-        variant='secondary'
-        size='sm'
-        onClick={e => {
-          e.stopPropagation()
-          if (!isDisabled) {
-            const newState = !isCollapsed
-            setIsCollapsed(newState)
-            setUserCollapsedState(newState)
-          }
-        }}
-        className={`flex items-center gap-1 ${
-          isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-        }`}
-        aria-label={isCollapsed ? '展開' : '折りたたむ'}
-        disabled={isDisabled}
-      >
-        {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent side='top' className='block lg:hidden'>
-      {isDisabled ? disabledMessage : isCollapsed ? '展開' : '折りたたむ'}
-    </TooltipContent>
-  </Tooltip>
-)
+}: CollapseToggleProps) => {
+  let tooltipLabel = disabledMessage
+  if (!isDisabled) {
+    tooltipLabel = isCollapsed ? '展開' : '折りたたむ'
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild={true}>
+        <Button
+          variant='secondary'
+          size='sm'
+          onClick={e => {
+            e.stopPropagation()
+            if (!isDisabled) {
+              const newState = !isCollapsed
+              setIsCollapsed(newState)
+              setUserCollapsedState(newState)
+            }
+          }}
+          className={`flex items-center gap-1 ${
+            isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+          }`}
+          aria-label={isCollapsed ? '展開' : '折りたたむ'}
+          disabled={isDisabled}
+        >
+          {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side='top' className='block lg:hidden'>
+        {tooltipLabel}
+      </TooltipContent>
+    </Tooltip>
+  )
+}

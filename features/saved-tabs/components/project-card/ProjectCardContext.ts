@@ -32,6 +32,6 @@ export interface ProjectCardContextType {
 }
 
 export const {
-  Context: ProjectCardContext,
+  context: ProjectCardContext,
   useCompoundContext: useProjectCard,
 } = createCompoundContext<ProjectCardContextType>('ProjectCard')

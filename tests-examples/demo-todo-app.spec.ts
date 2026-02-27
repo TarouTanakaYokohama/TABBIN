@@ -435,7 +435,7 @@ test.describe('ルーティング', () => {
   })
 })
 
-async function createDefaultTodos(page: Page) {
+const createDefaultTodos = async (page: Page) => {
   // create a new todo locator
   const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -445,17 +445,20 @@ async function createDefaultTodos(page: Page) {
   }
 }
 
-async function checkNumberOfTodosInLocalStorage(page: Page, expected: number) {
+const checkNumberOfTodosInLocalStorage = async (
+  page: Page,
+  expected: number,
+) => {
   return await page.waitForFunction(
     e => JSON.parse(localStorage['react-todos']).length === e,
     expected,
   )
 }
 
-async function checkNumberOfCompletedTodosInLocalStorage(
+const checkNumberOfCompletedTodosInLocalStorage = async (
   page: Page,
   expected: number,
-) {
+) => {
   return await page.waitForFunction(
     e =>
       JSON.parse(localStorage['react-todos']).filter(
@@ -465,7 +468,7 @@ async function checkNumberOfCompletedTodosInLocalStorage(
   )
 }
 
-async function checkTodosInLocalStorage(page: Page, title: string) {
+const checkTodosInLocalStorage = async (page: Page, title: string) => {
   return await page.waitForFunction(
     t =>
       JSON.parse(localStorage['react-todos'])

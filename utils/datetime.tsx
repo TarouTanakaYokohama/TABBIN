@@ -4,8 +4,7 @@ interface TimeRemainingResponse {
   error?: string
   timeRemaining?: number
 }
-
-function getTimeRemainingColorClass(remainingMs: number): string {
+const getTimeRemainingColorClass = (remainingMs: number): string => {
   if (remainingMs < 1000 * 60 * 60) {
     return 'text-red-500 font-medium'
   }
@@ -17,14 +16,12 @@ function getTimeRemainingColorClass(remainingMs: number): string {
   }
   return 'text-emerald-500'
 }
-
-function formatTimeRemainingText(remainingMs: number): string {
+const formatTimeRemainingText = (remainingMs: number): string => {
   const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
   const hours = Math.floor(
     (remainingMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
   )
   const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
-
   let result = 'あと '
   if (days > 0) {
     result += `${days}日 `
@@ -35,34 +32,29 @@ function formatTimeRemainingText(remainingMs: number): string {
   result += `${minutes}分`
   return result
 }
-
-function applyTimeRemainingResponse(
+const applyTimeRemainingResponse = (
   response: TimeRemainingResponse,
   setTimeLeft: (value: string) => void,
   setColorClass: (value: string) => void,
-): void {
+): void => {
   if (response.error) {
     console.error('残り時間計算エラー:', response.error)
     setTimeLeft('')
     return
   }
-
   if (!response.timeRemaining) {
     setTimeLeft('')
     return
   }
-
   const remainingMs = response.timeRemaining
   if (remainingMs <= 0) {
     setColorClass('text-red-500')
     setTimeLeft('間もなく削除')
     return
   }
-
   setColorClass(getTimeRemainingColorClass(remainingMs))
   setTimeLeft(formatTimeRemainingText(remainingMs))
 }
-
 /**
  * タイムスタンプを日時形式にフォーマットする関数
  * 「YYYY/MM/DD HH:MM:SS」形式で返します
@@ -70,11 +62,10 @@ function applyTimeRemainingResponse(
  * @param timestamp ミリ秒タイムスタンプ
  * @returns フォーマットされた日時文字列
  */
-export function formatDatetime(timestamp?: number): string {
+export const formatDatetime = (timestamp?: number): string => {
   if (!timestamp) {
     return '-'
   }
-
   const date = new Date(timestamp)
 
   // 年月日と時分秒を取得
@@ -88,7 +79,6 @@ export function formatDatetime(timestamp?: number): string {
   // 「YYYY/MM/DD HH:MM:SS」形式で返す
   return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`
 }
-
 /**
  * 残り時間を表示するコンポーネント
  *
@@ -104,7 +94,6 @@ export const TimeRemaining = ({
 }) => {
   const [timeLeft, setTimeLeft] = useState<string>('')
   const [colorClass, setColorClass] = useState<string>('')
-
   useEffect(() => {
     // 自動削除が無効な場合や保存時刻がない場合は何も表示しない
     if (!autoDeletePeriod || autoDeletePeriod === 'never' || !savedAt) {
@@ -131,14 +120,11 @@ export const TimeRemaining = ({
 
     // 1分ごとに更新
     const timer = setInterval(calculateTimeLeft, 60000)
-
     return () => clearInterval(timer)
   }, [savedAt, autoDeletePeriod])
-
   if (!timeLeft) {
     return null
   }
-
   return (
     <span className={`text-xs ${colorClass}`} title='自動削除までの残り時間'>
       {timeLeft}

@@ -16,8 +16,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { CategoryKeywordModal } from '@/features/saved-tabs/components/CategoryKeywordModal'
 import { handleSaveKeywords } from '@/features/saved-tabs/lib/category-keywords'
-import { CategoryKeywordModal } from '../CategoryKeywordModal'
 import { useDomainCard } from './DomainCardContext'
 
 /**

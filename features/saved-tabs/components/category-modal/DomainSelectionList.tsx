@@ -8,25 +8,21 @@ interface DomainCategoryInfo {
   id: string
   name: string
 }
-
 interface DomainSelectionState {
   selectedCategoryId: string | null
 }
-
 interface DomainState {
   domainCategories: Record<string, DomainCategoryInfo | null>
   selectedDomains: Record<string, boolean>
   toggleDomainSelection: (domainId: string) => void
 }
-
-function sortTabGroups(
+const sortTabGroups = (
   tabGroups: TabGroup[],
   domainCategories: DomainState['domainCategories'],
-): TabGroup[] {
+): TabGroup[] => {
   return [...tabGroups].sort((a, b) => {
     const aHasCategory = Boolean(domainCategories[a.id])
     const bHasCategory = Boolean(domainCategories[b.id])
-
     if (!aHasCategory && bHasCategory) {
       return -1
     }
@@ -36,16 +32,14 @@ function sortTabGroups(
     return a.domain.localeCompare(b.domain)
   })
 }
-
-function getDomainRowClass(
+const getDomainRowClass = (
   belongsToCategory: DomainCategoryInfo | null,
   isInCurrentCategory: boolean,
-): string {
+): string => {
   const categoryClass = isInCurrentCategory ? 'bg-primary/10' : ''
   const uncategorizedClass = !belongsToCategory ? 'bg-muted/50' : ''
   return `flex items-center space-x-2 rounded border-b p-2 last:border-0 ${categoryClass} ${uncategorizedClass}`
 }
-
 const DomainCategoryStatus = ({
   belongsToCategory,
   selectedCategoryId,
@@ -71,7 +65,6 @@ const DomainCategoryStatus = ({
       </button>
     )
   }
-
   const isCurrentCategory = selectedCategoryId === belongsToCategory.id
   return (
     <button
@@ -89,28 +82,24 @@ const DomainCategoryStatus = ({
     </button>
   )
 }
-
-function renderDomainRow(params: {
+const renderDomainRow = (params: {
   group: TabGroup
   selection: DomainSelectionState
   domains: DomainState
   isLoading: boolean
-}) {
+}) => {
   const { group, selection, domains, isLoading } = params
   const belongsToCategory = domains.domainCategories[group.id]
   const isInCurrentCategory =
     selection.selectedCategoryId !== null &&
     selection.selectedCategoryId !== 'uncategorized' &&
     belongsToCategory?.id === selection.selectedCategoryId
-
   if (selection.selectedCategoryId === 'uncategorized' && belongsToCategory) {
     return null
   }
-
   const disabled = isLoading || !selection.selectedCategoryId
   const checkboxId = `domain-${group.id}`
   const onToggle = () => domains.toggleDomainSelection(group.id)
-
   return (
     <div
       key={group.id}
@@ -136,7 +125,6 @@ function renderDomainRow(params: {
     </div>
   )
 }
-
 /**
  * ドメイン選択リスト
  * ドメインをカテゴリに割り当てるためのチェックボックスリスト
@@ -144,11 +132,9 @@ function renderDomainRow(params: {
 export const DomainSelectionList = () => {
   const { state, tabGroups } = useCategoryModalContext()
   const { selection, domains, isLoading } = state
-
   if (selection.categories.length === 0) {
     return null
   }
-
   return (
     <div>
       <Label>
@@ -160,7 +146,12 @@ export const DomainSelectionList = () => {
         {tabGroups.length > 0 ? (
           sortTabGroups(tabGroups, domains.domainCategories)
             .map(group =>
-              renderDomainRow({ group, selection, domains, isLoading }),
+              renderDomainRow({
+                group,
+                selection,
+                domains,
+                isLoading,
+              }),
             )
             .filter(Boolean)
         ) : (

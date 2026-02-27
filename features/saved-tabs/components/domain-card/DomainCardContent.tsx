@@ -12,8 +12,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CardContent } from '@/components/ui/card'
-import { SortableCategorySection } from '../SortableCategorySection'
-import { CategorySection } from '../TimeRemaining'
+import { SortableCategorySection } from '@/features/saved-tabs/components/SortableCategorySection'
+import { CategorySection } from '@/features/saved-tabs/components/TimeRemaining'
 import { useDomainCard } from './DomainCardContext'
 
 /**

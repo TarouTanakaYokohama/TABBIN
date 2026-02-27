@@ -582,7 +582,7 @@ describe('url-storage', () => {
         _delay?: number,
         ...args: unknown[]
       ) => {
-        if (typeof callback === 'function') {
+        if (callback instanceof Function) {
           callback(...args)
         }
         return 1 as unknown as ReturnType<typeof setTimeout>

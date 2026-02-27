@@ -1,8 +1,8 @@
 // 期間が短くなるかどうかを判定するヘルパー関数を追加
-export function isPeriodShortening(
+export const isPeriodShortening = (
   currentPeriod: string,
   newPeriod: string,
-): boolean {
+): boolean => {
   // 「never」からの変更は常に短くなる
   if (currentPeriod === 'never') {
     return true
@@ -38,6 +38,5 @@ export function isPeriodShortening(
         return Number.POSITIVE_INFINITY
     }
   }
-
   return getPeriodSeconds(newPeriod) < getPeriodSeconds(currentPeriod)
 }

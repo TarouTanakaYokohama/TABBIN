@@ -236,7 +236,7 @@ describe('ProjectUrlItem', () => {
     const blurCall = [...addEventListenerSpy.mock.calls]
       .reverse()
       .find(([eventName]) => eventName === 'blur')
-    if (!blurCall || typeof blurCall[1] !== 'function') {
+    if (!blurCall || !(blurCall[1] instanceof Function)) {
       throw new Error('blur handler was not captured')
     }
     blurCall[1](new Event('blur'))
@@ -273,7 +273,7 @@ describe('ProjectUrlItem', () => {
     const blurCall = [...addEventListenerSpy.mock.calls]
       .reverse()
       .find(([eventName]) => eventName === 'blur')
-    if (!blurCall || typeof blurCall[1] !== 'function') {
+    if (!blurCall || !(blurCall[1] instanceof Function)) {
       throw new Error('blur handler was not captured')
     }
     blurCall[1](new Event('blur'))
@@ -305,7 +305,7 @@ describe('ProjectUrlItem', () => {
     const blurCall = [...addEventListenerSpy.mock.calls]
       .reverse()
       .find(([eventName]) => eventName === 'blur')
-    if (!blurCall || typeof blurCall[1] !== 'function') {
+    if (!blurCall || !(blurCall[1] instanceof Function)) {
       throw new Error('blur handler was not captured')
     }
     fireEvent.dragEnd(link, { dataTransfer })

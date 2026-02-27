@@ -28,5 +28,5 @@ export interface DomainCardContextType {
   }
 }
 
-export const { Context: DomainCardContext, useCompoundContext: useDomainCard } =
+export const { context: DomainCardContext, useCompoundContext: useDomainCard } =
   createCompoundContext<DomainCardContextType>('DomainCard')

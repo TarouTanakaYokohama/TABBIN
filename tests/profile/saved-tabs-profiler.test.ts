@@ -137,15 +137,15 @@ describe('SavedTabs プロファイラのベースライン', () => {
       createChromeMock()
     ;(
       globalThis as typeof globalThis & {
-        __ENABLE_SAVED_TABS_PROFILER?: boolean
-        __savedTabsProfiler?: { commits: number }
+        enableSavedTabsProfiler?: boolean
+        savedTabsProfiler?: { commits: number }
       }
-    ).__ENABLE_SAVED_TABS_PROFILER = true
+    ).enableSavedTabsProfiler = true
     ;(
       globalThis as typeof globalThis & {
-        __savedTabsProfiler?: { commits: number }
+        savedTabsProfiler?: { commits: number }
       }
-    ).__savedTabsProfiler = undefined
+    ).savedTabsProfiler = undefined
     ;(globalThis as unknown as { open: typeof window.open }).open = vi.fn()
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
@@ -166,9 +166,9 @@ describe('SavedTabs プロファイラのベースライン', () => {
     document.body.innerHTML = ''
     ;(
       globalThis as typeof globalThis & {
-        __ENABLE_SAVED_TABS_PROFILER?: boolean
+        enableSavedTabsProfiler?: boolean
       }
-    ).__ENABLE_SAVED_TABS_PROFILER = false
+    ).enableSavedTabsProfiler = false
   })
 
   test('検索操作中のコミット回数を記録する', async () => {
@@ -182,18 +182,18 @@ describe('SavedTabs プロファイラのベースライン', () => {
       expect(
         (
           globalThis as typeof globalThis & {
-            __savedTabsProfiler?: { commits: number }
+            savedTabsProfiler?: { commits: number }
           }
-        ).__savedTabsProfiler,
+        ).savedTabsProfiler,
       ).toBeDefined()
     })
 
     const initialCommits =
       (
         globalThis as typeof globalThis & {
-          __savedTabsProfiler?: { commits: number }
+          savedTabsProfiler?: { commits: number }
         }
-      ).__savedTabsProfiler?.commits ?? 0
+      ).savedTabsProfiler?.commits ?? 0
 
     fireEvent.change(searchInput, { target: { value: 'exa' } })
     fireEvent.change(searchInput, { target: { value: 'example' } })
@@ -203,18 +203,18 @@ describe('SavedTabs プロファイラのベースライン', () => {
       const commits =
         (
           globalThis as typeof globalThis & {
-            __savedTabsProfiler?: { commits: number }
+            savedTabsProfiler?: { commits: number }
           }
-        ).__savedTabsProfiler?.commits ?? 0
+        ).savedTabsProfiler?.commits ?? 0
       expect(commits).toBeGreaterThan(initialCommits)
     })
 
     const finalCommits =
       (
         globalThis as typeof globalThis & {
-          __savedTabsProfiler?: { commits: number }
+          savedTabsProfiler?: { commits: number }
         }
-      ).__savedTabsProfiler?.commits ?? 0
+      ).savedTabsProfiler?.commits ?? 0
 
     console.log(
       JSON.stringify(
