@@ -18,7 +18,7 @@ export const SubCategoryAddSection = () => {
           value={subcategory.newSubCategory}
           onChange={subcategory.handleSubCategoryNameChange}
           placeholder='例: ニュース、ブログ、コラム'
-          className={`flex-grow rounded border p-2 ${subcategory.subCategoryNameError ? 'border-red-500' : ''}`}
+          className={`grow rounded border p-2 ${subcategory.subCategoryNameError ? 'border-red-500' : ''}`}
           onKeyDown={e => {
             if (e.key === 'Enter') {
               e.preventDefault()

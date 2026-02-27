@@ -1281,7 +1281,7 @@ const SavedTabs = () => {
 
                 {/* 未分類ドメイン並び替えモード中の確定・キャンセルボタン */}
                 {isUncategorizedReorderMode && (
-                  <div className='pointer-events-auto ml-2 flex flex-shrink-0 gap-2'>
+                  <div className='pointer-events-auto ml-2 flex shrink-0 gap-2'>
                     <Tooltip>
                       <TooltipTrigger asChild={true}>
                         <Button

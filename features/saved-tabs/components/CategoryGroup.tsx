@@ -62,7 +62,7 @@ const CategoryGroupComponent = ({
       handlers={handlers}
     >
       <CategoryGroupHeader>
-        <div className='flex flex-grow items-center gap-2'>
+        <div className='flex grow items-center gap-2'>
           <CategoryGroupCollapseButton />
           <CategoryGroupSortButton />
           <CategoryGroupTitle />

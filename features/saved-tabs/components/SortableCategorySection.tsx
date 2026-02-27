@@ -239,7 +239,7 @@ export const SortableCategorySection = ({
           </Tooltip>
           {/* ドラッグハンドル部分 */}
           <div
-            className={`flex flex-grow items-center gap-2 ${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab active:cursor-grabbing'}`}
+            className={`flex grow items-center gap-2 ${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab active:cursor-grabbing'}`}
             {...attributes}
             {...listeners}
           >

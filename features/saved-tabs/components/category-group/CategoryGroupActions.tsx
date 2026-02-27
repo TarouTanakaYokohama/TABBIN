@@ -50,7 +50,7 @@ export const CategoryGroupActions = () => {
 
   return (
     <>
-      <div className='pointer-events-auto ml-2 flex flex-shrink-0 gap-2'>
+      <div className='pointer-events-auto ml-2 flex shrink-0 gap-2'>
         {/* 親カテゴリ管理 */}
         <Tooltip>
           <TooltipTrigger asChild={true}>

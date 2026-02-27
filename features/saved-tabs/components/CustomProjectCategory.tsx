@@ -234,7 +234,7 @@ export const CustomProjectCategory = ({
           <div
             {...attributes}
             {...listeners}
-            className='flex flex-grow cursor-grab items-center gap-2 overflow-hidden hover:cursor-grab active:cursor-grabbing'
+            className='flex grow cursor-grab items-center gap-2 overflow-hidden hover:cursor-grab active:cursor-grabbing'
           >
             {/* collapse toggle */}
             <Tooltip>
@@ -304,7 +304,7 @@ export const CustomProjectCategory = ({
                     : '保存日時の降順'}
               </TooltipContent>
             </Tooltip>
-            <div className='flex-shrink-0 text-muted-foreground'>
+            <div className='shrink-0 text-muted-foreground'>
               <GripVertical size={16} aria-hidden='true' />
             </div>
             <h3 className='m-0 border-none bg-transparent p-0 font-medium text-lg'>

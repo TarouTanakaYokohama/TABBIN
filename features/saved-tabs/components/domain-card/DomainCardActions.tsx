@@ -33,7 +33,7 @@ export const DomainCardActions = () => {
 
   return (
     <>
-      <div className='flex flex-shrink-0 items-center gap-2'>
+      <div className='flex shrink-0 items-center gap-2'>
         {/* 子カテゴリ管理 */}
         <Tooltip>
           <TooltipTrigger asChild={true}>

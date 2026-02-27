@@ -32,7 +32,7 @@ export const KeywordEditor = () => {
           value={keywordsState.newKeyword}
           onChange={e => keywordsState.setNewKeyword(e.target.value)}
           placeholder='例: 技術、新機能、チュートリアル'
-          className='flex-grow rounded border p-2'
+          className='grow rounded border p-2'
           onKeyDown={e => {
             if (e.key === 'Enter') {
               e.preventDefault()

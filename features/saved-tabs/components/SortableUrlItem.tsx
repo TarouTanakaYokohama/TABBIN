@@ -143,7 +143,7 @@ export const SortableUrlItem = ({
         data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
       >
         <div
-          className='z-10 flex-shrink-0 cursor-grab px-2.5 text-muted-foreground/40 hover:cursor-grab active:cursor-grabbing'
+          className='z-10 shrink-0 cursor-grab px-2.5 text-muted-foreground/40 hover:cursor-grab active:cursor-grabbing'
           {...attributes}
           {...listeners}
         >
@@ -193,7 +193,7 @@ export const SortableUrlItem = ({
             variant='ghost'
             size='icon'
             onClick={handleDeleteButtonClick}
-            className='pointer-events-none invisible absolute top-0 right-0 bottom-0 my-auto flex-shrink-0 cursor-pointer opacity-0 transition-opacity group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100'
+            className='pointer-events-none invisible absolute top-0 right-0 bottom-0 my-auto shrink-0 cursor-pointer opacity-0 transition-opacity group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100'
             title='タブを削除'
             aria-label='タブを削除'
           >
