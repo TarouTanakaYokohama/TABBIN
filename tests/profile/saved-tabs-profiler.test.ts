@@ -36,6 +36,7 @@ const createChromeMock = () => {
     urls: [],
     userSettings: {
       removeTabAfterOpen: false,
+      removeTabAfterExternalDrop: true,
       excludePatterns: [],
       enableCategories: true,
       showSavedTime: true,

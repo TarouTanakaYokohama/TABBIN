@@ -65,6 +65,7 @@ function createChromeTabsHarness(): TabsHarness {
 
 const buildSettings = (override: Partial<UserSettings> = {}): UserSettings => ({
   removeTabAfterOpen: true,
+  removeTabAfterExternalDrop: true,
   excludePatterns: ['chrome://', 'ignore.example'],
   enableCategories: true,
   autoDeletePeriod: 'never',

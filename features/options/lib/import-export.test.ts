@@ -13,6 +13,7 @@ vi.mock('@/lib/storage/migration', () => ({
 vi.mock('@/lib/storage/settings', () => {
   const defaultSettings: UserSettings = {
     removeTabAfterOpen: true,
+    removeTabAfterExternalDrop: true,
     excludePatterns: ['chrome-extension://', 'chrome://'],
     enableCategories: true,
     autoDeletePeriod: 'never',
@@ -113,6 +114,7 @@ const buildFullUserSettings = (
   override: Partial<UserSettings> = {},
 ): UserSettings => ({
   removeTabAfterOpen: true,
+  removeTabAfterExternalDrop: true,
   excludePatterns: ['existing-pattern'],
   enableCategories: true,
   autoDeletePeriod: 'never',
@@ -527,6 +529,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,
@@ -592,6 +595,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,
@@ -637,6 +641,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,
@@ -696,6 +701,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,
@@ -797,6 +803,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,
@@ -863,6 +870,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,
@@ -910,6 +918,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,
@@ -957,6 +966,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: ['safe'],
         enableCategories: true,
         showSavedTime: false,
@@ -1032,6 +1042,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: ['p'],
         enableCategories: true,
         showSavedTime: false,
@@ -1095,6 +1106,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,
@@ -1159,6 +1171,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,
@@ -1230,6 +1243,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,
@@ -1315,6 +1329,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: false,
+        removeTabAfterExternalDrop: true,
         excludePatterns: ['existing-pattern', 'new-pattern'],
         enableCategories: true,
         showSavedTime: true,
@@ -1480,6 +1495,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: false,
+        removeTabAfterExternalDrop: true,
         excludePatterns: ['replace-pattern'],
         enableCategories: false,
         showSavedTime: true,
@@ -1523,6 +1539,7 @@ describe('import-export ユーティリティ', () => {
     expect(saveUserSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         removeTabAfterOpen: false,
+        removeTabAfterExternalDrop: true,
         enableCategories: false,
         showSavedTime: true,
         autoDeletePeriod: '30days',
@@ -1578,6 +1595,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: ['n1'],
         enableCategories: true,
         showSavedTime: false,
@@ -1636,6 +1654,7 @@ describe('import-export ユーティリティ', () => {
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings: {
         removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
         excludePatterns: [],
         enableCategories: true,
         showSavedTime: false,

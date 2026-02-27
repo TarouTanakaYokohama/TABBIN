@@ -7,6 +7,7 @@ import { useSettings } from './useSettings'
 vi.mock('@/lib/storage/settings', () => {
   const defaultSettings = {
     removeTabAfterOpen: true,
+    removeTabAfterExternalDrop: true,
     excludePatterns: ['chrome-extension://', 'chrome://'],
     enableCategories: true,
     autoDeletePeriod: 'never',
@@ -171,6 +172,7 @@ describe('useSettingsフック', () => {
       ...defaultSettings,
       autoDeletePeriod: '7days',
       removeTabAfterOpen: false,
+      removeTabAfterExternalDrop: true,
     }
 
     act(() => {

@@ -93,6 +93,7 @@ const backupDataSchema = z.object({
   timestamp: z.string(),
   userSettings: z.object({
     removeTabAfterOpen: z.boolean(),
+    removeTabAfterExternalDrop: z.boolean().optional(),
     excludePatterns: z.array(z.string()),
     enableCategories: z.boolean(),
     showSavedTime: z.boolean(),

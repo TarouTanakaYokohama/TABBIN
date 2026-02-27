@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronRight, GripVertical, X } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +60,8 @@ export const ProjectUrlItem = ({
   const originalUrl = item.url
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const isDraggingRef = useRef(false)
+  const windowBlurredDuringDragRef = useRef(false)
 
   // ドラッグアンドドロップの設定を強化
   const {
@@ -96,6 +98,70 @@ export const ProjectUrlItem = ({
     transform: CSS.Transform.toString(transform),
     transition,
   }
+
+  const handleExternalDrop = useCallback(() => {
+    chrome.runtime.sendMessage(
+      {
+        action: 'urlDropped',
+        url: originalUrl,
+        groupId: projectId,
+        fromExternal: true,
+      },
+      response => {
+        console.log('外部ドロップ後の応答:', response)
+      },
+    )
+  }, [originalUrl, projectId])
+
+  const handleWindowBlur = useCallback(() => {
+    if (isDraggingRef.current) {
+      windowBlurredDuringDragRef.current = true
+    }
+  }, [])
+
+  const handleDragStart = (e: React.DragEvent<HTMLElement>) => {
+    isDraggingRef.current = true
+    windowBlurredDuringDragRef.current = false
+
+    e.dataTransfer.setData('text/plain', originalUrl)
+    e.dataTransfer.setData('text/uri-list', originalUrl)
+    window.addEventListener('blur', handleWindowBlur)
+
+    chrome.runtime.sendMessage(
+      {
+        action: 'urlDragStarted',
+        url: originalUrl,
+        groupId: projectId,
+      },
+      response => {
+        console.log('ドラッグ開始通知の応答:', response)
+      },
+    )
+  }
+
+  const handleDragEnd = (e: React.DragEvent<HTMLElement>) => {
+    window.removeEventListener('blur', handleWindowBlur)
+    const shouldHandleAsExternalDrop =
+      isDraggingRef.current &&
+      (e.dataTransfer.dropEffect === 'copy' ||
+        (windowBlurredDuringDragRef.current &&
+          e.dataTransfer.dropEffect === 'link'))
+
+    if (shouldHandleAsExternalDrop) {
+      handleExternalDrop()
+    }
+
+    isDraggingRef.current = false
+    windowBlurredDuringDragRef.current = false
+  }
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('blur', handleWindowBlur)
+      isDraggingRef.current = false
+      windowBlurredDuringDragRef.current = false
+    }
+  }, [handleWindowBlur])
 
   // カテゴリの階層情報
   const categoryLevel = getCategoryLevel(item.category)
@@ -137,6 +203,9 @@ export const ProjectUrlItem = ({
               href={item.url}
               target='_blank'
               rel='noopener noreferrer'
+              draggable
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
               onClick={e => {
                 e.preventDefault()
                 handleOpenUrl(item.url)

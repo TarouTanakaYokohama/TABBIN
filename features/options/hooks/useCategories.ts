@@ -69,8 +69,7 @@ export const useCategories = () => {
         newCategoryName.trim(),
       )
       if (!validationResult.success) {
-        const message =
-          validationResult.error.issues[0]?.message ?? 'カテゴリ名が無効です'
+        const message = validationResult.error.issues[0].message
         setCategoryError(message)
         setTimeout(() => setCategoryError(null), 3000)
         return false
