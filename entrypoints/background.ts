@@ -43,7 +43,13 @@ export default defineBackground(() => {
 
         if (items.seenVersion !== manifestVersion) {
           // 新しいバージョンの場合、changelogShownをリセット
-          if (!items.changelogShown) {
+          if (items.changelogShown) {
+            // ただしバージョンは更新する
+            await chrome.storage.local.set({ seenVersion: manifestVersion })
+            console.log(
+              `新バージョン ${manifestVersion} に更新されましたが、変更履歴は既に表示済みです`,
+            )
+          } else {
             // まだ表示していない場合のみ開く
             await chrome.tabs.create({
               url: chrome.runtime.getURL('changelog.html'),
@@ -54,12 +60,6 @@ export default defineBackground(() => {
             })
             console.log(
               `新バージョン ${manifestVersion} の変更履歴を表示しました`,
-            )
-          } else {
-            // ただしバージョンは更新する
-            await chrome.storage.local.set({ seenVersion: manifestVersion })
-            console.log(
-              `新バージョン ${manifestVersion} に更新されましたが、変更履歴は既に表示済みです`,
             )
           }
         }

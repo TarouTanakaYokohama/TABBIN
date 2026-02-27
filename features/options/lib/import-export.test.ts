@@ -429,20 +429,20 @@ describe('import-export ユーティリティ', () => {
   })
 
   it('downloadAsJson は一時的なアンカーを作成してクリーンアップする', () => {
-    const originalCreateObjectURL = URL.createObjectURL
-    const originalRevokeObjectURL = URL.revokeObjectURL
-    const createObjectURL = vi.fn(() => 'blob:mock-url')
-    const revokeObjectURL = vi.fn()
+    const originalCreateObjectUrl = URL.createObjectURL
+    const originalRevokeObjectUrl = URL.revokeObjectURL
+    const createObjectUrl = vi.fn(() => 'blob:mock-url')
+    const revokeObjectUrl = vi.fn()
 
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       writable: true,
-      value: createObjectURL,
+      value: createObjectUrl,
     })
     Object.defineProperty(URL, 'revokeObjectURL', {
       configurable: true,
       writable: true,
-      value: revokeObjectURL,
+      value: revokeObjectUrl,
     })
 
     const clickSpy = vi
@@ -466,9 +466,9 @@ describe('import-export ユーティリティ', () => {
       'backup.json',
     )
 
-    expect(createObjectURL).toHaveBeenCalledTimes(1)
+    expect(createObjectUrl).toHaveBeenCalledTimes(1)
     expect(clickSpy).toHaveBeenCalledTimes(1)
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:mock-url')
     expect(document.querySelector('a[download="backup.json"]')).toBeNull()
 
     rafSpy.mockRestore()
@@ -477,12 +477,12 @@ describe('import-export ユーティリティ', () => {
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       writable: true,
-      value: originalCreateObjectURL,
+      value: originalCreateObjectUrl,
     })
     Object.defineProperty(URL, 'revokeObjectURL', {
       configurable: true,
       writable: true,
-      value: originalRevokeObjectURL,
+      value: originalRevokeObjectUrl,
     })
   })
 
@@ -563,9 +563,10 @@ describe('import-export ユーティリティ', () => {
       undefined,
     )
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         id: 'restored-group',
@@ -829,9 +830,10 @@ describe('import-export ユーティリティ', () => {
     expect(result.message).toContain('0件の代替URLを生成しました')
     expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         id: 'raw-fallback-group',
@@ -842,17 +844,18 @@ describe('import-export ユーティリティ', () => {
     )
 
     expect(
-      set.mock.calls.some(([payload]) =>
-        Boolean(
-          (payload as Record<string, unknown>)?.urls &&
+      set.mock.calls.some(
+        ([payload]) =>
+          !!(
+            (payload as Record<string, unknown>)?.urls &&
             Array.isArray((payload as Record<string, unknown>).urls) &&
             ((payload as Record<string, unknown>).urls as unknown[]).some(
               record =>
                 typeof record === 'object' &&
                 record !== null &&
                 (record as { id?: string }).id === 'raw-fallback-id',
-            ),
-        ),
+            )
+          ),
       ),
     ).toBe(false)
   })
@@ -890,9 +893,10 @@ describe('import-export ユーティリティ', () => {
     expect(result.success).toBe(true)
     expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         id: 'empty-group',
@@ -1062,9 +1066,10 @@ describe('import-export ユーティリティ', () => {
 
     expect(result.success).toBe(true)
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         id: 'existing-group',
@@ -1138,9 +1143,10 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), true)
 
     expect(result.success).toBe(true)
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         urlIds: ['dup-id'],
@@ -1192,9 +1198,10 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), true)
 
     expect(result.success).toBe(true)
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         categoryKeywords: [{ categoryName: 'edge', keywords: [] }],
@@ -1210,7 +1217,7 @@ describe('import-export ユーティリティ', () => {
       key: unknown,
     ) {
       if (key === 'force-undefined-existing-item') {
-        return undefined
+        return
       }
       return originalGet.call(this, key)
     })
@@ -1429,9 +1436,10 @@ describe('import-export ユーティリティ', () => {
       ]),
     )
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg).toHaveLength(2)
 
     const mergedExisting = savedTabsArg.find(
@@ -1563,9 +1571,10 @@ describe('import-export ユーティリティ', () => {
       },
     ])
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg).toHaveLength(1)
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
@@ -1628,9 +1637,10 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), false)
 
     expect(result.success).toBe(true)
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         subCategories: ['ObjSub', 'StrSub'],
@@ -1673,9 +1683,10 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), false)
 
     expect(result.success).toBe(true)
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         id: 'minimal-group',

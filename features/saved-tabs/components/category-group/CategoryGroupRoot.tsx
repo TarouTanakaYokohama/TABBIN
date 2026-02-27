@@ -12,7 +12,7 @@ import {
 } from './CategoryGroupContext'
 
 /** CategoryGroupRoot の props */
-type CategoryGroupRootProps = {
+interface CategoryGroupRootProps {
   /** 親カテゴリデータ */
   category: CategoryGroupProps['category']
   /** ドメイングループ配列 */

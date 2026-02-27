@@ -34,18 +34,11 @@ type StorageSubset<K extends keyof LocalStorageSchema> = {
 declare global {
   namespace chrome.storage {
     interface LocalStorageArea {
-      get(): Promise<Partial<LocalStorageSchema> & Record<string, unknown>>
       get(
-        keys: null,
+        keys?: null,
       ): Promise<Partial<LocalStorageSchema> & Record<string, unknown>>
       get<K extends keyof LocalStorageSchema>(
-        keys: K,
-      ): Promise<StorageSubset<K>>
-      get<K extends keyof LocalStorageSchema>(
-        keys: readonly K[],
-      ): Promise<StorageSubset<K>>
-      get<K extends keyof LocalStorageSchema>(
-        keys: StorageSubset<K>,
+        keys: StorageSubset<K> | (readonly K[] | K),
       ): Promise<StorageSubset<K>>
       get<K extends string>(keys: K): Promise<Record<K, unknown>>
       get<K extends string>(

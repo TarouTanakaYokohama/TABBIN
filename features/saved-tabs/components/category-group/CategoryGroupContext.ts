@@ -5,7 +5,7 @@ import type { UserSettings } from '@/types/storage'
 import type { useCategoryGroupState } from '../../hooks/useCategoryGroupState'
 
 /** CategoryGroup のコンテキスト型 */
-export type CategoryGroupContextType = {
+export interface CategoryGroupContextType {
   /** フック戻り値 */
   state: ReturnType<typeof useCategoryGroupState>
   /** 親カテゴリデータ */

@@ -17,20 +17,18 @@ export const CategoryKeywordModal = ({
   onDeleteCategory,
   parentCategories: initialParentCategories = [],
   onUpdateParentCategories,
-}: CategoryKeywordModalProps) => {
-  return (
-    <KeywordModalRoot
-      group={group}
-      isOpen={isOpen}
-      onClose={onClose}
-      onSave={onSave}
-      onDeleteCategory={onDeleteCategory}
-      initialParentCategories={initialParentCategories}
-      onUpdateParentCategories={onUpdateParentCategories}
-    >
-      <SubCategoryAddSection />
-      <SubCategorySelector />
-      <KeywordEditor />
-    </KeywordModalRoot>
-  )
-}
+}: CategoryKeywordModalProps) => (
+  <KeywordModalRoot
+    group={group}
+    isOpen={isOpen}
+    onClose={onClose}
+    onSave={onSave}
+    onDeleteCategory={onDeleteCategory}
+    initialParentCategories={initialParentCategories}
+    onUpdateParentCategories={onUpdateParentCategories}
+  >
+    <SubCategoryAddSection />
+    <SubCategorySelector />
+    <KeywordEditor />
+  </KeywordModalRoot>
+)

@@ -42,7 +42,9 @@ const storageOnChangedMock = {
   }),
   removeListener: vi.fn((listener: StorageListener) => {
     const index = storageListeners.indexOf(listener)
-    if (index >= 0) storageListeners.splice(index, 1)
+    if (index >= 0) {
+      storageListeners.splice(index, 1)
+    }
   }),
 }
 
@@ -50,18 +52,19 @@ let storageValues: Record<string, unknown>
 let prefersDark = false
 
 const setMatchMediaMock = () => {
-  window.matchMedia = vi.fn((query: string) => {
-    return {
-      matches: prefersDark,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    } as unknown as MediaQueryList
-  })
+  window.matchMedia = vi.fn(
+    (query: string) =>
+      ({
+        matches: prefersDark,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as unknown as MediaQueryList,
+  )
 }
 
 const HookConsumer = () => {
@@ -89,9 +92,9 @@ describe('ThemeProvider', () => {
     prefersDark = false
     setMatchMediaMock()
 
-    storageLocalMock.get.mockImplementation(async (key: string) => {
-      return { [key]: storageValues[key] }
-    })
+    storageLocalMock.get.mockImplementation(async (key: string) => ({
+      [key]: storageValues[key],
+    }))
     storageLocalMock.set.mockResolvedValue(undefined)
 
     vi.mocked(getChromeStorageLocal).mockReturnValue(

@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 
-type UserSettings = {
+interface UserSettings {
   removeTabAfterOpen: boolean
   removeTabAfterExternalDrop: boolean
   excludePatterns: string[]
@@ -16,7 +16,7 @@ type UserSettings = {
   colors: Record<string, string>
 }
 
-export type MockChromeStore = {
+export interface MockChromeStore {
   userSettings: UserSettings
   parentCategories: unknown[]
   savedTabs: unknown[]
@@ -81,7 +81,10 @@ export async function installChromeMock(
 
   await page.addInitScript(
     ({ seedStore }) => {
-      type StorageChange = { oldValue?: unknown; newValue?: unknown }
+      interface StorageChange {
+        oldValue?: unknown
+        newValue?: unknown
+      }
       type Listener = (
         changes: { [key: string]: StorageChange },
         areaName: string,

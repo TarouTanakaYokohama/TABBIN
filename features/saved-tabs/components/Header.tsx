@@ -18,7 +18,7 @@ import type { CustomProject, TabGroup, ViewMode } from '@/types/storage'
 import { CategoryModal } from './CategoryModal'
 import { ViewModeToggle } from './ViewModeToggle'
 
-type HeaderProps = {
+interface HeaderProps {
   tabGroups: TabGroup[]
   filteredTabGroups?: TabGroup[]
   currentMode: ViewMode
@@ -74,7 +74,7 @@ export const Header = ({
       <div className='flex flex-shrink-0 items-center gap-1 whitespace-nowrap'>
         {currentMode === 'domain' && (
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger asChild={true}>
               <Button
                 variant='outline'
                 size='sm'
@@ -92,7 +92,7 @@ export const Header = ({
         )}
         {currentMode === 'custom' && (
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger asChild={true}>
               <Button
                 variant='outline'
                 size='sm'
@@ -110,7 +110,7 @@ export const Header = ({
         )}
         <ViewModeToggle currentMode={currentMode} onChange={onModeChange} />
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger asChild={true}>
             <Button
               type='button'
               variant='outline'
@@ -176,7 +176,7 @@ export const Header = ({
               }}
               placeholder='例: ツール、ライブラリ、ドキュメント'
               className='mb-2 w-full'
-              autoFocus
+              autoFocus={true}
             />
           </DialogContent>
         </Dialog>

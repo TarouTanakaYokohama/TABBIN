@@ -1,4 +1,4 @@
-type ShouldShowUncategorizedHeaderInput = {
+interface ShouldShowUncategorizedHeaderInput {
   searchQuery: string
   uncategorizedCount: number
   visibleUncategorizedCount: number

@@ -43,7 +43,9 @@ async function run() {
     }
 
     const clone = value => {
-      if (value === undefined) return undefined
+      if (value === undefined) {
+        return
+      }
       return JSON.parse(JSON.stringify(value))
     }
 
@@ -100,7 +102,9 @@ async function run() {
           },
           removeListener: listener => {
             const index = listeners.indexOf(listener)
-            if (index >= 0) listeners.splice(index, 1)
+            if (index >= 0) {
+              listeners.splice(index, 1)
+            }
           },
         },
       },
@@ -130,19 +134,19 @@ async function run() {
 
   await page.goto('http://localhost:3001/saved-tabs.html', {
     waitUntil: 'domcontentloaded',
-    timeout: 120000,
+    timeout: 120_000,
   })
 
   await page.locator('input[placeholder="検索"]').first().waitFor({
     state: 'visible',
-    timeout: 120000,
+    timeout: 120_000,
   })
 
   await page.waitForTimeout(800)
 
-  const initial = await page.evaluate(() => {
-    return globalThis.__savedTabsProfiler || { commits: 0 }
-  })
+  const initial = await page.evaluate(
+    () => globalThis.__savedTabsProfiler || { commits: 0 },
+  )
 
   const search = page.locator('input[placeholder="検索"]').first()
   await search.fill('exa')
@@ -152,9 +156,9 @@ async function run() {
   await search.fill('')
   await page.waitForTimeout(400)
 
-  const final = await page.evaluate(() => {
-    return globalThis.__savedTabsProfiler || { commits: 0 }
-  })
+  const final = await page.evaluate(
+    () => globalThis.__savedTabsProfiler || { commits: 0 },
+  )
 
   console.log(
     JSON.stringify(

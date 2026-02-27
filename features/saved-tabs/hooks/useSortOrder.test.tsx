@@ -3,7 +3,9 @@ import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { useSortOrder } from './useSortOrder'
 
-type Item = { domain: string }
+interface Item {
+  domain: string
+}
 
 const items: Item[] = [
   { domain: 'zeta.example.com' },

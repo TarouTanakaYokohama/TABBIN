@@ -22,7 +22,7 @@ export const DomainCardReorderControls = () => {
   return (
     <div className='flex flex-shrink-0 items-center gap-2'>
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger asChild={true}>
           <Button
             variant='outline'
             size='sm'
@@ -40,7 +40,7 @@ export const DomainCardReorderControls = () => {
       </Tooltip>
 
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger asChild={true}>
           <Button
             variant='default'
             size='sm'

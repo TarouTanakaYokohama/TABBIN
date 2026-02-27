@@ -8,7 +8,7 @@ import type { CustomProject, UrlRecord } from '@/types/storage'
 import { useCategoryDnD } from './useCategoryDnD'
 
 /** useCustomProjectCard フックの引数 */
-type UseCustomProjectCardParams = {
+interface UseCustomProjectCardParams {
   /** プロジェクトデータ */
   project: CustomProject
   /** URL削除ハンドラ */
@@ -89,9 +89,13 @@ export function useCustomProjectCard({
       const { active } = args
       if (active.data.current?.type === 'url') {
         const pointerCollisions = pointerWithin(args)
-        if (pointerCollisions.length > 0) return pointerCollisions
+        if (pointerCollisions.length > 0) {
+          return pointerCollisions
+        }
         const intersections = rectIntersection(args)
-        if (intersections.length > 0) return intersections
+        if (intersections.length > 0) {
+          return intersections
+        }
         return closestCenter(args)
       }
 
@@ -166,24 +170,22 @@ export function useCustomProjectCard({
 
       // 直接的な未分類エリア検出
       if (
-        over?.id === `uncategorized-${project.id}` ||
-        (typeof over?.id === 'string' && over.id.includes('uncategorized'))
+        (over?.id === `uncategorized-${project.id}` ||
+          (typeof over?.id === 'string' &&
+            over.id.includes('uncategorized'))) &&
+        dragSourceCategory
       ) {
-        if (dragSourceCategory) {
-          handleSetUrlCategory(project.id, actualUrl, undefined)
-          toast.success('URLを未分類に移動しました')
-          setDraggedOverCategory(null)
-          return
-        }
+        handleSetUrlCategory(project.id, actualUrl, undefined)
+        toast.success('URLを未分類に移動しました')
+        setDraggedOverCategory(null)
+        return
       }
 
-      if (over?.data?.current?.type === 'uncategorized') {
-        if (dragSourceCategory) {
-          handleSetUrlCategory(project.id, actualUrl, undefined)
-          toast.success('URLを未分類に移動しました')
-          setDraggedOverCategory(null)
-          return
-        }
+      if (over?.data?.current?.type === 'uncategorized' && dragSourceCategory) {
+        handleSetUrlCategory(project.id, actualUrl, undefined)
+        toast.success('URLを未分類に移動しました')
+        setDraggedOverCategory(null)
+        return
       }
 
       // 同一プロジェクト内でURLの並び替え
@@ -199,7 +201,7 @@ export function useCustomProjectCard({
             : over.data?.current?.category
 
         if (
-          (!dragSourceCategory && !overCategory) ||
+          !(dragSourceCategory || overCategory) ||
           (dragSourceCategory && dragSourceCategory === overCategory)
         ) {
           const urlsInTarget = projectUrls.filter(
@@ -210,10 +212,10 @@ export function useCustomProjectCard({
           if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
             const moved = arrayMove(urlsInTarget, oldIndex, newIndex)
             let newUrls: typeof projectUrls
-            if (!dragSourceCategory) {
+            if (dragSourceCategory) {
               let movedIndex = 0
               newUrls = projectUrls.map(u => {
-                if (!u.category) {
+                if (u.category === dragSourceCategory) {
                   return moved[movedIndex++]
                 }
                 return u
@@ -221,7 +223,7 @@ export function useCustomProjectCard({
             } else {
               let movedIndex = 0
               newUrls = projectUrls.map(u => {
-                if (u.category === dragSourceCategory) {
+                if (!u.category) {
                   return moved[movedIndex++]
                 }
                 return u
@@ -233,22 +235,20 @@ export function useCustomProjectCard({
             setDraggedOverCategory(null)
             return
           }
-        } else {
-          if (dragSourceCategory !== overCategory) {
-            handleSetUrlCategory(project.id, actualUrl, overCategory)
-            setProjectUrls(prev =>
-              prev.map(u =>
-                u.url === actualUrl ? { ...u, category: overCategory } : u,
-              ),
-            )
-            toast.success(
-              overCategory
-                ? `URLを「${overCategory}」に移動しました`
-                : 'URLを未分類に移動しました',
-            )
-            setDraggedOverCategory(null)
-            return
-          }
+        } else if (dragSourceCategory !== overCategory) {
+          handleSetUrlCategory(project.id, actualUrl, overCategory)
+          setProjectUrls(prev =>
+            prev.map(u =>
+              u.url === actualUrl ? { ...u, category: overCategory } : u,
+            ),
+          )
+          toast.success(
+            overCategory
+              ? `URLを「${overCategory}」に移動しました`
+              : 'URLを未分類に移動しました',
+          )
+          setDraggedOverCategory(null)
+          return
         }
       }
 
@@ -280,24 +280,24 @@ export function useCustomProjectCard({
     (event: DragEndEvent) => {
       const { active, over } = event
       resetDnD()
-      if (!over) return
-      if (isDraggingCategory && draggedCategoryName) {
-        if (active.id !== over.id) {
-          const oldIndex =
-            project.categoryOrder?.indexOf(active.id as string) ??
-            project.categories.indexOf(active.id as string)
-          const newIndex =
-            project.categoryOrder?.indexOf(over.id as string) ??
-            project.categories.indexOf(over.id as string)
-          if (oldIndex !== -1 && newIndex !== -1) {
-            const newOrder = arrayMove(
-              project.categoryOrder || project.categories,
-              oldIndex,
-              newIndex,
-            )
-            handleUpdateCategoryOrder(project.id, newOrder)
-            toast.success('カテゴリの順序を変更しました')
-          }
+      if (!over) {
+        return
+      }
+      if (isDraggingCategory && draggedCategoryName && active.id !== over.id) {
+        const oldIndex =
+          project.categoryOrder?.indexOf(active.id as string) ??
+          project.categories.indexOf(active.id as string)
+        const newIndex =
+          project.categoryOrder?.indexOf(over.id as string) ??
+          project.categories.indexOf(over.id as string)
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(
+            project.categoryOrder || project.categories,
+            oldIndex,
+            newIndex,
+          )
+          handleUpdateCategoryOrder(project.id, newOrder)
+          toast.success('カテゴリの順序を変更しました')
         }
       }
     },

@@ -15,7 +15,25 @@
       "!**/storybook-static"
     ]
   },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "identifierOrder": "lexicographic",
+            "groups": [
+              ":NODE:",
+              ":PACKAGE_WITH_PROTOCOL:",
+              ":PACKAGE:",
+              ":ALIAS:",
+              ":PATH:"
+            ]
+          }
+        }
+      }
+    }
+  },
   "linter": {
     "enabled": true,
     "includes": [
@@ -32,16 +50,98 @@
     ],
     "rules": {
       "recommended": true,
-      "nursery": { "useSortedClasses": "warn" },
+      "a11y": {
+        "recommended": true,
+        "noNoninteractiveElementInteractions": "off",
+        "useButtonType": "error"
+      },
+      "complexity": {
+        "recommended": true,
+        "noExcessiveCognitiveComplexity": "off",
+        "noExcessiveLinesPerFunction": "off",
+        "noExtraBooleanCast": "off",
+        "noImplicitCoercions": "off",
+        "noVoid": "off",
+        "useMaxParams": "off",
+        "useOptionalChain": "error"
+      },
       "correctness": {
-        "noUnusedImports": "warn",
-        "noUnusedVariables": "warn"
+        "recommended": true,
+        "noUndeclaredDependencies": "error",
+        "noUnresolvedImports": "off",
+        "noUnusedFunctionParameters": "error",
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error",
+        "useExhaustiveDependencies": "off",
+        "useImportExtensions": "off",
+        "useUniqueElementIds": "off"
+      },
+      "nursery": {
+        "recommended": true,
+        "noNestedPromises": "off",
+        "useSortedClasses": "error"
+      },
+      "performance": {
+        "recommended": true,
+        "noAwaitInLoops": "off",
+        "noBarrelFile": "off",
+        "noNamespaceImport": "off",
+        "noReExportAll": "off",
+        "useTopLevelRegex": "off"
+      },
+      "security": {
+        "recommended": true,
+        "noSecrets": "off"
+      },
+      "style": {
+        "recommended": true,
+        "noCommonJs": "off",
+        "noDefaultExport": "off",
+        "noExportedImports": "off",
+        "noJsxLiterals": "off",
+        "noMagicNumbers": "off",
+        "noNamespace": "off",
+        "noNestedTernary": "off",
+        "noProcessEnv": "off",
+        "useBlockStatements": "error",
+        "useComponentExportOnlyModules": "off",
+        "useConsistentArrayType": "error",
+        "useConsistentTypeDefinitions": "error",
+        "useImportType": "error",
+        "useNodejsImportProtocol": "error",
+        "useNumericSeparators": "off",
+        "useExportsLast": "off",
+        "useExplicitLengthCheck": "off",
+        "useFilenamingConvention": "off",
+        "useNamingConvention": "off",
+        "useThrowOnlyError": "off"
+      },
+      "suspicious": {
+        "recommended": true,
+        "noDoubleEquals": "error",
+        "noFocusedTests": "error",
+        "noImportCycles": "off",
+        "useAwait": "off"
       }
+    },
+    "domains": {
+      "next": "none",
+      "playwright": "all",
+      "project": "all",
+      "qwik": "none",
+      "react": "all",
+      "solid": "none",
+      "tailwind": "all",
+      "test": "all",
+      "turborepo": "none",
+      "types": "all",
+      "vue": "none"
     }
   },
   "formatter": {
     "enabled": true,
     "formatWithErrors": true,
+    "useEditorconfig": false,
     "includes": [
       "**",
       "!**/.output",
@@ -65,6 +165,8 @@
     "formatter": {
       "quoteStyle": "single",
       "jsxQuoteStyle": "single",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "all",
       "semicolons": "asNeeded",
       "arrowParentheses": "asNeeded"
     }

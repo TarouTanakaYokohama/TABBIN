@@ -15,13 +15,13 @@ import type { UserSettings } from '@/types/storage'
 
 type Theme = 'dark' | 'light' | 'system' | 'user'
 
-type ThemeProviderProps = {
+interface ThemeProviderProps {
   children: React.ReactNode
   defaultTheme?: Theme
   storageKey?: string
 }
 
-type ThemeProviderState = {
+interface ThemeProviderState {
   theme: Theme
   setTheme: (theme: Theme) => void
 }
@@ -105,7 +105,9 @@ export function ThemeProvider({
         .get('userSettings')
         .then((result: { userSettings?: UserSettings }) => {
           const userSettings = result.userSettings
-          if (!userSettings) return
+          if (!userSettings) {
+            return
+          }
           const { colors = {} } = userSettings
           for (const [key, val] of Object.entries(colors)) {
             root.style.setProperty(`--${key}`, val)
@@ -181,8 +183,9 @@ export function ThemeProvider({
 export const useTheme = (): ThemeProviderState => {
   const context = use(ThemeProviderContext)
 
-  if (context === undefined)
+  if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider')
+  }
 
   return context
 }

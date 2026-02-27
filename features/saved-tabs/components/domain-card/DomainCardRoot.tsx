@@ -11,7 +11,7 @@ import {
 } from './DomainCardContext'
 
 /** DomainCardRoot の props */
-type DomainCardRootProps = {
+interface DomainCardRootProps {
   /** タブグループデータ */
   group: SortableDomainCardProps['group']
   /** 設定 */

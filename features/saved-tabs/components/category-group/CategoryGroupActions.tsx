@@ -53,7 +53,7 @@ export const CategoryGroupActions = () => {
       <div className='pointer-events-auto ml-2 flex flex-shrink-0 gap-2'>
         {/* 親カテゴリ管理 */}
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger asChild={true}>
             <Button
               variant='secondary'
               size='sm'
@@ -74,7 +74,7 @@ export const CategoryGroupActions = () => {
 
         {/* すべて開く */}
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger asChild={true}>
             <Button
               variant='secondary'
               size='sm'
@@ -104,17 +104,17 @@ export const CategoryGroupActions = () => {
 
         {/* すべて削除 */}
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger asChild={true}>
             <Button
               variant='secondary'
               size='sm'
               onClick={e => {
                 e.stopPropagation()
                 e.preventDefault()
-                if (!settings.confirmDeleteAll) {
-                  void executeDeleteAll()
-                } else {
+                if (settings.confirmDeleteAll) {
                   setIsDeleteAllConfirmOpen(true)
+                } else {
+                  void executeDeleteAll()
                 }
               }}
               className='flex cursor-pointer items-center gap-1'

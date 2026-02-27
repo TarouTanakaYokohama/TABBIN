@@ -298,7 +298,9 @@ export const CategoryManagementModal = ({
 
   // 親カテゴリ削除処理
   const handleDeleteCategory = async () => {
-    if (isProcessing) return
+    if (isProcessing) {
+      return
+    }
     setIsProcessing(true)
     try {
       const data = await chrome.storage.local.get('parentCategories')
@@ -319,7 +321,9 @@ export const CategoryManagementModal = ({
 
   // ドメインをカテゴリに追加
   const handleAddDomain = async () => {
-    if (!selectedDomain || isProcessing) return
+    if (!selectedDomain || isProcessing) {
+      return
+    }
 
     setIsProcessing(true)
 
@@ -394,7 +398,9 @@ export const CategoryManagementModal = ({
 
   // ドメインをカテゴリから削除
   const handleRemoveDomain = async (domainId: string) => {
-    if (isProcessing) return
+    if (isProcessing) {
+      return
+    }
 
     setIsProcessing(true)
 
@@ -454,7 +460,9 @@ export const CategoryManagementModal = ({
     }
   }
 
-  if (!isOpen) return null
+  if (!isOpen) {
+    return null
+  }
 
   return (
     <Dialog
@@ -488,7 +496,7 @@ export const CategoryManagementModal = ({
               {!isRenaming && (
                 <div className='flex items-center gap-2'>
                   <Tooltip>
-                    <TooltipTrigger asChild>
+                    <TooltipTrigger asChild={true}>
                       <Button
                         variant='secondary'
                         size='sm'
@@ -506,7 +514,7 @@ export const CategoryManagementModal = ({
                     </TooltipContent>
                   </Tooltip>
                   <Tooltip>
-                    <TooltipTrigger asChild>
+                    <TooltipTrigger asChild={true}>
                       <Button
                         variant='secondary'
                         size='sm'
@@ -539,7 +547,7 @@ export const CategoryManagementModal = ({
                   onChange={handleCategoryNameChange}
                   placeholder='例: ビジネスツール、技術情報'
                   className={`w-full flex-1 rounded border p-2 ${categoryNameError ? 'border-red-500' : ''}`}
-                  autoFocus
+                  autoFocus={true}
                   onBlur={() => {
                     if (isProcessing) {
                       return // 処理中は何もしない
@@ -598,7 +606,7 @@ export const CategoryManagementModal = ({
               <p className='mb-2 text-gray-700 dark:text-gray-300'>
                 親カテゴリ「{localCategoryName}
                 」を削除しますか？この操作は取り消せません。
-                {domains.length ? (
+                {domains.length > 0 ? (
                   <span className='mt-1 block text-xs'>
                     このカテゴリには {domains.length}{' '}
                     件のドメインが関連付けられています。
@@ -608,7 +616,7 @@ export const CategoryManagementModal = ({
               </p>
               <div className='flex justify-end gap-2'>
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger asChild={true}>
                     <Button
                       variant='ghost'
                       size='sm'
@@ -623,7 +631,7 @@ export const CategoryManagementModal = ({
                   </TooltipContent>
                 </Tooltip>
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger asChild={true}>
                     <Button
                       variant='destructive'
                       size='sm'
@@ -659,7 +667,7 @@ export const CategoryManagementModal = ({
                   >
                     {domain.domain}
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild={true}>
                         <Button
                           variant='ghost'
                           size='sm'
@@ -707,7 +715,7 @@ export const CategoryManagementModal = ({
                   </SelectContent>
                 </Select>
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger asChild={true}>
                     <Button
                       variant='default'
                       size='icon'

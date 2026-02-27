@@ -17,12 +17,10 @@ interface CategoryModalProps {
  * 複合コンポーネントパターンで構成される薄いラッパー
  * @param props CategoryModalProps
  */
-export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => {
-  return (
-    <CategoryModalRoot onClose={onClose} tabGroups={tabGroups}>
-      <CategoryCreateSection />
-      <CategorySelector />
-      <DomainSelectionList />
-    </CategoryModalRoot>
-  )
-}
+export const CategoryModal = ({ onClose, tabGroups }: CategoryModalProps) => (
+  <CategoryModalRoot onClose={onClose} tabGroups={tabGroups}>
+    <CategoryCreateSection />
+    <CategorySelector />
+    <DomainSelectionList />
+  </CategoryModalRoot>
+)

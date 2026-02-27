@@ -8,7 +8,9 @@ import { useEffect, useState } from 'react'
  * @returns フォーマットされた日時文字列
  */
 export function formatDatetime(timestamp?: number): string {
-  if (!timestamp) return '-'
+  if (!timestamp) {
+    return '-'
+  }
 
   const date = new Date(timestamp)
 
@@ -103,8 +105,12 @@ export const TimeRemaining = ({
 
           // 表示形式を整形
           let result = 'あと '
-          if (days > 0) result += `${days}日 `
-          if (hours > 0 || days > 0) result += `${hours}時間 `
+          if (days > 0) {
+            result += `${days}日 `
+          }
+          if (hours > 0 || days > 0) {
+            result += `${hours}時間 `
+          }
           result += `${minutes}分`
 
           setTimeLeft(result)
@@ -121,7 +127,9 @@ export const TimeRemaining = ({
     return () => clearInterval(timer)
   }, [savedAt, autoDeletePeriod])
 
-  if (!timeLeft) return null
+  if (!timeLeft) {
+    return null
+  }
 
   return (
     <span className={`text-xs ${colorClass}`} title='自動削除までの残り時間'>

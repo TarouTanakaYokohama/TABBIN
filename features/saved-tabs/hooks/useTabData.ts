@@ -22,7 +22,7 @@ import { getTabGroupUrls } from '@/lib/storage/tabs'
 import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
 
 /** useTabData フックの戻り値型 */
-export type UseTabDataReturn = {
+export interface UseTabDataReturn {
   /** 保存済みタブグループ一覧（URLデータなし・rawデータ） */
   tabGroups: TabGroup[]
   /** tabGroups を直接更新するセッター */
@@ -211,7 +211,7 @@ export function useTabData(
 
         // カテゴリが空の場合、または無効なカテゴリがある場合
         const hasInvalidCategory = parentCategories.some(
-          cat => !cat.domainNames || !Array.isArray(cat.domainNames),
+          cat => !(cat.domainNames && Array.isArray(cat.domainNames)),
         )
 
         let finalCategories: ParentCategory[]

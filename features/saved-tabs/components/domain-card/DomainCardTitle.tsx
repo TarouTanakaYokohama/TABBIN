@@ -28,7 +28,7 @@ export const DomainCardTitle = () => {
       </h2>
       <span className='text-muted-foreground text-sm'>
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger asChild={true}>
             <Badge variant='secondary'>{group.urls?.length || 0}</Badge>
           </TooltipTrigger>
           <TooltipContent side='top' className='block lg:hidden'>

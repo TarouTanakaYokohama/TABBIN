@@ -1,8 +1,8 @@
 import {
-  closestCenter,
   DndContext,
   KeyboardSensor,
   PointerSensor,
+  closestCenter,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
@@ -62,7 +62,9 @@ export const DomainCardContent = () => {
                 : categoryReorder.allCategoryIds
               ).map(categoryName => {
                 const urls = computed.categorizedUrls[categoryName] || []
-                if (urls.length === 0) return null
+                if (urls.length === 0) {
+                  return null
+                }
                 return (
                   <SortableCategorySection
                     key={categoryName}

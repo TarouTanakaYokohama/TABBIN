@@ -34,7 +34,7 @@ const createSettings = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   }) as Awaited<ReturnType<typeof getUserSettings>>
 
-type StorageState = {
+interface StorageState {
   savedTabs?: Array<{
     id: string
     domain: string
@@ -52,7 +52,7 @@ type StorageState = {
   }>
 }
 
-type ChromeMockOptions = {
+interface ChromeMockOptions {
   rejectGet?: boolean
   rejectSet?: boolean
 }

@@ -213,8 +213,12 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 
   // 新しいタブを適切なグループに振り分け
   for (const tab of tabs) {
-    if (!tab.url) continue
-    if (tab.url.startsWith('chrome-extension://')) continue
+    if (!tab.url) {
+      continue
+    }
+    if (tab.url.startsWith('chrome-extension://')) {
+      continue
+    }
 
     try {
       const url = new URL(tab.url)
@@ -262,7 +266,9 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
         if (!foundCategory) {
           for (const category of parentCategories) {
             // nullチェックとArrayチェックを追加
-            if (!category.domainNames || !Array.isArray(category.domainNames)) {
+            if (
+              !(category.domainNames && Array.isArray(category.domainNames))
+            ) {
               console.log(`カテゴリ「${category.name}」のdomainNamesが不正です`)
               continue
             }
@@ -327,7 +333,9 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
 
       // グループにURLを追加（新形式対応）
       const group = groupedTabs.get(domain)
-      if (!group) continue
+      if (!group) {
+        continue
+      }
 
       // URLレコードを作成または取得
       const urlRecord = await createOrUpdateUrlRecord(tab.url, tab.title || '')
@@ -385,11 +393,11 @@ export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
   const uniqueGroups: TabGroup[] = []
 
   for (const group of savedTabs) {
-    if (!uniqueIds.has(group.id)) {
+    if (uniqueIds.has(group.id)) {
+      console.warn(`重複グループを検出: ${group.id} (${group.domain})`)
+    } else {
       uniqueIds.add(group.id)
       uniqueGroups.push(group)
-    } else {
-      console.warn(`重複グループを検出: ${group.id} (${group.domain})`)
     }
   }
 
@@ -415,7 +423,7 @@ export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
   // 各ドメインで自動カテゴライズを実行
   for (const domain of uniqueDomains) {
     const group = uniqueGroups.find((g: TabGroup) => g.domain === domain)
-    if (group?.categoryKeywords?.length && group) {
+    if (group && (group.categoryKeywords?.length ?? 0) > 0) {
       await autoCategorizeTabs(group.id)
     }
   }
@@ -507,7 +515,15 @@ export async function migrateToUrlsStorage(): Promise<void> {
           // URLからレコードを検索または作成
           let urlEntry = urlMap.get(urlItem.url)
 
-          if (!urlEntry) {
+          if (urlEntry) {
+            // 既存レコードのタイトルを更新（より詳細な情報があれば）
+            if (
+              urlItem.title &&
+              urlItem.title.length > urlEntry.record.title.length
+            ) {
+              urlEntry.record.title = urlItem.title
+            }
+          } else {
             // 新しいURLレコードを作成
             const newRecord: import('@/types/storage').UrlRecord = {
               id: uuidv4(),
@@ -519,14 +535,6 @@ export async function migrateToUrlsStorage(): Promise<void> {
 
             urlEntry = { id: newRecord.id, record: newRecord }
             urlMap.set(urlItem.url, urlEntry)
-          } else {
-            // 既存レコードのタイトルを更新（より詳細な情報があれば）
-            if (
-              urlItem.title &&
-              urlItem.title.length > urlEntry.record.title.length
-            ) {
-              urlEntry.record.title = urlItem.title
-            }
           }
 
           urlIds.push(urlEntry.id)
@@ -573,7 +581,15 @@ export async function migrateToUrlsStorage(): Promise<void> {
           // URLからレコードを検索または作成
           let urlEntry = urlMap.get(urlItem.url)
 
-          if (!urlEntry) {
+          if (urlEntry) {
+            // 既存レコードのタイトルを更新（より詳細な情報があれば）
+            if (
+              urlItem.title &&
+              urlItem.title.length > urlEntry.record.title.length
+            ) {
+              urlEntry.record.title = urlItem.title
+            }
+          } else {
             // 新しいURLレコードを作成
             const newRecord: import('@/types/storage').UrlRecord = {
               id: uuidv4(),
@@ -585,22 +601,18 @@ export async function migrateToUrlsStorage(): Promise<void> {
 
             urlEntry = { id: newRecord.id, record: newRecord }
             urlMap.set(urlItem.url, urlEntry)
-          } else {
-            // 既存レコードのタイトルを更新（より詳細な情報があれば）
-            if (
-              urlItem.title &&
-              urlItem.title.length > urlEntry.record.title.length
-            ) {
-              urlEntry.record.title = urlItem.title
-            }
           }
 
           urlIds.push(urlEntry.id)
 
           // メタデータを保存
           const metadata: { notes?: string; category?: string } = {}
-          if (urlItem.notes) metadata.notes = urlItem.notes
-          if (urlItem.category) metadata.category = urlItem.category
+          if (urlItem.notes) {
+            metadata.notes = urlItem.notes
+          }
+          if (urlItem.category) {
+            metadata.category = urlItem.category
+          }
 
           if (Object.keys(metadata).length > 0) {
             urlMetadata[urlEntry.id] = metadata

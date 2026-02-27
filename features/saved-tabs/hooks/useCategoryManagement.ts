@@ -16,7 +16,7 @@ import { saveParentCategories } from '@/lib/storage/categories'
 import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
 
 /** useCategoryManagement フックの戻り値型 */
-export type UseCategoryManagementReturn = {
+export interface UseCategoryManagementReturn {
   /** 親カテゴリ一覧 */
   categories: ParentCategory[]
   /** categories を直接更新するセッター */
@@ -193,13 +193,13 @@ export function useCategoryManagement(
         if (oldIndex !== -1 && newIndex !== -1) {
           const newOrder = arrayMove(currentOrder, oldIndex, newIndex)
 
-          if (!isCategoryReorderMode) {
+          if (isCategoryReorderMode) {
+            // 既に並び替えモード中：一時的な順序を更新
+            setTempCategoryOrder(newOrder)
+          } else {
             // 初回の並び替え時：並び替えモードを開始
             setIsCategoryReorderMode(true)
             setOriginalCategoryOrder([...categoryOrder])
-            setTempCategoryOrder(newOrder)
-          } else {
-            // 既に並び替えモード中：一時的な順序を更新
             setTempCategoryOrder(newOrder)
           }
         }
@@ -210,7 +210,9 @@ export function useCategoryManagement(
 
   /** 並び替えを確定してストレージに保存する */
   const handleConfirmCategoryReorder = useCallback(async (): Promise<void> => {
-    if (!isCategoryReorderMode) return
+    if (!isCategoryReorderMode) {
+      return
+    }
 
     try {
       // カテゴリ順序を更新
@@ -240,7 +242,9 @@ export function useCategoryManagement(
 
   /** 並び替えをキャンセルして元の順序に戻す */
   const handleCancelCategoryReorder = useCallback((): void => {
-    if (!isCategoryReorderMode) return
+    if (!isCategoryReorderMode) {
+      return
+    }
 
     // 元の順序に戻す
     setTempCategoryOrder([])
@@ -308,7 +312,9 @@ export function useCategoryManagement(
     ): Promise<void> => {
       try {
         const domainGroup = tabGroups.find(group => group.id === domainId)
-        if (!domainGroup) return
+        if (!domainGroup) {
+          return
+        }
 
         let updatedCategories = [...categories]
 

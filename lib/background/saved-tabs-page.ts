@@ -52,7 +52,7 @@ export async function openSavedTabsPage(): Promise<number | null> {
 
           return savedTabsPageId
         }
-      } catch (_e) {
+      } catch {
         // タブが見つからない場合は続行して新しく作成
         console.log(
           '保存されていたタブIDは存在しませんでした。新規作成します。',
@@ -66,12 +66,11 @@ export async function openSavedTabsPage(): Promise<number | null> {
     console.log(`全タブ数: ${allTabs.length}`)
 
     // saved-tabs.htmlを含むタブを検索（より広範な検索条件）
-    const savedTabsPages = allTabs.filter(tab => {
-      return (
+    const savedTabsPages = allTabs.filter(
+      tab =>
         tab.url?.includes('saved-tabs.html') ||
-        tab.pendingUrl?.includes('saved-tabs.html')
-      )
-    })
+        tab.pendingUrl?.includes('saved-tabs.html'),
+    )
 
     console.log(`既存のsaved-tabsページ数: ${savedTabsPages.length}`)
 

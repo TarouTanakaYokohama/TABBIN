@@ -13,10 +13,14 @@ export function invalidateUrlCache(): void {
  * すべてのURLレコードを取得する
  */
 export async function getUrlRecords(): Promise<UrlRecord[]> {
-  if (_urlRecordsCache !== null) return _urlRecordsCache
+  if (_urlRecordsCache !== null) {
+    return _urlRecordsCache
+  }
   try {
     const { urls } = await chrome.storage.local.get('urls')
-    if (!Array.isArray(urls)) return []
+    if (!Array.isArray(urls)) {
+      return []
+    }
     _urlRecordsCache = urls as UrlRecord[]
     return _urlRecordsCache
   } catch (error) {

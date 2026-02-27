@@ -129,11 +129,13 @@ export async function handleSaveSameDomainTabs(): Promise<
     // 現在のウィンドウの同じドメインのタブをすべて取得
     const tabs = await chrome.tabs.query({ currentWindow: true })
     const sameDomainTabs = tabs.filter(tab => {
-      if (!tab.url) return false
+      if (!tab.url) {
+        return false
+      }
       try {
         const tabUrl = new URL(tab.url)
         return tabUrl.hostname === currentDomain
-      } catch (_e) {
+      } catch {
         return false
       }
     })

@@ -126,7 +126,7 @@ import {
   categoryNameSchema,
 } from './CategoryManagementModal'
 
-type StorageState = {
+interface StorageState {
   savedTabs: TabGroup[]
   parentCategories: ParentCategory[]
 }
@@ -155,7 +155,9 @@ const createDeferred = <T,>() => {
 
 const setupChrome = () => {
   getMock = vi.fn(async (key: string) => {
-    if (key === 'savedTabs') return { savedTabs: storageState.savedTabs }
+    if (key === 'savedTabs') {
+      return { savedTabs: storageState.savedTabs }
+    }
     if (key === 'parentCategories') {
       return { parentCategories: storageState.parentCategories }
     }
@@ -236,7 +238,7 @@ describe('CategoryManagementModal', () => {
     const onClose = vi.fn()
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={onClose}
         category={createCategory()}
         domains={createDomains()}
@@ -259,7 +261,7 @@ describe('CategoryManagementModal', () => {
 
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={[]}
@@ -283,7 +285,7 @@ describe('CategoryManagementModal', () => {
 
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
@@ -320,7 +322,7 @@ describe('CategoryManagementModal', () => {
 
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
@@ -405,7 +407,7 @@ describe('CategoryManagementModal', () => {
 
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={onClose}
         category={createCategory()}
         domains={createDomains()}
@@ -446,7 +448,7 @@ describe('CategoryManagementModal', () => {
   it('リネーム失敗時（callbackなし/更新確認失敗）に toast.error を出す', async () => {
     const { rerender } = render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
@@ -476,7 +478,7 @@ describe('CategoryManagementModal', () => {
     ]
     rerender(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
@@ -498,7 +500,9 @@ describe('CategoryManagementModal', () => {
   it('リネーム保存後の最終確認不一致をエラーとして処理する', async () => {
     let parentCategoryGetCount = 0
     getMock.mockImplementation(async (key: string) => {
-      if (key === 'savedTabs') return { savedTabs: storageState.savedTabs }
+      if (key === 'savedTabs') {
+        return { savedTabs: storageState.savedTabs }
+      }
       if (key === 'parentCategories') {
         parentCategoryGetCount += 1
         if (parentCategoryGetCount === 3) {
@@ -528,7 +532,7 @@ describe('CategoryManagementModal', () => {
 
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
@@ -553,7 +557,7 @@ describe('CategoryManagementModal', () => {
   it('リネーム保存で non-Error を投げた場合も stack なしでハンドリングする', async () => {
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
@@ -587,7 +591,7 @@ describe('CategoryManagementModal', () => {
   it('リネーム保存時に validateCategoryName が false を返した場合は処理を中止する', async () => {
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
@@ -603,18 +607,19 @@ describe('CategoryManagementModal', () => {
 
     const safeParseSpy = vi
       .spyOn(categoryNameSchema, 'safeParse')
-      .mockImplementationOnce(() => {
-        return {
-          success: false,
-          error: new z.ZodError([
-            {
-              code: 'custom',
-              message: 'forced invalid',
-              path: [],
-            },
-          ]),
-        } as ReturnType<typeof z.ZodString.prototype.safeParse>
-      })
+      .mockImplementationOnce(
+        () =>
+          ({
+            success: false,
+            error: new z.ZodError([
+              {
+                code: 'custom',
+                message: 'forced invalid',
+                path: [],
+              },
+            ]),
+          }) as ReturnType<typeof z.ZodString.prototype.safeParse>,
+      )
 
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => {
@@ -627,7 +632,7 @@ describe('CategoryManagementModal', () => {
     const onClose = vi.fn()
     const { rerender } = render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={onClose}
         category={createCategory()}
         domains={createDomains()}
@@ -651,7 +656,7 @@ describe('CategoryManagementModal', () => {
     ]
     rerender(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
@@ -676,7 +681,7 @@ describe('CategoryManagementModal', () => {
 
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={[]}
@@ -689,8 +694,12 @@ describe('CategoryManagementModal', () => {
     expect(screen.queryByRole('button', { name: /^削除$/ })).toBeNull()
 
     getMock.mockImplementationOnce(async (key: string) => {
-      if (key === 'parentCategories') return {}
-      if (key === 'savedTabs') return { savedTabs: storageState.savedTabs }
+      if (key === 'parentCategories') {
+        return {}
+      }
+      if (key === 'savedTabs') {
+        return { savedTabs: storageState.savedTabs }
+      }
       return {}
     })
 
@@ -724,7 +733,7 @@ describe('CategoryManagementModal', () => {
 
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={[currentDomain]}
@@ -760,7 +769,7 @@ describe('CategoryManagementModal', () => {
     cleanup()
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={[]}
@@ -812,7 +821,7 @@ describe('CategoryManagementModal', () => {
 
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={[domains3[0] as TabGroup]}
@@ -898,7 +907,7 @@ describe('CategoryManagementModal', () => {
     storageState.parentCategories = []
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={[currentDomain]}
@@ -933,7 +942,7 @@ describe('CategoryManagementModal', () => {
     toastErrorSpy.mockClear()
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={[currentDomain]}
@@ -961,7 +970,7 @@ describe('CategoryManagementModal', () => {
               !('urls' in (item as Record<string, unknown>)),
           )
         ) {
-          return undefined
+          return
         }
         return originalFind.call(this, predicate, thisArg)
       })
@@ -977,7 +986,7 @@ describe('CategoryManagementModal', () => {
     const originalReadyState = document.readyState
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
@@ -1000,7 +1009,9 @@ describe('CategoryManagementModal', () => {
     })
 
     getMock.mockImplementationOnce(async (key: string) => {
-      if (key === 'parentCategories') throw new Error('boom')
+      if (key === 'parentCategories') {
+        throw new Error('boom')
+      }
       return { savedTabs: storageState.savedTabs }
     })
     const nextRemoveButtons = screen.getAllByRole('button', {
@@ -1052,7 +1063,7 @@ describe('CategoryManagementModal', () => {
 
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
@@ -1110,7 +1121,7 @@ describe('CategoryManagementModal', () => {
     setupChrome()
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
@@ -1142,7 +1153,7 @@ describe('CategoryManagementModal', () => {
     setupChrome()
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={weirdDomains}
@@ -1160,7 +1171,7 @@ describe('CategoryManagementModal', () => {
 
     render(
       <CategoryManagementModal
-        isOpen
+        isOpen={true}
         onClose={vi.fn()}
         category={createCategory()}
         domains={createDomains()}
