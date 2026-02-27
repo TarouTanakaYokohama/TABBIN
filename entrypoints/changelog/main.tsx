@@ -18,6 +18,18 @@ interface ChangelogItem {
 
 const CHANGELOG: ChangelogItem[] = [
   {
+    version: '1.2.0',
+    date: '2026年2月27日',
+    features: [
+      {
+        text: 'ドラッグ&ドロップで移動が成功した際、元のリストから削除できる機能を追加しました。',
+      },
+      {
+        text: 'その他、パフォーマンスの向上やバグ修正など、様々な改善を行いました。',
+      },
+    ],
+  },
+  {
     version: '1.1.0',
     date: '2025年4月29日',
     features: [
