@@ -35,6 +35,7 @@ import { CustomProjectCard } from './CustomProjectCard'
 
 const defaultSettings: UserSettings = {
   removeTabAfterOpen: true,
+  removeTabAfterExternalDrop: true,
   excludePatterns: [],
   enableCategories: true,
   autoDeletePeriod: 'never',

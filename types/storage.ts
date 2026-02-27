@@ -45,6 +45,7 @@ export interface TabGroup {
 
 export interface UserSettings {
   removeTabAfterOpen: boolean
+  removeTabAfterExternalDrop: boolean
   excludePatterns: string[]
   enableCategories: boolean // カテゴリ機能の有効/無効
   autoDeletePeriod?: string // never, 1hour, 1day, 7days, 14days, 30days, 180days, 365days

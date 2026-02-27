@@ -79,6 +79,10 @@ const OptionsPage = () => {
     await updateSetting('removeTabAfterOpen', checked)
   }
 
+  const handleToggleRemoveAfterExternalDrop = async (checked: boolean) => {
+    await updateSetting('removeTabAfterExternalDrop', checked)
+  }
+
   // 固定タブ除外設定のハンドラ
   const handleToggleExcludePinnedTabs = async (checked: boolean) => {
     await updateSetting('excludePinnedTabs', checked)
@@ -208,6 +212,24 @@ const OptionsPage = () => {
         <p className='mt-1 ml-7 text-muted-foreground text-sm'>
           オンにすると、保存したタブを開いた後、そのタブは保存リストから自動的に削除されます。
           オフにすると、保存したタブを開いても、リストからは削除されません。
+        </p>
+
+        <div className='mt-6 mb-4 flex items-center space-x-2'>
+          <Checkbox
+            id='remove-after-external-drop'
+            checked={settings.removeTabAfterExternalDrop}
+            onCheckedChange={handleToggleRemoveAfterExternalDrop}
+            className='cursor-pointer'
+          />
+          <Label
+            htmlFor='remove-after-external-drop'
+            className='cursor-pointer text-foreground'
+          >
+            別ブラウザへドラッグ&ドロップした後、リストから自動的に削除する
+          </Label>
+        </div>
+        <p className='mt-1 ml-7 text-muted-foreground text-sm'>
+          オンにすると、保存したURLを別ブラウザへドラッグ&ドロップした際にリストから削除します。
         </p>
 
         {/* 固定タブを除外するオプションを追加 */}

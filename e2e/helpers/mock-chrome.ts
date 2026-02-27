@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test'
 
 type UserSettings = {
   removeTabAfterOpen: boolean
+  removeTabAfterExternalDrop: boolean
   excludePatterns: string[]
   enableCategories: boolean
   autoDeletePeriod: string
@@ -35,6 +36,7 @@ type MockSetCall = Record<string, unknown>
 const defaultStore: MockChromeStore = {
   userSettings: {
     removeTabAfterOpen: true,
+    removeTabAfterExternalDrop: true,
     excludePatterns: ['chrome-extension://', 'chrome://'],
     enableCategories: true,
     autoDeletePeriod: 'never',

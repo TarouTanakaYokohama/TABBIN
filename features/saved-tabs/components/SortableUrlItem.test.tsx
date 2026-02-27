@@ -44,6 +44,7 @@ const sendMessageMock = vi.fn()
 
 const defaultSettings: UserSettings = {
   removeTabAfterOpen: true,
+  removeTabAfterExternalDrop: true,
   excludePatterns: ['chrome-extension://', 'chrome://'],
   enableCategories: true,
   autoDeletePeriod: 'never',
@@ -75,15 +76,15 @@ const getLink = () => screen.getByRole('link', { name: 'Example Tab' })
 
 const getDeleteButton = () => screen.getByRole('button', { name: 'タブを削除' })
 
-const getLatestMouseLeaveHandler = (
-  removeEventListenerSpy: ReturnType<typeof vi.spyOn>,
+const getLatestWindowBlurHandler = (
+  addEventListenerSpy: ReturnType<typeof vi.spyOn>,
 ) => {
-  const call = [...removeEventListenerSpy.mock.calls]
+  const call = [...addEventListenerSpy.mock.calls]
     .reverse()
-    .find(([eventName]) => eventName === 'mouseleave')
+    .find(([eventName]) => eventName === 'blur')
 
   if (!call || typeof call[1] !== 'function') {
-    throw new Error('mouseleave handler was not captured')
+    throw new Error('blur handler was not captured')
   }
 
   return call[1] as EventListener
@@ -236,8 +237,8 @@ describe('SortableUrlItem', () => {
   })
 
   it('ドラッグ開始でデータとメッセージを設定し、ドラッグ終了でクリーンアップする', () => {
-    const addEventListenerSpy = vi.spyOn(document, 'addEventListener')
-    const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener')
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener')
+    const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener')
     const dataTransfer = {
       setData: vi.fn(),
       dropEffect: 'move',
@@ -259,11 +260,11 @@ describe('SortableUrlItem', () => {
       'https://example.com',
     )
     expect(addEventListenerSpy).toHaveBeenCalledWith(
-      'mouseleave',
+      'blur',
       expect.any(Function),
     )
     expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      'mouseleave',
+      'blur',
       expect.any(Function),
     )
     expect(sendMessageMock).toHaveBeenCalledWith(
@@ -276,135 +277,127 @@ describe('SortableUrlItem', () => {
     )
   })
 
-  it('ドラッグ終了時に保留中タイマーをクリアする', async () => {
-    vi.useFakeTimers()
-
-    const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener')
-    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
+  it('blur済みかつdropEffect=linkのとき外部ドロップメッセージを送る', async () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener')
     const dataTransfer = {
       setData: vi.fn(),
-      dropEffect: 'none',
+      dropEffect: 'link',
     }
 
-    const { rerender } = render(<SortableUrlItem {...createProps()} />)
+    render(<SortableUrlItem {...createProps()} />)
 
     fireEvent.dragStart(getLink(), { dataTransfer })
-    rerender(<SortableUrlItem {...createProps({ groupId: 'group-2' })} />)
-
-    const mouseLeaveHandler = getLatestMouseLeaveHandler(removeEventListenerSpy)
+    const blurHandler = getLatestWindowBlurHandler(addEventListenerSpy)
     await act(async () => {
-      mouseLeaveHandler(new Event('mouseleave'))
+      blurHandler(new Event('blur'))
     })
 
     fireEvent.dragEnd(getLink(), { dataTransfer })
-
-    expect(clearTimeoutSpy).toHaveBeenCalled()
-  })
-
-  it('外部ドロップ判定タイマーの条件が不成立のとき削除メッセージを送らない', async () => {
-    vi.useFakeTimers()
-
-    const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener')
-
-    const { rerender } = render(<SortableUrlItem {...createProps()} />)
-
-    rerender(<SortableUrlItem {...createProps({ groupId: 'group-2' })} />)
-
-    const mouseLeaveHandlerLeftWindowFalse = getLatestMouseLeaveHandler(
-      removeEventListenerSpy,
-    )
-
-    await act(async () => {
-      mouseLeaveHandlerLeftWindowFalse(new Event('mouseleave'))
-    })
-
-    rerender(<SortableUrlItem {...createProps({ groupId: 'group-3' })} />)
-
-    const mouseLeaveHandlerDraggingFalse = getLatestMouseLeaveHandler(
-      removeEventListenerSpy,
-    )
-
-    await act(async () => {
-      mouseLeaveHandlerDraggingFalse(new Event('mouseleave'))
-    })
-
-    act(() => {
-      vi.advanceTimersByTime(1000)
-    })
-
-    expect(sendMessageMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'urlDropped' }),
-      expect.any(Function),
-    )
-  })
-
-  it('外部ドロップ検出の false/true 分岐を通し、アンマウント時に保留タイマーもクリアする', async () => {
-    vi.useFakeTimers()
-
-    const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener')
-    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
-
-    const { rerender, unmount } = render(<SortableUrlItem {...createProps()} />)
-
-    fireEvent.dragStart(getLink(), {
-      dataTransfer: { setData: vi.fn(), dropEffect: 'copy' },
-    })
-    rerender(<SortableUrlItem {...createProps({ groupId: 'group-2' })} />)
-
-    const mouseLeaveHandlerDragging = getLatestMouseLeaveHandler(
-      removeEventListenerSpy,
-    )
-
-    await act(async () => {
-      mouseLeaveHandlerDragging(new Event('mouseleave'))
-    })
-
-    act(() => {
-      vi.advanceTimersByTime(1000)
-    })
-
-    expect(sendMessageMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'urlDropped' }),
-      expect.any(Function),
-    )
-
-    rerender(<SortableUrlItem {...createProps({ groupId: 'group-3' })} />)
-
-    const mouseLeaveHandlerLeftWindow = getLatestMouseLeaveHandler(
-      removeEventListenerSpy,
-    )
-    expect(mouseLeaveHandlerLeftWindow).not.toBe(mouseLeaveHandlerDragging)
-
-    await act(async () => {
-      mouseLeaveHandlerLeftWindow(new Event('mouseleave'))
-    })
-
-    await act(async () => {
-      mouseLeaveHandlerLeftWindow(new Event('mouseleave'))
-    })
-
-    act(() => {
-      vi.advanceTimersByTime(1000)
-    })
 
     expect(sendMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'urlDropped',
         url: 'https://example.com',
-        groupId: 'group-2',
+        groupId: 'group-1',
         fromExternal: true,
       }),
       expect.any(Function),
     )
+  })
+
+  it('blurが発生しないときは外部ドロップメッセージを送らない', () => {
+    const dataTransfer = {
+      setData: vi.fn(),
+      dropEffect: 'link',
+    }
+
+    render(<SortableUrlItem {...createProps()} />)
+
+    fireEvent.dragStart(getLink(), { dataTransfer })
+    fireEvent.dragEnd(getLink(), { dataTransfer })
+
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'urlDropped' }),
+      expect.any(Function),
+    )
+  })
+
+  it('dropEffectがlink以外のときは外部ドロップメッセージを送らない', async () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener')
+    const dataTransfer = {
+      setData: vi.fn(),
+      dropEffect: 'none',
+    }
+
+    render(<SortableUrlItem {...createProps()} />)
+
+    fireEvent.dragStart(getLink(), { dataTransfer })
+    const blurHandler = getLatestWindowBlurHandler(addEventListenerSpy)
+    await act(async () => {
+      blurHandler(new Event('blur'))
+    })
+    fireEvent.dragEnd(getLink(), { dataTransfer })
+
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'urlDropped' }),
+      expect.any(Function),
+    )
+  })
+
+  it('dropEffectがcopyならblurなしでも外部ドロップメッセージを送る', () => {
+    const dataTransfer = {
+      setData: vi.fn(),
+      dropEffect: 'copy',
+    }
+
+    render(<SortableUrlItem {...createProps()} />)
+
+    fireEvent.dragStart(getLink(), { dataTransfer })
+    fireEvent.dragEnd(getLink(), { dataTransfer })
+
+    expect(sendMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'urlDropped',
+        url: 'https://example.com',
+        groupId: 'group-1',
+        fromExternal: true,
+      }),
+      expect.any(Function),
+    )
+  })
+
+  it('ドラッグ終了後にblurイベントが来ても外部ドロップ扱いしない', async () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener')
+    const dataTransfer = {
+      setData: vi.fn(),
+      dropEffect: 'link',
+    }
+
+    render(<SortableUrlItem {...createProps()} />)
+
+    fireEvent.dragStart(getLink(), { dataTransfer })
+    const blurHandler = getLatestWindowBlurHandler(addEventListenerSpy)
+    fireEvent.dragEnd(getLink(), { dataTransfer })
 
     await act(async () => {
-      mouseLeaveHandlerLeftWindow(new Event('mouseleave'))
+      blurHandler(new Event('blur'))
     })
 
-    act(() => {
-      unmount()
-    })
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'urlDropped' }),
+      expect.any(Function),
+    )
+  })
 
-    expect(clearTimeoutSpy).toHaveBeenCalled()
+  it('アンマウント時にwindow blurリスナーを解除する', () => {
+    const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener')
+    const { unmount } = render(<SortableUrlItem {...createProps()} />)
+
+    unmount()
+
+    expect(removeEventListenerSpy).toHaveBeenCalledWith(
+      'blur',
+      expect.any(Function),
+    )
   })
 })

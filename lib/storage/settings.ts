@@ -7,6 +7,7 @@ import type { UserSettings } from '@/types/storage'
 // デフォルト設定
 export const defaultSettings: UserSettings = {
   removeTabAfterOpen: true,
+  removeTabAfterExternalDrop: true,
   excludePatterns: ['chrome-extension://', 'chrome://'],
   enableCategories: true, // デフォルトは有効
   autoDeletePeriod: 'never', // デフォルトでは自動削除しない
