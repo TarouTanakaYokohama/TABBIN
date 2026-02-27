@@ -11,9 +11,16 @@ import { createOrUpdateUrlRecord, getUrlRecordsByIds } from './urls'
 /**
  * CustomProjectからURLデータを取得する（新旧形式対応）
  */
-export async function getProjectUrls(
+const getProjectUrls = async (
   project: CustomProject,
-): Promise<Array<UrlRecord & { notes?: string; category?: string }>> {
+): Promise<
+  Array<
+    UrlRecord & {
+      notes?: string
+      category?: string
+    }
+  >
+> => {
   // マイグレーションを実行（未実行の場合）
   await migrateToUrlsStorage()
 
@@ -26,12 +33,9 @@ export async function getProjectUrls(
       category: project.urlMetadata?.[record.id]?.category,
     }))
   }
-
   return []
-}
-
-// カスタムプロジェクト一覧を取得する関数
-export async function getCustomProjects(): Promise<CustomProject[]> {
+} // カスタムプロジェクト一覧を取得する関数
+const getCustomProjects = async (): Promise<CustomProject[]> => {
   try {
     // マイグレーションを実行（未実行の場合）
     await migrateToUrlsStorage()
@@ -43,7 +47,6 @@ export async function getCustomProjects(): Promise<CustomProject[]> {
     ])
     const customProjects = data.customProjects || []
     const projectOrder = data.customProjectOrder || []
-
     console.log(
       `ストレージから取得したカスタムプロジェクト: ${customProjects.length}個`,
     )
@@ -68,24 +71,22 @@ export async function getCustomProjects(): Promise<CustomProject[]> {
         if (!(project.categories && Array.isArray(project.categories))) {
           project.categories = []
         }
-
         if (!project.updatedAt) {
           project.updatedAt = Date.now()
         }
-
         if (!project.createdAt) {
           project.createdAt = Date.now()
         }
-
         return project
       })
-
     if (validProjects.length !== customProjects.length) {
       console.warn(
         `不正なプロジェクトデータが検出されました: ${customProjects.length - validProjects.length}個を修復`,
       )
       // 修復したデータを自動保存
-      await chrome.storage.local.set({ customProjects: validProjects })
+      await chrome.storage.local.set({
+        customProjects: validProjects,
+      })
     }
 
     // 順序が保存されている場合、その順序でソート
@@ -103,29 +104,24 @@ export async function getCustomProjects(): Promise<CustomProject[]> {
         return indexA - indexB
       })
     }
-
     return validProjects
   } catch (error) {
     console.error('カスタムプロジェクト取得エラー:', error)
     return []
   }
-}
-
-// カスタムプロジェクト一覧を保存する関数
-export async function saveCustomProjects(
-  projects: CustomProject[],
-): Promise<void> {
+} // カスタムプロジェクト一覧を保存する関数
+const saveCustomProjects = async (projects: CustomProject[]): Promise<void> => {
   try {
-    await chrome.storage.local.set({ customProjects: projects })
+    await chrome.storage.local.set({
+      customProjects: projects,
+    })
     console.log(`${projects.length}個のカスタムプロジェクトを保存しました`)
   } catch (error) {
     console.error('カスタムプロジェクト保存エラー:', error)
     throw error
   }
-}
-
-// 現在のビューモードを取得する関数
-export async function getViewMode(): Promise<ViewMode> {
+} // 現在のビューモードを取得する関数
+const getViewMode = async (): Promise<ViewMode> => {
   try {
     const { viewMode = 'domain' } = await chrome.storage.local.get('viewMode')
     return viewMode as ViewMode
@@ -133,18 +129,16 @@ export async function getViewMode(): Promise<ViewMode> {
     console.error('ビューモード取得エラー:', error)
     return 'domain' // エラー時はデフォルト値を返す
   }
-}
-
-// ビューモードを保存する関数
-export async function saveViewMode(mode: ViewMode): Promise<void> {
-  await chrome.storage.local.set({ viewMode: mode })
-}
-
-// 新しいカスタムプロジェクトを作成する関数
-export async function createCustomProject(
+} // ビューモードを保存する関数
+const saveViewMode = async (mode: ViewMode): Promise<void> => {
+  await chrome.storage.local.set({
+    viewMode: mode,
+  })
+} // 新しいカスタムプロジェクトを作成する関数
+const createCustomProject = async (
   name: string,
   description?: string,
-): Promise<CustomProject> {
+): Promise<CustomProject> => {
   const projects = await getCustomProjects()
 
   // 重複チェック
@@ -153,28 +147,26 @@ export async function createCustomProject(
   ) {
     throw new Error(`DUPLICATE_PROJECT_NAME:${name}`)
   }
-
   const newProject: CustomProject = {
     id: uuidv4(),
     name,
     description,
-    urlIds: [], // 新形式のURL IDリスト
-    categories: [], // 空のカテゴリリストで初期化
+    urlIds: [],
+    // 新形式のURL IDリスト
+    categories: [],
+    // 空のカテゴリリストで初期化
     createdAt: Date.now(),
     updatedAt: Date.now(),
   }
-
   await saveCustomProjects([...projects, newProject])
   return newProject
 }
-
-function ensureProjectUrlIds(project: CustomProject): void {
+const ensureProjectUrlIds = (project: CustomProject): void => {
   if (!project.urlIds) {
     project.urlIds = []
   }
 }
-
-function addUrlIdToProject(project: CustomProject, urlId: string): boolean {
+const addUrlIdToProject = (project: CustomProject, urlId: string): boolean => {
   ensureProjectUrlIds(project)
   let urlIds = project.urlIds
   if (!urlIds) {
@@ -187,28 +179,28 @@ function addUrlIdToProject(project: CustomProject, urlId: string): boolean {
   urlIds.push(urlId)
   return true
 }
-
-function setProjectUrlMetadata(
+const setProjectUrlMetadata = (
   project: CustomProject,
   urlId: string,
   notes?: string,
   category?: string,
-): void {
+): void => {
   if (!(notes || category)) {
     return
   }
   if (!project.urlMetadata) {
     project.urlMetadata = {}
   }
-  project.urlMetadata[urlId] = { notes, category }
+  project.urlMetadata[urlId] = {
+    notes,
+    category,
+  }
 }
-
-function getDomainFromUrl(url: string): string {
+const getDomainFromUrl = (url: string): string => {
   const urlObj = new URL(url)
   return `${urlObj.protocol}//${urlObj.hostname}`
 }
-
-function ensureUrlIdInGroup(group: TabGroup, urlId: string): TabGroup {
+const ensureUrlIdInGroup = (group: TabGroup, urlId: string): TabGroup => {
   if (!group.urlIds) {
     group.urlIds = []
   }
@@ -217,11 +209,12 @@ function ensureUrlIdInGroup(group: TabGroup, urlId: string): TabGroup {
   }
   return group
 }
-
-async function addUrlIdToDomainMode(url: string, urlId: string): Promise<void> {
+const addUrlIdToDomainMode = async (
+  url: string,
+  urlId: string,
+): Promise<void> => {
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
   const domain = getDomainFromUrl(url)
-
   const domainGroup = savedTabs.find(
     (group: TabGroup) => group.domain === domain,
   )
@@ -235,45 +228,44 @@ async function addUrlIdToDomainMode(url: string, urlId: string): Promise<void> {
       savedAt: Date.now(),
     })
   }
-
-  await chrome.storage.local.set({ savedTabs })
+  await chrome.storage.local.set({
+    savedTabs,
+  })
   console.log(`URL ${url} をドメインモードのデータにも追加しました`)
-}
-
-// URLをカスタムプロジェクトに追加する関数（新形式対応）
-export async function addUrlToCustomProject(
+} // URLをカスタムプロジェクトに追加する関数（新形式対応）
+const addUrlToCustomProject = async (
   projectId: string,
   url: string,
   title: string,
-  notes?: string,
-  category?: string,
-): Promise<void> {
+  options?: {
+    notes?: string
+    category?: string
+  },
+): Promise<void> => {
   try {
     // マイグレーションを実行（未実行の場合）
     await migrateToUrlsStorage()
-
     const projects = await getCustomProjects()
     const projectIndex = projects.findIndex(p => p.id === projectId)
-
     if (projectIndex === -1) {
       throw new Error(`Project with ID ${projectId} not found`)
     }
-
     const project = projects[projectIndex]
 
     // URLレコードを作成または更新
     const urlRecord = await createOrUpdateUrlRecord(url, title)
-
     const isNewUrl = addUrlIdToProject(project, urlRecord.id)
-    setProjectUrlMetadata(project, urlRecord.id, notes, category)
-
+    setProjectUrlMetadata(
+      project,
+      urlRecord.id,
+      options?.notes,
+      options?.category,
+    )
     if (isNewUrl) {
       await addUrlIdToDomainMode(url, urlRecord.id)
     }
-
     project.updatedAt = Date.now()
     projects[projectIndex] = project
-
     await saveCustomProjects(projects)
     console.log(
       `${isNewUrl ? '新しい' : '既存の'}URLをプロジェクトに${isNewUrl ? '追加' : '更新'}しました: ${url}`,
@@ -282,30 +274,24 @@ export async function addUrlToCustomProject(
     console.error('URLをプロジェクトに追加中にエラーが発生しました:', error)
     throw error
   }
-}
-
-// URLをカスタムプロジェクトから削除する関数（新形式対応）
-export async function removeUrlFromCustomProject(
+} // URLをカスタムプロジェクトから削除する関数（新形式対応）
+const removeUrlFromCustomProject = async (
   projectId: string,
   url: string,
-): Promise<void> {
+): Promise<void> => {
   // マイグレーションを実行（未実行の場合）
   await migrateToUrlsStorage()
-
   const projects = await getCustomProjects()
   const projectIndex = projects.findIndex(p => p.id === projectId)
-
   if (projectIndex === -1) {
     throw new Error(`Project with ID ${projectId} not found`)
   }
-
   const project = projects[projectIndex]
 
   // 新形式のみサポート: URLIDsからURLを削除
   if (project.urlIds && project.urlIds.length > 0) {
     const urlRecords = await getUrlRecordsByIds(project.urlIds)
     const urlRecord = urlRecords.find(record => record.url === url)
-
     if (urlRecord) {
       project.urlIds = project.urlIds.filter(id => id !== urlRecord.id)
 
@@ -315,10 +301,8 @@ export async function removeUrlFromCustomProject(
       }
     }
   }
-
   project.updatedAt = Date.now()
   projects[projectIndex] = project
-
   await saveCustomProjects(projects)
 
   // ドメインモードからも同じURLを削除
@@ -330,7 +314,6 @@ export async function removeUrlFromCustomProject(
       savedTabs.flatMap((group: TabGroup) => group.urlIds || []),
     )
     const urlRecord = urlRecords.find(record => record.url === url)
-
     if (urlRecord) {
       const updatedGroups = savedTabs
         .map((group: TabGroup) => {
@@ -347,33 +330,28 @@ export async function removeUrlFromCustomProject(
           return group
         })
         .filter((group: TabGroup | null): group is TabGroup => group !== null)
-
-      await chrome.storage.local.set({ savedTabs: updatedGroups })
+      await chrome.storage.local.set({
+        savedTabs: updatedGroups,
+      })
       console.log(`URL ${url} はドメインモードからも削除されました`)
     }
   } catch (syncError) {
     console.error('ドメインモードの同期中にエラーが発生しました:', syncError)
     // エラーをスローしないで続行 - カスタムプロジェクトの削除は成功している
   }
-}
-
-// カスタムプロジェクトを削除する関数
-export async function deleteCustomProject(projectId: string): Promise<void> {
+} // カスタムプロジェクトを削除する関数
+const deleteCustomProject = async (projectId: string): Promise<void> => {
   const projects = await getCustomProjects()
   const updatedProjects = projects.filter(p => p.id !== projectId)
-
   if (projects.length === updatedProjects.length) {
     throw new Error(`Project with ID ${projectId} not found`)
   }
-
   await saveCustomProjects(updatedProjects)
-}
-
-// カスタムプロジェクト名を更新する関数
-export async function updateCustomProjectName(
+} // カスタムプロジェクト名を更新する関数
+const updateCustomProjectName = async (
   projectId: string,
   newName: string,
-): Promise<void> {
+): Promise<void> => {
   const projects = await getCustomProjects()
 
   // 同名プロジェクトの重複チェック（自分自身は除く）
@@ -384,33 +362,26 @@ export async function updateCustomProjectName(
   ) {
     throw new Error(`DUPLICATE_PROJECT_NAME:${newName}`)
   }
-
   const projectIndex = projects.findIndex(p => p.id === projectId)
   if (projectIndex === -1) {
     throw new Error(`Project with ID ${projectId} not found`)
   }
-
   projects[projectIndex] = {
     ...projects[projectIndex],
     name: newName,
     updatedAt: Date.now(),
   }
-
   await saveCustomProjects(projects)
-}
-
-// プロジェクトにカテゴリを追加する関数
-export async function addCategoryToProject(
+} // プロジェクトにカテゴリを追加する関数
+const addCategoryToProject = async (
   projectId: string,
   categoryName: string,
-): Promise<void> {
+): Promise<void> => {
   const projects = await getCustomProjects()
   const projectIndex = projects.findIndex(p => p.id === projectId)
-
   if (projectIndex === -1) {
     throw new Error(`Project with ID ${projectId} not found`)
   }
-
   const project = projects[projectIndex]
 
   // カテゴリが既に存在するかチェック
@@ -429,23 +400,18 @@ export async function addCategoryToProject(
   } else {
     project.categoryOrder = project.categories
   }
-
   projects[projectIndex] = project
   await saveCustomProjects(projects)
-}
-
-// プロジェクトからカテゴリを削除する関数
-export async function removeCategoryFromProject(
+} // プロジェクトからカテゴリを削除する関数
+const removeCategoryFromProject = async (
   projectId: string,
   categoryName: string,
-): Promise<void> {
+): Promise<void> => {
   const projects = await getCustomProjects()
   const projectIndex = projects.findIndex(p => p.id === projectId)
-
   if (projectIndex === -1) {
     throw new Error(`Project with ID ${projectId} not found`)
   }
-
   const project = projects[projectIndex]
 
   // カテゴリを削除
@@ -466,95 +432,73 @@ export async function removeCategoryFromProject(
       }
     }
   }
-
   project.updatedAt = Date.now()
   projects[projectIndex] = project
   await saveCustomProjects(projects)
-}
-
-// URLにカテゴリを設定する関数（新形式対応）
-export async function setUrlCategory(
+} // URLにカテゴリを設定する関数（新形式対応）
+const setUrlCategory = async (
   projectId: string,
   url: string,
   category?: string,
-): Promise<void> {
+): Promise<void> => {
   // マイグレーションを実行（未実行の場合）
   await migrateToUrlsStorage()
-
   const projects = await getCustomProjects()
   const projectIndex = projects.findIndex(p => p.id === projectId)
-
   if (projectIndex === -1) {
     throw new Error(`Project with ID ${projectId} not found`)
   }
-
   const project = projects[projectIndex]
 
   // 新形式のみサポート: URLIDsからURLレコードを探してカテゴリを設定
   if (project.urlIds && project.urlIds.length > 0) {
     const urlRecords = await getUrlRecordsByIds(project.urlIds)
     const urlRecord = urlRecords.find(record => record.url === url)
-
     if (urlRecord) {
       if (!project.urlMetadata) {
         project.urlMetadata = {}
       }
-
       if (!project.urlMetadata[urlRecord.id]) {
         project.urlMetadata[urlRecord.id] = {}
       }
-
       project.urlMetadata[urlRecord.id].category = category
     }
   }
-
   project.updatedAt = Date.now()
   projects[projectIndex] = project
   await saveCustomProjects(projects)
-}
-
-// カテゴリ順序を更新する関数
-export async function updateCategoryOrder(
+} // カテゴリ順序を更新する関数
+const updateCategoryOrder = async (
   projectId: string,
   newOrder: string[],
-): Promise<void> {
+): Promise<void> => {
   const projects = await getCustomProjects()
   const projectIndex = projects.findIndex(p => p.id === projectId)
-
   if (projectIndex === -1) {
     throw new Error(`Project with ID ${projectId} not found`)
   }
-
   const project = projects[projectIndex]
   project.categoryOrder = newOrder
   project.updatedAt = Date.now()
-
   projects[projectIndex] = project
   await saveCustomProjects(projects)
-}
-
-// プロジェクト内のURLを並び替える関数
-export async function reorderProjectUrls(
+} // プロジェクト内のURLを並び替える関数
+const reorderProjectUrls = async (
   projectId: string,
   urls: CustomProject['urls'],
-): Promise<void> {
+): Promise<void> => {
   const projects = await getCustomProjects()
   const projectIndex = projects.findIndex(p => p.id === projectId)
-
   if (projectIndex === -1) {
     throw new Error(`Project with ID ${projectId} not found`)
   }
-
   const project = projects[projectIndex]
   project.urls = urls
   project.updatedAt = Date.now()
-
   projects[projectIndex] = project
   await saveCustomProjects(projects)
-}
-
-// プロジェクト順序を保存する関数
-export async function updateProjectOrder(projectIds: string[]): Promise<void> {
+} // プロジェクト順序を保存する関数
+const updateProjectOrder = async (projectIds: string[]): Promise<void> => {
   try {
     // 現在のプロジェクトを取得
     const projects = await getCustomProjects()
@@ -563,7 +507,9 @@ export async function updateProjectOrder(projectIds: string[]): Promise<void> {
     }
 
     // プロジェクト順序の保存
-    await chrome.storage.local.set({ customProjectOrder: projectIds })
+    await chrome.storage.local.set({
+      customProjectOrder: projectIds,
+    })
     console.log('プロジェクト順序を保存しました:', projectIds)
 
     // プロジェクトの更新日時も更新
@@ -571,20 +517,17 @@ export async function updateProjectOrder(projectIds: string[]): Promise<void> {
       ...project,
       updatedAt: Date.now(),
     }))
-
     await saveCustomProjects(updatedProjects)
   } catch (error) {
     console.error('プロジェクト順序の保存に失敗しました:', error)
     throw error
   }
-}
-
-// カテゴリ名を変更する関数
-export async function renameCategoryInProject(
+} // カテゴリ名を変更する関数
+const renameCategoryInProject = async (
   projectId: string,
   oldCategoryName: string,
   newCategoryName: string,
-): Promise<void> {
+): Promise<void> => {
   const projects = await getCustomProjects()
   const projectIndex = projects.findIndex(p => p.id === projectId)
   if (projectIndex === -1) {
@@ -615,4 +558,23 @@ export async function renameCategoryInProject(
   project.updatedAt = Date.now()
   projects[projectIndex] = project
   await saveCustomProjects(projects)
+}
+export {
+  addCategoryToProject,
+  addUrlToCustomProject,
+  createCustomProject,
+  deleteCustomProject,
+  getCustomProjects,
+  getProjectUrls,
+  getViewMode,
+  removeCategoryFromProject,
+  removeUrlFromCustomProject,
+  renameCategoryInProject,
+  reorderProjectUrls,
+  saveCustomProjects,
+  saveViewMode,
+  setUrlCategory,
+  updateCategoryOrder,
+  updateCustomProjectName,
+  updateProjectOrder,
 }

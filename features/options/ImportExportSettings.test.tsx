@@ -97,7 +97,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     readerContent = '{"import":"payload"}'
     readerAsync = false
 
-    ;(globalThis as unknown as { FileReader: typeof FileReader }).FileReader =
+    ;(globalThis as { [key: string]: unknown }).FileReader =
       MockFileReader as unknown as typeof FileReader
 
     ;(globalThis as unknown as { chrome: typeof chrome }).chrome = {

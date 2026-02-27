@@ -9,7 +9,6 @@ const parseCategoryNameFromOverId = (overId: string): string | undefined => {
   }
   return parts.slice(3).join('-')
 }
-
 const isUncategorizedDrop = (
   over: DragOverEvent['over'],
   projectId: string,
@@ -21,19 +20,16 @@ const isUncategorizedDrop = (
       over?.data?.current?.type === 'uncategorized',
   )
 }
-
 const resolveOverCategoryName = (
   over: DragOverEvent['over'],
 ): string | null => {
   if (!over?.data?.current) {
     return null
   }
-
   const overData = over.data.current
   if (overData.type === 'uncategorized') {
     return null
   }
-
   const isCategory =
     overData.type === 'category' ||
     overData.isCategory === true ||
@@ -44,22 +40,19 @@ const resolveOverCategoryName = (
   if (!isCategory) {
     return null
   }
-
   if (overData.categoryName) {
     return overData.categoryName
   }
-
   if (typeof over.id === 'string') {
     return parseCategoryNameFromOverId(String(over.id)) || null
   }
-
   return null
 }
 
 /**
  * カテゴリ・URLのドラッグ＆ドロップ状態管理用カスタムフック
  */
-export function useCategoryDnD() {
+export const useCategoryDnD = () => {
   // ドラッグ中のカテゴリ名
   const [isDraggingCategory, setIsDraggingCategory] = useState(false)
   const [draggedCategoryName, setDraggedCategoryName] = useState<string | null>(
@@ -86,19 +79,22 @@ export function useCategoryDnD() {
   }
 
   // ドラッグ中
-  const handleDragOver = (event: DragOverEvent, project: { id: string }) => {
+  const handleDragOver = (
+    event: DragOverEvent,
+    project: {
+      id: string
+    },
+  ) => {
     const { over } = event
     if (isUncategorizedDrop(over, project.id)) {
       setDraggedOverCategory(null)
       return
     }
-
     const categoryName = resolveOverCategoryName(over)
     if (!categoryName) {
       setDraggedOverCategory(null)
       return
     }
-
     setDraggedOverCategory(categoryName)
   }
 
@@ -109,7 +105,6 @@ export function useCategoryDnD() {
     setDraggedCategoryName(null)
     setDraggedOverCategory(null)
   }
-
   return {
     isDraggingCategory,
     draggedCategoryName,

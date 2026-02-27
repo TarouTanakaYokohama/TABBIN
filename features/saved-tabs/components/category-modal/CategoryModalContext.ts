@@ -11,6 +11,6 @@ export interface CategoryModalContextType {
 }
 
 export const {
-  Context: CategoryModalContext,
+  context: CategoryModalContext,
   useCompoundContext: useCategoryModalContext,
 } = createCompoundContext<CategoryModalContextType>('CategoryModal')

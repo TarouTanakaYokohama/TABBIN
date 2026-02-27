@@ -11,6 +11,6 @@ export interface KeywordModalContextType {
 }
 
 export const {
-  Context: KeywordModalContext,
+  context: KeywordModalContext,
   useCompoundContext: useKeywordModal,
 } = createCompoundContext<KeywordModalContextType>('KeywordModal')

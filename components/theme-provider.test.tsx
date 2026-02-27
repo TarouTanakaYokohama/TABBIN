@@ -168,7 +168,7 @@ describe('ThemeProvider', () => {
     expect(storageOnChangedMock.addListener).toHaveBeenCalledTimes(3)
 
     const themeChangeListener = storageListeners[0]
-    expect(typeof themeChangeListener).toBe('function')
+    expect(themeChangeListener).toEqual(expect.any(Function))
 
     act(() => {
       themeChangeListener(

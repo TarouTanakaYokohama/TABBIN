@@ -89,7 +89,7 @@ export const ProjectUrlItem = ({
       // カテゴリ操作に関する情報を追加
       canMoveToUncategorized: true,
       originalCategory: item.category,
-      hasCategory: !!item.category, // カテゴリ有無の明示的なフラグ
+      hasCategory: Boolean(item.category), // カテゴリ有無の明示的なフラグ
       // 親コンテナ情報を追加
       parent: parentType
         ? { type: parentType, id: `${parentType}-${projectId}` }
@@ -184,7 +184,7 @@ export const ProjectUrlItem = ({
         data-url={originalUrl}
         data-project-id={projectId}
         data-category={item.category}
-        data-has-category={!!item.category}
+        data-has-category={Boolean(item.category)}
         data-category-level={categoryLevel}
         data-parent-type={parentType || ''}
         data-in-uncategorized={isInUncategorizedArea ? 'true' : 'false'}

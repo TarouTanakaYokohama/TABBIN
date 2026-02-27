@@ -25,12 +25,19 @@ export const SortOrderToggle = ({
   sortOrder,
   setSortOrder,
 }: SortOrderToggleProps) => {
-  const label =
-    sortOrder === 'default'
-      ? 'デフォルト'
-      : sortOrder === 'asc'
-        ? '保存日時の昇順'
-        : '保存日時の降順'
+  let label = '保存日時の降順'
+  if (sortOrder === 'default') {
+    label = 'デフォルト'
+  } else if (sortOrder === 'asc') {
+    label = '保存日時の昇順'
+  }
+
+  let icon = <ArrowUpWideNarrow size={14} />
+  if (sortOrder === 'default') {
+    icon = <ArrowUpDown size={14} />
+  } else if (sortOrder === 'asc') {
+    icon = <ArrowUpNarrowWide size={14} />
+  }
 
   return (
     <Tooltip>
@@ -40,20 +47,20 @@ export const SortOrderToggle = ({
           size='sm'
           onClick={e => {
             e.stopPropagation()
-            setSortOrder(o =>
-              o === 'default' ? 'asc' : o === 'asc' ? 'desc' : 'default',
-            )
+            setSortOrder(o => {
+              if (o === 'default') {
+                return 'asc'
+              }
+              if (o === 'asc') {
+                return 'desc'
+              }
+              return 'default'
+            })
           }}
           className='flex cursor-pointer items-center gap-1'
           aria-label={label}
         >
-          {sortOrder === 'default' ? (
-            <ArrowUpDown size={14} />
-          ) : sortOrder === 'asc' ? (
-            <ArrowUpNarrowWide size={14} />
-          ) : (
-            <ArrowUpWideNarrow size={14} />
-          )}
+          {icon}
         </Button>
       </TooltipTrigger>
       <TooltipContent side='top' className='block lg:hidden'>

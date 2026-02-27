@@ -17,23 +17,26 @@ const alertVariants = cva(
     },
   },
 )
-
-function Alert({
+const Alert = ({
   className,
   variant,
   ...props
-}: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
+}: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) => {
   return (
     <div
       data-slot='alert'
       role='alert'
-      className={cn(alertVariants({ variant }), className)}
+      className={cn(
+        alertVariants({
+          variant,
+        }),
+        className,
+      )}
       {...props}
     />
   )
 }
-
-function AlertTitle({ className, ...props }: React.ComponentProps<'div'>) {
+const AlertTitle = ({ className, ...props }: React.ComponentProps<'div'>) => {
   return (
     <div
       data-slot='alert-title'
@@ -45,11 +48,10 @@ function AlertTitle({ className, ...props }: React.ComponentProps<'div'>) {
     />
   )
 }
-
-function AlertDescription({
+const AlertDescription = ({
   className,
   ...props
-}: React.ComponentProps<'div'>) {
+}: React.ComponentProps<'div'>) => {
   return (
     <div
       data-slot='alert-description'
@@ -61,5 +63,4 @@ function AlertDescription({
     />
   )
 }
-
 export { Alert, AlertTitle, AlertDescription }

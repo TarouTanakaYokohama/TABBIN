@@ -714,7 +714,7 @@ describe('CategoryManagementModal', () => {
       props =>
         props.variant === 'destructive' &&
         props.size === 'sm' &&
-        typeof props.onClick === 'function',
+        props.onClick instanceof Function,
     ) as { onClick?: () => Promise<void> | void } | undefined
     await deleteConfirmButtonProps?.onClick?.()
     expect(setMock).toHaveBeenCalledTimes(1)
@@ -846,7 +846,7 @@ describe('CategoryManagementModal', () => {
       props =>
         props.variant === 'default' &&
         props.size === 'icon' &&
-        typeof props.onClick === 'function',
+        props.onClick instanceof Function,
     ) as
       | {
           onClick?: (e: {
@@ -957,23 +957,25 @@ describe('CategoryManagementModal', () => {
     }
 
     const originalFind = Array.prototype.find
-    const findSpy = vi
-      .spyOn(Array.prototype, 'find')
-      .mockImplementation(function (this: unknown[], predicate, thisArg) {
-        if (
-          this.every(
-            item =>
-              !!item &&
-              typeof item === 'object' &&
-              'id' in (item as Record<string, unknown>) &&
-              'domain' in (item as Record<string, unknown>) &&
-              !('urls' in (item as Record<string, unknown>)),
-          )
-        ) {
-          return
-        }
-        return originalFind.call(this, predicate, thisArg)
-      })
+    const findSpy = vi.spyOn(Array.prototype, 'find')
+    findSpy.mockImplementation((predicate, thisArg) => {
+      const context = findSpy.mock.contexts[
+        findSpy.mock.calls.length - 1
+      ] as unknown[]
+      if (
+        context.every(
+          item =>
+            Boolean(item) &&
+            typeof item === 'object' &&
+            'id' in (item as Record<string, unknown>) &&
+            'domain' in (item as Record<string, unknown>) &&
+            !('urls' in (item as Record<string, unknown>)),
+        )
+      ) {
+        return
+      }
+      return originalFind.call(context, predicate, thisArg)
+    })
 
     fireEvent.click(plusButton)
     await waitFor(() => {
@@ -1087,7 +1089,7 @@ describe('CategoryManagementModal', () => {
     const removeButtonProps = getLatestButtonProps(
       props =>
         props['aria-label'] === 'ドメインを削除' &&
-        typeof props.onClick === 'function',
+        props.onClick instanceof Function,
     ) as { onClick?: () => void } | undefined
     removeButtonProps?.onClick?.()
     expect(setMock).toHaveBeenCalledTimes(1)

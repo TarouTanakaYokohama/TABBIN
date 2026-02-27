@@ -364,15 +364,17 @@ describe('import-export ユーティリティ', () => {
   it('マージ済みプレースホルダーマップの has() が予期せず true を返しても処理できる', async () => {
     const originalHas = Map.prototype.has
     let hasCallCount = 0
-    const hasSpy = vi.spyOn(Map.prototype, 'has').mockImplementation(function (
-      this: Map<unknown, unknown>,
-      key: unknown,
-    ) {
+    const hasSpy = vi.spyOn(Map.prototype, 'has')
+    hasSpy.mockImplementation((key: unknown) => {
       hasCallCount += 1
       if (hasCallCount === 2 && key === 'forced-skip-placeholder-id') {
         return true
       }
-      return originalHas.call(this, key)
+      const context = hasSpy.mock.contexts[hasSpy.mock.calls.length - 1] as Map<
+        unknown,
+        unknown
+      >
+      return originalHas.call(context, key)
     })
 
     createChromeMock({
@@ -859,18 +861,17 @@ describe('import-export ユーティリティ', () => {
     )
 
     expect(
-      set.mock.calls.some(
-        ([payload]) =>
-          !!(
-            (payload as Record<string, unknown>)?.urls &&
+      set.mock.calls.some(([payload]) =>
+        Boolean(
+          (payload as Record<string, unknown>)?.urls &&
             Array.isArray((payload as Record<string, unknown>).urls) &&
             ((payload as Record<string, unknown>).urls as unknown[]).some(
               record =>
                 typeof record === 'object' &&
                 record !== null &&
                 (record as { id?: string }).id === 'raw-fallback-id',
-            )
-          ),
+            ),
+        ),
       ),
     ).toBe(false)
   })
@@ -1227,14 +1228,16 @@ describe('import-export ユーティリティ', () => {
 
   it('merge モードでは has() 後の keyword map 参照が undefined を返しても処理できる', async () => {
     const originalGet = Map.prototype.get
-    const getSpy = vi.spyOn(Map.prototype, 'get').mockImplementation(function (
-      this: Map<unknown, unknown>,
-      key: unknown,
-    ) {
+    const getSpy = vi.spyOn(Map.prototype, 'get')
+    getSpy.mockImplementation((key: unknown) => {
       if (key === 'force-undefined-existing-item') {
         return
       }
-      return originalGet.call(this, key)
+      const context = getSpy.mock.contexts[getSpy.mock.calls.length - 1] as Map<
+        unknown,
+        unknown
+      >
+      return originalGet.call(context, key)
     })
 
     const { set } = createChromeMock({

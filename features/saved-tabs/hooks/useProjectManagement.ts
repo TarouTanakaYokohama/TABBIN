@@ -40,7 +40,7 @@ import type {
 } from '@/types/storage'
 
 /** useProjectManagement フックの戻り値型 */
-export interface UseProjectManagementReturn {
+interface UseProjectManagementReturn {
   /** カスタムプロジェクト一覧 */
   customProjects: CustomProject[]
   /** customProjects を直接更新するセッター */
@@ -155,11 +155,18 @@ export interface UseProjectManagementReturn {
     newCategoryName: string,
   ) => Promise<void>
 }
-
-async function collectDomainModeUrls(
+const collectDomainModeUrls = async (
   savedTabs: TabGroup[],
-): Promise<Array<{ url: string; title: string }>> {
-  const allDomainUrls: Array<{ url: string; title: string }> = []
+): Promise<
+  Array<{
+    url: string
+    title: string
+  }>
+> => {
+  const allDomainUrls: Array<{
+    url: string
+    title: string
+  }> = []
   for (const group of savedTabs) {
     const groupUrls = await getTabGroupUrls(group)
     for (const urlItem of groupUrls) {
@@ -171,10 +178,9 @@ async function collectDomainModeUrls(
   }
   return allDomainUrls
 }
-
-async function createDefaultProjectFromSavedTabs(
+const createDefaultProjectFromSavedTabs = async (
   savedTabs: TabGroup[],
-): Promise<CustomProject[]> {
+): Promise<CustomProject[]> => {
   const allDomainUrls = await collectDomainModeUrls(savedTabs)
   const defaultProject = await createCustomProject(
     'デフォルトプロジェクト',
@@ -185,16 +191,14 @@ async function createDefaultProjectFromSavedTabs(
   }
   return getCustomProjects()
 }
-
-async function inspectProjectSync(
+const inspectProjectSync = async (
   project: CustomProject,
   savedTabs: TabGroup[],
-): Promise<CustomProject> {
+): Promise<CustomProject> => {
   try {
     const projectUrls = await getProjectUrls(project)
     const existingUrls = new Set(projectUrls.map(url => url.url))
     let urlsProcessed = 0
-
     for (const group of savedTabs) {
       const groupUrls = await getTabGroupUrls(group)
       for (const tabUrl of groupUrls) {
@@ -202,7 +206,6 @@ async function inspectProjectSync(
         existingUrls.delete(tabUrl.url)
       }
     }
-
     console.log(`処理したURL数: ${urlsProcessed}`)
     console.log(`プロジェクト ${project.name}: ${projectUrls.length}個のURL`)
     return project
@@ -211,7 +214,6 @@ async function inspectProjectSync(
     return project
   }
 }
-
 /**
  * カスタムプロジェクト管理フック。
  * ビューモード切替・CRUD・URL管理・プロジェクト内カテゴリ管理を担う。
@@ -220,13 +222,12 @@ async function inspectProjectSync(
  * @param _settings - ユーザー設定（将来の拡張用）
  * @returns UseProjectManagementReturn
  */
-export function useProjectManagement(
+const useProjectManagement = (
   _tabGroups: TabGroup[],
   _settings: UserSettings,
-): UseProjectManagementReturn {
+): UseProjectManagementReturn => {
   const [customProjects, setCustomProjects] = useState<CustomProject[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>('domain')
-
   const customProjectsRef = useRef<CustomProject[]>([])
   const viewModeRef = useRef<ViewMode>('domain')
 
@@ -234,7 +235,6 @@ export function useProjectManagement(
   useEffect(() => {
     customProjectsRef.current = customProjects
   }, [customProjects])
-
   useEffect(() => {
     viewModeRef.current = viewMode
   }, [viewMode])
@@ -265,7 +265,6 @@ export function useProjectManagement(
         console.log(
           'カスタムプロジェクトが存在しないため、デフォルトプロジェクトを作成します',
         )
-
         projects = await createDefaultProjectFromSavedTabs(savedTabs)
         console.log(
           `デフォルトプロジェクトを作成しました: ${projects.length} プロジェクト`,
@@ -282,7 +281,6 @@ export function useProjectManagement(
       console.log(
         'プロジェクトデータを確認しました。新形式URL管理で同期は不要です',
       )
-
       return updatedProjects
     } catch (error) {
       console.error('データ同期エラー:', error)
@@ -305,18 +303,15 @@ export function useProjectManagement(
         console.log(`ビューモードを ${mode} に変更します`)
         setViewMode(mode)
         await saveViewMode(mode)
-
         if (mode !== 'custom') {
           return
         }
-
         console.log('カスタムモードに切り替え: データ同期を開始')
         const projects = await syncDomainDataToCustomProjects()
         console.log(`同期完了: ${projects.length} プロジェクト`)
         if (projects.length > 0) {
           return
         }
-
         try {
           console.log('デフォルトプロジェクトを作成します')
           const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
@@ -367,7 +362,6 @@ export function useProjectManagement(
         if (!project) {
           return
         }
-
         await deleteCustomProject(projectId)
         setCustomProjects(prev => prev.filter(p => p.id !== projectId))
         toast.success(`プロジェクト「${project.name}」を削除しました`)
@@ -387,7 +381,11 @@ export function useProjectManagement(
         setCustomProjects(prev =>
           prev.map(p =>
             p.id === projectId
-              ? { ...p, name: newName, updatedAt: Date.now() }
+              ? {
+                  ...p,
+                  name: newName,
+                  updatedAt: Date.now(),
+                }
               : p,
           ),
         )
@@ -536,7 +534,13 @@ export function useProjectManagement(
         await reorderProjectUrls(projectId, urls)
         setCustomProjects(prev =>
           prev.map(p =>
-            p.id === projectId ? { ...p, urls, updatedAt: Date.now() } : p,
+            p.id === projectId
+              ? {
+                  ...p,
+                  urls,
+                  updatedAt: Date.now(),
+                }
+              : p,
           ),
         )
       } catch (error) {
@@ -553,7 +557,6 @@ export function useProjectManagement(
       try {
         console.log('プロジェクト順序を更新:', newOrder)
         await updateProjectOrder(newOrder)
-
         setCustomProjects(prev =>
           [...prev].sort((a, b) => {
             const indexA = newOrder.indexOf(a.id)
@@ -653,10 +656,8 @@ export function useProjectManagement(
         console.error('ビューモードの読み込みエラー:', error)
       }
     }
-
     loadViewMode()
   }, [syncDomainDataToCustomProjects])
-
   return {
     customProjects,
     setCustomProjects,
@@ -680,3 +681,5 @@ export function useProjectManagement(
     handleRenameCategory,
   }
 }
+export { useProjectManagement }
+export type { UseProjectManagementReturn }

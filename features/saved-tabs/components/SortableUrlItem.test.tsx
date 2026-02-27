@@ -83,7 +83,7 @@ const getLatestWindowBlurHandler = (
     .reverse()
     .find(([eventName]) => eventName === 'blur')
 
-  if (!call || typeof call[1] !== 'function') {
+  if (!call || !(call[1] instanceof Function)) {
     throw new Error('blur handler was not captured')
   }
 

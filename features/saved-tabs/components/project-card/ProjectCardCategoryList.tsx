@@ -1,5 +1,5 @@
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { CustomProjectCategory } from '../CustomProjectCategory'
+import { CustomProjectCategory } from '@/features/saved-tabs/components/CustomProjectCategory'
 import { useProjectCard } from './ProjectCardContext'
 
 /**

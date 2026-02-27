@@ -16,10 +16,10 @@ import { autoCategorizeTabs, restoreCategorySettings } from './tabs'
 import { createOrUpdateUrlRecord, invalidateUrlCache } from './urls'
 
 // ドメインを親カテゴリに割り当てる関数
-export async function assignDomainToCategory(
+const assignDomainToCategory = async (
   domainId: string,
   categoryId: string,
-): Promise<void> {
+): Promise<void> => {
   const [categories, tabGroup] = await Promise.all([
     getParentCategories(),
     getTabGroupById(domainId),
@@ -35,7 +35,6 @@ export async function assignDomainToCategory(
       await updateDomainCategoryMapping(tabGroup.domain, null)
     }
   }
-
   const updatedCategories = categories.map((category: ParentCategory) => {
     if (category.id === categoryId) {
       // すでに含まれていなければ追加
@@ -60,12 +59,9 @@ export async function assignDomainToCategory(
     }
     return category
   })
-
   await saveParentCategories(updatedCategories)
-}
-
-// 既存のデータを更新し、domainNamesプロパティを追加する移行関数
-export async function migrateParentCategoriesToDomainNames(): Promise<void> {
+} // 既存のデータを更新し、domainNamesプロパティを追加する移行関数
+const migrateParentCategoriesToDomainNames = async (): Promise<void> => {
   try {
     console.log('親カテゴリのdomainNames移行を緊急実行します')
     const [categories, savedTabsResult, domainCategoryMappingsResult] =
@@ -76,7 +72,6 @@ export async function migrateParentCategoriesToDomainNames(): Promise<void> {
       ])
     const { savedTabs = [] } = savedTabsResult
     const { domainCategoryMappings = [] } = domainCategoryMappingsResult
-
     console.log('現在の親カテゴリ:', categories)
     console.log('現在のタブグループ数:', savedTabs.length)
     console.log('現在のドメインマッピング数:', domainCategoryMappings.length)
@@ -94,9 +89,7 @@ export async function migrateParentCategoriesToDomainNames(): Promise<void> {
         (m: DomainParentCategoryMapping) => m.categoryId === category.id,
       )
       console.log(
-        `  マッピングから見つかったドメイン: ${mappingsForCategory
-          .map((m: DomainParentCategoryMapping) => m.domain)
-          .join(', ')}`,
+        `  マッピングから見つかったドメイン: ${mappingsForCategory.map((m: DomainParentCategoryMapping) => m.domain).join(', ')}`,
       )
 
       // savedTabsからドメイン名を検索
@@ -136,7 +129,6 @@ export async function migrateParentCategoriesToDomainNames(): Promise<void> {
           ...mappingDomains,
         ]),
       )
-
       console.log(
         `カテゴリ「${category.name}」の更新後domainNames:`,
         allDomains,
@@ -148,40 +140,39 @@ export async function migrateParentCategoriesToDomainNames(): Promise<void> {
         domainNames: allDomains,
       }
     })
-
     console.log('更新後の親カテゴリ:', updatedCategories)
 
     // ストレージに保存
-    await chrome.storage.local.set({ parentCategories: updatedCategories })
+    await chrome.storage.local.set({
+      parentCategories: updatedCategories,
+    })
     console.log('親カテゴリのdomainNames移行が完了しました')
 
     // 確認のため保存後のデータも取得
     const savedCategories = await getParentCategories()
     console.log('保存後の親カテゴリ:', savedCategories)
-
     return
   } catch (error) {
     console.error('親カテゴリ移行エラー:', error)
     throw error
   }
 }
-
 interface DomainCategoryMatch {
   category: ParentCategory
   method: 'mapping' | 'domainNames'
 }
-
-function buildGroupedTabsByDomain(
+const buildGroupedTabsByDomain = (
   savedTabs: TabGroup[],
-): Map<string, TabGroup> {
+): Map<string, TabGroup> => {
   const groupedTabs = new Map<string, TabGroup>()
   for (const group of savedTabs) {
     groupedTabs.set(group.domain, group)
   }
   return groupedTabs
 }
-
-function logParentCategorySnapshot(parentCategories: ParentCategory[]): void {
+const logParentCategorySnapshot = (
+  parentCategories: ParentCategory[],
+): void => {
   console.log('親カテゴリ一覧:', parentCategories)
   for (const category of parentCategories) {
     console.log(
@@ -190,55 +181,51 @@ function logParentCategorySnapshot(parentCategories: ParentCategory[]): void {
     )
   }
 }
-
-async function normalizeParentCategoriesIfNeeded(
+const normalizeParentCategoriesIfNeeded = async (
   parentCategories: ParentCategory[],
-): Promise<ParentCategory[]> {
+): Promise<ParentCategory[]> => {
   const hasEmptyDomainNames = parentCategories.some(
     cat => !cat.domainNames || cat.domainNames.length === 0,
   )
   if (!hasEmptyDomainNames) {
     return parentCategories
   }
-
   console.log('空のdomainNames配列を検出、緊急マイグレーションを実行')
   await migrateParentCategoriesToDomainNames()
   const updatedCategories = await getParentCategories()
   console.log('マイグレーション後の親カテゴリ:', updatedCategories)
   return updatedCategories
 }
-
-function findCategoryByDomainMapping(
+const findCategoryByDomainMapping = (
   domain: string,
   domainCategoryMappings: DomainParentCategoryMapping[],
   parentCategories: ParentCategory[],
-): DomainCategoryMatch | null {
+): DomainCategoryMatch | null => {
   const domainMapping = domainCategoryMappings.find(m => m.domain === domain)
   if (!domainMapping) {
     return null
   }
-
   const category = parentCategories.find(c => c.id === domainMapping.categoryId)
   if (!category) {
     return null
   }
-
   console.log(
     `ドメイン ${domain} は親カテゴリ「${category.name}」のマッピングに見つかりました`,
   )
-  return { category, method: 'mapping' }
+  return {
+    category,
+    method: 'mapping',
+  }
 }
-
-function findCategoryByDomainNames(
+const findCategoryByDomainNames = (
   domain: string,
   parentCategories: ParentCategory[],
-): DomainCategoryMatch | null {
+): DomainCategoryMatch | null => {
   for (const category of parentCategories) {
     if (!Array.isArray(category.domainNames)) {
       console.log(`カテゴリ「${category.name}」のdomainNamesが不正です`)
       continue
     }
-
     console.log(`カテゴリ「${category.name}」のdomainNamesで検索:`, {
       domainNames: category.domainNames,
       searchDomain: domain,
@@ -247,17 +234,19 @@ function findCategoryByDomainNames(
       console.log(
         `ドメイン ${domain} は親カテゴリ「${category.name}」のdomainNamesに見つかりました`,
       )
-      return { category, method: 'domainNames' }
+      return {
+        category,
+        method: 'domainNames',
+      }
     }
   }
   return null
 }
-
-function findParentCategoryForDomain(
+const findParentCategoryForDomain = (
   domain: string,
   domainCategoryMappings: DomainParentCategoryMapping[],
   parentCategories: ParentCategory[],
-): DomainCategoryMatch | null {
+): DomainCategoryMatch | null => {
   return (
     findCategoryByDomainMapping(
       domain,
@@ -266,17 +255,15 @@ function findParentCategoryForDomain(
     ) || findCategoryByDomainNames(domain, parentCategories)
   )
 }
-
-async function assignGroupToCategory(
+const assignGroupToCategory = async (
   group: TabGroup,
   domain: string,
   match: DomainCategoryMatch,
-): Promise<void> {
+): Promise<void> => {
   console.log(
     `ドメイン ${domain} を親カテゴリ「${match.category.name}」に割り当てます (検出方法: ${match.method})`,
   )
   group.parentCategoryId = match.category.id
-
   const domainNames = Array.isArray(match.category.domainNames)
     ? match.category.domainNames
     : []
@@ -287,19 +274,17 @@ async function assignGroupToCategory(
       ? domainNames
       : [...domainNames, domain],
   }
-
   await Promise.all([
     updateCategoryDomains(updatedCategory),
     updateDomainCategoryMapping(domain, match.category.id),
   ])
   console.log(`ドメイン ${domain} と親カテゴリのマッピングを更新しました`)
 }
-
-async function createGroupForDomain(
+const createGroupForDomain = async (
   domain: string,
   domainCategoryMappings: DomainParentCategoryMapping[],
   parentCategories: ParentCategory[],
-): Promise<TabGroup> {
+): Promise<TabGroup> => {
   const newGroup: TabGroup = {
     id: uuidv4(),
     domain,
@@ -308,7 +293,6 @@ async function createGroupForDomain(
     savedAt: Date.now(),
   }
   const restoredGroup = await restoreCategorySettings(newGroup)
-
   const match = findParentCategoryForDomain(
     domain,
     domainCategoryMappings,
@@ -318,16 +302,14 @@ async function createGroupForDomain(
     console.log(`ドメイン ${domain} の親カテゴリが見つからないため未分類です`)
     return restoredGroup
   }
-
   await assignGroupToCategory(restoredGroup, domain, match)
   return restoredGroup
 }
-
-async function appendUrlToGroup(
+const appendUrlToGroup = async (
   group: TabGroup,
   tabUrl: string,
   tabTitle: string,
-): Promise<void> {
+): Promise<void> => {
   const urlRecord = await createOrUpdateUrlRecord(tabUrl, tabTitle)
   if (!group.urlIds) {
     group.urlIds = []
@@ -336,8 +318,7 @@ async function appendUrlToGroup(
     group.urlIds.push(urlRecord.id)
   }
 }
-
-function dedupeGroupsById(groupArray: TabGroup[]): TabGroup[] {
+const dedupeGroupsById = (groupArray: TabGroup[]): TabGroup[] => {
   const idSet = new Set<string>()
   return groupArray.filter(group => {
     if (idSet.has(group.id)) {
@@ -348,8 +329,7 @@ function dedupeGroupsById(groupArray: TabGroup[]): TabGroup[] {
     return true
   })
 }
-
-function getTabDomain(tabUrl: string): string | null {
+const getTabDomain = (tabUrl: string): string | null => {
   try {
     const parsedUrl = new URL(tabUrl)
     return `${parsedUrl.protocol}//${parsedUrl.hostname}`
@@ -357,12 +337,9 @@ function getTabDomain(tabUrl: string): string | null {
     console.error(`Invalid URL: ${tabUrl}`, error)
     return null
   }
-}
-
-// saveTabs関数の実装（1つだけ残す）
-export async function saveTabs(tabs: chrome.tabs.Tab[]) {
+} // saveTabs関数の実装（1つだけ残す）
+const saveTabs = async (tabs: chrome.tabs.Tab[]) => {
   console.log('タブを保存します:', tabs.length)
-
   const [savedTabsResult, domainCategoryMappings, initialParentCategories] =
     await Promise.all([
       chrome.storage.local.get('savedTabs'),
@@ -371,26 +348,21 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
     ])
   const { savedTabs = [] } = savedTabsResult
   const groupedTabs = buildGroupedTabsByDomain(savedTabs)
-
   console.log('既存タブグループ数:', savedTabs.length)
   console.log('重複除外済みタブグループ数:', groupedTabs.size)
   console.log('ドメインマッピング:', domainCategoryMappings)
-
   const parentCategories = await normalizeParentCategoriesIfNeeded(
     initialParentCategories,
   )
   logParentCategorySnapshot(parentCategories)
-
   for (const tab of tabs) {
     if (!tab.url || tab.url.startsWith('chrome-extension://')) {
       continue
     }
-
     const domain = getTabDomain(tab.url)
     if (!domain) {
       continue
     }
-
     let group = groupedTabs.get(domain)
     if (group) {
       console.log(`既存のドメインに追加: ${domain}`)
@@ -403,26 +375,22 @@ export async function saveTabs(tabs: chrome.tabs.Tab[]) {
       )
       groupedTabs.set(domain, group)
     }
-
     await appendUrlToGroup(group, tab.url, tab.title || '')
   }
-
   const groupArray = Array.from(groupedTabs.values())
   console.log('保存前の重複チェック:', groupArray.length)
   const uniqueGroups = dedupeGroupsById(groupArray)
-
   console.log('重複除去後のタブグループ数:', uniqueGroups.length)
-  await chrome.storage.local.set({ savedTabs: uniqueGroups })
-
+  await chrome.storage.local.set({
+    savedTabs: uniqueGroups,
+  })
   for (const group of uniqueGroups) {
     if (group.categoryKeywords && group.categoryKeywords.length > 0) {
       await autoCategorizeTabs(group.id)
     }
   }
-}
-
-// タブ保存時に自動分類も行うようにsaveTabsを拡張
-export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
+} // タブ保存時に自動分類も行うようにsaveTabsを拡張
+const saveTabsWithAutoCategory = async (tabs: chrome.tabs.Tab[]) => {
   await saveTabs(tabs)
 
   // 保存したタブグループのIDを取得
@@ -431,7 +399,6 @@ export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
   // 重複チェックを追加
   const uniqueIds = new Set<string>()
   const uniqueGroups: TabGroup[] = []
-
   for (const group of savedTabs) {
     if (uniqueIds.has(group.id)) {
       console.warn(`重複グループを検出: ${group.id} (${group.domain})`)
@@ -444,9 +411,10 @@ export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
   // 重複があれば修正して保存
   if (uniqueGroups.length < savedTabs.length) {
     console.log(`重複を修正: ${savedTabs.length} → ${uniqueGroups.length}`)
-    await chrome.storage.local.set({ savedTabs: uniqueGroups })
+    await chrome.storage.local.set({
+      savedTabs: uniqueGroups,
+    })
   }
-
   const uniqueDomains = new Set(
     tabs
       .map(tab => {
@@ -467,26 +435,22 @@ export async function saveTabsWithAutoCategory(tabs: chrome.tabs.Tab[]) {
       await autoCategorizeTabs(group.id)
     }
   }
-}
-
-// 親カテゴリの domains と domainNames を更新する関数
-async function updateCategoryDomains(category: ParentCategory): Promise<void> {
+} // 親カテゴリの domains と domainNames を更新する関数
+const updateCategoryDomains = async (
+  category: ParentCategory,
+): Promise<void> => {
   const categories = await getParentCategories()
   const updatedCategories = categories.map(c =>
     c.id === category.id ? category : c,
   )
   await saveParentCategories(updatedCategories)
-}
-
-// TabGroup IDからグループを取得する関数
-async function getTabGroupById(groupId: string): Promise<TabGroup | null> {
+} // TabGroup IDからグループを取得する関数
+const getTabGroupById = async (groupId: string): Promise<TabGroup | null> => {
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
   return savedTabs.find((group: TabGroup) => group.id === groupId) || null
 }
-
 /** モジュールスコープのメモ化フラグ（ページセッション中の重複ストレージアクセスを防ぐ） */
-let _urlsMigrationDone = false
-
+let urlsMigrationDone = false
 interface UrlMapEntry {
   id: string
   record: UrlRecord
@@ -494,44 +458,37 @@ interface UrlMapEntry {
 type UrlMap = Map<string, UrlMapEntry>
 type LegacyTabUrl = NonNullable<TabGroup['urls']>[number]
 type LegacyProjectUrl = NonNullable<CustomProject['urls']>[number]
-
 interface UrlMigrationData {
   existingUrls: UrlRecord[]
   savedTabs: TabGroup[]
   customProjects: CustomProject[]
 }
-
-async function shouldSkipUrlsMigrationByMemoryFlag(): Promise<boolean> {
-  if (!_urlsMigrationDone) {
+const shouldSkipUrlsMigrationByMemoryFlag = async (): Promise<boolean> => {
+  if (!urlsMigrationDone) {
     return false
   }
-
   const { urlsMigrationCompleted } = await chrome.storage.local.get(
     'urlsMigrationCompleted',
   )
   if (urlsMigrationCompleted) {
     return true
   }
-
-  _urlsMigrationDone = false
+  urlsMigrationDone = false
   return false
 }
-
-async function isUrlsMigrationCompleted(): Promise<boolean> {
+const isUrlsMigrationCompleted = async (): Promise<boolean> => {
   const { urlsMigrationCompleted } = await chrome.storage.local.get(
     'urlsMigrationCompleted',
   )
   return Boolean(urlsMigrationCompleted)
 }
-
-async function loadUrlMigrationData(): Promise<UrlMigrationData> {
+const loadUrlMigrationData = async (): Promise<UrlMigrationData> => {
   const [existingUrlsResult, savedTabsResult, customProjectsResult] =
     await Promise.all([
       chrome.storage.local.get('urls'),
       chrome.storage.local.get('savedTabs'),
       chrome.storage.local.get('customProjects'),
     ])
-
   return {
     existingUrls: Array.isArray(existingUrlsResult.urls)
       ? (existingUrlsResult.urls as UrlRecord[])
@@ -544,19 +501,24 @@ async function loadUrlMigrationData(): Promise<UrlMigrationData> {
       : [],
   }
 }
-
-function createUrlMap(existingUrls: UrlRecord[]): UrlMap {
+const createUrlMap = (existingUrls: UrlRecord[]): UrlMap => {
   const urlMap: UrlMap = new Map()
   for (const record of existingUrls) {
-    urlMap.set(record.url, { id: record.id, record })
+    urlMap.set(record.url, {
+      id: record.id,
+      record,
+    })
   }
   return urlMap
 }
-
-function upsertUrlEntry(
+const upsertUrlEntry = (
   urlMap: UrlMap,
-  legacyUrl: { url: string; title?: string; savedAt?: number },
-): UrlMapEntry {
+  legacyUrl: {
+    url: string
+    title?: string
+    savedAt?: number
+  },
+): UrlMapEntry => {
   const existing = urlMap.get(legacyUrl.url)
   if (existing) {
     if (
@@ -567,7 +529,6 @@ function upsertUrlEntry(
     }
     return existing
   }
-
   const newRecord: UrlRecord = {
     id: uuidv4(),
     url: legacyUrl.url,
@@ -575,21 +536,21 @@ function upsertUrlEntry(
     savedAt: legacyUrl.savedAt || Date.now(),
     favIconUrl: undefined,
   }
-  const created = { id: newRecord.id, record: newRecord }
+  const created = {
+    id: newRecord.id,
+    record: newRecord,
+  }
   urlMap.set(legacyUrl.url, created)
   return created
 }
-
-function migrateTabGroupUrls(tabGroup: TabGroup, urlMap: UrlMap): void {
+const migrateTabGroupUrls = (tabGroup: TabGroup, urlMap: UrlMap): void => {
   if (
     !(tabGroup.urls && Array.isArray(tabGroup.urls) && tabGroup.urls.length > 0)
   ) {
     return
   }
-
   const urlIds: string[] = []
   const urlSubCategories: Record<string, string> = {}
-
   for (const urlItem of tabGroup.urls as LegacyTabUrl[]) {
     const urlEntry = upsertUrlEntry(urlMap, urlItem)
     urlIds.push(urlEntry.id)
@@ -597,7 +558,6 @@ function migrateTabGroupUrls(tabGroup: TabGroup, urlMap: UrlMap): void {
       urlSubCategories[urlEntry.id] = urlItem.subCategory
     }
   }
-
   tabGroup.urlIds = urlIds
   if (Object.keys(urlSubCategories).length > 0) {
     tabGroup.urlSubCategories = urlSubCategories
@@ -605,22 +565,27 @@ function migrateTabGroupUrls(tabGroup: TabGroup, urlMap: UrlMap): void {
   tabGroup.urls = undefined
   console.log(`TabGroup ${tabGroup.domain}: ${urlIds.length}個のURLを移行`)
 }
-
-function migrateProjectUrls(project: CustomProject, urlMap: UrlMap): void {
+const migrateProjectUrls = (project: CustomProject, urlMap: UrlMap): void => {
   if (
     !(project.urls && Array.isArray(project.urls) && project.urls.length > 0)
   ) {
     return
   }
-
   const urlIds: string[] = []
-  const urlMetadata: Record<string, { notes?: string; category?: string }> = {}
-
+  const urlMetadata: Record<
+    string,
+    {
+      notes?: string
+      category?: string
+    }
+  > = {}
   for (const urlItem of project.urls as LegacyProjectUrl[]) {
     const urlEntry = upsertUrlEntry(urlMap, urlItem)
     urlIds.push(urlEntry.id)
-
-    const metadata: { notes?: string; category?: string } = {}
+    const metadata: {
+      notes?: string
+      category?: string
+    } = {}
     if (urlItem.notes) {
       metadata.notes = urlItem.notes
     }
@@ -631,7 +596,6 @@ function migrateProjectUrls(project: CustomProject, urlMap: UrlMap): void {
       urlMetadata[urlEntry.id] = metadata
     }
   }
-
   project.urlIds = urlIds
   if (Object.keys(urlMetadata).length > 0) {
     project.urlMetadata = urlMetadata
@@ -639,12 +603,11 @@ function migrateProjectUrls(project: CustomProject, urlMap: UrlMap): void {
   project.urls = undefined
   console.log(`Project ${project.name}: ${urlIds.length}個のURLを移行`)
 }
-
-async function persistUrlsMigrationResult(
+const persistUrlsMigrationResult = async (
   urlMap: UrlMap,
   savedTabs: TabGroup[],
   customProjects: CustomProject[],
-): Promise<void> {
+): Promise<void> => {
   const allUrlRecords = Array.from(urlMap.values()).map(entry => entry.record)
   await chrome.storage.local.set({
     urls: allUrlRecords,
@@ -653,53 +616,52 @@ async function persistUrlsMigrationResult(
     urlsMigrationCompleted: true,
   })
   invalidateUrlCache()
-  _urlsMigrationDone = true
-
+  urlsMigrationDone = true
   console.log(
     `URL管理マイグレーション完了: ${allUrlRecords.length}個のURLレコードを作成`,
   )
   console.log(`SavedTabs: ${savedTabs.length}個のタブグループを更新`)
   console.log(`CustomProjects: ${customProjects.length}個のプロジェクトを更新`)
 }
-
 /**
  * URL管理の正規化マイグレーション
  * SavedTabsとCustomProjectsのURLsを共通のUrlsストレージに移行する
  */
-export async function migrateToUrlsStorage(): Promise<void> {
+const migrateToUrlsStorage = async (): Promise<void> => {
   try {
     if (await shouldSkipUrlsMigrationByMemoryFlag()) {
       return
     }
-
     console.log('URL管理正規化マイグレーションを開始します')
-
     if (await isUrlsMigrationCompleted()) {
-      _urlsMigrationDone = true
+      urlsMigrationDone = true
       console.log('URL管理マイグレーションは既に完了済みです')
       return
     }
-
     const { existingUrls, savedTabs, customProjects } =
       await loadUrlMigrationData()
     const urlMap = createUrlMap(existingUrls)
-
     console.log(`既存のURLレコード: ${existingUrls.length}個`)
     console.log(`SavedTabsの処理開始: ${savedTabs.length}個のタブグループ`)
     for (const tabGroup of savedTabs) {
       migrateTabGroupUrls(tabGroup, urlMap)
     }
-
     console.log(
       `CustomProjectsの処理開始: ${customProjects.length}個のプロジェクト`,
     )
     for (const project of customProjects) {
       migrateProjectUrls(project, urlMap)
     }
-
     await persistUrlsMigrationResult(urlMap, savedTabs, customProjects)
   } catch (error) {
     console.error('URL管理マイグレーション中にエラーが発生しました:', error)
     throw error
   }
+}
+export {
+  assignDomainToCategory,
+  migrateParentCategoriesToDomainNames,
+  migrateToUrlsStorage,
+  saveTabs,
+  saveTabsWithAutoCategory,
 }

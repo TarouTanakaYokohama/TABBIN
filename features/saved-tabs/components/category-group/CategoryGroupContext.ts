@@ -38,6 +38,6 @@ export interface CategoryGroupContextType {
 }
 
 export const {
-  Context: CategoryGroupContext,
+  context: CategoryGroupContext,
   useCompoundContext: useCategoryGroup,
 } = createCompoundContext<CategoryGroupContextType>('CategoryGroup')
