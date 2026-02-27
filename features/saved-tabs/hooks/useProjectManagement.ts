@@ -156,6 +156,62 @@ export interface UseProjectManagementReturn {
   ) => Promise<void>
 }
 
+async function collectDomainModeUrls(
+  savedTabs: TabGroup[],
+): Promise<Array<{ url: string; title: string }>> {
+  const allDomainUrls: Array<{ url: string; title: string }> = []
+  for (const group of savedTabs) {
+    const groupUrls = await getTabGroupUrls(group)
+    for (const urlItem of groupUrls) {
+      allDomainUrls.push({
+        url: urlItem.url,
+        title: urlItem.title,
+      })
+    }
+  }
+  return allDomainUrls
+}
+
+async function createDefaultProjectFromSavedTabs(
+  savedTabs: TabGroup[],
+): Promise<CustomProject[]> {
+  const allDomainUrls = await collectDomainModeUrls(savedTabs)
+  const defaultProject = await createCustomProject(
+    'デフォルトプロジェクト',
+    '自動作成されたプロジェクト',
+  )
+  for (const urlItem of allDomainUrls) {
+    await addUrlToCustomProject(defaultProject.id, urlItem.url, urlItem.title)
+  }
+  return getCustomProjects()
+}
+
+async function inspectProjectSync(
+  project: CustomProject,
+  savedTabs: TabGroup[],
+): Promise<CustomProject> {
+  try {
+    const projectUrls = await getProjectUrls(project)
+    const existingUrls = new Set(projectUrls.map(url => url.url))
+    let urlsProcessed = 0
+
+    for (const group of savedTabs) {
+      const groupUrls = await getTabGroupUrls(group)
+      for (const tabUrl of groupUrls) {
+        urlsProcessed++
+        existingUrls.delete(tabUrl.url)
+      }
+    }
+
+    console.log(`処理したURL数: ${urlsProcessed}`)
+    console.log(`プロジェクト ${project.name}: ${projectUrls.length}個のURL`)
+    return project
+  } catch (error) {
+    console.error(`プロジェクト ${project.id} の処理中にエラー:`, error)
+    return project
+  }
+}
+
 /**
  * カスタムプロジェクト管理フック。
  * ビューモード切替・CRUD・URL管理・プロジェクト内カテゴリ管理を担う。
@@ -210,35 +266,7 @@ export function useProjectManagement(
           'カスタムプロジェクトが存在しないため、デフォルトプロジェクトを作成します',
         )
 
-        // ドメインモードのURLsを収集（新形式対応）
-        const allDomainUrls: { url: string; title: string }[] = []
-        for (const group of savedTabs) {
-          const groupUrls = await getTabGroupUrls(group)
-          for (const urlItem of groupUrls) {
-            allDomainUrls.push({
-              url: urlItem.url,
-              title: urlItem.title,
-            })
-          }
-        }
-
-        // デフォルトプロジェクトを作成
-        const defaultProject = await createCustomProject(
-          'デフォルトプロジェクト',
-          '自動作成されたプロジェクト',
-        )
-
-        // URLを追加
-        for (const urlItem of allDomainUrls) {
-          await addUrlToCustomProject(
-            defaultProject.id,
-            urlItem.url,
-            urlItem.title,
-          )
-        }
-
-        // 再取得
-        projects = await getCustomProjects()
+        projects = await createDefaultProjectFromSavedTabs(savedTabs)
         console.log(
           `デフォルトプロジェクトを作成しました: ${projects.length} プロジェクト`,
         )
@@ -246,37 +274,7 @@ export function useProjectManagement(
 
       // 各プロジェクトごとに処理（新形式対応）
       const updatedProjects = await Promise.all(
-        projects.map(async project => {
-          try {
-            // 新形式でURLを取得
-            const projectUrls = await getProjectUrls(project)
-
-            // 既存のURLを把握（削除済みのURLを検出するため）
-            const existingUrls = new Set(projectUrls.map(u => u.url))
-
-            // ドメインモードのすべてのURLをチェック
-            let urlsProcessed = 0
-            for (const group of savedTabs) {
-              const groupUrls = await getTabGroupUrls(group)
-              for (const tabUrl of groupUrls) {
-                urlsProcessed++
-                // URLが存在していることをマーク
-                existingUrls.delete(tabUrl.url)
-              }
-            }
-
-            console.log(`処理したURL数: ${urlsProcessed}`)
-            console.log(
-              `プロジェクト ${project.name}: ${projectUrls.length}個のURL`,
-            )
-
-            // 新形式では個別の同期処理は不要（共通URLストレージで管理）
-            return project
-          } catch (error) {
-            console.error(`プロジェクト ${project.id} の処理中にエラー:`, error)
-            return project
-          }
-        }),
+        projects.map(project => inspectProjectSync(project, savedTabs)),
       )
 
       // 新形式では自動同期は不要（共通URLストレージで管理済み）
@@ -308,45 +306,28 @@ export function useProjectManagement(
         setViewMode(mode)
         await saveViewMode(mode)
 
-        // カスタムモードに切り替えた時は必ず最新のプロジェクトを読み込む
-        if (mode === 'custom') {
-          console.log('カスタムモードに切り替え: データ同期を開始')
-          const projects = await syncDomainDataToCustomProjects()
-          console.log(`同期完了: ${projects.length} プロジェクト`)
+        if (mode !== 'custom') {
+          return
+        }
 
-          // プロジェクトが空の場合、デフォルトプロジェクトを作成
-          if (projects.length === 0) {
-            try {
-              console.log('デフォルトプロジェクトを作成します')
-              const defaultProject = await createCustomProject(
-                'デフォルトプロジェクト',
-                '自動作成されたプロジェクト',
-              )
-              setCustomProjects([defaultProject])
+        console.log('カスタムモードに切り替え: データ同期を開始')
+        const projects = await syncDomainDataToCustomProjects()
+        console.log(`同期完了: ${projects.length} プロジェクト`)
+        if (projects.length > 0) {
+          return
+        }
 
-              // ドメインモードのURLsをコピー（新形式対応）
-              const { savedTabs = [] } =
-                await chrome.storage.local.get('savedTabs')
-              for (const group of savedTabs) {
-                const groupUrls = await getTabGroupUrls(group)
-                for (const urlItem of groupUrls) {
-                  await addUrlToCustomProject(
-                    defaultProject.id,
-                    urlItem.url,
-                    urlItem.title,
-                  )
-                }
-              }
-              console.log('デフォルトプロジェクトを作成し、URLをコピーしました')
-
-              // 再取得して状態を更新
-              const updatedProjects = await getCustomProjects()
-              setCustomProjects(updatedProjects)
-            } catch (createError) {
-              console.error('デフォルトプロジェクト作成エラー:', createError)
-              toast.error('プロジェクトの作成に失敗しました')
-            }
-          }
+        try {
+          console.log('デフォルトプロジェクトを作成します')
+          const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+          const updatedProjects = await createDefaultProjectFromSavedTabs(
+            savedTabs as TabGroup[],
+          )
+          setCustomProjects(updatedProjects)
+          console.log('デフォルトプロジェクトを作成し、URLをコピーしました')
+        } catch (createError) {
+          console.error('デフォルトプロジェクト作成エラー:', createError)
+          toast.error('プロジェクトの作成に失敗しました')
         }
       } catch (error) {
         console.error('ビューモード変更エラー:', error)

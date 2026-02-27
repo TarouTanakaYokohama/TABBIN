@@ -52,6 +52,33 @@ type StorageStore = Record<string, unknown>
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
+const readStorageByKeys = (
+  store: StorageStore,
+  keys?: string | string[] | Record<string, unknown>,
+) => {
+  if (keys == null) {
+    return clone(store)
+  }
+
+  if (typeof keys === 'string') {
+    return { [keys]: clone(store[keys]) }
+  }
+
+  if (Array.isArray(keys)) {
+    const result: Record<string, unknown> = {}
+    for (const key of keys) {
+      result[key] = clone(store[key])
+    }
+    return result
+  }
+
+  const result: Record<string, unknown> = {}
+  for (const [key, fallback] of Object.entries(keys)) {
+    result[key] = store[key] === undefined ? clone(fallback) : clone(store[key])
+  }
+  return result
+}
+
 const createChromeMock = (
   initialStore: StorageStore = {},
   options: {
@@ -66,29 +93,7 @@ const createChromeMock = (
       if (options.failGet) {
         throw new Error('storage get failed')
       }
-
-      if (keys == null) {
-        return clone(store)
-      }
-
-      if (typeof keys === 'string') {
-        return { [keys]: clone(store[keys]) }
-      }
-
-      if (Array.isArray(keys)) {
-        const result: Record<string, unknown> = {}
-        for (const key of keys) {
-          result[key] = clone(store[key])
-        }
-        return result
-      }
-
-      const result: Record<string, unknown> = {}
-      for (const [key, fallback] of Object.entries(keys)) {
-        result[key] =
-          store[key] === undefined ? clone(fallback) : clone(store[key])
-      }
-      return result
+      return readStorageByKeys(store, keys)
     },
   )
 
@@ -768,15 +773,35 @@ describe('import-export ユーティリティ', () => {
     })
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
 
+    const isUrlsDefaultRequest = (
+      keys?: string | string[] | Record<string, unknown>,
+    ): keys is Record<string, unknown> =>
+      Boolean(
+        keys &&
+          typeof keys === 'object' &&
+          !Array.isArray(keys) &&
+          'urls' in keys,
+      )
+
+    const buildUndefinedResponse = (
+      keys?: string | string[] | Record<string, unknown>,
+    ) => {
+      if (keys == null) {
+        return {}
+      }
+      if (typeof keys === 'string') {
+        return { [keys]: undefined }
+      }
+      if (Array.isArray(keys)) {
+        return Object.fromEntries(keys.map(key => [key, undefined]))
+      }
+      return Object.fromEntries(Object.entries(keys))
+    }
+
     let urlsGetCount = 0
     get.mockImplementation(
       async (keys?: string | string[] | Record<string, unknown>) => {
-        if (
-          keys &&
-          typeof keys === 'object' &&
-          !Array.isArray(keys) &&
-          'urls' in keys
-        ) {
+        if (isUrlsDefaultRequest(keys)) {
           urlsGetCount += 1
           if (urlsGetCount === 1) {
             return { urls: [existingUrlRecord] }
@@ -785,17 +810,7 @@ describe('import-export ユーティリティ', () => {
           return { urls: [existingUrlRecord, lateAvailablePlaceholder] }
         }
 
-        if (keys == null) {
-          return {}
-        }
-        if (typeof keys === 'string') {
-          return { [keys]: undefined }
-        }
-        if (Array.isArray(keys)) {
-          return Object.fromEntries(keys.map(key => [key, undefined]))
-        }
-
-        return Object.fromEntries(Object.entries(keys))
+        return buildUndefinedResponse(keys)
       },
     )
 

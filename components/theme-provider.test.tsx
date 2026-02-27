@@ -163,8 +163,8 @@ describe('ThemeProvider', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('theme').textContent).toBe('dark')
+      expect(document.documentElement.classList.contains('dark')).toBe(true)
     })
-    expect(document.documentElement.classList.contains('dark')).toBe(true)
     expect(storageOnChangedMock.addListener).toHaveBeenCalledTimes(3)
 
     const themeChangeListener = storageListeners[0]

@@ -126,6 +126,405 @@ const handleSavedTabsRender: ProfilerOnRenderCallback = (
   )
 }
 
+function matchesParentCategoryQuery(
+  group: TabGroup,
+  categories: ParentCategory[],
+  query: string,
+): boolean {
+  if (group.parentCategoryId) {
+    const parentCategory = categories.find(
+      cat => cat.id === group.parentCategoryId,
+    )
+    if (parentCategory) {
+      const matched = parentCategory.name.toLowerCase().includes(query)
+      console.log(
+        `親カテゴリ検索デバッグ: ドメイン ${group.domain}, 親カテゴリ「${parentCategory.name}」, クエリ「${query}」, マッチ: ${matched}`,
+      )
+      if (matched) {
+        return true
+      }
+    } else {
+      console.log(
+        `親カテゴリ検索デバッグ: ドメイン ${group.domain}, parentCategoryId ${group.parentCategoryId} に対応するカテゴリが見つかりません`,
+      )
+    }
+  }
+
+  for (const category of categories) {
+    if (
+      category.domains?.includes(group.id) ||
+      category.domainNames?.includes(group.domain)
+    ) {
+      const matched = category.name.toLowerCase().includes(query)
+      if (matched) {
+        console.log(
+          `親カテゴリ検索デバッグ（リアルタイム）: ドメイン ${group.domain}, 親カテゴリ「${category.name}」, クエリ「${query}」, マッチ: ${matched}`,
+        )
+        return true
+      }
+    }
+  }
+
+  if (!group.parentCategoryId) {
+    console.log(
+      `親カテゴリ検索デバッグ: ドメイン ${group.domain}, parentCategoryIdが未設定かつカテゴリマッチなし`,
+    )
+  }
+  return false
+}
+
+function filterGroupByQuery(
+  group: TabGroup,
+  normalizedQuery: string,
+  categories: ParentCategory[],
+): TabGroup {
+  const currentUrls = group.urls || []
+  if (currentUrls.length === 0) {
+    return group
+  }
+
+  const parentCategoryMatched = matchesParentCategoryQuery(
+    group,
+    categories,
+    normalizedQuery,
+  )
+  const filteredUrls = currentUrls.filter(item => {
+    const matchesBasicFields =
+      item.title.toLowerCase().includes(normalizedQuery) ||
+      item.url.toLowerCase().includes(normalizedQuery) ||
+      group.domain.toLowerCase().includes(normalizedQuery)
+    const matchesSubCategory = item.subCategory
+      ?.toLowerCase()
+      .includes(normalizedQuery)
+    return matchesBasicFields || matchesSubCategory || parentCategoryMatched
+  })
+
+  if (filteredUrls.length === currentUrls.length) {
+    return group
+  }
+  return { ...group, urls: filteredUrls }
+}
+
+function hasDisplayableUrls(group: TabGroup): boolean {
+  const hasNewUrls = Boolean(group.urlIds && group.urlIds.length > 0)
+  const hasOldUrls = Boolean(group.urls && group.urls.length > 0)
+  console.log(
+    `フィルタチェック ${group.domain}: urlIds=${group.urlIds?.length || 0}, urls=${group.urls?.length || 0}, 表示=${hasNewUrls || hasOldUrls}`,
+  )
+  return hasNewUrls || hasOldUrls
+}
+
+function pushGroupToCategory(
+  categorizedGroups: Record<string, TabGroup[]>,
+  categoryId: string,
+  group: TabGroup,
+): void {
+  if (!categorizedGroups[categoryId]) {
+    categorizedGroups[categoryId] = []
+  }
+  const categorizedGroup =
+    group.parentCategoryId === categoryId
+      ? group
+      : { ...group, parentCategoryId: categoryId }
+  categorizedGroups[categoryId].push(categorizedGroup)
+}
+
+function tryCategorizeById(
+  group: TabGroup,
+  categories: ParentCategory[],
+  categorizedGroups: Record<string, TabGroup[]>,
+): boolean {
+  for (const category of categories) {
+    if (category.domains?.includes(group.id)) {
+      pushGroupToCategory(categorizedGroups, category.id, group)
+      if (group.parentCategoryId !== category.id) {
+        console.log(
+          `ドメイン ${group.domain} のparentCategoryIdをIDベースで ${category.id} に更新しました`,
+        )
+      }
+      console.log(
+        `ドメイン ${group.domain} はIDベースで ${category.name} に分類されました`,
+      )
+      return true
+    }
+  }
+  return false
+}
+
+function tryCategorizeByDomainName(
+  group: TabGroup,
+  categories: ParentCategory[],
+  categorizedGroups: Record<string, TabGroup[]>,
+): boolean {
+  for (const category of categories) {
+    if (
+      category.domainNames &&
+      Array.isArray(category.domainNames) &&
+      category.domainNames.includes(group.domain)
+    ) {
+      pushGroupToCategory(categorizedGroups, category.id, group)
+      console.log(
+        `ドメイン ${group.domain} はドメイン名ベースで ${category.name} に分類されました`,
+      )
+      console.log(
+        `ドメイン ${group.domain} のparentCategoryIdを ${category.id} に設定しました`,
+      )
+      return true
+    }
+  }
+  return false
+}
+
+function sortCategorizedGroups(
+  categorizedGroups: Record<string, TabGroup[]>,
+  categories: ParentCategory[],
+): void {
+  for (const categoryId of Object.keys(categorizedGroups)) {
+    if (!categorizedGroups[categoryId]) {
+      categorizedGroups[categoryId] = []
+    }
+    const category = categories.find(c => c.id === categoryId)
+    const domains = category?.domains
+    if (!(domains && domains.length > 0)) {
+      continue
+    }
+    const domainArray = [...domains]
+    categorizedGroups[categoryId].sort((a, b) => {
+      const indexA = domainArray.indexOf(a.id)
+      const indexB = domainArray.indexOf(b.id)
+      if (indexA === -1) {
+        return 1
+      }
+      if (indexB === -1) {
+        return -1
+      }
+      return indexA - indexB
+    })
+  }
+}
+
+async function removeMatchingUrlsFromGroup(
+  group: TabGroup,
+  urlSet: Set<string>,
+): Promise<void> {
+  if (!group.urlIds || group.urlIds.length === 0) {
+    return
+  }
+
+  const groupUrls = await getTabGroupUrls(group)
+  const targets = groupUrls
+    .filter(item => urlSet.has(item.url))
+    .map(item => item.url)
+
+  for (const targetUrl of targets) {
+    await removeUrlFromTabGroup(group.id, targetUrl)
+  }
+}
+
+async function removeMatchingUrlsFromProject(
+  project: CustomProject,
+  urlSet: Set<string>,
+): Promise<void> {
+  const projectUrls = await getProjectUrls(project)
+  const targets = projectUrls
+    .filter(item => urlSet.has(item.url))
+    .map(item => item.url)
+
+  for (const targetUrl of targets) {
+    await removeUrlFromCustomProject(project.id, targetUrl)
+  }
+}
+
+interface CategorySyncState {
+  updatedSavedTabs: TabGroup[]
+  updatedCategories: ParentCategory[]
+  savedTabsChanged: boolean
+  categoriesChanged: boolean
+}
+
+function updateSavedTabParentCategory(
+  tabs: TabGroup[],
+  groupId: string,
+  categoryId: string,
+): TabGroup[] {
+  return tabs.map(tab =>
+    tab.id === groupId ? { ...tab, parentCategoryId: categoryId } : tab,
+  )
+}
+
+function syncGroupCategoryAssignment(
+  group: TabGroup,
+  categories: ParentCategory[],
+  state: CategorySyncState,
+): CategorySyncState {
+  const idBasedCategory = categories.find(c => c.domains?.includes(group.id))
+  if (idBasedCategory && group.parentCategoryId !== idBasedCategory.id) {
+    state.updatedSavedTabs = updateSavedTabParentCategory(
+      state.updatedSavedTabs,
+      group.id,
+      idBasedCategory.id,
+    )
+    state.savedTabsChanged = true
+    console.log(
+      `[カテゴリ同期] ドメイン ${group.domain} のparentCategoryIdをIDベースで ${idBasedCategory.id} に更新しました`,
+    )
+  }
+
+  const foundByDomainName = categories.find(
+    category =>
+      !category.domains?.includes(group.id) &&
+      category.domainNames?.includes(group.domain),
+  )
+  if (!foundByDomainName) {
+    return state
+  }
+
+  state.updatedCategories = state.updatedCategories.map(category =>
+    category.id === foundByDomainName.id
+      ? { ...category, domains: [...category.domains, group.id] }
+      : category,
+  )
+  state.categoriesChanged = true
+  state.updatedSavedTabs = updateSavedTabParentCategory(
+    state.updatedSavedTabs,
+    group.id,
+    foundByDomainName.id,
+  )
+  state.savedTabsChanged = true
+  console.log(
+    `[カテゴリ同期] ドメイン ${group.domain} のIDを親カテゴリ ${foundByDomainName.id} に同期しました`,
+  )
+  return state
+}
+
+function organizeTabGroupsWithCategories({
+  enableCategories,
+  tabGroupsWithUrls,
+  categories,
+  searchQuery,
+}: {
+  enableCategories: boolean
+  tabGroupsWithUrls: TabGroup[]
+  categories: ParentCategory[]
+  searchQuery: string
+}): {
+  categorized: Record<string, TabGroup[]>
+  uncategorized: TabGroup[]
+} {
+  if (!enableCategories) {
+    return { categorized: {}, uncategorized: tabGroupsWithUrls }
+  }
+
+  console.log('親カテゴリ一覧:', categories)
+  console.log('organizeTabGroups開始:')
+  console.log('- tabGroupsWithUrls:', tabGroupsWithUrls)
+  console.log('- tabGroupsWithUrls.length:', tabGroupsWithUrls.length)
+
+  const categorizedGroups: Record<string, TabGroup[]> = {}
+  const uncategorizedGroups: TabGroup[] = []
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const hasSearchQuery = normalizedQuery.length > 0
+
+  const groupsToOrganize = tabGroupsWithUrls
+    .map(group =>
+      hasSearchQuery
+        ? filterGroupByQuery(group, normalizedQuery, categories)
+        : group,
+    )
+    .filter(hasDisplayableUrls)
+
+  console.log('groupsToOrganize:', groupsToOrganize)
+  console.log('groupsToOrganize.length:', groupsToOrganize.length)
+
+  for (const group of groupsToOrganize) {
+    const categorizedById = tryCategorizeById(
+      group,
+      categories,
+      categorizedGroups,
+    )
+    if (categorizedById) {
+      continue
+    }
+
+    const categorizedByDomainName = tryCategorizeByDomainName(
+      group,
+      categories,
+      categorizedGroups,
+    )
+    if (!categorizedByDomainName) {
+      uncategorizedGroups.push(group)
+      console.log(`ドメイン ${group.domain} は未分類です`)
+    }
+  }
+
+  sortCategorizedGroups(categorizedGroups, categories)
+
+  console.log('organizeTabGroups結果:')
+  console.log('- categorizedGroups:', categorizedGroups)
+  console.log('- uncategorizedGroups:', uncategorizedGroups)
+  console.log('- uncategorizedGroups.length:', uncategorizedGroups.length)
+
+  return {
+    categorized: categorizedGroups,
+    uncategorized: uncategorizedGroups,
+  }
+}
+
+function filterCustomProjectsByQuery(
+  customProjects: CustomProject[],
+  searchQuery: string,
+): CustomProject[] {
+  const q = searchQuery.trim()
+  if (!q) {
+    return customProjects
+  }
+
+  const query = q.toLowerCase()
+  const projectFuse = new Fuse(customProjects, {
+    keys: ['name'],
+    threshold: 0.4,
+  })
+  const matchedProjects = projectFuse.search(q).map(res => res.item)
+
+  const categoryMatchedProjects = customProjects
+    .filter(proj => !matchedProjects.includes(proj))
+    .filter(proj =>
+      proj.categories.some(category => category.toLowerCase().includes(query)),
+    )
+
+  const urlFuseOptions = { keys: ['title', 'url'], threshold: 0.4 }
+  const urlMatchedProjects = customProjects
+    .filter(
+      proj =>
+        !(
+          matchedProjects.includes(proj) ||
+          categoryMatchedProjects.includes(proj)
+        ),
+    )
+    .map(proj => {
+      const projectUrls = proj.urls || []
+      const fuseUrls = new Fuse(projectUrls, urlFuseOptions)
+      const fuseMatches = fuseUrls.search(q).map(r => r.item)
+      const categoryMatches = projectUrls.filter(url =>
+        url.category?.toLowerCase().includes(query),
+      )
+      const allMatches = [...fuseMatches, ...categoryMatches]
+      const uniqueMatches = allMatches.filter(
+        (url, index, self) => self.findIndex(u => u.url === url.url) === index,
+      )
+      return uniqueMatches.length > 0 ? { ...proj, urls: uniqueMatches } : null
+    })
+    .filter(
+      (proj: CustomProject | null): proj is CustomProject => proj !== null,
+    )
+
+  return [
+    ...matchedProjects,
+    ...categoryMatchedProjects,
+    ...urlMatchedProjects,
+  ].filter((project): project is CustomProject => project !== null)
+}
+
 const SavedTabs = () => {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [newSubCategory, setNewSubCategory] = useState('')
@@ -199,37 +598,19 @@ const SavedTabs = () => {
         return
       }
 
-      const uniqueUrls = [...new Set(urlsToRemove)]
+      const uniqueUrlSet = new Set(urlsToRemove)
       const storageResult = await chrome.storage.local.get('savedTabs')
       const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
         ? storageResult.savedTabs
         : []
 
       for (const group of savedTabs) {
-        if (!group.urlIds || group.urlIds.length === 0) {
-          continue
-        }
-
-        const groupUrls = await getTabGroupUrls(group)
-        const groupUrlSet = new Set(groupUrls.map(item => item.url))
-
-        for (const targetUrl of uniqueUrls) {
-          if (groupUrlSet.has(targetUrl)) {
-            await removeUrlFromTabGroup(group.id, targetUrl)
-          }
-        }
+        await removeMatchingUrlsFromGroup(group, uniqueUrlSet)
       }
 
       const projects = await getCustomProjects()
       for (const project of projects) {
-        const projectUrls = await getProjectUrls(project)
-        const projectUrlSet = new Set(projectUrls.map(item => item.url))
-
-        for (const targetUrl of uniqueUrls) {
-          if (projectUrlSet.has(targetUrl)) {
-            await removeUrlFromCustomProject(project.id, targetUrl)
-          }
-        }
+        await removeMatchingUrlsFromProject(project, uniqueUrlSet)
       }
 
       await refreshTabGroupsWithUrls()
@@ -444,226 +825,19 @@ const SavedTabs = () => {
   }, [isUncategorizedReorderMode])
 
   // タブグループをカテゴリごとに整理する関数を強化
-  const organizeTabGroups = useCallback((): {
-    categorized: Record<string, TabGroup[]>
-    uncategorized: TabGroup[]
-  } => {
-    if (!settings.enableCategories) {
-      return { categorized: {}, uncategorized: tabGroupsWithUrls }
-    }
-
-    console.log('親カテゴリ一覧:', categories)
-    console.log('organizeTabGroups開始:')
-    console.log('- tabGroupsWithUrls:', tabGroupsWithUrls)
-    console.log('- tabGroupsWithUrls.length:', tabGroupsWithUrls.length)
-
-    // カテゴリに属するドメインとカテゴリに属さないドメインに分ける
-    const categorizedGroups: Record<string, TabGroup[]> = {}
-    const uncategorizedGroups: TabGroup[] = []
-
-    const normalizedQuery = searchQuery.trim().toLowerCase()
-    const hasSearchQuery = normalizedQuery.length > 0
-
-    const groupsToOrganize = tabGroupsWithUrls
-      .map(g => {
-        if (!hasSearchQuery) {
-          return g
-        }
-
-        const currentUrls = g.urls || []
-        const filteredUrls = currentUrls.filter(item => {
-          const query = normalizedQuery
-          const matchesBasicFields =
-            item.title.toLowerCase().includes(query) ||
-            item.url.toLowerCase().includes(query) ||
-            g.domain.toLowerCase().includes(query)
-
-          // 子カテゴリでの検索
-          const matchesSubCategory = item.subCategory
-            ?.toLowerCase()
-            .includes(query)
-
-          // 親カテゴリでの検索（このタブグループが属する親カテゴリ名で検索）
-          let matchesParentCategory = false
-
-          // まず、parentCategoryIdで検索
-          if (g.parentCategoryId) {
-            const parentCategory = categories.find(
-              cat => cat.id === g.parentCategoryId,
-            )
-            if (parentCategory) {
-              matchesParentCategory = parentCategory.name
-                .toLowerCase()
-                .includes(query)
-              console.log(
-                `親カテゴリ検索デバッグ: ドメイン ${g.domain}, 親カテゴリ「${parentCategory.name}」, クエリ「${query}」, マッチ: ${matchesParentCategory}`,
-              )
-            } else {
-              console.log(
-                `親カテゴリ検索デバッグ: ドメイン ${g.domain}, parentCategoryId ${g.parentCategoryId} に対応するカテゴリが見つかりません`,
-              )
-            }
-          }
-
-          // parentCategoryIdが未設定またはマッチしない場合、リアルタイムでカテゴリを探す
-          if (!matchesParentCategory) {
-            for (const category of categories) {
-              // IDベースまたはドメイン名ベースでカテゴリを探す
-              if (
-                category.domains?.includes(g.id) ||
-                category.domainNames?.includes(g.domain)
-              ) {
-                const categoryMatches = category.name
-                  .toLowerCase()
-                  .includes(query)
-                if (categoryMatches) {
-                  matchesParentCategory = true
-                  console.log(
-                    `親カテゴリ検索デバッグ（リアルタイム）: ドメイン ${g.domain}, 親カテゴリ「${category.name}」, クエリ「${query}」, マッチ: ${categoryMatches}`,
-                  )
-                  break
-                }
-              }
-            }
-          }
-
-          if (!(g.parentCategoryId || matchesParentCategory)) {
-            console.log(
-              `親カテゴリ検索デバッグ: ドメイン ${g.domain}, parentCategoryIdが未設定かつカテゴリマッチなし`,
-            )
-          }
-
-          return (
-            matchesBasicFields || matchesSubCategory || matchesParentCategory
-          )
-        })
-
-        if (filteredUrls.length === currentUrls.length) {
-          return g
-        }
-
-        return { ...g, urls: filteredUrls }
-      })
-      .filter(g => {
-        // 新形式対応: urlIdsがあるか、旧形式のurlsがあるかをチェック
-        const hasNewUrls = g.urlIds && g.urlIds.length > 0
-        const hasOldUrls = g.urls && g.urls.length > 0
-        console.log(
-          `フィルタチェック ${g.domain}: urlIds=${g.urlIds?.length || 0}, urls=${g.urls?.length || 0}, 表示=${hasNewUrls || hasOldUrls}`,
-        )
-        return hasNewUrls || hasOldUrls
-      })
-
-    console.log('groupsToOrganize:', groupsToOrganize)
-    console.log('groupsToOrganize.length:', groupsToOrganize.length)
-
-    for (const group of groupsToOrganize) {
-      // このグループが属するカテゴリを探す
-      let found = false
-
-      // まずIDベースでカテゴリを検索
-      for (const category of categories) {
-        if (category.domains?.includes(group.id)) {
-          // 配列が未初期化の場合は初期化する
-          if (!categorizedGroups[category.id]) {
-            categorizedGroups[category.id] = []
-          }
-          const categorizedGroup =
-            group.parentCategoryId === category.id
-              ? group
-              : { ...group, parentCategoryId: category.id }
-          categorizedGroups[category.id].push(categorizedGroup)
-
-          // TabGroupのparentCategoryIdが設定されていない場合は設定
-          if (group.parentCategoryId !== category.id) {
-            console.log(
-              `ドメイン ${group.domain} のparentCategoryIdをIDベースで ${category.id} に更新しました`,
-            )
-          }
-
-          found = true
-          console.log(
-            `ドメイン ${group.domain} はIDベースで ${category.name} に分類されました`,
-          )
-          break
-        }
-      }
-
-      // IDで見つからなかった場合は、ドメイン名で検索
-      if (!found) {
-        for (const category of categories) {
-          if (
-            category.domainNames &&
-            Array.isArray(category.domainNames) &&
-            category.domainNames.includes(group.domain)
-          ) {
-            // 配列が未初期化の場合は初期化する
-            if (!categorizedGroups[category.id]) {
-              categorizedGroups[category.id] = []
-            }
-            const categorizedGroup =
-              group.parentCategoryId === category.id
-                ? group
-                : { ...group, parentCategoryId: category.id }
-            categorizedGroups[category.id].push(categorizedGroup)
-
-            console.log(
-              `ドメイン ${group.domain} はドメイン名ベースで ${category.name} に分類されました`,
-            )
-
-            // TabGroupのparentCategoryIdを更新
-            console.log(
-              `ドメイン ${group.domain} のparentCategoryIdを ${category.id} に設定しました`,
-            )
-
-            found = true
-            break
-          }
-        }
-      }
-
-      if (!found) {
-        uncategorizedGroups.push(group)
-        console.log(`ドメイン ${group.domain} は未分類です`)
-      }
-    }
-
-    // カテゴリ内のドメイン順序を維持するための処理を追加
-    for (const categoryId of Object.keys(categorizedGroups)) {
-      // カテゴリIDに対応する配列が未初期化の場合は初期化する
-      if (!categorizedGroups[categoryId]) {
-        categorizedGroups[categoryId] = []
-      }
-      const category = categories.find(c => c.id === categoryId)
-      const domains = category?.domains
-      if (domains && domains.length > 0) {
-        // ドメインIDの順序に従ってドメインをソート
-        const domainArray = [...domains] // 配列として扱うことを保証
-        categorizedGroups[categoryId].sort((a, b) => {
-          const indexA = domainArray.indexOf(a.id)
-          const indexB = domainArray.indexOf(b.id)
-          // 見つからない場合は最後に配置
-          if (indexA === -1) {
-            return 1
-          }
-          if (indexB === -1) {
-            return -1
-          }
-          return indexA - indexB
-        })
-      }
-    }
-
-    console.log('organizeTabGroups結果:')
-    console.log('- categorizedGroups:', categorizedGroups)
-    console.log('- uncategorizedGroups:', uncategorizedGroups)
-    console.log('- uncategorizedGroups.length:', uncategorizedGroups.length)
-
-    return {
-      categorized: categorizedGroups,
-      uncategorized: uncategorizedGroups,
-    }
-  }, [tabGroupsWithUrls, categories, settings.enableCategories, searchQuery])
+  const organizeTabGroups = useCallback(
+    (): {
+      categorized: Record<string, TabGroup[]>
+      uncategorized: TabGroup[]
+    } =>
+      organizeTabGroupsWithCategories({
+        enableCategories: settings.enableCategories,
+        tabGroupsWithUrls,
+        categories,
+        searchQuery,
+      }),
+    [tabGroupsWithUrls, categories, settings.enableCategories, searchQuery],
+  )
 
   // tabGroupsWithUrls と categories が変わったとき、カテゴリ割り当ての不一致を
   // ストレージに反映するための副作用（organizeTabGroups から分離した副作用）
@@ -680,65 +854,25 @@ const SavedTabs = () => {
         const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
         const currentSavedTabs = savedTabs as TabGroup[]
 
-        let savedTabsChanged = false
-        let updatedSavedTabs = [...currentSavedTabs]
-
-        // カテゴリ配列のスナップショットをキャプチャ（非同期処理中にstateが変わっても安全）
         const currentCategories = [...categories]
-        let categoriesChanged = false
-        let updatedCategories = currentCategories.map(c => ({ ...c }))
+        const syncState: CategorySyncState = {
+          updatedSavedTabs: [...currentSavedTabs],
+          updatedCategories: currentCategories.map(c => ({ ...c })),
+          savedTabsChanged: false,
+          categoriesChanged: false,
+        }
 
         for (const group of tabGroupsWithUrls) {
-          // IDベースでカテゴリを検索してparentCategoryIdの不一致を修正
-          for (const category of currentCategories) {
-            if (
-              category.domains?.includes(group.id) &&
-              group.parentCategoryId !== category.id
-            ) {
-              updatedSavedTabs = updatedSavedTabs.map(tab =>
-                tab.id === group.id
-                  ? { ...tab, parentCategoryId: category.id }
-                  : tab,
-              )
-              savedTabsChanged = true
-              console.log(
-                `[カテゴリ同期] ドメイン ${group.domain} のparentCategoryIdをIDベースで ${category.id} に更新しました`,
-              )
-              break
-            }
-          }
-
-          // ドメイン名ベースでカテゴリを発見したとき、カテゴリのdomainsリストとparentCategoryIdを同期
-          const foundByDomainName = currentCategories.find(
-            c =>
-              !c.domains?.includes(group.id) &&
-              c.domainNames?.includes(group.domain),
-          )
-          if (foundByDomainName) {
-            updatedCategories = updatedCategories.map(c =>
-              c.id === foundByDomainName.id
-                ? { ...c, domains: [...c.domains, group.id] }
-                : c,
-            )
-            categoriesChanged = true
-
-            updatedSavedTabs = updatedSavedTabs.map(tab =>
-              tab.id === group.id
-                ? { ...tab, parentCategoryId: foundByDomainName.id }
-                : tab,
-            )
-            savedTabsChanged = true
-            console.log(
-              `[カテゴリ同期] ドメイン ${group.domain} のIDを親カテゴリ ${foundByDomainName.id} に同期しました`,
-            )
-          }
+          syncGroupCategoryAssignment(group, currentCategories, syncState)
         }
 
-        if (categoriesChanged) {
-          await saveParentCategories(updatedCategories)
+        if (syncState.categoriesChanged) {
+          await saveParentCategories(syncState.updatedCategories)
         }
-        if (savedTabsChanged) {
-          await chrome.storage.local.set({ savedTabs: updatedSavedTabs })
+        if (syncState.savedTabsChanged) {
+          await chrome.storage.local.set({
+            savedTabs: syncState.updatedSavedTabs,
+          })
           console.log('[カテゴリ同期] savedTabs をストレージに書き込みました')
         }
       } catch (err) {
@@ -834,124 +968,81 @@ const SavedTabs = () => {
   console.log('- hasContentTabGroups.length:', hasContentTabGroups.length)
 
   // カスタムモード検索用にプロジェクトとURLをフィルタリング
-  const filteredCustomProjects = useMemo(() => {
-    const q = searchQuery.trim()
-    if (!q) {
-      return customProjects
-    }
-
-    const query = q.toLowerCase()
-
-    // プロジェクト名での曖昧検索
-    const projectFuse = new Fuse(customProjects, {
-      keys: ['name'],
-      threshold: 0.4,
-    })
-    const matchedProjects = projectFuse.search(q).map(res => res.item)
-
-    // カテゴリ名での検索
-    const categoryMatchedProjects = customProjects
-      .filter(proj => !matchedProjects.includes(proj))
-      .filter(proj =>
-        proj.categories.some(category =>
-          category.toLowerCase().includes(query),
-        ),
-      )
-
-    // URLレベルでの曖昧検索（カテゴリ名も含む）
-    const urlFuseOptions = { keys: ['title', 'url'], threshold: 0.4 }
-    const urlMatchedProjects = customProjects
-      .filter(
-        proj =>
-          !(
-            matchedProjects.includes(proj) ||
-            categoryMatchedProjects.includes(proj)
-          ),
-      )
-      .map(proj => {
-        const projectUrls = proj.urls || []
-        const fuseUrls = new Fuse(projectUrls, urlFuseOptions)
-        const fuseMatches = fuseUrls.search(q).map(r => r.item)
-
-        // URL個別のカテゴリ名での検索も追加
-        const categoryMatches = projectUrls.filter(url =>
-          url.category?.toLowerCase().includes(query),
-        )
-
-        const allMatches = [...fuseMatches, ...categoryMatches]
-        // 重複を削除
-        const uniqueMatches = allMatches.filter(
-          (url, index, self) =>
-            self.findIndex(u => u.url === url.url) === index,
-        )
-
-        return uniqueMatches.length > 0
-          ? { ...proj, urls: uniqueMatches }
-          : null
-      })
-      .filter(
-        (proj: CustomProject | null): proj is CustomProject => proj !== null,
-      ) // Filter out null entries with type guard
-
-    return [
-      ...matchedProjects,
-      ...categoryMatchedProjects,
-      ...urlMatchedProjects,
-    ]
-  }, [customProjects, searchQuery])
+  const filteredCustomProjects = useMemo(
+    () => filterCustomProjectsByQuery(customProjects, searchQuery),
+    [customProjects, searchQuery],
+  )
 
   // ストレージ変更検出時のリスナーを改善（ドメインモードとカスタムモード間の同期）
   useEffect(() => {
-    const handleStorageChanged = async (changes: {
-      [key: string]: chrome.storage.StorageChange
-    }) => {
-      console.log('ストレージ変更を検出:', changes)
+    const syncTabsAndUrlsChange = async (
+      changes: Record<string, chrome.storage.StorageChange>,
+    ) => {
+      const hasSavedTabsChange = Boolean(changes.savedTabs)
+      const hasUrlsChange = Boolean(changes.urls)
 
-      const hasSavedTabsChange = !!changes.savedTabs
-      const hasUrlsChange = !!changes.urls
-
-      // 新形式URLストレージが更新されたら、ページ側のURLキャッシュを破棄する
       if (hasUrlsChange) {
         invalidateUrlCache()
       }
 
-      // savedTabsの変更を検出した場合
       if (hasSavedTabsChange) {
         const nextSavedTabs = Array.isArray(changes.savedTabs.newValue)
           ? (changes.savedTabs.newValue as TabGroup[])
           : []
         await refreshTabGroupsWithUrls(nextSavedTabs)
-
-        // ドメインモードで変更があった場合、カスタムプロジェクトも同期更新
         await syncDomainDataToCustomProjects()
-      } else if (hasUrlsChange) {
-        // URL実体のみ更新されたケースでも、saved-tabs表示を再同期する
+        return
+      }
+
+      if (hasUrlsChange) {
         await refreshTabGroupsWithUrls()
       }
+    }
 
-      if (changes.userSettings) {
-        const nextSettings = changes.userSettings.newValue as
-          | Partial<UserSettings>
-          | undefined
-        setSettings(prev => ({ ...prev, ...(nextSettings ?? {}) }))
+    const syncUserSettingsChange = (
+      changes: Record<string, chrome.storage.StorageChange>,
+    ) => {
+      if (!changes.userSettings) {
+        return
       }
+      const nextSettings = changes.userSettings.newValue as
+        | Partial<UserSettings>
+        | undefined
+      setSettings(prev => ({ ...prev, ...(nextSettings ?? {}) }))
+    }
 
-      if (changes.parentCategories) {
-        const nextCategories = Array.isArray(changes.parentCategories.newValue)
-          ? (changes.parentCategories.newValue as ParentCategory[])
-          : []
-        setCategories(nextCategories)
+    const syncParentCategoriesChange = (
+      changes: Record<string, chrome.storage.StorageChange>,
+    ) => {
+      if (!changes.parentCategories) {
+        return
       }
+      const nextCategories = Array.isArray(changes.parentCategories.newValue)
+        ? (changes.parentCategories.newValue as ParentCategory[])
+        : []
+      setCategories(nextCategories)
+    }
 
-      // カスタムプロジェクトの変更を検出した場合
-      if (changes.customProjects && viewModeRef.current === 'custom') {
-        const nextCustomProjects = Array.isArray(
-          changes.customProjects.newValue,
-        )
-          ? (changes.customProjects.newValue as CustomProject[])
-          : []
-        setCustomProjects(nextCustomProjects)
+    const syncCustomProjectsChange = (
+      changes: Record<string, chrome.storage.StorageChange>,
+    ) => {
+      if (!(changes.customProjects && viewModeRef.current === 'custom')) {
+        return
       }
+      const nextCustomProjects = Array.isArray(changes.customProjects.newValue)
+        ? (changes.customProjects.newValue as CustomProject[])
+        : []
+      setCustomProjects(nextCustomProjects)
+    }
+
+    const handleStorageChanged = async (changes: {
+      [key: string]: chrome.storage.StorageChange
+    }) => {
+      console.log('ストレージ変更を検出:', changes)
+      await syncTabsAndUrlsChange(changes)
+      syncUserSettingsChange(changes)
+      syncParentCategoriesChange(changes)
+      syncCustomProjectsChange(changes)
     }
 
     chrome.storage.onChanged.addListener(handleStorageChanged)
@@ -1156,6 +1247,314 @@ const SavedTabs = () => {
       isUncategorizedReorderMode,
     })
   const shouldShowUncategorizedList = visibleUncategorizedGroups.length > 0
+  const headerFilteredTabGroups = useMemo(() => {
+    if (viewMode === 'domain') {
+      return hasContentTabGroups
+    }
+
+    return filteredCustomProjects.map(
+      project =>
+        ({
+          id: project.id,
+          domain: project.name,
+          urls: project.urls || [],
+        }) as TabGroup,
+    )
+  }, [viewMode, hasContentTabGroups, filteredCustomProjects])
+  const customProjectsForDisplay = filteredCustomProjects
+  const shouldShowCategoryReorderFooter =
+    isCategoryReorderMode && viewMode === 'domain'
+  const categoryOrderForDisplay = isCategoryReorderMode
+    ? tempCategoryOrder
+    : categoryOrder
+  const uncategorizedForDisplay = (
+    isUncategorizedReorderMode ? tempUncategorizedOrder : uncategorized
+  ).filter(group => (group.urls || group.urlIds || []).length > 0)
+
+  const renderCategorizedDomainGroups = () => {
+    if (!(settings.enableCategories && Object.keys(categorized).length > 0)) {
+      return null
+    }
+
+    return (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleCategoryDragEnd}
+      >
+        <SortableContext
+          items={categoryOrderForDisplay}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className='flex flex-col gap-1'>
+            {categoryOrderForDisplay.map(categoryId => {
+              if (!categoryId) {
+                return null
+              }
+              const category = categories.find(c => c.id === categoryId)
+              if (!category) {
+                return null
+              }
+              const domainGroups = categorized[categoryId] || []
+              if (domainGroups.length === 0) {
+                return null
+              }
+
+              return (
+                <CategoryGroup
+                  key={categoryId}
+                  category={category}
+                  domains={domainGroups}
+                  handleOpenAllTabs={handleOpenAllTabs}
+                  handleDeleteGroup={handleDeleteGroup}
+                  handleDeleteUrl={handleDeleteUrl}
+                  handleOpenTab={handleOpenTab}
+                  handleUpdateUrls={handleUpdateUrls}
+                  handleUpdateDomainsOrder={handleUpdateDomainsOrder}
+                  handleMoveDomainToCategory={(
+                    domainId,
+                    fromCategoryId,
+                    toCategoryId,
+                  ) =>
+                    handleMoveDomainToCategory(
+                      domainId,
+                      fromCategoryId,
+                      toCategoryId,
+                      tabGroups,
+                    )
+                  }
+                  handleDeleteCategory={(groupId, categoryName) =>
+                    handleDeleteCategory(
+                      groupId,
+                      categoryName,
+                      refreshTabGroupsWithUrls,
+                    )
+                  }
+                  settings={settings}
+                  isCategoryReorderMode={isCategoryReorderMode}
+                  searchQuery={searchQuery}
+                />
+              )
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
+    )
+  }
+
+  const renderUncategorizedHeader = () => {
+    if (!shouldShowUncategorizedSectionHeader) {
+      return null
+    }
+
+    return (
+      <div
+        className={`sticky top-0 z-50 flex items-center justify-between bg-card ${
+          hasVisibleCategoryGroups ? 'mt-6' : 'mt-2'
+        }`}
+      >
+        <h2 className='font-bold text-foreground text-xl'>未分類のドメイン</h2>
+
+        {isUncategorizedReorderMode && (
+          <div className='pointer-events-auto ml-2 flex shrink-0 gap-2'>
+            <Tooltip>
+              <TooltipTrigger asChild={true}>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={handleCancelUncategorizedReorder}
+                  className='flex cursor-pointer items-center gap-1'
+                  aria-label='並び替えをキャンセル'
+                >
+                  <X size={14} />
+                  <span className='hidden lg:inline'>キャンセル</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='top' className='block lg:hidden'>
+                並び替えをキャンセル
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild={true}>
+                <Button
+                  variant='default'
+                  size='sm'
+                  onClick={handleConfirmUncategorizedReorder}
+                  className='flex cursor-pointer items-center gap-1'
+                  aria-label='並び替えを確定'
+                >
+                  <Check size={14} />
+                  <span className='hidden lg:inline'>確定</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='top' className='block lg:hidden'>
+                並び替えを確定
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const renderUncategorizedDomains = () => {
+    if (!shouldShowUncategorizedList) {
+      return null
+    }
+
+    return (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleUncategorizedDragEnd}
+      >
+        <SortableContext
+          items={uncategorizedForDisplay.map(group => group.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className='mt-2 flex flex-col gap-1'>
+            {uncategorizedForDisplay.map(group => (
+              <SortableDomainCard
+                key={group.id}
+                group={group}
+                handleOpenAllTabs={handleOpenAllTabs}
+                handleDeleteGroup={handleDeleteGroup}
+                handleDeleteUrl={handleDeleteUrl}
+                handleOpenTab={handleOpenTab}
+                handleUpdateUrls={handleUpdateUrls}
+                handleDeleteCategory={(groupId, categoryName) =>
+                  handleDeleteCategory(
+                    groupId,
+                    categoryName,
+                    refreshTabGroupsWithUrls,
+                  )
+                }
+                settings={settings}
+                isReorderMode={isUncategorizedReorderMode}
+                searchQuery={searchQuery}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    )
+  }
+
+  const renderDomainMode = () => (
+    <>
+      {renderCategorizedDomainGroups()}
+      {renderUncategorizedHeader()}
+      {renderUncategorizedDomains()}
+      {hasContentTabGroups.length === 0 && (
+        <div className='flex min-h-[200px] flex-col items-center justify-center gap-4'>
+          <div className='text-2xl text-foreground'>
+            保存されたタブはありません
+          </div>
+          <div className='text-muted-foreground'>
+            タブを右クリックして保存するか、拡張機能のアイコンをクリックしてください
+          </div>
+        </div>
+      )}
+    </>
+  )
+
+  const renderMainContent = () => {
+    if (isLoading) {
+      return (
+        <div className='flex min-h-[200px] items-center justify-center'>
+          <div className='text-foreground text-xl'>読み込み中...</div>
+        </div>
+      )
+    }
+
+    if (viewMode === 'domain') {
+      return renderDomainMode()
+    }
+
+    return (
+      <CustomProjectSection
+        projects={customProjectsForDisplay}
+        handleOpenUrl={handleOpenTab}
+        handleDeleteUrl={handleDeleteUrlFromProject}
+        handleAddUrl={handleAddUrlToProject}
+        handleCreateProject={handleCreateProject}
+        handleDeleteProject={handleDeleteProject}
+        handleRenameProject={handleRenameProject}
+        handleAddCategory={handleAddCategory}
+        handleDeleteCategory={handleDeleteProjectCategory}
+        handleSetUrlCategory={handleSetUrlCategory}
+        handleUpdateCategoryOrder={handleUpdateCategoryOrder}
+        handleReorderUrls={handleReorderUrls}
+        handleOpenAllUrls={handleOpenAllTabs}
+        handleMoveUrlBetweenProjects={handleMoveUrlBetweenProjects}
+        handleMoveUrlsBetweenCategories={handleMoveUrlsBetweenCategories}
+        handleReorderProjects={handleReorderProjects}
+        handleRenameCategory={handleRenameCategory}
+        settings={settings}
+      />
+    )
+  }
+
+  const renderSubCategoryModal = () => {
+    if (!showSubCategoryModal) {
+      return null
+    }
+
+    return (
+      <Dialog
+        open={showSubCategoryModal}
+        onOpenChange={setShowSubCategoryModal}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新しい子カテゴリを追加</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={newSubCategory}
+            onChange={e => setNewSubCategory(e.target.value)}
+            placeholder='例: 仕事、プライベート、学習'
+            className='mb-4 w-full rounded border p-2 text-foreground'
+            ref={inputRef}
+          />
+          <DialogFooter>
+            <Tooltip>
+              <TooltipTrigger asChild={true}>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  onClick={() => setShowSubCategoryModal(false)}
+                  className='cursor-pointer rounded px-2 py-1 text-secondary-foreground'
+                >
+                  キャンセル
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='top' className='block lg:hidden'>
+                キャンセル
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild={true}>
+                <Button
+                  variant='default'
+                  size='sm'
+                  onClick={handleAddSubCategory}
+                  className='flex cursor-pointer items-center gap-1 rounded text-primary-foreground'
+                >
+                  <Plus size={14} />
+                  <span className='hidden lg:inline'>追加</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='top' className='block lg:hidden'>
+                追加
+              </TooltipContent>
+            </Tooltip>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   return (
     <>
@@ -1163,23 +1562,7 @@ const SavedTabs = () => {
       <div className='container mx-auto min-h-screen px-4 py-2'>
         <Header
           tabGroups={tabGroups}
-          filteredTabGroups={
-            viewMode === 'domain'
-              ? hasContentTabGroups
-              : // カスタムモードの場合、filteredCustomProjectsからTabGroup形式に変換
-                filteredCustomProjects
-                  .filter(
-                    (proj): proj is NonNullable<typeof proj> => proj !== null,
-                  )
-                  .map(
-                    proj =>
-                      ({
-                        id: proj.id,
-                        domain: proj.name, // プロジェクト名をドメインとして使用
-                        urls: proj.urls || [],
-                      }) as TabGroup,
-                  )
-          }
+          filteredTabGroups={headerFilteredTabGroups}
           customProjects={customProjects}
           onAddCategory={handleAddCategory}
           currentMode={viewMode}
@@ -1187,289 +1570,9 @@ const SavedTabs = () => {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
-        {isLoading ? (
-          <div className='flex min-h-[200px] items-center justify-center'>
-            <div className='text-foreground text-xl'>読み込み中...</div>
-          </div>
-        ) : viewMode === 'domain' ? (
-          // ドメインモード表示（既存の表示）
-          <>
-            {/* 既存のドメインモード表示コード */}
-            {settings.enableCategories &&
-              Object.keys(categorized).length > 0 && (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleCategoryDragEnd}
-                >
-                  <SortableContext
-                    items={
-                      isCategoryReorderMode ? tempCategoryOrder : categoryOrder
-                    }
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className='flex flex-col gap-1'>
-                      {/* カテゴリ順序に基づいて表示（並び替えモード中は一時的な順序を使用） */}
-                      {(isCategoryReorderMode
-                        ? tempCategoryOrder
-                        : categoryOrder
-                      ).map(categoryId => {
-                        if (!categoryId) {
-                          return null
-                        }
-                        const category = categories.find(
-                          c => c.id === categoryId,
-                        )
-                        if (!category) {
-                          return null
-                        }
-                        const domainGroups = categorized[categoryId] || []
-                        if (domainGroups.length === 0) {
-                          return null
-                        }
-
-                        return (
-                          <CategoryGroup
-                            key={categoryId}
-                            category={category}
-                            domains={domainGroups}
-                            handleOpenAllTabs={handleOpenAllTabs}
-                            handleDeleteGroup={handleDeleteGroup}
-                            handleDeleteUrl={handleDeleteUrl}
-                            handleOpenTab={handleOpenTab}
-                            handleUpdateUrls={handleUpdateUrls}
-                            handleUpdateDomainsOrder={handleUpdateDomainsOrder}
-                            handleMoveDomainToCategory={(
-                              domainId,
-                              fromCategoryId,
-                              toCategoryId,
-                            ) =>
-                              handleMoveDomainToCategory(
-                                domainId,
-                                fromCategoryId,
-                                toCategoryId,
-                                tabGroups,
-                              )
-                            }
-                            handleDeleteCategory={(groupId, categoryName) =>
-                              handleDeleteCategory(
-                                groupId,
-                                categoryName,
-                                refreshTabGroupsWithUrls,
-                              )
-                            }
-                            settings={settings}
-                            isCategoryReorderMode={isCategoryReorderMode}
-                            searchQuery={searchQuery}
-                          />
-                        )
-                      })}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              )}
-
-            {shouldShowUncategorizedSectionHeader && (
-              <div
-                className={`sticky top-0 z-50 flex items-center justify-between bg-card ${
-                  hasVisibleCategoryGroups ? 'mt-6' : 'mt-2'
-                }`}
-              >
-                <h2 className='font-bold text-foreground text-xl'>
-                  未分類のドメイン
-                </h2>
-
-                {/* 未分類ドメイン並び替えモード中の確定・キャンセルボタン */}
-                {isUncategorizedReorderMode && (
-                  <div className='pointer-events-auto ml-2 flex shrink-0 gap-2'>
-                    <Tooltip>
-                      <TooltipTrigger asChild={true}>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          onClick={handleCancelUncategorizedReorder}
-                          className='flex cursor-pointer items-center gap-1'
-                          aria-label='並び替えをキャンセル'
-                        >
-                          <X size={14} />
-                          <span className='hidden lg:inline'>キャンセル</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side='top' className='block lg:hidden'>
-                        並び替えをキャンセル
-                      </TooltipContent>
-                    </Tooltip>
-
-                    <Tooltip>
-                      <TooltipTrigger asChild={true}>
-                        <Button
-                          variant='default'
-                          size='sm'
-                          onClick={handleConfirmUncategorizedReorder}
-                          className='flex cursor-pointer items-center gap-1'
-                          aria-label='並び替えを確定'
-                        >
-                          <Check size={14} />
-                          <span className='hidden lg:inline'>確定</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side='top' className='block lg:hidden'>
-                        並び替えを確定
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 未分類タブを表示する部分 */}
-            {shouldShowUncategorizedList && (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleUncategorizedDragEnd}
-              >
-                <SortableContext
-                  items={(isUncategorizedReorderMode
-                    ? tempUncategorizedOrder
-                    : uncategorized
-                  )
-                    .filter(
-                      group => (group.urls || group.urlIds || []).length > 0,
-                    )
-                    .map(group => group.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className='mt-2 flex flex-col gap-1'>
-                    {(isUncategorizedReorderMode
-                      ? tempUncategorizedOrder
-                      : uncategorized
-                    )
-                      .filter(
-                        group => (group.urls || group.urlIds || []).length > 0,
-                      )
-                      .map(group => (
-                        <SortableDomainCard
-                          key={group.id}
-                          group={group}
-                          handleOpenAllTabs={handleOpenAllTabs}
-                          handleDeleteGroup={handleDeleteGroup}
-                          handleDeleteUrl={handleDeleteUrl}
-                          handleOpenTab={handleOpenTab}
-                          handleUpdateUrls={handleUpdateUrls}
-                          handleDeleteCategory={(groupId, categoryName) =>
-                            handleDeleteCategory(
-                              groupId,
-                              categoryName,
-                              refreshTabGroupsWithUrls,
-                            )
-                          }
-                          settings={settings}
-                          isReorderMode={isUncategorizedReorderMode}
-                          searchQuery={searchQuery}
-                        />
-                      ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            )}
-
-            {/* すべてのカテゴリとドメインが空の場合のメッセージ */}
-            {hasContentTabGroups.length === 0 && (
-              <div className='flex min-h-[200px] flex-col items-center justify-center gap-4'>
-                <div className='text-2xl text-foreground'>
-                  保存されたタブはありません
-                </div>
-                <div className='text-muted-foreground'>
-                  タブを右クリックして保存するか、拡張機能のアイコンをクリックしてください
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          // カスタムモード表示
-          <CustomProjectSection
-            projects={filteredCustomProjects.filter(
-              (proj): proj is NonNullable<typeof proj> => proj !== null,
-            )}
-            handleOpenUrl={handleOpenTab}
-            handleDeleteUrl={handleDeleteUrlFromProject}
-            handleAddUrl={handleAddUrlToProject}
-            handleCreateProject={handleCreateProject}
-            handleDeleteProject={handleDeleteProject}
-            handleRenameProject={handleRenameProject}
-            handleAddCategory={handleAddCategory}
-            handleDeleteCategory={handleDeleteProjectCategory}
-            handleSetUrlCategory={handleSetUrlCategory}
-            handleUpdateCategoryOrder={handleUpdateCategoryOrder}
-            handleReorderUrls={handleReorderUrls}
-            handleOpenAllUrls={handleOpenAllTabs}
-            handleMoveUrlBetweenProjects={handleMoveUrlBetweenProjects}
-            handleMoveUrlsBetweenCategories={handleMoveUrlsBetweenCategories}
-            handleReorderProjects={handleReorderProjects} // 追加: プロジェクト順序更新ハンドラー
-            handleRenameCategory={handleRenameCategory} // 追加: カテゴリ名変更ハンドラー
-            settings={settings}
-          />
-        )}
-
-        {/* ...existing code... */}
-        {/* 子カテゴリ追加モーダル */}
-        {showSubCategoryModal && (
-          <Dialog
-            open={showSubCategoryModal}
-            onOpenChange={setShowSubCategoryModal}
-          >
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>新しい子カテゴリを追加</DialogTitle>
-              </DialogHeader>
-              <Input
-                value={newSubCategory}
-                onChange={e => setNewSubCategory(e.target.value)}
-                placeholder='例: 仕事、プライベート、学習'
-                className='mb-4 w-full rounded border p-2 text-foreground'
-                ref={inputRef}
-              />
-              <DialogFooter>
-                <Tooltip>
-                  <TooltipTrigger asChild={true}>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={() => setShowSubCategoryModal(false)}
-                      className='cursor-pointer rounded px-2 py-1 text-secondary-foreground'
-                    >
-                      キャンセル
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side='top' className='block lg:hidden'>
-                    キャンセル
-                  </TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild={true}>
-                    <Button
-                      variant='default'
-                      size='sm'
-                      onClick={handleAddSubCategory}
-                      className='flex cursor-pointer items-center gap-1 rounded text-primary-foreground'
-                    >
-                      <Plus size={14} />
-                      <span className='hidden lg:inline'>追加</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side='top' className='block lg:hidden'>
-                    追加
-                  </TooltipContent>
-                </Tooltip>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* 親カテゴリ並び替え専用フッター */}
-        {isCategoryReorderMode && viewMode === 'domain' && (
+        {renderMainContent()}
+        {renderSubCategoryModal()}
+        {shouldShowCategoryReorderFooter && (
           <CategoryReorderFooter
             onConfirmCategoryReorder={handleConfirmCategoryReorder}
             onCancelCategoryReorder={handleCancelCategoryReorder}

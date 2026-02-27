@@ -246,14 +246,7 @@ export async function setCategoryKeywords(
   await autoCategorizeTabs(groupId)
 }
 
-// キーワードに基づいて自動的にURLを分類する（新形式対応）
-export async function autoCategorizeTabs(groupId: string): Promise<void> {
-  // マイグレーションを実行（未実行の場合）
-  await migrateToUrlsStorage()
-
-  const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-
-  // 重複チェックを追加
+function dedupeTabGroups(savedTabs: TabGroup[]): TabGroup[] {
   const uniqueIds = new Set<string>()
   const uniqueGroups: TabGroup[] = []
 
@@ -262,61 +255,83 @@ export async function autoCategorizeTabs(groupId: string): Promise<void> {
       console.warn(
         `自動カテゴリ実行前に重複検出: ${group.id} (${group.domain})`,
       )
-    } else {
-      uniqueIds.add(group.id)
-      uniqueGroups.push(group)
+      continue
     }
+    uniqueIds.add(group.id)
+    uniqueGroups.push(group)
   }
 
-  // 重複があれば修正
   if (uniqueGroups.length < savedTabs.length) {
     console.log(
       `カテゴリ処理前に重複を修正: ${savedTabs.length} → ${uniqueGroups.length}`,
     )
   }
+  return uniqueGroups
+}
+
+function categorizeUrlIdsByKeywords(
+  urlRecords: UrlRecord[],
+  categoryKeywords: TabGroup['categoryKeywords'],
+  currentMapping: Record<string, string> = {},
+): Record<string, string> {
+  const updatedSubCategories: Record<string, string> = { ...currentMapping }
+  if (!categoryKeywords) {
+    return updatedSubCategories
+  }
+
+  for (const urlRecord of urlRecords) {
+    const title = urlRecord.title.toLowerCase()
+    for (const categoryKeyword of categoryKeywords) {
+      const matchesKeyword = categoryKeyword.keywords.some((keyword: string) =>
+        title.includes(keyword.toLowerCase()),
+      )
+      if (matchesKeyword) {
+        updatedSubCategories[urlRecord.id] = categoryKeyword.categoryName
+        break
+      }
+    }
+  }
+
+  return updatedSubCategories
+}
+
+function applySubCategoryMapping(
+  groups: TabGroup[],
+  groupId: string,
+  mapping: Record<string, string>,
+): void {
+  const groupIndex = groups.findIndex(group => group.id === groupId)
+  if (groupIndex >= 0) {
+    groups[groupIndex].urlSubCategories = mapping
+  }
+}
+
+// キーワードに基づいて自動的にURLを分類する（新形式対応）
+export async function autoCategorizeTabs(groupId: string): Promise<void> {
+  // マイグレーションを実行（未実行の場合）
+  await migrateToUrlsStorage()
+
+  const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+  const uniqueGroups = dedupeTabGroups(savedTabs)
 
   const targetGroup = uniqueGroups.find(
     (group: TabGroup) => group.id === groupId,
   )
-  if (
-    !targetGroup?.categoryKeywords ||
-    targetGroup.categoryKeywords.length === 0
-  ) {
+  const categoryKeywords = targetGroup?.categoryKeywords
+  if (!(categoryKeywords && categoryKeywords.length > 0)) {
     console.log('カテゴリキーワードがないか、グループが見つかりません')
     return // カテゴリキーワードがない場合は何もしない
   }
 
-  // この時点でtargetGroup.categoryKeywordsは必ず存在する
-  const categoryKeywords = targetGroup.categoryKeywords
-
   // 新形式のみサポート: URLIDsからURLレコードを取得して分類
   if (targetGroup.urlIds && targetGroup.urlIds.length > 0) {
     const urlRecords = await getUrlRecordsByIds(targetGroup.urlIds)
-    const updatedSubCategories: Record<string, string> = {
-      ...targetGroup.urlSubCategories,
-    }
-
-    for (const urlRecord of urlRecords) {
-      const title = urlRecord.title.toLowerCase()
-
-      for (const catKeyword of categoryKeywords) {
-        // いずれかのキーワードがタイトルに含まれているか確認
-        const matchesKeyword = catKeyword.keywords.some((keyword: string) =>
-          title.includes(keyword.toLowerCase()),
-        )
-
-        if (matchesKeyword) {
-          updatedSubCategories[urlRecord.id] = catKeyword.categoryName
-          break // 最初にマッチしたカテゴリを採用
-        }
-      }
-    }
-
-    // 更新されたサブカテゴリ情報を保存
-    const groupIndex = uniqueGroups.findIndex(g => g.id === groupId)
-    if (groupIndex >= 0) {
-      uniqueGroups[groupIndex].urlSubCategories = updatedSubCategories
-    }
+    const updatedSubCategories = categorizeUrlIdsByKeywords(
+      urlRecords,
+      categoryKeywords,
+      targetGroup.urlSubCategories,
+    )
+    applySubCategoryMapping(uniqueGroups, groupId, updatedSubCategories)
   }
 
   await chrome.storage.local.set({ savedTabs: uniqueGroups })

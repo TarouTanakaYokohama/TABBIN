@@ -33,6 +33,62 @@ import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
 import { CategorySection } from './TimeRemaining'
 
+type SortOrder = 'default' | 'asc' | 'desc'
+
+const sortLabelMap: Record<SortOrder, string> = {
+  default: 'デフォルト',
+  asc: '保存日時の昇順',
+  desc: '保存日時の降順',
+}
+
+const nextSortOrderMap: Record<SortOrder, SortOrder> = {
+  default: 'asc',
+  asc: 'desc',
+  desc: 'default',
+}
+
+const sortIconMap = {
+  default: ArrowUpDown,
+  asc: ArrowUpNarrowWide,
+  desc: ArrowUpWideNarrow,
+} as const
+
+const getCollapseTooltipText = (
+  isReorderMode: boolean,
+  isCollapsed: boolean,
+): string => {
+  if (isReorderMode) {
+    return '並び替えモード中'
+  }
+  return isCollapsed ? '展開' : '折りたたむ'
+}
+
+const getCollapseIcon = (isCollapsed: boolean) =>
+  isCollapsed ? ChevronDown : ChevronUp
+
+const getCollapseButtonClassName = (isReorderMode: boolean): string =>
+  `flex items-center gap-1 ${
+    isReorderMode ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+  }`
+
+const openTabsWithConfirm = ({
+  urlCount,
+  setIsOpenAllConfirmOpen,
+  handleOpenAllTabs,
+  urls,
+}: {
+  urlCount: number
+  setIsOpenAllConfirmOpen: (open: boolean) => void
+  handleOpenAllTabs: SortableCategorySectionProps['handleOpenAllTabs']
+  urls: Parameters<SortableCategorySectionProps['handleOpenAllTabs']>[0]
+}) => {
+  if (urlCount >= 10) {
+    setIsOpenAllConfirmOpen(true)
+    return
+  }
+  handleOpenAllTabs(urls)
+}
+
 // 並び替え可能なカテゴリセクションコンポーネント
 export const SortableCategorySection = ({
   id,
@@ -70,9 +126,7 @@ export const SortableCategorySection = ({
 
   const [isDeleting, setIsDeleting] = useState(false)
   // sort order state: 'default' preserves manual drag order
-  const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>(
-    'default',
-  )
+  const [sortOrder, setSortOrder] = useState<SortOrder>('default')
   const urls = props.urls ?? []
   const urlCount = urls.length
   // derive sorted urls by savedAt (default = original order)
@@ -90,6 +144,41 @@ export const SortableCategorySection = ({
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [userCollapsedState, setUserCollapsedState] = useState(false)
+  const [isDraggingGlobal, setIsDraggingGlobal] = useState(false)
+  const displayedCategoryName =
+    props.categoryName === '__uncategorized' ? '未分類' : props.categoryName
+  const sectionClassName = isDragging
+    ? 'category-section mb-1 rounded-md bg-muted shadow-lg'
+    : 'category-section mb-1'
+  const collapseTooltipText = getCollapseTooltipText(isReorderMode, isCollapsed)
+  const sortLabel = sortLabelMap[sortOrder]
+  const SortIcon = sortIconMap[sortOrder]
+  const CollapseIcon = getCollapseIcon(isCollapsed)
+  const collapseButtonClassName = getCollapseButtonClassName(isReorderMode)
+
+  const handleToggleCollapse = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
+    setUserCollapsedState(newState)
+  }
+
+  const handleToggleSort = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    setSortOrder(current => nextSortOrderMap[current])
+  }
+
+  const handleOpenAllClick = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    openTabsWithConfirm({
+      urlCount,
+      setIsOpenAllConfirmOpen,
+      handleOpenAllTabs,
+      urls,
+    })
+  }
 
   const onDeleteAllTabsConfirmed = useCallback(async () => {
     setIsDeleteConfirmOpen(false)
@@ -117,26 +206,24 @@ export const SortableCategorySection = ({
     [settings.confirmDeleteAll, onDeleteAllTabsConfirmed],
   )
 
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [userCollapsedState, setUserCollapsedState] = useState(false)
-  const [isDraggingGlobal, setIsDraggingGlobal] = useState(false)
+  const handleDragEndOrCancel = useCallback(() => {
+    setIsDraggingGlobal(false)
+    if (!isReorderMode) {
+      setIsCollapsed(false)
+    }
+  }, [isReorderMode])
+
+  const handleConfirmOpenAll = () => {
+    setIsOpenAllConfirmOpen(false)
+    handleOpenAllTabs(urls)
+  }
 
   useDndMonitor({
     onDragStart: () => {
       setIsDraggingGlobal(true)
     },
-    onDragEnd: () => {
-      setIsDraggingGlobal(false)
-      if (!isReorderMode) {
-        setIsCollapsed(false)
-      }
-    },
-    onDragCancel: () => {
-      setIsDraggingGlobal(false)
-      if (!isReorderMode) {
-        setIsCollapsed(false)
-      }
-    },
+    onDragEnd: handleDragEndOrCancel,
+    onDragCancel: handleDragEndOrCancel,
   })
 
   useEffect(() => {
@@ -152,15 +239,7 @@ export const SortableCategorySection = ({
 
   return (
     <div>
-      <div
-        ref={setNodeRef}
-        style={style}
-        className={
-          isDragging
-            ? 'category-section mb-1 rounded-md bg-muted shadow-lg'
-            : 'category-section mb-1'
-        }
-      >
+      <div ref={setNodeRef} style={style} className={sectionClassName}>
         <div
           className={`category-header sticky ${stickyTop} z-30 mb-0.5 flex items-center justify-between gap-2 bg-background pb-0.5`}
         >
@@ -170,33 +249,16 @@ export const SortableCategorySection = ({
               <Button
                 variant='secondary'
                 size='sm'
-                onClick={e => {
-                  e.stopPropagation()
-                  const newState = !isCollapsed
-                  setIsCollapsed(newState)
-                  setUserCollapsedState(newState)
-                }}
-                className={`flex items-center gap-1 ${
-                  isReorderMode
-                    ? 'cursor-not-allowed opacity-50'
-                    : 'cursor-pointer'
-                }`}
+                onClick={handleToggleCollapse}
+                className={collapseButtonClassName}
                 aria-label={isCollapsed ? '展開' : '折りたたむ'}
                 disabled={isReorderMode}
               >
-                {isCollapsed ? (
-                  <ChevronDown size={14} />
-                ) : (
-                  <ChevronUp size={14} />
-                )}
+                <CollapseIcon size={14} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side='top' className='block lg:hidden'>
-              {isReorderMode
-                ? '並び替えモード中'
-                : isCollapsed
-                  ? '展開'
-                  : '折りたたむ'}
+              {collapseTooltipText}
             </TooltipContent>
           </Tooltip>
           {/* ソート順切り替え */}
@@ -205,36 +267,15 @@ export const SortableCategorySection = ({
               <Button
                 variant='secondary'
                 size='sm'
-                onClick={e => {
-                  e.stopPropagation()
-                  setSortOrder(o =>
-                    o === 'default' ? 'asc' : o === 'asc' ? 'desc' : 'default',
-                  )
-                }}
+                onClick={handleToggleSort}
                 className='flex cursor-pointer items-center gap-1'
-                aria-label={
-                  sortOrder === 'default'
-                    ? 'デフォルト'
-                    : sortOrder === 'asc'
-                      ? '保存日時の昇順'
-                      : '保存日時の降順'
-                }
+                aria-label={sortLabel}
               >
-                {sortOrder === 'default' ? (
-                  <ArrowUpDown size={14} />
-                ) : sortOrder === 'asc' ? (
-                  <ArrowUpNarrowWide size={14} />
-                ) : (
-                  <ArrowUpWideNarrow size={14} />
-                )}
+                <SortIcon size={14} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side='top' className='block lg:hidden'>
-              {sortOrder === 'default'
-                ? 'デフォルト'
-                : sortOrder === 'asc'
-                  ? '保存日時の昇順'
-                  : '保存日時の降順'}
+              {sortLabel}
             </TooltipContent>
           </Tooltip>
           {/* ドラッグハンドル部分 */}
@@ -247,9 +288,7 @@ export const SortableCategorySection = ({
               <GripVertical size={16} aria-hidden='true' />
             </div>
             <h3 className='font-medium text-foreground'>
-              {props.categoryName === '__uncategorized'
-                ? '未分類'
-                : props.categoryName}
+              {displayedCategoryName}
             </h3>
             <span className='text-muted-foreground text-sm'>
               <Badge variant='secondary'>{urlCount}</Badge>
@@ -263,14 +302,7 @@ export const SortableCategorySection = ({
                 <Button
                   variant='secondary'
                   size='sm'
-                  onClick={e => {
-                    e.stopPropagation()
-                    if (urlCount >= 10) {
-                      setIsOpenAllConfirmOpen(true)
-                    } else {
-                      handleOpenAllTabs(urls)
-                    }
-                  }}
+                  onClick={handleOpenAllClick}
                   className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
                   style={{ position: 'relative' }} // ボタンを確実に上に表示
                 >
@@ -323,11 +355,7 @@ export const SortableCategorySection = ({
           <AlertDialogHeader>
             <AlertDialogTitle>タブを削除</AlertDialogTitle>
             <AlertDialogDescription>
-              「
-              {props.categoryName === '__uncategorized'
-                ? '未分類'
-                : props.categoryName}
-              」のタブをすべて削除しますか？
+              「{displayedCategoryName}」のタブをすべて削除しますか？
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -353,12 +381,7 @@ export const SortableCategorySection = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>キャンセル</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setIsOpenAllConfirmOpen(false)
-                handleOpenAllTabs(urls)
-              }}
-            >
+            <AlertDialogAction onClick={handleConfirmOpenAll}>
               開く
             </AlertDialogAction>
           </AlertDialogFooter>

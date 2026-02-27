@@ -21,6 +21,15 @@ interface UseDomainCardStateParams {
   isReorderMode: boolean
 }
 
+interface CategorizedUrlItem {
+  url: string
+  title: string
+  subCategory?: string
+  savedAt?: number
+}
+
+type CategorizedUrls = Record<string, CategorizedUrlItem[]>
+
 /** 配列の同値比較ユーティリティ */
 const arraysEqual = (a: readonly string[], b: readonly string[]): boolean => {
   if (a.length !== b.length) {
@@ -32,6 +41,67 @@ const arraysEqual = (a: readonly string[], b: readonly string[]): boolean => {
     }
   }
   return true
+}
+
+function sortUrlsByOrder(
+  urls: TabGroup['urls'],
+  sortOrder: 'default' | 'asc' | 'desc',
+): TabGroup['urls'] {
+  const sourceUrls = urls || []
+  if (sortOrder === 'default') {
+    return sourceUrls
+  }
+
+  const sortedUrls = [...sourceUrls]
+  sortedUrls.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
+  if (sortOrder === 'desc') {
+    sortedUrls.reverse()
+  }
+  return sortedUrls
+}
+
+function buildCategorizedUrls(
+  urls: TabGroup['urls'],
+  subCategories: TabGroup['subCategories'],
+): CategorizedUrls {
+  const categorizedUrls: CategorizedUrls = { __uncategorized: [] }
+  for (const category of subCategories || []) {
+    categorizedUrls[category] = []
+  }
+
+  for (const url of urls || []) {
+    if (url.subCategory && subCategories?.includes(url.subCategory)) {
+      categorizedUrls[url.subCategory].push(url)
+    } else {
+      categorizedUrls.__uncategorized.push(url)
+    }
+  }
+  return categorizedUrls
+}
+
+function buildCategoryOrderFromSaved(
+  savedOrder: string[],
+  regularCategories: string[],
+  hasUncategorized: boolean,
+): string[] {
+  const filteredOrder = savedOrder.filter(id => {
+    if (id === '__uncategorized') {
+      return hasUncategorized
+    }
+    return regularCategories.includes(id)
+  })
+
+  for (const category of regularCategories) {
+    if (!filteredOrder.includes(category)) {
+      filteredOrder.push(category)
+    }
+  }
+
+  if (hasUncategorized && !filteredOrder.includes('__uncategorized')) {
+    filteredOrder.push('__uncategorized')
+  }
+
+  return filteredOrder
 }
 
 /**
@@ -68,39 +138,8 @@ export function useDomainCardState({
 
   // --- カテゴリ別URL整理（useMemo最適化）---
   const categorizedUrls = useMemo(() => {
-    interface UrlType {
-      url: string
-      title: string
-      subCategory?: string
-      savedAt?: number
-    }
-    let urlsToGroup = group.urls || []
-    if (sortOrder !== 'default') {
-      urlsToGroup = [...(group.urls || [])]
-      urlsToGroup.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
-      if (sortOrder === 'desc') {
-        urlsToGroup.reverse()
-      }
-    }
-    const categorizedUrls: Record<string, UrlType[]> = {
-      __uncategorized: [],
-    }
-
-    if (group.subCategories) {
-      for (const cat of group.subCategories) {
-        categorizedUrls[cat] = []
-      }
-    }
-
-    for (const url of urlsToGroup || []) {
-      if (url.subCategory && group.subCategories?.includes(url.subCategory)) {
-        categorizedUrls[url.subCategory].push(url)
-      } else {
-        categorizedUrls.__uncategorized.push(url)
-      }
-    }
-
-    return categorizedUrls
+    const sortedUrls = sortUrlsByOrder(group.urls, sortOrder)
+    return buildCategorizedUrls(sortedUrls, group.subCategories)
   }, [group.urls, group.subCategories, sortOrder])
 
   // --- 空でないカテゴリIDsを取得 ---
@@ -122,32 +161,17 @@ export function useDomainCardState({
     )
     console.log('表示すべき通常カテゴリ:', regularCategories)
 
-    const hasUncategorized =
-      categorizedUrls.__uncategorized &&
-      categorizedUrls.__uncategorized.length > 0
+    const hasUncategorized = (categorizedUrls.__uncategorized?.length || 0) > 0
 
     if (
       group.subCategoryOrderWithUncategorized &&
       group.subCategoryOrderWithUncategorized.length > 0
     ) {
-      const filteredOrder = group.subCategoryOrderWithUncategorized.filter(
-        id => {
-          if (id === '__uncategorized') {
-            return hasUncategorized
-          }
-          return regularCategories.includes(id)
-        },
+      const filteredOrder = buildCategoryOrderFromSaved(
+        group.subCategoryOrderWithUncategorized,
+        regularCategories,
+        hasUncategorized,
       )
-
-      for (const cat of regularCategories) {
-        if (!filteredOrder.includes(cat)) {
-          filteredOrder.push(cat)
-        }
-      }
-
-      if (hasUncategorized && !filteredOrder.includes('__uncategorized')) {
-        filteredOrder.push('__uncategorized')
-      }
 
       console.log('保存された順序から構築（空カテゴリ除外）:', filteredOrder)
       return filteredOrder

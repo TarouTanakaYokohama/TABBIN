@@ -51,6 +51,60 @@ interface CategoryManagementModalProps {
   onCategoryUpdate?: (categoryId: string, newName: string) => void
 }
 
+async function confirmCategoryNameUpdated(
+  categoryId: string,
+  trimmedName: string,
+  maxAttempts = 5,
+): Promise<boolean> {
+  for (let attempts = 0; attempts < maxAttempts; attempts++) {
+    const { parentCategories = [] } =
+      await chrome.storage.local.get('parentCategories')
+    const updatedCategory = parentCategories.find(
+      (cat: ParentCategory) => cat.id === categoryId,
+    )
+    if (updatedCategory?.name === trimmedName) {
+      console.log('Modal - カテゴリ名の更新を確認:', updatedCategory)
+      return true
+    }
+    console.log(`Modal - 更新確認を再試行 (${attempts + 1}/${maxAttempts})`)
+  }
+  return false
+}
+
+async function updateCategoryWithDomain(
+  categoryId: string,
+  selectedDomain: string,
+  selectedDomainInfo: AvailableDomain,
+): Promise<void> {
+  const { parentCategories = [] } =
+    await chrome.storage.local.get('parentCategories')
+  const targetCategory = parentCategories.find(
+    (cat: ParentCategory) => cat.id === categoryId,
+  )
+  if (!targetCategory) {
+    throw new Error('カテゴリが見つかりません')
+  }
+
+  const existingDomainNames = targetCategory.domainNames || []
+  if (
+    targetCategory.domains.includes(selectedDomain) ||
+    existingDomainNames.includes(selectedDomainInfo.domain)
+  ) {
+    throw new Error('このドメインは既にカテゴリに追加されています')
+  }
+
+  const updatedCategories = parentCategories.map((cat: ParentCategory) =>
+    cat.id === categoryId
+      ? {
+          ...cat,
+          domains: [...cat.domains, selectedDomain],
+          domainNames: [...existingDomainNames, selectedDomainInfo.domain],
+        }
+      : cat,
+  )
+  await chrome.storage.local.set({ parentCategories: updatedCategories })
+}
+
 export const CategoryManagementModal = ({
   isOpen,
   onClose,
@@ -198,61 +252,21 @@ export const CategoryManagementModal = ({
         newName: trimmedName,
       })
 
+      setIsSaving(true)
       try {
-        // 保存開始
-        setIsSaving(true)
-
-        // カテゴリの更新を試行
         await onCategoryUpdate(category.id, trimmedName)
         console.log('Modal - onCategoryUpdate呼び出し完了')
-
-        // 保存完了
-        setIsSaving(false)
-
-        // 保存が完全に反映されるまで確認
-        let isUpdateConfirmed = false
-        let attempts = 0
-        const maxAttempts = 5
-
-        while (!isUpdateConfirmed && attempts < maxAttempts) {
-          const { parentCategories = [] } =
-            await chrome.storage.local.get('parentCategories')
-          const updatedCategory = parentCategories.find(
-            (cat: ParentCategory) => cat.id === category.id,
-          )
-
-          if (updatedCategory && updatedCategory.name === trimmedName) {
-            console.log('Modal - カテゴリ名の更新を確認:', updatedCategory)
-            isUpdateConfirmed = true
-            break
-          }
-
-          console.log(
-            `Modal - 更新確認を再試行 (${attempts + 1}/${maxAttempts})`,
-          )
-          attempts++
-        }
-
-        if (!isUpdateConfirmed) {
-          throw new Error('カテゴリ名の更新が確認できません')
-        }
-
-        // 更新が確認できたらUIを更新
-        setLocalCategoryName(trimmedName)
-        setIsRenaming(false)
-        toast.success(
-          `カテゴリ名を「${category.name}」から「${trimmedName}」に変更しました`,
-        )
-
-        // トーストメッセージを表示
-        console.log('Modal - カテゴリ更新が完了しました')
-      } catch (error) {
-        console.error('Modal - カテゴリ名の更新に失敗:', error)
-        throw error
       } finally {
-        // 保存状態をリセット
         setIsSaving(false)
         console.log('Modal - 保存状態をリセット')
+      }
+
+      const isUpdateConfirmed = await confirmCategoryNameUpdated(
+        category.id,
+        trimmedName,
+      )
+      if (!isUpdateConfirmed) {
+        throw new Error('カテゴリ名の更新が確認できません')
       }
 
       // すべての更新が完了したことを確認してからリロード
@@ -273,7 +287,9 @@ export const CategoryManagementModal = ({
       // すべての更新が確認できたら親コンポーネントに通知
       console.log('Modal - カテゴリ更新が完了しました')
 
-      // 親コンポーネント側で状態を更新（onCategoryUpdateが既に呼ばれているため、ここでは何もしない）
+      toast.success(
+        `カテゴリ名を「${category.name}」から「${trimmedName}」に変更しました`,
+      )
       setLocalCategoryName(trimmedName)
       setIsRenaming(false)
     } catch (error) {
@@ -328,49 +344,17 @@ export const CategoryManagementModal = ({
     setIsProcessing(true)
 
     try {
-      // 現在のデータを取得
-      const { parentCategories = [] } =
-        await chrome.storage.local.get('parentCategories')
-
-      // 対象のカテゴリを検索
-      const targetCategory = parentCategories.find(
-        (cat: ParentCategory) => cat.id === category.id,
-      )
-      if (!targetCategory) {
-        throw new Error('カテゴリが見つかりません')
-      }
-
-      // 選択されたドメインの情報を取得
       const selectedDomainInfo = availableDomains.find(
         d => d.id === selectedDomain,
       )
       if (!selectedDomainInfo) {
         throw new Error('ドメインが見つかりません')
       }
-      const existingDomainNames = targetCategory.domainNames || []
-
-      // 重複チェック
-      if (
-        targetCategory.domains.includes(selectedDomain) ||
-        existingDomainNames.includes(selectedDomainInfo.domain)
-      ) {
-        throw new Error('このドメインは既にカテゴリに追加されています')
-      }
-
-      // カテゴリを更新
-      const updatedCategories = parentCategories.map((cat: ParentCategory) => {
-        if (cat.id === category.id) {
-          return {
-            ...cat,
-            domains: [...cat.domains, selectedDomain],
-            domainNames: [...existingDomainNames, selectedDomainInfo.domain],
-          }
-        }
-        return cat
-      })
-
-      // 保存
-      await chrome.storage.local.set({ parentCategories: updatedCategories })
+      await updateCategoryWithDomain(
+        category.id,
+        selectedDomain,
+        selectedDomainInfo,
+      )
 
       toast.success(
         `ドメイン「${selectedDomainInfo.domain}」をカテゴリ「${category.name}」に追加しました`,
