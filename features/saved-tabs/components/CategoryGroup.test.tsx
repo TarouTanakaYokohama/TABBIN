@@ -26,26 +26,20 @@ vi.mock('./category-group/CategoryGroupHeader', () => ({
   ),
 }))
 
-vi.mock('./category-group/CategoryGroupCollapseButton', () => ({
-  CategoryGroupCollapseButton: () => (
+vi.mock('./category-group/CategoryGroupControls', () => ({
+  CategoryGroupCollapseControl: () => (
     <div data-testid='category-group-collapse-button' />
   ),
-}))
-
-vi.mock('./category-group/CategoryGroupSortButton', () => ({
-  CategoryGroupSortButton: () => (
+  CategoryGroupSortControl: () => (
     <div data-testid='category-group-sort-button' />
+  ),
+  CategoryGroupReorderControl: () => (
+    <div data-testid='category-group-reorder-controls' />
   ),
 }))
 
 vi.mock('./category-group/CategoryGroupTitle', () => ({
   CategoryGroupTitle: () => <div data-testid='category-group-title' />,
-}))
-
-vi.mock('./category-group/CategoryGroupReorderControls', () => ({
-  CategoryGroupReorderControls: () => (
-    <div data-testid='category-group-reorder-controls' />
-  ),
 }))
 
 vi.mock('./category-group/CategoryGroupActions', () => ({

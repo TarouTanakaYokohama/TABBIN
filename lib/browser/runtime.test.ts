@@ -92,4 +92,24 @@ describe('sendRuntimeMessage', () => {
     )
     expect(response).toEqual({ status: 'ok-from-chrome' })
   })
+
+  it('polyfill API を読み込んだ後はキャッシュを再利用する', async () => {
+    polyfillSendMessageMock.mockResolvedValue({ status: 'ok-from-polyfill' })
+
+    const first = await sendRuntimeMessage({
+      action: 'first',
+    })
+    const second = await sendRuntimeMessage({
+      action: 'second',
+    })
+
+    expect(first).toEqual({ status: 'ok-from-polyfill' })
+    expect(second).toEqual({ status: 'ok-from-polyfill' })
+    expect(polyfillSendMessageMock).toHaveBeenNthCalledWith(1, {
+      action: 'first',
+    })
+    expect(polyfillSendMessageMock).toHaveBeenNthCalledWith(2, {
+      action: 'second',
+    })
+  })
 })

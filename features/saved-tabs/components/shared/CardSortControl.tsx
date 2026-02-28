@@ -7,24 +7,23 @@ import {
 } from '@/components/ui/tooltip'
 import type { SortOrder } from '../../hooks/useSortOrder'
 
-/** SortOrderToggle の props */
-interface SortOrderToggleProps {
+/** CardSortControl の props */
+interface CardSortControlProps {
   /** 現在のソート順 */
   sortOrder: SortOrder
   /** ソート順を設定する関数 */
-  setSortOrder: (updater: (prev: SortOrder) => SortOrder) => void
+  setSortOrder: React.Dispatch<React.SetStateAction<SortOrder>>
 }
 
 /**
  * ソート順切り替えトグルボタン
- * DomainCard と CategoryGroup で共通利用される
  * default → asc → desc のサイクルで切り替わる
- * @param props SortOrderToggleProps
+ * @param props CardSortControlProps
  */
-export const SortOrderToggle = ({
+export const CardSortControl = ({
   sortOrder,
   setSortOrder,
-}: SortOrderToggleProps) => {
+}: CardSortControlProps) => {
   let label = '保存日時の降順'
   if (sortOrder === 'default') {
     label = 'デフォルト'

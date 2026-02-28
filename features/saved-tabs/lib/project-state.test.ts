@@ -117,4 +117,67 @@ describe('moveUrlBetweenProjectsState', () => {
       },
     ])
   })
+
+  it('移動元 urls が未初期化でも安全に処理できる', () => {
+    const projects = createProjects().map(project =>
+      project.id === 'project-a' ? { ...project, urls: undefined } : project,
+    )
+
+    const next = moveUrlBetweenProjectsState({
+      projects,
+      sourceProjectId: 'project-a',
+      targetProjectId: 'project-b',
+      url: {
+        url: 'https://example.com/a',
+        title: 'A',
+      },
+      movedAt: 789,
+    })
+
+    expect(next[0]?.urls).toEqual([])
+    expect(next[0]?.updatedAt).toBe(789)
+    expect(next[1]?.urls).toEqual([
+      {
+        url: 'https://example.com/a',
+        title: 'A',
+        savedAt: 789,
+      },
+    ])
+  })
+
+  it('移動元・移動先以外のプロジェクトは変更しない', () => {
+    const projects = [
+      ...createProjects(),
+      {
+        id: 'project-c',
+        name: 'Project C',
+        description: 'C',
+        categories: ['Later'],
+        urls: [
+          {
+            url: 'https://example.com/c',
+            title: 'C',
+            category: 'Later',
+            savedAt: 3,
+          },
+        ],
+        createdAt: 30,
+        updatedAt: 30,
+      },
+    ]
+
+    const next = moveUrlBetweenProjectsState({
+      projects,
+      sourceProjectId: 'project-a',
+      targetProjectId: 'project-b',
+      url: {
+        url: 'https://example.com/a',
+        title: 'A',
+        category: 'Todo',
+      },
+      movedAt: 999,
+    })
+
+    expect(next[2]).toEqual(projects[2])
+  })
 })

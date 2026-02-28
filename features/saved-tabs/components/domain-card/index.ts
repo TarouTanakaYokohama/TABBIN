@@ -1,10 +1,12 @@
 export { DomainCardActions } from './DomainCardActions'
-export { DomainCardCollapseButton } from './DomainCardCollapseButton'
 export { DomainCardContent } from './DomainCardContent'
 export type { DomainCardContextType } from './DomainCardContext'
 export { useDomainCard } from './DomainCardContext'
+export {
+  DomainCardCollapseControl,
+  DomainCardReorderControl,
+  DomainCardSortControl,
+} from './DomainCardControls'
 export { DomainCardHeader } from './DomainCardHeader'
-export { DomainCardReorderControls } from './DomainCardReorderControls'
 export { DomainCardRoot } from './DomainCardRoot'
-export { DomainCardSortButton } from './DomainCardSortButton'
 export { DomainCardTitle } from './DomainCardTitle'
