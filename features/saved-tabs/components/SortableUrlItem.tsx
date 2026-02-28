@@ -16,6 +16,14 @@ import { Button } from '@/components/ui/button'
 import type { SortableUrlItemProps } from '@/types/saved-tabs'
 import { TimeRemaining, formatDatetime } from '@/utils/datetime'
 
+// グローバルのドロップ状態を追跡（ウィンドウ内でのドロップか外部へのドロップかを判定するため）
+let isGlobalInternalDrop = false
+if (typeof window !== 'undefined') {
+  window.addEventListener('drop', () => {
+    isGlobalInternalDrop = true
+  })
+}
+
 // URL項目用のソータブルコンポーネント - 型定義を修正
 export const SortableUrlItem = ({
   url,
@@ -51,6 +59,7 @@ export const SortableUrlItem = ({
   const handleDragStart = (e: React.DragEvent<HTMLElement>, url: string) => {
     isDraggingRef.current = true
     windowBlurredDuringDragRef.current = false
+    isGlobalInternalDrop = false
     // URLをテキストとして設定
     e.dataTransfer.setData('text/plain', url)
     // URI-listとしても設定（多くのブラウザやアプリがこのフォーマットを認識）
@@ -95,6 +104,7 @@ export const SortableUrlItem = ({
     window.removeEventListener('blur', handleWindowBlur)
 
     const shouldHandleAsExternalDrop =
+      !isGlobalInternalDrop &&
       isDraggingRef.current &&
       (e.dataTransfer.dropEffect === 'copy' ||
         (windowBlurredDuringDragRef.current &&
