@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronRight, GripVertical, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { CustomProject, UserSettings } from '@/types/storage'
 
-export interface ProjectUrlItemProps {
+interface ProjectUrlItemProps {
   item: NonNullable<CustomProject['urls']>[0]
   projectId: string
   handleOpenUrl: (url: string) => void
@@ -35,7 +35,7 @@ export interface ProjectUrlItemProps {
 }
 
 // カテゴリ名から表示名を取得する関数を追加
-export const getCategoryDisplayName = (category?: string) => {
+const getCategoryDisplayName = (category?: string) => {
   if (!category) {
     return ''
   }
@@ -44,14 +44,14 @@ export const getCategoryDisplayName = (category?: string) => {
 }
 
 // カテゴリの階層レベルを取得
-export const getCategoryLevel = (category?: string) => {
+const getCategoryLevel = (category?: string) => {
   if (!category) {
     return 0
   }
   return category.split('/').length - 1
 }
 
-export const ProjectUrlItem = ({
+const ProjectUrlItemComponent = ({
   item,
   projectId,
   handleOpenUrl,
@@ -280,3 +280,9 @@ export const ProjectUrlItem = ({
     </>
   )
 }
+
+const ProjectUrlItem = memo(ProjectUrlItemComponent)
+ProjectUrlItem.displayName = 'ProjectUrlItem'
+
+export type { ProjectUrlItemProps }
+export { getCategoryDisplayName, getCategoryLevel, ProjectUrlItem }

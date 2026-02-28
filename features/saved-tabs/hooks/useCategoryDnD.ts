@@ -30,6 +30,13 @@ const resolveOverCategoryName = (
   if (overData.type === 'uncategorized') {
     return null
   }
+  if (
+    overData.type === 'url' &&
+    typeof overData.category === 'string' &&
+    overData.category.length > 0
+  ) {
+    return overData.category
+  }
   const isCategory =
     overData.type === 'category' ||
     overData.isCategory === true ||
@@ -65,17 +72,21 @@ export const useCategoryDnD = () => {
 
   // ドラッグ開始
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active)
-    setDraggedOverCategory(null)
     const itemType = event.active.data.current?.type
     const itemId = event.active.id
     if (itemType === 'category') {
+      setActiveId(event.active)
+      setDraggedOverCategory(null)
       setIsDraggingCategory(true)
       setDraggedCategoryName(String(itemId))
-    } else {
-      setIsDraggingCategory(false)
-      setDraggedCategoryName(null)
+      return
     }
+
+    // URLドラッグ開始時は不要な再レンダーを避ける
+    setActiveId(prev => (prev === null ? prev : null))
+    setDraggedOverCategory(prev => (prev === null ? prev : null))
+    setIsDraggingCategory(prev => (prev ? false : prev))
+    setDraggedCategoryName(prev => (prev === null ? prev : null))
   }
 
   // ドラッグ中
@@ -86,16 +97,12 @@ export const useCategoryDnD = () => {
     },
   ) => {
     const { over } = event
-    if (isUncategorizedDrop(over, project.id)) {
-      setDraggedOverCategory(null)
-      return
-    }
-    const categoryName = resolveOverCategoryName(over)
-    if (!categoryName) {
-      setDraggedOverCategory(null)
-      return
-    }
-    setDraggedOverCategory(categoryName)
+    const nextCategoryName = isUncategorizedDrop(over, project.id)
+      ? null
+      : resolveOverCategoryName(over)
+    setDraggedOverCategory(prev =>
+      prev === nextCategoryName ? prev : nextCategoryName,
+    )
   }
 
   // ドラッグ終了

@@ -4,6 +4,12 @@ import type { UrlRecord } from '@/types/storage'
 /** セッション中のインメモリキャッシュ */
 let urlRecordsCache: UrlRecord[] | null = null
 
+interface UrlRecordInput {
+  url: string
+  title: string
+  favIconUrl?: string
+}
+
 /** キャッシュを無効化する（書き込み後・外部更新検知後に呼ぶ） */
 const invalidateUrlCache = (): void => {
   urlRecordsCache = null
@@ -100,6 +106,65 @@ const createOrUpdateUrlRecord = async (
   }
   await saveUrlRecords([...urlRecords, newRecord])
   return newRecord
+}
+
+/**
+ * 複数URLレコードを一括で作成または更新する
+ */
+const createOrUpdateUrlRecordsBatch = async (
+  inputs: UrlRecordInput[],
+): Promise<Map<string, UrlRecord>> => {
+  const normalizedInputs = inputs
+    .map(input => ({
+      ...input,
+      url: input.url.trim(),
+    }))
+    .filter(input => input.url.length > 0)
+
+  if (normalizedInputs.length === 0) {
+    return new Map()
+  }
+
+  const now = Date.now()
+  let offset = 0
+  const existingRecords = await getUrlRecords()
+  const records = [...existingRecords]
+  const recordIndexByUrl = new Map(
+    records.map((record, index) => [record.url, index]),
+  )
+  const resolvedRecordByUrl = new Map<string, UrlRecord>()
+
+  for (const input of normalizedInputs) {
+    const recordIndex = recordIndexByUrl.get(input.url)
+    if (recordIndex == null) {
+      const newRecord: UrlRecord = {
+        id: uuidv4(),
+        url: input.url,
+        title: input.title,
+        favIconUrl: input.favIconUrl,
+        savedAt: now + offset,
+      }
+      offset += 1
+      records.push(newRecord)
+      recordIndexByUrl.set(input.url, records.length - 1)
+      resolvedRecordByUrl.set(input.url, newRecord)
+      continue
+    }
+
+    const existingRecord = records[recordIndex]
+    const updatedRecord: UrlRecord = {
+      ...existingRecord,
+      title: input.title,
+      favIconUrl: input.favIconUrl,
+      savedAt: now + offset,
+    }
+    offset += 1
+    records[recordIndex] = updatedRecord
+    resolvedRecordByUrl.set(input.url, updatedRecord)
+  }
+
+  await saveUrlRecords(records)
+  return resolvedRecordByUrl
 }
 /**
  * URLレコードを削除する（参照されていない場合のみ）
@@ -312,6 +377,7 @@ const updateUrlReferences = async (
 export {
   cleanupUnreferencedUrls,
   createOrUpdateUrlRecord,
+  createOrUpdateUrlRecordsBatch,
   deduplicateUrlRecords,
   deleteUrlRecord,
   findUrlRecordByUrl,

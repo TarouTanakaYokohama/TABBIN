@@ -6,7 +6,20 @@ import type {
   ViewMode,
 } from '@/types/storage'
 import { migrateToUrlsStorage } from './migration'
-import { createOrUpdateUrlRecord, getUrlRecordsByIds } from './urls'
+import {
+  createOrUpdateUrlRecord,
+  getUrlRecords,
+  getUrlRecordsByIds,
+  saveUrlRecords,
+} from './urls'
+
+const CUSTOM_UNCATEGORIZED_PROJECT_ID = 'custom-uncategorized'
+const CUSTOM_UNCATEGORIZED_PROJECT_NAME = '未分類'
+
+interface SavedTabItem {
+  url: string
+  title: string
+}
 
 /**
  * CustomProjectからURLデータを取得する（新旧形式対応）
@@ -159,7 +172,162 @@ const createCustomProject = async (
     updatedAt: Date.now(),
   }
   await saveCustomProjects([...projects, newProject])
+
+  // 新規プロジェクトを常に先頭に配置し、既存順序は維持する
+  const { customProjectOrder = [] } =
+    await chrome.storage.local.get('customProjectOrder')
+  const currentIdsInDisplayOrder = projects.map(project => project.id)
+  const normalizedOrder = Array.isArray(customProjectOrder)
+    ? customProjectOrder.filter(
+        (id): id is string =>
+          typeof id === 'string' && currentIdsInDisplayOrder.includes(id),
+      )
+    : []
+  const missingIds = currentIdsInDisplayOrder.filter(
+    id => !normalizedOrder.includes(id),
+  )
+  const nextOrder = [newProject.id, ...normalizedOrder, ...missingIds]
+  await chrome.storage.local.set({
+    customProjectOrder: nextOrder,
+  })
+
   return newProject
+}
+
+const appendUncategorizedProjectToOrder = async (): Promise<void> => {
+  const { customProjectOrder = [] } =
+    await chrome.storage.local.get('customProjectOrder')
+  if (!Array.isArray(customProjectOrder)) {
+    return
+  }
+  if (customProjectOrder.includes(CUSTOM_UNCATEGORIZED_PROJECT_ID)) {
+    return
+  }
+  await chrome.storage.local.set({
+    customProjectOrder: [
+      ...customProjectOrder,
+      CUSTOM_UNCATEGORIZED_PROJECT_ID,
+    ],
+  })
+}
+
+const buildUncategorizedProject = (): CustomProject => ({
+  id: CUSTOM_UNCATEGORIZED_PROJECT_ID,
+  name: CUSTOM_UNCATEGORIZED_PROJECT_NAME,
+  description: '保存されたURLの未分類置き場',
+  urlIds: [],
+  categories: [],
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+})
+
+const getOrCreateUncategorizedProject = async (): Promise<CustomProject> => {
+  const projects = await getCustomProjects()
+  const found = projects.find(
+    project => project.id === CUSTOM_UNCATEGORIZED_PROJECT_ID,
+  )
+  if (found) {
+    return found
+  }
+  const uncategorizedProject = buildUncategorizedProject()
+  await saveCustomProjects([...projects, uncategorizedProject])
+  await appendUncategorizedProjectToOrder()
+  return uncategorizedProject
+}
+
+const uniqueSavedTabItems = (items: SavedTabItem[]): SavedTabItem[] => {
+  const seen = new Set<string>()
+  const uniqueItems: SavedTabItem[] = []
+  for (const item of items) {
+    const trimmedUrl = item.url?.trim()
+    if (!trimmedUrl) {
+      continue
+    }
+    if (seen.has(trimmedUrl)) {
+      continue
+    }
+    seen.add(trimmedUrl)
+    uniqueItems.push({
+      url: trimmedUrl,
+      title: item.title || '',
+    })
+  }
+  return uniqueItems
+}
+
+const addUrlsToUncategorizedProject = async (
+  urls: SavedTabItem[],
+): Promise<void> => {
+  const normalizedItems = uniqueSavedTabItems(urls)
+  if (normalizedItems.length === 0) {
+    return
+  }
+
+  await migrateToUrlsStorage()
+  const projects = await getCustomProjects()
+  let targetIndex = projects.findIndex(
+    project => project.id === CUSTOM_UNCATEGORIZED_PROJECT_ID,
+  )
+  if (targetIndex === -1) {
+    projects.push(buildUncategorizedProject())
+    targetIndex = projects.length - 1
+    await appendUncategorizedProjectToOrder()
+  }
+
+  const targetProject = projects[targetIndex]
+  if (!targetProject.urlIds) {
+    targetProject.urlIds = []
+  }
+  const urlIdSet = new Set(targetProject.urlIds)
+  const now = Date.now()
+  const urlRecords = await getUrlRecords()
+  const updatedUrlRecords = [...urlRecords]
+  const recordIndexByUrl = new Map(
+    updatedUrlRecords.map((record, index) => [record.url, index]),
+  )
+  let urlRecordsChanged = false
+
+  for (const item of normalizedItems) {
+    const recordIndex = recordIndexByUrl.get(item.url)
+    let urlId: string
+
+    if (recordIndex == null) {
+      const newRecord: UrlRecord = {
+        id: uuidv4(),
+        url: item.url,
+        title: item.title || '',
+        savedAt: now,
+      }
+      updatedUrlRecords.push(newRecord)
+      recordIndexByUrl.set(item.url, updatedUrlRecords.length - 1)
+      urlRecordsChanged = true
+      urlId = newRecord.id
+    } else {
+      const existingRecord = updatedUrlRecords[recordIndex]
+      const nextTitle = item.title || existingRecord.title || ''
+      updatedUrlRecords[recordIndex] = {
+        ...existingRecord,
+        title: nextTitle,
+        savedAt: now,
+      }
+      urlRecordsChanged = true
+      urlId = existingRecord.id
+    }
+
+    if (urlIdSet.has(urlId)) {
+      continue
+    }
+    urlIdSet.add(urlId)
+    targetProject.urlIds.push(urlId)
+  }
+
+  if (urlRecordsChanged) {
+    await saveUrlRecords(updatedUrlRecords)
+  }
+
+  targetProject.updatedAt = Date.now()
+  projects[targetIndex] = targetProject
+  await saveCustomProjects(projects)
 }
 const ensureProjectUrlIds = (project: CustomProject): void => {
   if (!project.urlIds) {
@@ -340,13 +508,94 @@ const removeUrlFromCustomProject = async (
     // エラーをスローしないで続行 - カスタムプロジェクトの削除は成功している
   }
 } // カスタムプロジェクトを削除する関数
+
+const ensureProjectMetadataEntry = (
+  project: CustomProject,
+  urlId: string,
+): void => {
+  if (!project.urlMetadata) {
+    project.urlMetadata = {}
+  }
+  if (!project.urlMetadata[urlId]) {
+    project.urlMetadata[urlId] = {}
+  }
+}
+
+const mergeUrlsIntoUncategorized = (
+  projectToDelete: CustomProject,
+  uncategorizedProject: CustomProject,
+): void => {
+  if (!(projectToDelete.urlIds && projectToDelete.urlIds.length > 0)) {
+    return
+  }
+  if (!uncategorizedProject.urlIds) {
+    uncategorizedProject.urlIds = []
+  }
+  const targetUrlSet = new Set(uncategorizedProject.urlIds)
+  for (const urlId of projectToDelete.urlIds) {
+    if (targetUrlSet.has(urlId)) {
+      continue
+    }
+    targetUrlSet.add(urlId)
+    uncategorizedProject.urlIds.push(urlId)
+    const metadata = projectToDelete.urlMetadata?.[urlId]
+    if (!metadata?.notes) {
+      continue
+    }
+    ensureProjectMetadataEntry(uncategorizedProject, urlId)
+    const urlMetadata = uncategorizedProject.urlMetadata
+    if (!urlMetadata) {
+      continue
+    }
+    urlMetadata[urlId].notes = metadata.notes
+  }
+  uncategorizedProject.updatedAt = Date.now()
+}
+
+const findOrCreateUncategorizedProject = async (
+  projects: CustomProject[],
+): Promise<CustomProject> => {
+  const existing = projects.find(
+    project => project.id === CUSTOM_UNCATEGORIZED_PROJECT_ID,
+  )
+  if (existing) {
+    return existing
+  }
+  const created = buildUncategorizedProject()
+  projects.push(created)
+  await appendUncategorizedProjectToOrder()
+  return created
+}
+
+const removeProjectIdFromOrder = async (projectId: string): Promise<void> => {
+  const { customProjectOrder = [] } =
+    await chrome.storage.local.get('customProjectOrder')
+  if (!Array.isArray(customProjectOrder)) {
+    return
+  }
+  await chrome.storage.local.set({
+    customProjectOrder: customProjectOrder.filter(id => id !== projectId),
+  })
+}
+
 const deleteCustomProject = async (projectId: string): Promise<void> => {
+  if (projectId === CUSTOM_UNCATEGORIZED_PROJECT_ID) {
+    throw new Error('Uncategorized project cannot be deleted')
+  }
   const projects = await getCustomProjects()
-  const updatedProjects = projects.filter(p => p.id !== projectId)
-  if (projects.length === updatedProjects.length) {
+  const projectIndex = projects.findIndex(p => p.id === projectId)
+  if (projectIndex === -1) {
     throw new Error(`Project with ID ${projectId} not found`)
   }
-  await saveCustomProjects(updatedProjects)
+
+  const projectToDelete = projects[projectIndex]
+  const remainingProjects = projects.filter(project => project.id !== projectId)
+
+  const uncategorizedProject =
+    await findOrCreateUncategorizedProject(remainingProjects)
+  mergeUrlsIntoUncategorized(projectToDelete, uncategorizedProject)
+  await saveCustomProjects(remainingProjects)
+  await removeProjectIdFromOrder(projectId)
 } // カスタムプロジェクト名を更新する関数
 const updateCustomProjectName = async (
   projectId: string,
@@ -493,31 +742,111 @@ const reorderProjectUrls = async (
     throw new Error(`Project with ID ${projectId} not found`)
   }
   const project = projects[projectIndex]
+
+  if (project.urlIds && project.urlIds.length > 0 && urls) {
+    const urlRecords = await getUrlRecordsByIds(project.urlIds)
+    const urlToIds = new Map<string, string[]>()
+    for (const record of urlRecords) {
+      const ids = urlToIds.get(record.url)
+      if (ids) {
+        ids.push(record.id)
+      } else {
+        urlToIds.set(record.url, [record.id])
+      }
+    }
+
+    const orderedIds: string[] = []
+    for (const item of urls) {
+      const idQueue = urlToIds.get(item.url)
+      const nextId = idQueue?.shift()
+      if (nextId) {
+        orderedIds.push(nextId)
+      }
+    }
+
+    if (orderedIds.length > 0) {
+      const orderedSet = new Set(orderedIds)
+      const remainingIds = project.urlIds.filter(id => !orderedSet.has(id))
+      project.urlIds = [...orderedIds, ...remainingIds]
+    }
+  }
+
   project.urls = urls
   project.updatedAt = Date.now()
   projects[projectIndex] = project
   await saveCustomProjects(projects)
 } // プロジェクト順序を保存する関数
+const moveUrlBetweenCustomProjects = async (
+  sourceProjectId: string,
+  targetProjectId: string,
+  url: string,
+): Promise<void> => {
+  if (sourceProjectId === targetProjectId) {
+    return
+  }
+
+  await migrateToUrlsStorage()
+  const projects = await getCustomProjects()
+  const sourceIndex = projects.findIndex(
+    project => project.id === sourceProjectId,
+  )
+  const targetIndex = projects.findIndex(
+    project => project.id === targetProjectId,
+  )
+  if (sourceIndex === -1 || targetIndex === -1) {
+    throw new Error('Source or target project not found')
+  }
+
+  const sourceProject = projects[sourceIndex]
+  const targetProject = projects[targetIndex]
+  if (!(sourceProject.urlIds && sourceProject.urlIds.length > 0)) {
+    throw new Error('URL not found in source project')
+  }
+
+  const sourceRecords = await getUrlRecordsByIds(sourceProject.urlIds)
+  const urlRecord = sourceRecords.find(record => record.url === url)
+  if (!urlRecord) {
+    throw new Error('URL not found in source project')
+  }
+
+  const urlId = urlRecord.id
+  if (!targetProject.urlIds) {
+    targetProject.urlIds = []
+  }
+  if (targetProject.urlIds.includes(urlId)) {
+    throw new Error('URL already exists in target project')
+  }
+
+  sourceProject.urlIds = sourceProject.urlIds.filter(id => id !== urlId)
+  targetProject.urlIds.push(urlId)
+
+  const sourceMetadata = sourceProject.urlMetadata?.[urlId]
+  if (sourceProject.urlMetadata?.[urlId]) {
+    delete sourceProject.urlMetadata[urlId]
+  }
+  if (sourceMetadata?.notes) {
+    if (!targetProject.urlMetadata) {
+      targetProject.urlMetadata = {}
+    }
+    targetProject.urlMetadata[urlId] = {
+      notes: sourceMetadata.notes,
+    }
+  }
+
+  sourceProject.updatedAt = Date.now()
+  targetProject.updatedAt = Date.now()
+  projects[sourceIndex] = sourceProject
+  projects[targetIndex] = targetProject
+  await saveCustomProjects(projects)
+}
+
 const updateProjectOrder = async (projectIds: string[]): Promise<void> => {
   try {
-    // 現在のプロジェクトを取得
-    const projects = await getCustomProjects()
-    if (projects.length === 0) {
-      return
-    }
-
     // プロジェクト順序の保存
     await chrome.storage.local.set({
       customProjectOrder: projectIds,
     })
     console.log('プロジェクト順序を保存しました:', projectIds)
-
-    // プロジェクトの更新日時も更新
-    const updatedProjects = projects.map(project => ({
-      ...project,
-      updatedAt: Date.now(),
-    }))
-    await saveCustomProjects(updatedProjects)
   } catch (error) {
     console.error('プロジェクト順序の保存に失敗しました:', error)
     throw error
@@ -560,13 +889,18 @@ const renameCategoryInProject = async (
   await saveCustomProjects(projects)
 }
 export {
+  CUSTOM_UNCATEGORIZED_PROJECT_ID,
+  CUSTOM_UNCATEGORIZED_PROJECT_NAME,
   addCategoryToProject,
+  addUrlsToUncategorizedProject,
   addUrlToCustomProject,
   createCustomProject,
   deleteCustomProject,
   getCustomProjects,
+  getOrCreateUncategorizedProject,
   getProjectUrls,
   getViewMode,
+  moveUrlBetweenCustomProjects,
   removeCategoryFromProject,
   removeUrlFromCustomProject,
   renameCategoryInProject,

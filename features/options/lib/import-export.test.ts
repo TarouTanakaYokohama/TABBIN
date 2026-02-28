@@ -10,6 +10,10 @@ vi.mock('@/lib/storage/migration', () => ({
   migrateToUrlsStorage: vi.fn(),
 }))
 
+vi.mock('@/lib/storage/projects', () => ({
+  addUrlsToUncategorizedProject: vi.fn(),
+}))
+
 vi.mock('@/lib/storage/settings', () => {
   const defaultSettings: UserSettings = {
     removeTabAfterOpen: true,
@@ -36,16 +40,21 @@ vi.mock('@/lib/storage/settings', () => {
 
 vi.mock('@/lib/storage/urls', () => ({
   createOrUpdateUrlRecord: vi.fn(),
+  createOrUpdateUrlRecordsBatch: vi.fn(),
 }))
 
 import { saveParentCategories } from '@/lib/storage/categories'
 import { migrateToUrlsStorage } from '@/lib/storage/migration'
+import { addUrlsToUncategorizedProject } from '@/lib/storage/projects'
 import {
   defaultSettings,
   getUserSettings,
   saveUserSettings,
 } from '@/lib/storage/settings'
-import { createOrUpdateUrlRecord } from '@/lib/storage/urls'
+import {
+  createOrUpdateUrlRecord,
+  createOrUpdateUrlRecordsBatch,
+} from '@/lib/storage/urls'
 import { downloadAsJson, exportSettings, importSettings } from './import-export'
 
 type StorageStore = Record<string, unknown>
@@ -140,6 +149,7 @@ describe('import-export ユーティリティ', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(migrateToUrlsStorage).mockResolvedValue(undefined)
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(new Map())
   })
 
   afterEach(() => {
@@ -1502,6 +1512,16 @@ describe('import-export ユーティリティ', () => {
         categoryKeywords: [{ categoryName: 'topic', keywords: ['keyword'] }],
       }),
     )
+    expect(addUrlsToUncategorizedProject).toHaveBeenCalledWith([
+      {
+        url: 'https://existing.example.com/new',
+        title: 'Existing New',
+      },
+      {
+        url: 'https://new.example.com/path',
+        title: 'New Domain',
+      },
+    ])
   })
 
   it('importSettings は overwrite モードで全データを置き換える', async () => {
@@ -1605,6 +1625,143 @@ describe('import-export ユーティリティ', () => {
         savedAt: 999,
       }),
     )
+    expect(addUrlsToUncategorizedProject).toHaveBeenCalledWith([
+      {
+        url: 'https://replace.example.com/fail',
+        title: 'fail',
+      },
+      {
+        url: 'https://replace.example.com/ok',
+        title: 'ok',
+      },
+    ])
+  })
+
+  it('カスタムモード同期に失敗しても importSettings は成功を返す', async () => {
+    createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecord).mockResolvedValue({
+      id: 'sync-failure-url',
+      url: 'https://sync-failure.example.com',
+      title: 'sync-failure',
+      savedAt: 1,
+    })
+    vi.mocked(addUrlsToUncategorizedProject).mockRejectedValueOnce(
+      new Error('sync failed'),
+    )
+
+    const imported = {
+      version: '3.1.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'sync-failure-group',
+          domain: 'https://sync-failure.example.com',
+          urls: [
+            {
+              url: 'https://sync-failure.example.com',
+              title: 'sync-failure',
+            },
+          ],
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), true)
+
+    expect(result.success).toBe(true)
+    expect(addUrlsToUncategorizedProject).toHaveBeenCalledWith([
+      {
+        url: 'https://sync-failure.example.com',
+        title: 'sync-failure',
+      },
+    ])
+    expect(console.error).toHaveBeenCalledWith(
+      'カスタムモード同期エラー:',
+      expect.any(Error),
+    )
+  })
+
+  it('importSettings は大量URL時にURL変換を一括で実行する', async () => {
+    const { set } = createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const importedUrls = Array.from({
+      length: 101,
+    }).map((_, index) => ({
+      url: `https://bulk.example.com/page-${index}`,
+      title: `Bulk ${index}`,
+    }))
+
+    const bulkMap = new Map(
+      importedUrls.slice(0, 100).map((item, index) => [
+        item.url,
+        {
+          id: `bulk-id-${index}`,
+          url: item.url,
+          title: item.title,
+          savedAt: index,
+        },
+      ]),
+    )
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(
+      bulkMap as Map<
+        string,
+        {
+          id: string
+          url: string
+          title: string
+          savedAt: number
+        }
+      >,
+    )
+
+    const imported = {
+      version: '6.0.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'bulk-group',
+          domain: 'https://bulk.example.com',
+          urls: importedUrls,
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), true)
+
+    expect(result.success).toBe(true)
+    expect(createOrUpdateUrlRecordsBatch).toHaveBeenCalledTimes(1)
+    expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
+    expect(savedTabsArg[0]?.urlIds).toHaveLength(100)
   })
 
   it('overwrite モードでは不正な keyword と subcategory エントリを正規化する', async () => {

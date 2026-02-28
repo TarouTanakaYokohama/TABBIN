@@ -1,9 +1,18 @@
 import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
 // DnDのインポートを追加
-import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core'
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
 import {
   SortableContext,
   arrayMove,
+  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -31,6 +40,25 @@ const createProjectSchema = z.object({
 })
 
 type CreateProjectFormValues = z.infer<typeof createProjectSchema>
+
+const resolveTargetProjectId = (over: DragEndEvent['over']): string | null => {
+  const overProjectId = over?.data.current?.projectId
+  if (typeof overProjectId === 'string' && overProjectId.length > 0) {
+    return overProjectId
+  }
+
+  if (typeof over?.id !== 'string') {
+    return null
+  }
+
+  if (over.id.startsWith('project-')) {
+    return over.id.slice('project-'.length)
+  }
+  if (over.id.startsWith('uncategorized-')) {
+    return over.id.slice('uncategorized-'.length)
+  }
+  return null
+}
 
 export const CustomProjectSection = ({
   projects,
@@ -81,11 +109,18 @@ export const CustomProjectSection = ({
   const [draggedProject, setDraggedProject] = useState<CustomProject | null>(
     null,
   )
+  const [isProjectReorderMode, setIsProjectReorderMode] = useState(false)
 
   // ドラッグオーバー中のプロジェクトIDを管理
   const [draggedOverProjectId, setDraggedOverProjectId] = useState<
     string | null
   >(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
 
   const closeCreateDialog = () => {
     setIsCreateDialogOpen(false)
@@ -141,24 +176,20 @@ export const CustomProjectSection = ({
   // ドラッグ開始時の処理
   const handleDragStart = (event: DragStartEvent) => {
     if (event.active.data.current) {
-      const { url, projectId, title, type } = event.active.data.current as {
-        url?: string
+      const { projectId, type } = event.active.data.current as {
         projectId?: string
-        title?: string
         type: string
       }
 
-      if (type === 'url' && url && projectId && typeof title === 'string') {
-        // URLドラッグの場合
-        console.log(
-          `URLドラッグ開始: ${title} (${url}) from プロジェクト ${projectId}`,
-        )
-        setDraggedItem({ url, projectId, title })
+      if (type === 'url' && projectId) {
+        // URLドラッグではセクション全体の状態更新を最小化する
+        setIsProjectReorderMode(false)
+        setDraggedProject(null)
       } else if (type === 'project' && projectId) {
         // プロジェクトドラッグの場合
-        console.log(`プロジェクトドラッグ開始: ${projectId}`)
         const project = projects.find(p => p.id === projectId)
         if (project) {
+          setIsProjectReorderMode(true)
           setDraggedProject(project)
         }
       }
@@ -167,18 +198,20 @@ export const CustomProjectSection = ({
 
   // ドラッグオーバー時の処理
   const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event
+    const { active, over } = event
+    const activeData = active.data.current
 
-    if (over && event.active.data.current?.type === 'url') {
+    if (over && activeData?.type === 'url') {
       // URLドラッグ時のオーバー処理
+      const sourceProjectId = activeData.projectId as string | undefined
       const projectId = over.data.current?.projectId
-      if (projectId && draggedItem && projectId !== draggedItem.projectId) {
-        setDraggedOverProjectId(projectId)
+      if (projectId && sourceProjectId && projectId !== sourceProjectId) {
+        setDraggedOverProjectId(prev => (prev === projectId ? prev : projectId))
         return
       }
     }
 
-    setDraggedOverProjectId(null)
+    setDraggedOverProjectId(prev => (prev === null ? prev : null))
   }
 
   // ドラッグ終了時の処理
@@ -193,10 +226,6 @@ export const CustomProjectSection = ({
       handleUrlDragEnd(event)
     } else if (dragType === 'project' && over && active.id !== over.id) {
       // プロジェクトドラッグの場合の処理
-      console.log(
-        `プロジェクト順序変更: ${active.id} を ${over.id} の位置に移動`,
-      )
-
       // プロジェクトの順序を変更
       const oldIndex = projects.findIndex(p => p.id === active.id)
       const newIndex = projects.findIndex(p => p.id === over.id)
@@ -212,6 +241,7 @@ export const CustomProjectSection = ({
     }
 
     // すべてのドラッグ状態をリセット
+    setIsProjectReorderMode(false)
     setDraggedItem(null)
     setDraggedProject(null)
     setDraggedOverProjectId(null)
@@ -233,27 +263,14 @@ export const CustomProjectSection = ({
     const draggedUrl = active.id as string
     const sourceProjectId = active.data.current?.projectId as string
 
-    // ドロップ先のデータを取得
-    const targetData = over.data.current
-    if (targetData && targetData.type === 'project') {
-      const targetProjectId = targetData.projectId as string
+    const targetProjectId = resolveTargetProjectId(over)
+    if (!targetProjectId || sourceProjectId === targetProjectId) {
+      return
+    }
 
-      // 同じプロジェクト内なら何もしない
-      if (sourceProjectId === targetProjectId) {
-        return
-      }
-
-      // プロジェクト間のURL移動を実行
-      if (handleMoveUrlBetweenProjects) {
-        console.log(
-          `URL移動の実行: ${sourceProjectId} → ${targetProjectId}, URL: ${draggedUrl}`,
-        )
-        handleMoveUrlBetweenProjects(
-          sourceProjectId,
-          targetProjectId,
-          draggedUrl,
-        )
-      }
+    // プロジェクト間のURL移動を実行
+    if (handleMoveUrlBetweenProjects) {
+      handleMoveUrlBetweenProjects(sourceProjectId, targetProjectId, draggedUrl)
     }
   }
 
@@ -261,6 +278,7 @@ export const CustomProjectSection = ({
     <div>
       {projects.length > 0 ? (
         <DndContext
+          sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
@@ -292,6 +310,7 @@ export const CustomProjectSection = ({
                   draggedItem={draggedItem}
                   // ドラッグオーバー中のプロジェクトIDを渡す
                   isDropTarget={draggedOverProjectId === project.id}
+                  isProjectReorderMode={isProjectReorderMode}
                   handleMoveUrlsBetweenCategories={
                     handleMoveUrlsBetweenCategories
                   }
@@ -324,9 +343,9 @@ export const CustomProjectSection = ({
             プロジェクトがありません
           </div>
           <div className='text-center text-muted-foreground'>
-            デフォルトプロジェクトが必要です
+            表示可能なプロジェクトがありません
             <br />
-            タブは拡張機能アイコンまたは右クリックメニューから保存できます
+            親カテゴリを作成するとプロジェクトとして表示されます
           </div>
           {/* 新規プロジェクト作成ボタンも非表示に
           <Button onClick={() => setIsCreateDialogOpen(true)}>

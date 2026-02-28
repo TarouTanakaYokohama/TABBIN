@@ -19,7 +19,6 @@ import {
   createCustomProject,
   deleteCustomProject,
   getCustomProjects,
-  getProjectUrls,
   getViewMode,
   removeCategoryFromProject,
   removeUrlFromCustomProject,
@@ -31,7 +30,6 @@ import {
   updateCustomProjectName,
   updateProjectOrder,
 } from '@/lib/storage/projects'
-import { getTabGroupUrls } from '@/lib/storage/tabs'
 import type {
   CustomProject,
   TabGroup,
@@ -155,65 +153,6 @@ interface UseProjectManagementReturn {
     newCategoryName: string,
   ) => Promise<void>
 }
-const collectDomainModeUrls = async (
-  savedTabs: TabGroup[],
-): Promise<
-  Array<{
-    url: string
-    title: string
-  }>
-> => {
-  const allDomainUrls: Array<{
-    url: string
-    title: string
-  }> = []
-  for (const group of savedTabs) {
-    const groupUrls = await getTabGroupUrls(group)
-    for (const urlItem of groupUrls) {
-      allDomainUrls.push({
-        url: urlItem.url,
-        title: urlItem.title,
-      })
-    }
-  }
-  return allDomainUrls
-}
-const createDefaultProjectFromSavedTabs = async (
-  savedTabs: TabGroup[],
-): Promise<CustomProject[]> => {
-  const allDomainUrls = await collectDomainModeUrls(savedTabs)
-  const defaultProject = await createCustomProject(
-    'デフォルトプロジェクト',
-    '自動作成されたプロジェクト',
-  )
-  for (const urlItem of allDomainUrls) {
-    await addUrlToCustomProject(defaultProject.id, urlItem.url, urlItem.title)
-  }
-  return getCustomProjects()
-}
-const inspectProjectSync = async (
-  project: CustomProject,
-  savedTabs: TabGroup[],
-): Promise<CustomProject> => {
-  try {
-    const projectUrls = await getProjectUrls(project)
-    const existingUrls = new Set(projectUrls.map(url => url.url))
-    let urlsProcessed = 0
-    for (const group of savedTabs) {
-      const groupUrls = await getTabGroupUrls(group)
-      for (const tabUrl of groupUrls) {
-        urlsProcessed++
-        existingUrls.delete(tabUrl.url)
-      }
-    }
-    console.log(`処理したURL数: ${urlsProcessed}`)
-    console.log(`プロジェクト ${project.name}: ${projectUrls.length}個のURL`)
-    return project
-  } catch (error) {
-    console.error(`プロジェクト ${project.id} の処理中にエラー:`, error)
-    return project
-  }
-}
 /**
  * カスタムプロジェクト管理フック。
  * ビューモード切替・CRUD・URL管理・プロジェクト内カテゴリ管理を担う。
@@ -230,6 +169,7 @@ const useProjectManagement = (
   const [viewMode, setViewMode] = useState<ViewMode>('domain')
   const customProjectsRef = useRef<CustomProject[]>([])
   const viewModeRef = useRef<ViewMode>('domain')
+  const creatingProjectNamesRef = useRef<Set<string>>(new Set())
 
   // ref を最新の state に同期する
   useEffect(() => {
@@ -239,52 +179,16 @@ const useProjectManagement = (
     viewModeRef.current = viewMode
   }, [viewMode])
 
-  /**
-   * ドメインモードのデータをカスタムプロジェクトと同期する。
-   * プロジェクトが存在しない場合はデフォルトプロジェクトを作成する。
-   */
+  /** カスタムプロジェクトを最新化して state に反映する */
   const syncDomainDataToCustomProjects = useCallback(async (): Promise<
     CustomProject[]
   > => {
     try {
-      console.log('ドメインモードのデータをカスタムプロジェクトと同期します')
-
-      // 最新のタブグループを取得
-      const storageResult = await chrome.storage.local.get('savedTabs')
-      const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
-        ? storageResult.savedTabs
-        : []
-      console.log(`同期元のドメインモードタブグループ数: ${savedTabs.length}`)
-
-      // 最新のカスタムプロジェクトを取得
-      let projects = await getCustomProjects()
-      console.log(`既存のカスタムプロジェクト数: ${projects.length}`)
-
-      // プロジェクトがなければデフォルトプロジェクトを作成
-      if (projects.length === 0) {
-        console.log(
-          'カスタムプロジェクトが存在しないため、デフォルトプロジェクトを作成します',
-        )
-        projects = await createDefaultProjectFromSavedTabs(savedTabs)
-        console.log(
-          `デフォルトプロジェクトを作成しました: ${projects.length} プロジェクト`,
-        )
-      }
-
-      // 各プロジェクトごとに処理（新形式対応）
-      const updatedProjects = await Promise.all(
-        projects.map(project => inspectProjectSync(project, savedTabs)),
-      )
-
-      // 新形式では自動同期は不要（共通URLストレージで管理済み）
-      setCustomProjects(updatedProjects)
-      console.log(
-        'プロジェクトデータを確認しました。新形式URL管理で同期は不要です',
-      )
-      return updatedProjects
+      const projects = await getCustomProjects()
+      setCustomProjects(projects)
+      return projects
     } catch (error) {
       console.error('データ同期エラー:', error)
-      // エラーが発生しても最新のプロジェクトを再取得して返す
       try {
         const latestProjects = await getCustomProjects()
         setCustomProjects(latestProjects)
@@ -307,23 +211,7 @@ const useProjectManagement = (
           return
         }
         console.log('カスタムモードに切り替え: データ同期を開始')
-        const projects = await syncDomainDataToCustomProjects()
-        console.log(`同期完了: ${projects.length} プロジェクト`)
-        if (projects.length > 0) {
-          return
-        }
-        try {
-          console.log('デフォルトプロジェクトを作成します')
-          const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-          const updatedProjects = await createDefaultProjectFromSavedTabs(
-            savedTabs as TabGroup[],
-          )
-          setCustomProjects(updatedProjects)
-          console.log('デフォルトプロジェクトを作成し、URLをコピーしました')
-        } catch (createError) {
-          console.error('デフォルトプロジェクト作成エラー:', createError)
-          toast.error('プロジェクトの作成に失敗しました')
-        }
+        await syncDomainDataToCustomProjects()
       } catch (error) {
         console.error('ビューモード変更エラー:', error)
         toast.error('モードの切り替えに失敗しました')
@@ -335,20 +223,42 @@ const useProjectManagement = (
   /** 新しいカスタムプロジェクトを作成する */
   const handleCreateProject = useCallback(
     async (name: string, description?: string): Promise<void> => {
+      const normalizedName = name.trim()
+      const projectKey = normalizedName.toLowerCase()
+      if (!normalizedName) {
+        return
+      }
+      if (creatingProjectNamesRef.current.has(projectKey)) {
+        return
+      }
+
+      creatingProjectNamesRef.current.add(projectKey)
       try {
-        const newProject = await createCustomProject(name, description)
-        setCustomProjects(prev => [...prev, newProject])
-        toast.success(`プロジェクト「${name}」を作成しました`)
+        const newProject = await createCustomProject(
+          normalizedName,
+          description,
+        )
+        setCustomProjects(prev => {
+          const withoutCreated = prev.filter(
+            project => project.id !== newProject.id,
+          )
+          return [newProject, ...withoutCreated]
+        })
+        toast.success(`プロジェクト「${normalizedName}」を作成しました`)
       } catch (error) {
         console.error('プロジェクト作成エラー:', error)
         if (
           error instanceof Error &&
           error.message.startsWith('DUPLICATE_PROJECT_NAME:')
         ) {
-          toast.error(`プロジェクト名「${name}」は既に使用されています`)
+          toast.error(
+            `プロジェクト名「${normalizedName}」は既に使用されています`,
+          )
         } else {
           toast.error('プロジェクトの作成に失敗しました')
         }
+      } finally {
+        creatingProjectNamesRef.current.delete(projectKey)
       }
     },
     [],
@@ -447,13 +357,18 @@ const useProjectManagement = (
             if (p.id !== projectId) {
               return p
             }
+            if (p.categories.includes(categoryName)) {
+              return p
+            }
+
             const updatedCategories = [...p.categories, categoryName]
+            const baseCategoryOrder = p.categoryOrder ?? p.categories
             return {
               ...p,
               categories: updatedCategories,
-              categoryOrder: p.categoryOrder
-                ? [...p.categoryOrder, categoryName]
-                : updatedCategories,
+              categoryOrder: baseCategoryOrder.includes(categoryName)
+                ? baseCategoryOrder
+                : [...baseCategoryOrder, categoryName],
               updatedAt: Date.now(),
             }
           }),
@@ -638,16 +553,8 @@ const useProjectManagement = (
         console.log(`ビューモード: ${mode}`)
 
         // カスタムプロジェクトを読み込む
-        let projects = await getCustomProjects()
+        const projects = await getCustomProjects()
         console.log(`カスタムプロジェクト数: ${projects.length}`)
-
-        // プロジェクトが空なら同期してから再取得
-        if (projects.length === 0) {
-          console.log('プロジェクトが空のため同期を行います')
-          await syncDomainDataToCustomProjects()
-          projects = await getCustomProjects()
-          console.log(`同期後のカスタムプロジェクト数: ${projects.length}`)
-        }
 
         // UIを更新
         setCustomProjects(projects)

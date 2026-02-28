@@ -39,20 +39,12 @@ import { CategoryReorderFooter } from '@/features/saved-tabs/components/Footer'
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
 import { CustomModeContainer } from '@/features/saved-tabs/custom/CustomModeContainer'
 import { DomainModeContainer } from '@/features/saved-tabs/domain/DomainModeContainer'
-import { moveUrlBetweenProjectsState } from '@/features/saved-tabs/lib/project-state'
 import { handleTabGroupRemoval } from '@/features/saved-tabs/lib/tab-operations'
 import { shouldShowUncategorizedHeader as computeShouldShowUncategorizedHeader } from '@/features/saved-tabs/lib/uncategorized-display'
 import { useSavedTabsCore } from '@/features/saved-tabs/shared/hooks/useSavedTabsCore'
 import { syncStorageChanges } from '@/features/saved-tabs/shared/services/modeSyncService'
 import { saveParentCategories } from '@/lib/storage/categories'
-import {
-  addUrlToCustomProject,
-  getCustomProjects,
-  getProjectUrls,
-  removeCategoryFromProject,
-  removeUrlFromCustomProject,
-  setUrlCategory,
-} from '@/lib/storage/projects'
+import { moveUrlBetweenCustomProjects } from '@/lib/storage/projects'
 import { defaultSettings } from '@/lib/storage/settings'
 import {
   addSubCategoryToGroup,
@@ -293,18 +285,6 @@ const removeMatchingUrlsFromGroup = async (
     await removeUrlFromTabGroup(group.id, targetUrl)
   }
 }
-const removeMatchingUrlsFromProject = async (
-  project: CustomProject,
-  urlSet: Set<string>,
-): Promise<void> => {
-  const projectUrls = await getProjectUrls(project)
-  const targets = projectUrls
-    .filter(item => urlSet.has(item.url))
-    .map(item => item.url)
-  for (const targetUrl of targets) {
-    await removeUrlFromCustomProject(project.id, targetUrl)
-  }
-}
 interface CategorySyncState {
   updatedSavedTabs: TabGroup[]
   updatedCategories: ParentCategory[]
@@ -444,38 +424,22 @@ const filterCustomProjectsByQuery = (
   if (!q) {
     return customProjects
   }
-  const query = q.toLowerCase()
   const projectFuse = new Fuse(customProjects, {
     keys: ['name'],
     threshold: 0.4,
   })
   const matchedProjects = projectFuse.search(q).map(res => res.item)
-  const categoryMatchedProjects = customProjects
-    .filter(proj => !matchedProjects.includes(proj))
-    .filter(proj =>
-      proj.categories.some(category => category.toLowerCase().includes(query)),
-    )
   const urlFuseOptions = {
     keys: ['title', 'url'],
     threshold: 0.4,
   }
   const urlMatchedProjects = customProjects
-    .filter(
-      proj =>
-        !(
-          matchedProjects.includes(proj) ||
-          categoryMatchedProjects.includes(proj)
-        ),
-    )
+    .filter(proj => !matchedProjects.includes(proj))
     .map(proj => {
       const projectUrls = proj.urls || []
       const fuseUrls = new Fuse(projectUrls, urlFuseOptions)
       const fuseMatches = fuseUrls.search(q).map(r => r.item)
-      const categoryMatches = projectUrls.filter(url =>
-        url.category?.toLowerCase().includes(query),
-      )
-      const allMatches = [...fuseMatches, ...categoryMatches]
-      const uniqueMatches = allMatches.filter(
+      const uniqueMatches = fuseMatches.filter(
         (url, index, self) => self.findIndex(u => u.url === url.url) === index,
       )
       return uniqueMatches.length > 0
@@ -488,12 +452,18 @@ const filterCustomProjectsByQuery = (
     .filter(
       (proj: CustomProject | null): proj is CustomProject => proj !== null,
     )
-  return [
-    ...matchedProjects,
-    ...categoryMatchedProjects,
-    ...urlMatchedProjects,
-  ].filter((project): project is CustomProject => project !== null)
+  const uniqueProjects = new Map<string, CustomProject>()
+  for (const project of [...matchedProjects, ...urlMatchedProjects]) {
+    if (!project) {
+      continue
+    }
+    uniqueProjects.set(project.id, project)
+  }
+  return Array.from(uniqueProjects.values()).filter(
+    (project): project is CustomProject => project !== null,
+  )
 }
+
 const SavedTabsApp = () => {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [newSubCategory, setNewSubCategory] = useState('')
@@ -534,7 +504,6 @@ const SavedTabsApp = () => {
     customProjects,
     setCustomProjects,
     viewMode,
-    customProjectsRef,
     viewModeRef,
     syncDomainDataToCustomProjects,
     handleViewModeChange,
@@ -556,6 +525,7 @@ const SavedTabsApp = () => {
       inputRef.current.focus()
     }
   }, [showSubCategoryModal])
+
   const removeOpenedUrlsFromStorage = useCallback(
     async (urlsToRemove: string[]) => {
       if (urlsToRemove.length === 0) {
@@ -569,15 +539,9 @@ const SavedTabsApp = () => {
       for (const group of savedTabs) {
         await removeMatchingUrlsFromGroup(group, uniqueUrlSet)
       }
-      const projects = await getCustomProjects()
-      for (const project of projects) {
-        await removeMatchingUrlsFromProject(project, uniqueUrlSet)
-      }
       await refreshTabGroupsWithUrls()
-      const updatedProjects = await getCustomProjects()
-      setCustomProjects(updatedProjects)
     },
-    [refreshTabGroupsWithUrls, setCustomProjects],
+    [refreshTabGroupsWithUrls],
   )
 
   // 既存のタブ開く処理を拡張して両方のモードで同期する
@@ -593,9 +557,7 @@ const SavedTabsApp = () => {
         // 設定に基づいて、開いたタブを削除するかどうかを決定（新形式対応）
         if (settings.removeTabAfterOpen) {
           await removeOpenedUrlsFromStorage([url])
-          console.log(
-            `URL ${url} を開いた後、すべてのグループとプロジェクトから削除しました`,
-          )
+          console.log(`URL ${url} を開いた後、保存データから削除しました`)
         }
       } catch (error) {
         console.error('タブを開く処理エラー:', error)
@@ -638,7 +600,7 @@ const SavedTabsApp = () => {
         if (settings.removeTabAfterOpen) {
           await removeOpenedUrlsFromStorage(urls.map(({ url }) => url))
           console.log(
-            `${urls.length}個のURLを開いた後、すべてのグループとプロジェクトから削除しました`,
+            `${urls.length}個のURLを開いた後、保存データから削除しました`,
           )
         }
       } catch (error) {
@@ -922,10 +884,18 @@ const SavedTabsApp = () => {
   console.log('- hasContentTabGroups:', hasContentTabGroups)
   console.log('- hasContentTabGroups.length:', hasContentTabGroups.length)
 
+  const customProjectsForHeader = customProjects
   // カスタムモード検索用にプロジェクトとURLをフィルタリング
   const filteredCustomProjects = useMemo(
     () => filterCustomProjectsByQuery(customProjects, searchQuery),
     [customProjects, searchQuery],
+  )
+
+  const handleDeleteUrlFromCustomMode = useCallback(
+    async (projectId: string, url: string) => {
+      await handleDeleteUrlFromProject(projectId, url)
+    },
+    [handleDeleteUrlFromProject],
   )
 
   // ストレージ変更検出時のリスナーを改善（ドメインモードとカスタムモード間の同期）
@@ -963,149 +933,27 @@ const SavedTabsApp = () => {
         console.log(
           `URL移動: ${sourceProjectId} → ${targetProjectId}, URL: ${url}`,
         )
-        const sourceProject = customProjectsRef.current.find(
-          p => p.id === sourceProjectId,
-        )
-        const targetProject = customProjectsRef.current.find(
-          p => p.id === targetProjectId,
-        )
-        if (!(sourceProject && targetProject)) {
-          console.error('プロジェクトが見つかりません')
+        if (sourceProjectId === targetProjectId) {
           return null
         }
-        const urlItem = sourceProject.urls?.find(item => item.url === url)
-        if (!urlItem) {
-          console.error('移動するURLが見つかりません')
-          return null
-        }
-        const existsInTarget = targetProject.urls?.some(
-          item => item.url === url,
-        )
-        if (existsInTarget) {
-          console.log('移動先に既にURLが存在するため、移動をスキップします')
-          toast.info('移動先のプロジェクトに既にこのURLが存在します')
-          return null
-        }
-        const originalCategory = urlItem.category
-        await removeUrlFromCustomProject(sourceProjectId, url)
-        await addUrlToCustomProject(targetProjectId, url, urlItem.title, {
-          notes: urlItem.notes,
-          category: originalCategory,
-        })
-        const movedAt = Date.now()
-        setCustomProjects(prev =>
-          moveUrlBetweenProjectsState({
-            projects: prev,
-            sourceProjectId,
-            targetProjectId,
-            url: {
-              ...urlItem,
-              category: originalCategory,
-            },
-            movedAt,
-          }),
+        await moveUrlBetweenCustomProjects(
+          sourceProjectId,
+          targetProjectId,
+          url,
         )
         toast.success('URLを移動しました')
-        return originalCategory ?? null
+        return null
       } catch (error) {
         console.error('URL移動エラー:', error)
         toast.error('URLの移動に失敗しました')
         return null
       }
     },
-    [customProjectsRef, setCustomProjects],
+    [moveUrlBetweenCustomProjects],
   )
 
   // カテゴリ間でURLを移動するハンドラ
-  const handleMoveUrlsBetweenCategories = useCallback(
-    async (
-      projectId: string,
-      sourceCategoryName: string,
-      targetCategoryName: string,
-    ) => {
-      try {
-        console.log(
-          `カテゴリ間URL移動: ${sourceCategoryName} → ${targetCategoryName}, プロジェクト: ${projectId}`,
-        )
-        const project = customProjectsRef.current.find(p => p.id === projectId)
-        if (!project) {
-          console.error('プロジェクトが見つかりません')
-          return
-        }
-        const urlsToMove =
-          project.urls?.filter(item => item.category === sourceCategoryName) ||
-          []
-        console.log(
-          `カテゴリ "${sourceCategoryName}" のURL数: ${urlsToMove.length}`,
-        )
-        console.log(
-          `カテゴリ "${targetCategoryName}" のURL数: ${project.urls?.filter(item => item.category === targetCategoryName).length || 0}`,
-        )
-        if (urlsToMove.length === 0) {
-          await removeCategoryFromProject(projectId, sourceCategoryName)
-          toast.success(
-            `カテゴリ「${sourceCategoryName}」を「${targetCategoryName}」に統合しました`,
-          )
-          setCustomProjects(prev =>
-            prev.map(p => {
-              if (p.id !== projectId) {
-                return p
-              }
-              return {
-                ...p,
-                categories: p.categories.filter(c => c !== sourceCategoryName),
-                categoryOrder: p.categoryOrder
-                  ? p.categoryOrder.filter(c => c !== sourceCategoryName)
-                  : undefined,
-                updatedAt: Date.now(),
-              }
-            }),
-          )
-          return
-        }
-        let successCount = 0
-        for (const urlItem of urlsToMove) {
-          try {
-            await setUrlCategory(projectId, urlItem.url, targetCategoryName)
-            successCount++
-          } catch (error) {
-            console.error(`URL ${urlItem.url} の移動に失敗:`, error)
-          }
-        }
-        setCustomProjects(prev =>
-          prev.map(p => {
-            if (p.id !== projectId) {
-              return p
-            }
-            return {
-              ...p,
-              urls:
-                p.urls?.map(item => {
-                  if (item.category === sourceCategoryName) {
-                    return {
-                      ...item,
-                      category: targetCategoryName,
-                    }
-                  }
-                  return item
-                }) || [],
-              updatedAt: Date.now(),
-            }
-          }),
-        )
-        if (successCount > 0) {
-          await removeCategoryFromProject(projectId, sourceCategoryName)
-          toast.success(
-            `カテゴリ「${sourceCategoryName}」から「${targetCategoryName}」へ ${successCount} 件のURLを移動しました`,
-          )
-        }
-      } catch (error) {
-        console.error('カテゴリ間URL移動エラー:', error)
-        toast.error('URLの移動に失敗しました')
-      }
-    },
-    [customProjectsRef, setCustomProjects],
-  )
+  const handleMoveUrlsBetweenCategories = useCallback(async () => {}, [])
   const visibleUncategorizedGroups = useMemo(
     () =>
       uncategorized.filter(
@@ -1134,6 +982,7 @@ const SavedTabsApp = () => {
           id: project.id,
           domain: project.name,
           urls: project.urls || [],
+          urlIds: project.urlIds || [],
         }) as TabGroup,
     )
   }, [viewMode, hasContentTabGroups, filteredCustomProjects])
@@ -1195,7 +1044,7 @@ const SavedTabsApp = () => {
         projects={customProjectsForDisplay}
         settings={settings}
         handleOpenUrl={handleOpenTab}
-        handleDeleteUrl={handleDeleteUrlFromProject}
+        handleDeleteUrl={handleDeleteUrlFromCustomMode}
         handleAddUrl={handleAddUrlToProject}
         handleCreateProject={handleCreateProject}
         handleDeleteProject={handleDeleteProject}
@@ -1278,8 +1127,8 @@ const SavedTabsApp = () => {
         <Header
           tabGroups={tabGroups}
           filteredTabGroups={headerFilteredTabGroups}
-          customProjects={customProjects}
-          onAddCategory={handleAddCategory}
+          customProjects={customProjectsForHeader}
+          onCreateProject={handleCreateProject}
           currentMode={viewMode}
           onModeChange={handleViewModeChange}
           searchQuery={searchQuery}

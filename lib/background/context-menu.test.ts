@@ -97,6 +97,18 @@ describe('createContextMenus関数', () => {
   })
   it('メニュー項目を作成してクリックハンドラをディスパッチする', async () => {
     const harness = createChromeHarness()
+    mocked.handleSaveCurrentTab.mockResolvedValueOnce([
+      { url: 'https://a.example', title: 'A' },
+    ])
+    mocked.handleSaveWindowTabs.mockResolvedValueOnce([
+      { url: 'https://b.example', title: 'B' },
+    ])
+    mocked.handleSaveSameDomainTabs.mockResolvedValueOnce([
+      { url: 'https://c.example', title: 'C' },
+    ])
+    mocked.handleSaveAllWindowsTabs.mockResolvedValueOnce([
+      { url: 'https://d.example', title: 'D' },
+    ])
     createContextMenus()
     expect(harness.removeAll).toHaveBeenCalledTimes(1)
     expect(harness.create).toHaveBeenCalledTimes(6)
@@ -156,6 +168,17 @@ describe('createContextMenus関数', () => {
       'コンテキストメニュー処理エラー:',
       error,
     )
+  })
+  it('保存結果が空配列でも保存処理自体は実行される', async () => {
+    const harness = createChromeHarness()
+    mocked.handleSaveCurrentTab.mockResolvedValueOnce([])
+    createContextMenus()
+
+    await harness.listeners[0]({
+      menuItemId: 'saveCurrentTab',
+    } as chrome.contextMenus.OnClickData)
+
+    expect(mocked.handleSaveCurrentTab).toHaveBeenCalledTimes(1)
   })
   it('メニュー削除セットアップ中の例外を捕捉する', () => {
     const error = new Error('removeAll crashed')
