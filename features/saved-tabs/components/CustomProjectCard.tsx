@@ -15,6 +15,7 @@ const CustomProjectCard = memo(
     project,
     handleOpenUrl,
     handleDeleteUrl,
+    handleDeleteUrlsFromProject,
     handleAddCategory,
     handleDeleteCategory,
     handleRenameCategory,
@@ -22,6 +23,8 @@ const CustomProjectCard = memo(
     handleUpdateCategoryOrder,
     handleReorderUrls,
     handleOpenAllUrls,
+    handleDeleteProject,
+    handleRenameProject,
     settings,
     draggedItem,
     isDropTarget = false,
@@ -41,6 +44,9 @@ const CustomProjectCard = memo(
         handleRenameCategory,
         handleSetUrlCategory,
         handleOpenAllUrls,
+        handleDeleteProject,
+        handleRenameProject,
+        handleDeleteUrlsFromProject,
       }}
       hookHandlers={{
         handleDeleteUrl,

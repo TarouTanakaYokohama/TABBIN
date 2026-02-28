@@ -5,6 +5,7 @@ export interface CustomProjectSectionProps {
   projects: CustomProject[]
   handleOpenUrl: (url: string) => void
   handleDeleteUrl: (projectId: string, url: string) => void
+  handleDeleteUrlsFromProject?: (projectId: string, urls: string[]) => void
   handleAddUrl: (
     projectId: string,
     url: string,
