@@ -16,6 +16,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { CustomProject, UserSettings } from '@/types/storage'
 
+// グローバルのドロップ状態を追跡（ウィンドウ内でのドロップか外部へのドロップかを判定するため）
+let isGlobalInternalDrop = false
+if (typeof window !== 'undefined') {
+  window.addEventListener('drop', () => {
+    isGlobalInternalDrop = true
+  })
+}
+
 interface ProjectUrlItemProps {
   item: NonNullable<CustomProject['urls']>[0]
   projectId: string
@@ -126,6 +134,7 @@ const ProjectUrlItemComponent = ({
   const handleDragStart = (e: React.DragEvent<HTMLElement>) => {
     isDraggingRef.current = true
     windowBlurredDuringDragRef.current = false
+    isGlobalInternalDrop = false
 
     e.dataTransfer.setData('text/plain', originalUrl)
     e.dataTransfer.setData('text/uri-list', originalUrl)
@@ -146,6 +155,7 @@ const ProjectUrlItemComponent = ({
   const handleDragEnd = (e: React.DragEvent<HTMLElement>) => {
     window.removeEventListener('blur', handleWindowBlur)
     const shouldHandleAsExternalDrop =
+      !isGlobalInternalDrop &&
       isDraggingRef.current &&
       (e.dataTransfer.dropEffect === 'copy' ||
         (windowBlurredDuringDragRef.current &&
