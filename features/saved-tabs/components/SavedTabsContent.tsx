@@ -18,7 +18,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { safelyUpdateGroupUrls } from '@/features/saved-tabs/lib/tab-operations'
+import { removeUrlFromTabGroup } from '@/lib/storage/tabs'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
 import { CategorySection } from './TimeRemaining'
@@ -77,23 +77,13 @@ export const SortableCategorySection = ({
       const urlsToDelete = [...urls]
       const urlsToRemove = urlsToDelete.map(item => item.url)
 
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-      const currentGroup = savedTabs.find(
-        (tab: { id: string }) => tab.id === props.groupId,
-      )
-
-      if (currentGroup) {
-        const existingUrls = currentGroup.urls ?? []
-        const remainingUrls = existingUrls.filter(
-          (urlItem: { url: string }) => !urlsToRemove.includes(urlItem.url),
-        )
-
-        await safelyUpdateGroupUrls(props.groupId, remainingUrls, () => {
-          console.log(
-            `カテゴリ「${categoryDisplayName}」から${urlsToRemove.length}件のURLを削除しました`,
-          )
-        })
+      for (const url of urlsToRemove) {
+        await removeUrlFromTabGroup(props.groupId, url)
+        await new Promise(resolve => setTimeout(resolve, 10))
       }
+      console.log(
+        `カテゴリ「${categoryDisplayName}」から${urlsToRemove.length}件のURLを削除しました`,
+      )
     } catch (error) {
       console.error('削除処理中にエラーが発生しました:', error)
     } finally {

@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { CustomProject } from '@/types/storage'
+import {
+  DragHandlersContext,
+  type ProjectDragHandlers,
+} from '../contexts/DragHandlersContext'
 import type { CustomProjectSectionProps } from '../types/CustomProjectSection.types'
 import { CustomProjectCard } from './CustomProjectCard'
 
@@ -122,6 +126,22 @@ export const CustomProjectSection = ({
     }),
   )
 
+  const projectDragHandlersRef = useRef<Record<string, ProjectDragHandlers>>({})
+
+  const dragHandlersContextValue = useMemo(
+    () => ({
+      registerHandlers: (projectId: string, handlers: ProjectDragHandlers) => {
+        projectDragHandlersRef.current[projectId] = handlers
+      },
+      unregisterHandlers: (projectId: string) => {
+        const newHandlers = { ...projectDragHandlersRef.current }
+        delete newHandlers[projectId]
+        projectDragHandlersRef.current = newHandlers
+      },
+    }),
+    [],
+  )
+
   const closeCreateDialog = () => {
     setIsCreateDialogOpen(false)
     reset()
@@ -175,24 +195,36 @@ export const CustomProjectSection = ({
 
   // ドラッグ開始時の処理
   const handleDragStart = (event: DragStartEvent) => {
-    if (event.active.data.current) {
-      const { projectId, type } = event.active.data.current as {
-        projectId?: string
-        type: string
-      }
+    if (!event.active.data.current) {
+      return
+    }
 
-      if (type === 'url' && projectId) {
-        // URLドラッグではセクション全体の状態更新を最小化する
-        setIsProjectReorderMode(false)
-        setDraggedProject(null)
-      } else if (type === 'project' && projectId) {
-        // プロジェクトドラッグの場合
-        const project = projects.find(p => p.id === projectId)
-        if (project) {
-          setIsProjectReorderMode(true)
-          setDraggedProject(project)
-        }
+    const { projectId, type } = event.active.data.current as {
+      projectId?: string
+      type: string
+    }
+
+    if (!projectId) {
+      return
+    }
+
+    if (type === 'url') {
+      // URLドラッグではセクション全体の状態更新を最小化する
+      setIsProjectReorderMode(false)
+      setDraggedProject(null)
+    } else if (type === 'project') {
+      // プロジェクトドラッグの場合
+      const project = projects.find(p => p.id === projectId)
+      if (project) {
+        setIsProjectReorderMode(true)
+        setDraggedProject(project)
       }
+    }
+
+    // プロジェクトへ伝播
+    const handler = projectDragHandlersRef.current[projectId]
+    if (handler) {
+      handler.handleDragStart(event)
     }
   }
 
@@ -207,23 +239,36 @@ export const CustomProjectSection = ({
       const projectId = over.data.current?.projectId
       if (projectId && sourceProjectId && projectId !== sourceProjectId) {
         setDraggedOverProjectId(prev => (prev === projectId ? prev : projectId))
-        return
+      } else {
+        setDraggedOverProjectId(prev => (prev === null ? prev : null))
       }
+    } else {
+      setDraggedOverProjectId(prev => (prev === null ? prev : null))
     }
 
-    setDraggedOverProjectId(prev => (prev === null ? prev : null))
+    // 全てのプロジェクトへ伝播させる (hoverが外れたことを伝えるため)
+    Object.entries(projectDragHandlersRef.current).forEach(([id, handlers]) => {
+      const project = projects.find(p => p.id === id)
+      if (project) {
+        handlers.handleDragOver(event, project)
+      }
+    })
   }
 
   // ドラッグ終了時の処理
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
-
-    // ドラッグタイプを確認
     const dragType = active.data.current?.type
 
     if (dragType === 'url') {
-      // URLドラッグの場合の処理
-      handleUrlDragEnd(event)
+      handleUrlDragSequence(event)
+    } else if (dragType === 'category') {
+      const sourceProjectId = active.data.current?.projectId as string
+      if (sourceProjectId && projectDragHandlersRef.current[sourceProjectId]) {
+        projectDragHandlersRef.current[sourceProjectId].handleCategoryDragEnd(
+          event,
+        )
+      }
     } else if (dragType === 'project' && over && active.id !== over.id) {
       // プロジェクトドラッグの場合の処理
       // プロジェクトの順序を変更
@@ -247,28 +292,46 @@ export const CustomProjectSection = ({
     setDraggedOverProjectId(null)
   }
 
-  // URLドラッグ終了時の処理を分離
-  const handleUrlDragEnd = (event: DragEndEvent) => {
+  // URLドラッグに関わるシーケンス制御
+  const handleUrlDragSequence = (event: DragEndEvent) => {
     const { active, over } = event
-
-    // ドラッグアイテムをリセット
-    setDraggedOverProjectId(null)
-
-    // オーバー要素がない、またはアクティブ要素と同じ場合は何もしない
-    if (!over) {
-      return
-    }
-
-    // ドラッグされたURLと、ドロップ先のプロジェクトIDを取得
-    const draggedUrl = active.id as string
     const sourceProjectId = active.data.current?.projectId as string
-
     const targetProjectId = resolveTargetProjectId(over)
-    if (!targetProjectId || sourceProjectId === targetProjectId) {
-      return
-    }
 
-    // プロジェクト間のURL移動を実行
+    if (
+      !targetProjectId ||
+      (sourceProjectId && sourceProjectId === targetProjectId)
+    ) {
+      // 同一プロジェクト内または無効なドロップエリア
+      if (sourceProjectId && projectDragHandlersRef.current[sourceProjectId]) {
+        const isUncategorizedOver =
+          over?.id === `uncategorized-${targetProjectId}` ||
+          over?.data?.current?.type === 'uncategorized'
+        projectDragHandlersRef.current[sourceProjectId].handleUrlDragEnd(
+          event,
+          isUncategorizedOver,
+        )
+      }
+    } else {
+      // クロスプロジェクトドロップ
+      handleUrlCrossProjectDragEnd(event, targetProjectId, sourceProjectId)
+
+      // 元プロジェクトの状態リセット
+      if (sourceProjectId && projectDragHandlersRef.current[sourceProjectId]) {
+        projectDragHandlersRef.current[sourceProjectId].clearDragState()
+      }
+    }
+  }
+
+  // プロジェクト間のURL移動
+  const handleUrlCrossProjectDragEnd = (
+    event: DragEndEvent,
+    targetProjectId: string,
+    sourceProjectId: string,
+  ) => {
+    const { active } = event
+    const draggedUrl = active.id as string
+
     if (handleMoveUrlBetweenProjects) {
       handleMoveUrlBetweenProjects(sourceProjectId, targetProjectId, draggedUrl)
     }
@@ -277,66 +340,68 @@ export const CustomProjectSection = ({
   return (
     <div>
       {projects.length > 0 ? (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={projects.map(project => project.id)}
-            strategy={verticalListSortingStrategy}
+        <DragHandlersContext.Provider value={dragHandlersContextValue}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
           >
-            <div className='grid gap-4'>
-              {projects.map(project => (
-                <CustomProjectCard
-                  key={project.id}
-                  project={project}
-                  handleOpenUrl={handleOpenUrl}
-                  handleDeleteUrl={handleDeleteUrl}
-                  handleAddUrl={handleAddUrl}
-                  handleDeleteProject={handleDeleteProject}
-                  handleRenameProject={handleRenameProject}
-                  handleAddCategory={handleAddCategory}
-                  handleDeleteCategory={handleDeleteCategory}
-                  handleRenameCategory={handleRenameCategory} // 追加: カテゴリ名変更ハンドラ
-                  handleSetUrlCategory={handleSetUrlCategory}
-                  handleUpdateCategoryOrder={handleUpdateCategoryOrder}
-                  handleReorderUrls={handleReorderUrls}
-                  handleOpenAllUrls={handleOpenAllUrls}
-                  settings={settings}
-                  // ドラッグ中のアイテム情報を渡す
-                  draggedItem={draggedItem}
-                  // ドラッグオーバー中のプロジェクトIDを渡す
-                  isDropTarget={draggedOverProjectId === project.id}
-                  isProjectReorderMode={isProjectReorderMode}
-                  handleMoveUrlsBetweenCategories={
-                    handleMoveUrlsBetweenCategories
-                  }
-                  handleMoveUrlBetweenProjects={handleMoveUrlBetweenProjects} // 追加: プロジェクト間URL移動を渡す
-                />
-              ))}
-            </div>
-          </SortableContext>
+            <SortableContext
+              items={projects.map(project => project.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className='grid gap-4'>
+                {projects.map(project => (
+                  <CustomProjectCard
+                    key={project.id}
+                    project={project}
+                    handleOpenUrl={handleOpenUrl}
+                    handleDeleteUrl={handleDeleteUrl}
+                    handleAddUrl={handleAddUrl}
+                    handleDeleteProject={handleDeleteProject}
+                    handleRenameProject={handleRenameProject}
+                    handleAddCategory={handleAddCategory}
+                    handleDeleteCategory={handleDeleteCategory}
+                    handleRenameCategory={handleRenameCategory} // 追加: カテゴリ名変更ハンドラ
+                    handleSetUrlCategory={handleSetUrlCategory}
+                    handleUpdateCategoryOrder={handleUpdateCategoryOrder}
+                    handleReorderUrls={handleReorderUrls}
+                    handleOpenAllUrls={handleOpenAllUrls}
+                    settings={settings}
+                    // ドラッグ中のアイテム情報を渡す
+                    draggedItem={draggedItem}
+                    // ドラッグオーバー中のプロジェクトIDを渡す
+                    isDropTarget={draggedOverProjectId === project.id}
+                    isProjectReorderMode={isProjectReorderMode}
+                    handleMoveUrlsBetweenCategories={
+                      handleMoveUrlsBetweenCategories
+                    }
+                    handleMoveUrlBetweenProjects={handleMoveUrlBetweenProjects} // 追加: プロジェクト間URL移動を渡す
+                  />
+                ))}
+              </div>
+            </SortableContext>
 
-          {/* ドラッグ中の要素のオーバーレイ */}
-          <DragOverlay>
-            {draggedItem && (
-              <div className='max-w-[300px] truncate rounded-md border bg-background p-2 shadow-md'>
-                {draggedItem.title || draggedItem.url}
-              </div>
-            )}
-            {draggedProject && (
-              <div className='w-full max-w-[600px] rounded-md border bg-background p-4 shadow-lg'>
-                <div className='font-bold text-lg'>{draggedProject.name}</div>
-                <div className='text-muted-foreground text-sm'>
-                  {draggedProject.description}
+            {/* ドラッグ中の要素のオーバーレイ */}
+            <DragOverlay>
+              {draggedItem && (
+                <div className='max-w-[300px] truncate rounded-md border bg-background p-2 shadow-md'>
+                  {draggedItem.title || draggedItem.url}
                 </div>
-              </div>
-            )}
-          </DragOverlay>
-        </DndContext>
+              )}
+              {draggedProject && (
+                <div className='w-full max-w-[600px] rounded-md border bg-background p-4 shadow-lg'>
+                  <div className='font-bold text-lg'>{draggedProject.name}</div>
+                  <div className='text-muted-foreground text-sm'>
+                    {draggedProject.description}
+                  </div>
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+        </DragHandlersContext.Provider>
       ) : (
         <div className='flex min-h-[200px] flex-col items-center justify-center gap-4 rounded-md border p-8'>
           <div className='text-2xl text-foreground'>

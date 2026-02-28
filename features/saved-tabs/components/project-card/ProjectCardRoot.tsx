@@ -1,16 +1,10 @@
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useDroppable,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import { sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
+import { useDroppable } from '@dnd-kit/core'
+import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
+import { useDragHandlers } from '../../contexts/DragHandlersContext'
 import { useCustomProjectCard } from '../../hooks/useCustomProjectCard'
 import type { CustomProjectCardProps } from '../../types/CustomProjectCard.types'
 import {
@@ -118,13 +112,19 @@ export const ProjectCardRoot = ({
     setProjectDroppableRef(node)
   }
 
-  // DND用のセンサー
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  )
+  // ドラッグハンドラの登録
+  const { registerHandlers, unregisterHandlers } = useDragHandlers()
+
+  useEffect(() => {
+    registerHandlers(project.id, {
+      handleDragStart: dnd.handleDragStart,
+      handleDragOver: dnd.handleDragOver,
+      handleCategoryDragEnd: dnd.handleCategoryDragEnd,
+      handleUrlDragEnd: dnd.handleUrlDragEnd,
+      clearDragState: dnd.resetDnD,
+    })
+    return () => unregisterHandlers(project.id)
+  }, [project.id, registerHandlers, unregisterHandlers, dnd])
 
   // 別プロジェクトからドラッグされているかを判定
   const isExternalItemOver =
@@ -208,20 +208,7 @@ export const ProjectCardRoot = ({
             </div>
           ) : (
             <>
-              {/* すべてのドラッグ&ドロップを単一のDndContextで処理 */}
-              <DndContext
-                sensors={sensors}
-                collisionDetection={dnd.collisionDetectionStrategy}
-                onDragStart={dnd.handleDragStart}
-                onDragOver={event => dnd.handleDragOver(event, project)}
-                onDragEnd={
-                  dnd.isDraggingCategory
-                    ? dnd.handleCategoryDragEnd
-                    : event => dnd.handleUrlDragEnd(event, isUncategorizedOver)
-                }
-              >
-                {children}
-              </DndContext>
+              {children}
 
               {/* ローディング状態 */}
               {urls.isLoadingUrls && (

@@ -44,7 +44,10 @@ import { shouldShowUncategorizedHeader as computeShouldShowUncategorizedHeader }
 import { useSavedTabsCore } from '@/features/saved-tabs/shared/hooks/useSavedTabsCore'
 import { syncStorageChanges } from '@/features/saved-tabs/shared/services/modeSyncService'
 import { saveParentCategories } from '@/lib/storage/categories'
-import { moveUrlBetweenCustomProjects } from '@/lib/storage/projects'
+import {
+  moveUrlBetweenCustomProjects,
+  removeUrlFromAllCustomProjects,
+} from '@/lib/storage/projects'
 import { defaultSettings } from '@/lib/storage/settings'
 import {
   addSubCategoryToGroup,
@@ -615,6 +618,48 @@ const SavedTabsApp = () => {
     ],
   )
 
+  /**
+   * 指定のタブグループ内のURLをすべてカスタムプロジェクトからも削除します。
+   */
+  const removeUrlsFromCustomProjectsForGroup = async (
+    groupToDelete: TabGroup,
+  ) => {
+    try {
+      const { getTabGroupUrls } = await import('@/lib/storage/tabs')
+      const urlsToDelete = await getTabGroupUrls(groupToDelete)
+      if (urlsToDelete && urlsToDelete.length > 0) {
+        for (const item of urlsToDelete) {
+          try {
+            await removeUrlFromAllCustomProjects(item.url)
+          } catch (err) {
+            console.error(
+              `URL ${item.url} のカスタムプロジェクト同期削除エラー:`,
+              err,
+            )
+          }
+        }
+      }
+    } catch (err) {
+      console.error('URL一覧の取得または削除エラー:', err)
+    }
+  }
+
+  /**
+   * 親カテゴリから指定されたドメインIDを削除して保存します。
+   */
+  const removeDomainFromParentCategories = async (
+    id: string,
+    categories: ParentCategory[],
+    setCategories: (cats: ParentCategory[]) => void,
+  ) => {
+    const updatedCategories = categories.map(category => ({
+      ...category,
+      domains: category.domains.filter(domainId => domainId !== id),
+    }))
+    await saveParentCategories(updatedCategories)
+    setCategories(updatedCategories)
+  }
+
   // handleDeleteGroup関数を修正
   const handleDeleteGroup = useCallback(
     async (id: string) => {
@@ -632,6 +677,9 @@ const SavedTabsApp = () => {
 
         // 専用の削除前処理関数を呼び出し（インポートした関数を使用）
         await handleTabGroupRemoval(id)
+
+        // グループに属するすべてのURLをカスタムプロジェクトからも削除
+        await removeUrlsFromCustomProjectsForGroup(groupToDelete)
 
         // 以降は従来通りの処理
         const updatedGroups = savedTabs.filter(group => group.id !== id)
@@ -651,12 +699,8 @@ const SavedTabsApp = () => {
         }
 
         // 親カテゴリからはドメインIDのみを削除（ドメイン名は保持）
-        const updatedCategories = categories.map(category => ({
-          ...category,
-          domains: category.domains.filter(domainId => domainId !== id),
-        }))
-        await saveParentCategories(updatedCategories)
-        setCategories(updatedCategories)
+        await removeDomainFromParentCategories(id, categories, setCategories)
+
         console.log('グループ削除処理が完了しました')
       } catch (error) {
         console.error('グループ削除エラー:', error)

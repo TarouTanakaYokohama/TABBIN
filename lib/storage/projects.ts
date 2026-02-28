@@ -507,6 +507,44 @@ const removeUrlFromCustomProject = async (
     console.error('ドメインモードの同期中にエラーが発生しました:', syncError)
     // エラーをスローしないで続行 - カスタムプロジェクトの削除は成功している
   }
+}
+
+/**
+ * URLをすべてのカスタムプロジェクトから削除する関数
+ */
+const removeUrlFromAllCustomProjects = async (url: string): Promise<void> => {
+  try {
+    await migrateToUrlsStorage()
+    const projects = await getCustomProjects()
+    let hasChanges = false
+
+    const urlRecords = await getUrlRecords()
+    const urlRecord = urlRecords.find(record => record.url === url)
+    if (!urlRecord) {
+      return
+    }
+
+    for (const project of projects) {
+      if (project.urlIds?.includes(urlRecord.id)) {
+        project.urlIds = project.urlIds.filter(id => id !== urlRecord.id)
+        if (project.urlMetadata?.[urlRecord.id]) {
+          delete project.urlMetadata[urlRecord.id]
+        }
+        project.updatedAt = Date.now()
+        hasChanges = true
+      }
+    }
+
+    if (hasChanges) {
+      await saveCustomProjects(projects)
+      console.log(`URL ${url} をすべてのカスタムプロジェクトから削除しました`)
+    }
+  } catch (error) {
+    console.error(
+      'カスタムプロジェクトからのURL削除中にエラーが発生しました:',
+      error,
+    )
+  }
 } // カスタムプロジェクトを削除する関数
 
 const ensureProjectMetadataEntry = (
@@ -902,6 +940,7 @@ export {
   getViewMode,
   moveUrlBetweenCustomProjects,
   removeCategoryFromProject,
+  removeUrlFromAllCustomProjects,
   removeUrlFromCustomProject,
   renameCategoryInProject,
   reorderProjectUrls,
