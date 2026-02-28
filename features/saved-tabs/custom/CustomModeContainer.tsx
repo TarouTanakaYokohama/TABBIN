@@ -7,6 +7,10 @@ interface CustomModeContainerProps {
   settings: UserSettings
   handleOpenUrl: (url: string) => Promise<void>
   handleDeleteUrl: (projectId: string, url: string) => Promise<void>
+  handleDeleteUrlsFromProject: (
+    projectId: string,
+    urls: string[],
+  ) => Promise<void>
   handleAddUrl: (projectId: string, url: string, title: string) => Promise<void>
   handleCreateProject: (name: string, description?: string) => Promise<void>
   handleDeleteProject: (projectId: string) => Promise<void>
@@ -54,6 +58,7 @@ export const CustomModeContainer = ({
   settings,
   handleOpenUrl,
   handleDeleteUrl,
+  handleDeleteUrlsFromProject,
   handleAddUrl,
   handleCreateProject,
   handleDeleteProject,
@@ -82,6 +87,7 @@ export const CustomModeContainer = ({
       projects={projects}
       handleOpenUrl={handleOpenUrl}
       handleDeleteUrl={handleDeleteUrl}
+      handleDeleteUrlsFromProject={handleDeleteUrlsFromProject}
       handleAddUrl={handleAddUrl}
       handleCreateProject={handleCreateProject}
       handleDeleteProject={handleDeleteProject}

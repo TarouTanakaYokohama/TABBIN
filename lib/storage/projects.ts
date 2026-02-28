@@ -510,6 +510,124 @@ const removeUrlFromCustomProject = async (
 }
 
 /**
+ * ドメインモードからも指定されたURLを同期削除するヘルパー関数
+ */
+const syncDeleteToDomainMode = async (
+  targetUrlsSet: Set<string>,
+  urlsLength: number,
+): Promise<void> => {
+  try {
+    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+
+    const urlRecords = await getUrlRecordsByIds(
+      savedTabs.flatMap((g: TabGroup) => g.urlIds || []),
+    )
+    const recordsToDelete = urlRecords.filter(record =>
+      targetUrlsSet.has(record.url),
+    )
+
+    if (recordsToDelete.length > 0) {
+      const idsToDelete = new Set(recordsToDelete.map(r => r.id))
+      const updatedGroups = savedTabs
+        .map((group: TabGroup) => {
+          if (group.urlIds) {
+            const updatedUrlIds = group.urlIds.filter(
+              id => !idsToDelete.has(id),
+            )
+            if (updatedUrlIds.length === 0) {
+              return null
+            }
+            return {
+              ...group,
+              urlIds: updatedUrlIds,
+            }
+          }
+          return group
+        })
+        .filter((group: TabGroup | null): group is TabGroup => group !== null)
+
+      await chrome.storage.local.set({
+        savedTabs: updatedGroups,
+      })
+      console.log(`${urlsLength}件のURLはドメインモードからも削除されました`)
+    }
+  } catch (syncError) {
+    console.error('ドメインモードの同期中にエラーが発生しました:', syncError)
+  }
+}
+
+/**
+ * プロジェクトのURL IDsとメタデータから指定IDを削除する内部関数
+ * @returns 変更があったかどうか
+ */
+const updateProjectUrlIdsAndMetadata = (
+  project: CustomProject,
+  idsToDelete: Set<string>,
+): boolean => {
+  if (!project.urlIds || project.urlIds.length === 0) {
+    return false
+  }
+
+  const hasOverlap = project.urlIds.some(id => idsToDelete.has(id))
+  if (hasOverlap) {
+    project.urlIds = project.urlIds.filter(id => !idsToDelete.has(id))
+
+    if (project.urlMetadata) {
+      for (const id of idsToDelete) {
+        if (project.urlMetadata[id]) {
+          delete project.urlMetadata[id]
+        }
+      }
+    }
+    project.updatedAt = Date.now()
+    return true
+  }
+  return false
+}
+
+/**
+ * 特定のプロジェクトから複数の URL をまとめて削除する。
+ */
+const removeUrlsFromCustomProject = async (
+  projectId: string,
+  urls: string[],
+): Promise<void> => {
+  if (urls.length === 0) {
+    return
+  }
+
+  // マイグレーションを実行（未実行の場合）
+  await migrateToUrlsStorage()
+  const projects = await getCustomProjects()
+  const projectIndex = projects.findIndex(p => p.id === projectId)
+  if (projectIndex === -1) {
+    throw new Error(`Project with ID ${projectId} not found`)
+  }
+
+  const project = projects[projectIndex]
+  const targetUrlsSet = new Set(urls)
+
+  if (project.urlIds && project.urlIds.length > 0) {
+    const urlRecords = await getUrlRecordsByIds(project.urlIds)
+    const recordsToDelete = urlRecords.filter(record =>
+      targetUrlsSet.has(record.url),
+    )
+
+    if (recordsToDelete.length > 0) {
+      const idsToDelete = new Set(recordsToDelete.map(r => r.id))
+
+      if (updateProjectUrlIdsAndMetadata(project, idsToDelete)) {
+        projects[projectIndex] = project
+        await saveCustomProjects(projects)
+      }
+    }
+  }
+
+  // ドメインモードからも同じURLを削除
+  await syncDeleteToDomainMode(targetUrlsSet, urls.length)
+}
+
+/**
  * URLをすべてのカスタムプロジェクトから削除する関数
  */
 const removeUrlFromAllCustomProjects = async (url: string): Promise<void> => {
@@ -526,7 +644,9 @@ const removeUrlFromAllCustomProjects = async (url: string): Promise<void> => {
 
     for (const project of projects) {
       if (project.urlIds?.includes(urlRecord.id)) {
-        project.urlIds = project.urlIds.filter(id => id !== urlRecord.id)
+        project.urlIds = project.urlIds.filter(
+          (id: string) => id !== urlRecord.id,
+        )
         if (project.urlMetadata?.[urlRecord.id]) {
           delete project.urlMetadata[urlRecord.id]
         }
@@ -542,6 +662,63 @@ const removeUrlFromAllCustomProjects = async (url: string): Promise<void> => {
   } catch (error) {
     console.error(
       'カスタムプロジェクトからのURL削除中にエラーが発生しました:',
+      error,
+    )
+  }
+}
+
+/**
+ * 複数のプロジェクトから指定のIDを一括で削除する内部処理
+ */
+const processProjectsForBulkDelete = (
+  projects: CustomProject[],
+  idsToDelete: Set<string>,
+): boolean => {
+  let hasChanges = false
+  for (const project of projects) {
+    if (updateProjectUrlIdsAndMetadata(project, idsToDelete)) {
+      hasChanges = true
+    }
+  }
+  return hasChanges
+}
+
+/**
+ * 全てのプロジェクトから複数の URL をまとめて削除する。
+ */
+const removeUrlsFromAllCustomProjects = async (
+  urls: string[],
+): Promise<void> => {
+  if (urls.length === 0) {
+    return
+  }
+
+  try {
+    await migrateToUrlsStorage()
+    const projects = await getCustomProjects()
+    const targetUrlsSet = new Set(urls)
+
+    const urlRecords = await getUrlRecords()
+    const recordsToDelete = urlRecords.filter(record =>
+      targetUrlsSet.has(record.url),
+    )
+
+    if (recordsToDelete.length === 0) {
+      return
+    }
+
+    const idsToDelete = new Set(recordsToDelete.map(r => r.id))
+    const hasChanges = processProjectsForBulkDelete(projects, idsToDelete)
+
+    if (hasChanges) {
+      await saveCustomProjects(projects)
+      console.log(
+        `${urls.length}件のURLをすべてのカスタムプロジェクトから削除しました`,
+      )
+    }
+  } catch (error) {
+    console.error(
+      'カスタムプロジェクトからの複数URL削除中にエラーが発生しました:',
       error,
     )
   }
@@ -941,7 +1118,9 @@ export {
   moveUrlBetweenCustomProjects,
   removeCategoryFromProject,
   removeUrlFromAllCustomProjects,
+  removeUrlsFromAllCustomProjects,
   removeUrlFromCustomProject,
+  removeUrlsFromCustomProject,
   renameCategoryInProject,
   reorderProjectUrls,
   saveCustomProjects,

@@ -6,7 +6,9 @@ export interface CategoryGroupProps {
   domains: TabGroup[]
   handleOpenAllTabs: (urls: { url: string; title: string }[]) => void
   handleDeleteGroup: (id: string) => void
+  handleDeleteGroups?: (ids: string[]) => void
   handleDeleteUrl: (groupId: string, url: string) => void
+  handleDeleteUrls?: (groupId: string, urls: string[]) => void
   handleOpenTab: (url: string) => void
   handleUpdateUrls: (groupId: string, updatedUrls: TabGroup['urls']) => void
   handleUpdateDomainsOrder?: (
@@ -29,7 +31,9 @@ export interface SortableDomainCardProps {
   group: TabGroup
   handleOpenAllTabs: (urls: { url: string; title: string }[]) => void
   handleDeleteGroup: (id: string) => void
+  handleDeleteGroups?: (ids: string[]) => void
   handleDeleteUrl: (groupId: string, url: string) => void
+  handleDeleteUrls?: (groupId: string, urls: string[]) => void
   handleOpenTab: (url: string) => void
   handleUpdateUrls: (groupId: string, updatedUrls: TabGroup['urls']) => void
   handleDeleteCategory?: (groupId: string, categoryName: string) => void

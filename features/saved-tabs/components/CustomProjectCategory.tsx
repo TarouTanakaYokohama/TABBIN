@@ -557,6 +557,7 @@ const CustomProjectCategoryComponent = ({
   urls,
   handleOpenUrl,
   handleDeleteUrl,
+  handleDeleteUrlsFromProject,
   handleDeleteCategory,
   handleSetUrlCategory,
   settings,
@@ -668,8 +669,15 @@ const CustomProjectCategoryComponent = ({
   }
 
   const handleDeleteAllUrlsConfirmed = async () => {
-    for (const item of sortedCategoryUrls) {
-      await handleDeleteUrl(projectId, item.url)
+    if (handleDeleteUrlsFromProject) {
+      await handleDeleteUrlsFromProject(
+        projectId,
+        sortedCategoryUrls.map(item => item.url),
+      )
+    } else {
+      for (const item of sortedCategoryUrls) {
+        await handleDeleteUrl(projectId, item.url)
+      }
     }
   }
 

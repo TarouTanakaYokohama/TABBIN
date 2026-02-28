@@ -53,6 +53,14 @@ vi.mock('@/components/ui/card', () => ({
   CardContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid='card-content'>{children}</div>
   ),
+  CardHeader: ({
+    children,
+    ...props
+  }: { children: React.ReactNode } & Record<string, unknown>) => (
+    <div data-testid='card-header' {...props}>
+      {children}
+    </div>
+  ),
 }))
 
 vi.mock('../../hooks/useCustomProjectCard', () => ({
@@ -201,11 +209,15 @@ describe('ProjectCardRoot', () => {
     expect(screen.getByText('Project A')).toBeTruthy()
     expect(screen.getByText('Project Description')).toBeTruthy()
 
-    const dragHandle = screen.getByRole('button', {
-      name: 'プロジェクト順を変更',
-    })
-    expect(dragHandle.getAttribute('data-sortable-attr')).toBe('project')
-    fireEvent.pointerDown(dragHandle)
+    // 以前はbutton要素でしたが、CardGroupTitle内でdiv要素に変更され、
+    // aria-labelなどは付与されていないため、親の attributes から取得した属性で検証します
+    const dragHandle = screen
+      .getByText('Project A')
+      .closest('div[data-sortable-attr="project"]')
+    expect(dragHandle).toBeTruthy()
+    if (dragHandle) {
+      fireEvent.pointerDown(dragHandle)
+    }
     expect(projectDragListenerMock).toHaveBeenCalled()
 
     expect(registerHandlersMock).toHaveBeenCalledWith(

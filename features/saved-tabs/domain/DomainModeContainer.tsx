@@ -31,7 +31,9 @@ interface DomainModeContainerProps {
   handleCategoryDragEnd: (event: DragEndEvent) => void
   handleOpenAllTabs: (urls: { url: string; title: string }[]) => Promise<void>
   handleDeleteGroup: (id: string) => Promise<void>
+  handleDeleteGroups?: (ids: string[]) => Promise<void>
   handleDeleteUrl: (groupId: string, url: string) => Promise<void>
+  handleDeleteUrls?: (groupId: string, urls: string[]) => Promise<void>
   handleOpenTab: (url: string) => Promise<void>
   handleUpdateUrls: (
     groupId: string,
@@ -72,7 +74,9 @@ export const DomainModeContainer = ({
   handleCategoryDragEnd,
   handleOpenAllTabs,
   handleDeleteGroup,
+  handleDeleteGroups,
   handleDeleteUrl,
+  handleDeleteUrls,
   handleOpenTab,
   handleUpdateUrls,
   handleUpdateDomainsOrder,
@@ -128,7 +132,9 @@ export const DomainModeContainer = ({
                     domains={domainGroups}
                     handleOpenAllTabs={handleOpenAllTabs}
                     handleDeleteGroup={handleDeleteGroup}
+                    handleDeleteGroups={handleDeleteGroups}
                     handleDeleteUrl={handleDeleteUrl}
+                    handleDeleteUrls={handleDeleteUrls}
                     handleOpenTab={handleOpenTab}
                     handleUpdateUrls={handleUpdateUrls}
                     handleUpdateDomainsOrder={handleUpdateDomainsOrder}
@@ -223,7 +229,9 @@ export const DomainModeContainer = ({
                   group={group}
                   handleOpenAllTabs={handleOpenAllTabs}
                   handleDeleteGroup={handleDeleteGroup}
+                  handleDeleteGroups={handleDeleteGroups}
                   handleDeleteUrl={handleDeleteUrl}
+                  handleDeleteUrls={handleDeleteUrls}
                   handleOpenTab={handleOpenTab}
                   handleUpdateUrls={handleUpdateUrls}
                   handleDeleteCategory={handleDeleteCategory}

@@ -68,6 +68,7 @@ export const CustomProjectSection = ({
   projects,
   handleOpenUrl,
   handleDeleteUrl,
+  handleDeleteUrlsFromProject,
   handleAddUrl,
   handleCreateProject,
   handleDeleteProject,
@@ -359,6 +360,7 @@ export const CustomProjectSection = ({
                     project={project}
                     handleOpenUrl={handleOpenUrl}
                     handleDeleteUrl={handleDeleteUrl}
+                    handleDeleteUrlsFromProject={handleDeleteUrlsFromProject}
                     handleAddUrl={handleAddUrl}
                     handleDeleteProject={handleDeleteProject}
                     handleRenameProject={handleRenameProject}

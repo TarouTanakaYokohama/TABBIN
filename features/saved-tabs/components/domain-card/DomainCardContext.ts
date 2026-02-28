@@ -22,7 +22,9 @@ export interface DomainCardContextType {
   handlers: {
     handleOpenAllTabs: SortableDomainCardProps['handleOpenAllTabs']
     handleDeleteGroup: SortableDomainCardProps['handleDeleteGroup']
+    handleDeleteGroups?: SortableDomainCardProps['handleDeleteGroups']
     handleDeleteUrl: SortableDomainCardProps['handleDeleteUrl']
+    handleDeleteUrls?: SortableDomainCardProps['handleDeleteUrls']
     handleOpenTab: SortableDomainCardProps['handleOpenTab']
     handleUpdateUrls: SortableDomainCardProps['handleUpdateUrls']
   }

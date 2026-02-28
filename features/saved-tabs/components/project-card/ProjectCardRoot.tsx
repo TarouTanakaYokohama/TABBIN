@@ -1,16 +1,18 @@
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { useEffect, useMemo, useState } from 'react'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { useDragHandlers } from '../../contexts/DragHandlersContext'
 import { useCustomProjectCard } from '../../hooks/useCustomProjectCard'
 import type { CustomProjectCardProps } from '../../types/CustomProjectCard.types'
+import { CardGroupActions } from '../shared/CardGroupActions'
+import { CardGroupTitle } from '../shared/CardGroupTitle'
 import {
   ProjectCardContext,
   type ProjectCardContextType,
 } from './ProjectCardContext'
+import { ProjectManagementModal } from './ProjectManagementModal'
 
 /** ProjectCardRoot の props */
 interface ProjectCardRootProps {
@@ -59,6 +61,8 @@ export const ProjectCardRoot = ({
     handleUpdateCategoryOrder: hookHandlers.handleUpdateCategoryOrder,
     handleReorderUrls: hookHandlers.handleReorderUrls,
   })
+
+  const [isManagementModalOpen, setIsManagementModalOpen] = useState(false)
 
   const { urls, dnd, categoryOrder } = hookState
 
@@ -167,29 +171,56 @@ export const ProjectCardRoot = ({
         ref={setCombinedRefs}
         style={style}
       >
-        <CardContent className='overflow-x-hidden'>
-          <div className='mb-4 flex items-start justify-between gap-3 border-border border-b pb-3'>
-            <div className='min-w-0'>
-              <h2 className='truncate font-semibold text-base'>
-                {project.name}
-              </h2>
-              {project.description && (
-                <p className='truncate text-muted-foreground text-sm'>
-                  {project.description}
-                </p>
-              )}
-            </div>
-            <button
-              {...attributes}
-              {...listeners}
-              type='button'
-              aria-label='プロジェクト順を変更'
-              className='mt-0.5 inline-flex cursor-grab items-center rounded border border-transparent p-1 text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing'
-            >
-              <GripVertical size={16} aria-hidden='true' />
-            </button>
+        <CardHeader className='sticky top-0 z-50 my-2 flex-row items-baseline justify-between bg-card px-0 pr-3 pl-1 text-foreground'>
+          <div className='flex grow items-center gap-2'>
+            <CardGroupTitle
+              title={project.name}
+              description={project.description}
+              sortableAttributes={attributes}
+              sortableListeners={listeners}
+              className='py-2'
+            />
           </div>
-
+          <CardGroupActions
+            onOpenAll={
+              projectUrlCount > 0
+                ? () => {
+                    handlers.handleOpenAllUrls?.(
+                      urls.projectUrls.map(u => ({
+                        url: u.url,
+                        title: u.title || '',
+                      })),
+                    )
+                  }
+                : undefined
+            }
+            onDeleteAll={
+              projectUrlCount > 0
+                ? async () => {
+                    if (handlers.handleDeleteUrlsFromProject) {
+                      await handlers.handleDeleteUrlsFromProject(
+                        project.id,
+                        urls.projectUrls.map(u => u.url),
+                      )
+                    } else {
+                      // プロジェクト内のすべてのURLを削除
+                      for (const urlItem of urls.projectUrls) {
+                        hookHandlers.handleDeleteUrl(project.id, urlItem.url)
+                        await new Promise(resolve => setTimeout(resolve, 10))
+                      }
+                    }
+                  }
+                : undefined
+            }
+            onManage={() => setIsManagementModalOpen(true)}
+            onConfirmOpenAll={projectUrlCount >= 10}
+            onConfirmDeleteAll={settings.confirmDeleteAll}
+            openAllThreshold={10}
+            itemName='すべてのURL'
+            warningMessage='プロジェクト内のすべてのURLを削除します。この操作は元に戻せません。'
+          />
+        </CardHeader>
+        <CardContent className='overflow-x-hidden'>
           {/* プロジェクト間ドラッグ中の表示 */}
           {isExternalItemOver && (
             <div className='mb-4 rounded border-2 border-primary border-dashed bg-primary/10 p-4 text-center font-medium'>
@@ -233,6 +264,13 @@ export const ProjectCardRoot = ({
           )}
         </CardContent>
       </Card>
+      <ProjectManagementModal
+        isOpen={isManagementModalOpen}
+        onClose={() => setIsManagementModalOpen(false)}
+        project={project}
+        onRenameProject={handlers.handleRenameProject}
+        onDeleteProject={handlers.handleDeleteProject}
+      />
     </ProjectCardContext>
   )
 }
