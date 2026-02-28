@@ -36,11 +36,11 @@ const getGlobalChromeRuntime = (): ChromeRuntime | null => {
 
 const loadWebExtensionBrowserApi = async (): Promise<BrowserApi | null> => {
   if (!browserApiPromise) {
-    browserApiPromise = import('webextension-polyfill')
-      .then((mod: BrowserModule) => mod.default ?? null)
-      .catch(() => null)
+    browserApiPromise = import('webextension-polyfill').then(
+      (mod: BrowserModule) => mod.default as BrowserApi | null,
+    )
   }
-  return browserApiPromise
+  return await browserApiPromise
 }
 
 const sendWithChromeRuntime = async (
@@ -65,7 +65,12 @@ export const sendRuntimeMessage = async (
     return await browserApi.runtime.sendMessage(message)
   }
 
-  const polyfillBrowserApi = await loadWebExtensionBrowserApi()
+  let polyfillBrowserApi: BrowserApi | null = null
+  try {
+    polyfillBrowserApi = await loadWebExtensionBrowserApi()
+  } catch {
+    polyfillBrowserApi = null
+  }
   if (polyfillBrowserApi?.runtime?.sendMessage) {
     try {
       return await polyfillBrowserApi.runtime.sendMessage(message)

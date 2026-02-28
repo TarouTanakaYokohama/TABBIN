@@ -6,8 +6,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-/** CollapseToggle の props */
-interface CollapseToggleProps {
+/** CardCollapseControl の props */
+interface CardCollapseControlProps {
   /** 折りたたみ状態 */
   isCollapsed: boolean
   /** 折りたたみ状態を設定する関数 */
@@ -22,16 +22,15 @@ interface CollapseToggleProps {
 
 /**
  * 折りたたみ切り替えトグルボタン
- * DomainCard と CategoryGroup で共通利用される
- * @param props CollapseToggleProps
+ * @param props CardCollapseControlProps
  */
-export const CollapseToggle = ({
+export const CardCollapseControl = ({
   isCollapsed,
   setIsCollapsed,
   setUserCollapsedState,
   isDisabled = false,
   disabledMessage = '並び替えモード中',
-}: CollapseToggleProps) => {
+}: CardCollapseControlProps) => {
   let tooltipLabel = disabledMessage
   if (!isDisabled) {
     tooltipLabel = isCollapsed ? '展開' : '折りたたむ'
@@ -45,11 +44,9 @@ export const CollapseToggle = ({
           size='sm'
           onClick={e => {
             e.stopPropagation()
-            if (!isDisabled) {
-              const newState = !isCollapsed
-              setIsCollapsed(newState)
-              setUserCollapsedState(newState)
-            }
+            const newState = !isCollapsed
+            setIsCollapsed(newState)
+            setUserCollapsedState(newState)
           }}
           className={`flex items-center gap-1 ${
             isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'

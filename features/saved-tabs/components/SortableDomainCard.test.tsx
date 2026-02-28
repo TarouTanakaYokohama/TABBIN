@@ -21,24 +21,18 @@ vi.mock('./domain-card/DomainCardHeader', () => ({
   ),
 }))
 
-vi.mock('./domain-card/DomainCardCollapseButton', () => ({
-  DomainCardCollapseButton: () => (
+vi.mock('./domain-card/DomainCardControls', () => ({
+  DomainCardCollapseControl: () => (
     <div data-testid='domain-card-collapse-button' />
   ),
-}))
-
-vi.mock('./domain-card/DomainCardSortButton', () => ({
-  DomainCardSortButton: () => <div data-testid='domain-card-sort-button' />,
+  DomainCardSortControl: () => <div data-testid='domain-card-sort-button' />,
+  DomainCardReorderControl: () => (
+    <div data-testid='domain-card-reorder-controls' />
+  ),
 }))
 
 vi.mock('./domain-card/DomainCardTitle', () => ({
   DomainCardTitle: () => <div data-testid='domain-card-title' />,
-}))
-
-vi.mock('./domain-card/DomainCardReorderControls', () => ({
-  DomainCardReorderControls: () => (
-    <div data-testid='domain-card-reorder-controls' />
-  ),
 }))
 
 vi.mock('./domain-card/DomainCardActions', () => ({

@@ -61,4 +61,16 @@ describe('sendRuntimeMessage の追加分岐', () => {
 
     expect(response).toBeUndefined()
   })
+
+  it('polyfill が default export を返さない場合は undefined を返す', async () => {
+    vi.doMock('webextension-polyfill', () => ({}))
+
+    globalWithApis.browser = undefined
+    globalWithApis.chrome = undefined
+
+    const { sendRuntimeMessage } = await import('./runtime')
+    const response = await sendRuntimeMessage({ action: 'noop' })
+
+    expect(response).toBeUndefined()
+  })
 })
