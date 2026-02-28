@@ -27,6 +27,7 @@ interface HeaderProps {
   onSearchChange: (query: string) => void
   onOpenFilter?: () => void
   customProjects: CustomProject[]
+  filteredCustomProjects?: CustomProject[]
   onCreateProject: (name: string) => void
 }
 
@@ -38,6 +39,7 @@ export const Header = ({
   searchQuery,
   onSearchChange,
   customProjects = [],
+  filteredCustomProjects,
   onCreateProject = () => {},
 }: HeaderProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -45,7 +47,8 @@ export const Header = ({
     useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const groupsForDisplay = filteredTabGroups || tabGroups
-  const tabCount = groupsForDisplay.reduce((sum, group) => {
+  const customGroupsForDisplay = filteredCustomProjects || customProjects
+  const domainTabCount = groupsForDisplay.reduce((sum, group) => {
     if (group.urls) {
       return sum + group.urls.length
     }
@@ -54,6 +57,18 @@ export const Header = ({
     }
     return sum
   }, 0)
+
+  const customTabCount = customGroupsForDisplay.reduce((sum, project) => {
+    if (project.urls) {
+      return sum + project.urls.length
+    }
+    if (project.urlIds) {
+      return sum + project.urlIds.length
+    }
+    return sum
+  }, 0)
+
+  const tabCount = currentMode === 'custom' ? customTabCount : domainTabCount
   const handleCustomProjectEnter = (
     event: React.KeyboardEvent<HTMLInputElement>,
   ) => {
@@ -176,7 +191,11 @@ export const Header = ({
         </Tooltip>
         <div className='space-x-4 text-muted-foreground text-sm'>
           <p>タブ:{tabCount}</p>
-          <p>ドメイン:{groupsForDisplay.length}</p>
+          {currentMode === 'custom' ? (
+            <p>プロジェクト:{customGroupsForDisplay.length}</p>
+          ) : (
+            <p>ドメイン:{groupsForDisplay.length}</p>
+          )}
         </div>
       </div>
 
