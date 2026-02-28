@@ -4,6 +4,7 @@ import {
   saveDomainCategorySettings,
 } from './categories'
 import { migrateToUrlsStorage } from './migration'
+import { removeUrlFromAllCustomProjects } from './projects'
 import { createOrUpdateUrlRecord, getUrlRecordsByIds } from './urls'
 
 /**
@@ -441,6 +442,16 @@ const removeUrlFromTabGroup = async (
         savedTabs,
       })
       console.log(`URL ${url} をグループ ${groupId} から削除しました`)
+
+      // 同期してカスタムプロジェクトからも削除
+      try {
+        await removeUrlFromAllCustomProjects(url)
+      } catch (error) {
+        console.error(
+          'カスタムプロジェクトからのURL同期削除に失敗しました:',
+          error,
+        )
+      }
     }
   }
 }

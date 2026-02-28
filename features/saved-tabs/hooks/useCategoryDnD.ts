@@ -97,6 +97,14 @@ export const useCategoryDnD = () => {
     },
   ) => {
     const { over } = event
+
+    // 他のプロジェクト上のドラッグであれば、ハイライトを解除する
+    const overProjectId = over?.data?.current?.projectId
+    if (overProjectId && overProjectId !== project.id) {
+      setDraggedOverCategory(null)
+      return
+    }
+
     const nextCategoryName = isUncategorizedDrop(over, project.id)
       ? null
       : resolveOverCategoryName(over)

@@ -453,6 +453,7 @@ export const useCustomProjectCard = ({
       handleUrlDragEnd,
       handleCategoryDragEnd,
       collisionDetectionStrategy,
+      resetDnD,
     },
     /** カテゴリ表示順 */
     categoryOrder,
