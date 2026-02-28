@@ -1,5 +1,5 @@
 import type { CollisionDetection, DragEndEvent } from '@dnd-kit/core'
-import { closestCenter, pointerWithin, rectIntersection } from '@dnd-kit/core'
+import { closestCenter } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import {
   type Dispatch,
@@ -108,45 +108,6 @@ type UrlToUrlDropResult =
       kind: 'moved'
       overCategory: string | undefined
     }
-const detectUrlDragCollisions = (
-  args: Parameters<CollisionDetection>[0],
-): ReturnType<CollisionDetection> => {
-  const pointerCollisions = pointerWithin(args)
-  if (pointerCollisions.length > 0) {
-    return pointerCollisions
-  }
-  const intersections = rectIntersection(args)
-  if (intersections.length > 0) {
-    return intersections
-  }
-  return closestCenter(args)
-}
-const detectCategoryDragCollisions = (
-  args: Parameters<CollisionDetection>[0],
-  uncategorizedId: string,
-): ReturnType<CollisionDetection> => {
-  const pointerCollisions = pointerWithin(args)
-  const uncategorizedPointer = pointerCollisions.find(
-    collision => collision.id === uncategorizedId,
-  )
-  if (uncategorizedPointer) {
-    return [uncategorizedPointer]
-  }
-  const intersections = rectIntersection(args)
-  const uncategorizedRect = intersections.find(
-    collision => collision.id === uncategorizedId,
-  )
-  if (uncategorizedRect) {
-    return [uncategorizedRect]
-  }
-  if (intersections.length > 0) {
-    return intersections
-  }
-  if (pointerCollisions.length > 0) {
-    return pointerCollisions
-  }
-  return closestCenter(args)
-}
 const shouldMoveToUncategorized = (params: {
   event: DragEndEvent
   isUncategorizedOver: boolean
@@ -363,19 +324,12 @@ export const useCustomProjectCard = ({
       }
     }
     loadProjectUrls()
-  }, [project])
+  }, [project.id, project.updatedAt])
 
   // --- 衝突検出ストラテジー ---
   const collisionDetectionStrategy: CollisionDetection = useCallback(
-    args => {
-      const { active } = args
-      if (active.data.current?.type === 'url') {
-        return detectUrlDragCollisions(args)
-      }
-      const uncategorizedId = `uncategorized-${project.id}`
-      return detectCategoryDragCollisions(args, uncategorizedId)
-    },
-    [project.id],
+    args => closestCenter(args),
+    [],
   )
 
   // --- URLドラッグ終了時 ---

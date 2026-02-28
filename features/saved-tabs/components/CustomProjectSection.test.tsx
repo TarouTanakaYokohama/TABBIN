@@ -32,6 +32,8 @@ const { dndContextPropsRef, customProjectCardSpy, arrayMoveMock } = vi.hoisted(
 
 vi.mock('@dnd-kit/core', () => ({
   closestCenter: 'closestCenter',
+  KeyboardSensor: vi.fn(),
+  PointerSensor: vi.fn(),
   DndContext: ({
     children,
     onDragStart,
@@ -49,6 +51,8 @@ vi.mock('@dnd-kit/core', () => ({
   DragOverlay: ({ children }: { children: React.ReactNode }) => (
     <div data-testid='drag-overlay'>{children}</div>
   ),
+  useSensor: vi.fn(() => 'sensor'),
+  useSensors: vi.fn(() => ['sensor']),
 }))
 
 vi.mock('@dnd-kit/sortable', () => ({
@@ -56,6 +60,7 @@ vi.mock('@dnd-kit/sortable', () => ({
   SortableContext: ({ children }: { children: React.ReactNode }) => (
     <div data-testid='sortable-context'>{children}</div>
   ),
+  sortableKeyboardCoordinates: vi.fn(),
   verticalListSortingStrategy: 'verticalListSortingStrategy',
 }))
 
@@ -64,6 +69,7 @@ vi.mock('./CustomProjectCard', () => ({
     project: { id: string; name: string }
     draggedItem?: { url: string; projectId: string; title: string } | null
     isDropTarget?: boolean
+    isProjectReorderMode?: boolean
   }) => {
     customProjectCardSpy(props)
     return (
@@ -71,6 +77,9 @@ vi.mock('./CustomProjectCard', () => ({
         data-testid={`project-card-${props.project.id}`}
         data-drop-target={props.isDropTarget ? 'true' : 'false'}
         data-dragged-item={props.draggedItem ? props.draggedItem.url : ''}
+        data-project-reorder-mode={
+          props.isProjectReorderMode ? 'true' : 'false'
+        }
       >
         {props.project.name}
       </div>
@@ -191,7 +200,7 @@ describe('CustomProjectSection', () => {
     render(<CustomProjectSection {...createProps({ projects: [] })} />)
 
     expect(screen.getByText('プロジェクトがありません')).toBeTruthy()
-    expect(screen.getByText(/デフォルトプロジェクトが必要です/)).toBeTruthy()
+    expect(screen.getByText(/表示可能なプロジェクトがありません/)).toBeTruthy()
     expect(screen.queryByTestId('dnd-context')).toBeNull()
   })
 
@@ -360,16 +369,16 @@ describe('CustomProjectSection', () => {
       })
     })
 
-    expect(screen.getByText('URL A')).toBeTruthy()
+    expect(screen.queryByText('URL A')).toBeNull()
     expect(
       screen
         .getByTestId('project-card-project-1')
         .getAttribute('data-dragged-item'),
-    ).toBe('https://a.com')
+    ).toBe('')
 
     await act(async () => {
       dndContextPropsRef.current.onDragOver?.({
-        active: { data: { current: { type: 'url' } } },
+        active: { data: { current: { type: 'url', projectId: 'project-1' } } },
         over: { data: { current: { projectId: 'project-1' } } },
       })
     })
@@ -381,7 +390,7 @@ describe('CustomProjectSection', () => {
 
     await act(async () => {
       dndContextPropsRef.current.onDragOver?.({
-        active: { data: { current: { type: 'url' } } },
+        active: { data: { current: { type: 'url', projectId: 'project-1' } } },
         over: { data: { current: { projectId: 'project-2' } } },
       })
     })
@@ -408,12 +417,131 @@ describe('CustomProjectSection', () => {
       'project-2',
       'https://a.com',
     )
-    expect(screen.queryByText('URL A')).toBeNull()
     expect(
       screen
         .getByTestId('project-card-project-2')
         .getAttribute('data-drop-target'),
     ).toBe('false')
+  })
+
+  it('ドロップ先 type が project 以外でも projectId があればプロジェクト間移動する', async () => {
+    const handleMoveUrlBetweenProjects = vi.fn()
+    render(
+      <CustomProjectSection
+        {...createProps({
+          handleMoveUrlBetweenProjects,
+        })}
+      />,
+    )
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragEnd?.({
+        active: {
+          id: 'https://from-uncategorized.com',
+          data: {
+            current: { type: 'url', projectId: 'custom-uncategorized' },
+          },
+        },
+        over: {
+          data: { current: { type: 'url', projectId: 'project-2' } },
+        },
+      })
+    })
+
+    expect(handleMoveUrlBetweenProjects).toHaveBeenCalledWith(
+      'custom-uncategorized',
+      'project-2',
+      'https://from-uncategorized.com',
+    )
+  })
+
+  it('ドロップ先 data に projectId がない場合は over.id からターゲットを解決する', async () => {
+    const handleMoveUrlBetweenProjects = vi.fn()
+    render(
+      <CustomProjectSection
+        {...createProps({
+          handleMoveUrlBetweenProjects,
+        })}
+      />,
+    )
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragEnd?.({
+        active: {
+          id: 'https://fallback-project.com',
+          data: { current: { type: 'url', projectId: 'custom-uncategorized' } },
+        },
+        over: {
+          id: 'project-project-2',
+          data: { current: {} },
+        },
+      })
+    })
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragEnd?.({
+        active: {
+          id: 'https://fallback-uncategorized.com',
+          data: { current: { type: 'url', projectId: 'project-1' } },
+        },
+        over: {
+          id: 'uncategorized-project-2',
+          data: { current: {} },
+        },
+      })
+    })
+
+    expect(handleMoveUrlBetweenProjects).toHaveBeenNthCalledWith(
+      1,
+      'custom-uncategorized',
+      'project-2',
+      'https://fallback-project.com',
+    )
+    expect(handleMoveUrlBetweenProjects).toHaveBeenNthCalledWith(
+      2,
+      'project-1',
+      'project-2',
+      'https://fallback-uncategorized.com',
+    )
+  })
+
+  it('over.id が文字列以外・未対応文字列なら移動しない', async () => {
+    const handleMoveUrlBetweenProjects = vi.fn()
+    render(
+      <CustomProjectSection
+        {...createProps({
+          handleMoveUrlBetweenProjects,
+        })}
+      />,
+    )
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragEnd?.({
+        active: {
+          id: 'https://invalid-over-id.com',
+          data: { current: { type: 'url', projectId: 'project-1' } },
+        },
+        over: {
+          id: 123,
+          data: { current: {} },
+        },
+      })
+    })
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragEnd?.({
+        active: {
+          id: 'https://unknown-over-id.com',
+          data: { current: { type: 'url', projectId: 'project-1' } },
+        },
+        over: {
+          id: 'category-drop',
+          data: { current: {} },
+        },
+      })
+    })
+
+    expect(handleMoveUrlBetweenProjects).not.toHaveBeenCalled()
   })
 
   it('プロジェクトドラッグの順序変更を処理し、無効ケースでは何もしない', () => {
@@ -435,6 +563,11 @@ describe('CustomProjectSection', () => {
     })
     expect(screen.getAllByText('Project One').length).toBe(2)
     expect(screen.getByText('Desc 1')).toBeTruthy()
+    expect(
+      screen
+        .getByTestId('project-card-project-1')
+        .getAttribute('data-project-reorder-mode'),
+    ).toBe('true')
 
     act(() => {
       dndContextPropsRef.current.onDragEnd?.({
@@ -451,6 +584,11 @@ describe('CustomProjectSection', () => {
       'project-2',
       'project-1',
     ])
+    expect(
+      screen
+        .getByTestId('project-card-project-1')
+        .getAttribute('data-project-reorder-mode'),
+    ).toBe('false')
 
     act(() => {
       dndContextPropsRef.current.onDragEnd?.({

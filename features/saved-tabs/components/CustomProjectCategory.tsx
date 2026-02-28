@@ -16,7 +16,7 @@ import {
   Settings,
   Trash2,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -126,6 +126,7 @@ interface CategoryHeaderMainProps {
   listeners: ReturnType<typeof useSortable>['listeners']
   category: string
   isCollapsed: boolean
+  isCollapseDisabled: boolean
   sortOrder: SortOrder
   urlCount: number
   onToggleCollapse: (event: React.MouseEvent) => void
@@ -137,6 +138,7 @@ const CategoryHeaderMain = ({
   listeners,
   category,
   isCollapsed,
+  isCollapseDisabled,
   sortOrder,
   urlCount,
   onToggleCollapse,
@@ -159,8 +161,13 @@ const CategoryHeaderMain = ({
             size='sm'
             onPointerDown={event => event.stopPropagation()}
             onClick={onToggleCollapse}
-            className='flex cursor-pointer items-center gap-1'
+            className={`flex items-center gap-1 ${
+              isCollapseDisabled
+                ? 'cursor-not-allowed opacity-50'
+                : 'cursor-pointer'
+            }`}
             aria-label={collapseLabel}
+            disabled={isCollapseDisabled}
           >
             {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
           </Button>
@@ -544,7 +551,7 @@ const CategoryBulkConfirmDialogs = ({
   </>
 )
 
-export const CustomProjectCategory = ({
+const CustomProjectCategoryComponent = ({
   projectId,
   category,
   urls,
@@ -584,22 +591,13 @@ export const CustomProjectCategory = ({
     },
   })
 
-  const setRefs = useCallback(
-    (node: HTMLElement | null) => {
-      setNodeRef(node)
-      setDroppableRef(node)
-    },
-    [setNodeRef, setDroppableRef],
-  )
-
-  const categoryUrls = useMemo(
-    () => (urls || []).filter(item => item.category === category),
-    [urls, category],
-  )
-
-  const [localCategoryUrls, setLocalCategoryUrls] = useState(categoryUrls)
   const [sortOrder, setSortOrder] = useState<SortOrder>('default')
+  const sortedCategoryUrls = useMemo(
+    () => sortCategoryUrls(urls || [], sortOrder),
+    [urls, sortOrder],
+  )
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [userCollapsedState, setUserCollapsedState] = useState(false)
   const [showManageDialog, setShowManageDialog] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState(category)
   const [renameError, setRenameError] = useState<string | null>(null)
@@ -608,12 +606,16 @@ export const CustomProjectCategory = ({
   const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false)
 
   useEffect(() => {
-    setLocalCategoryUrls(sortCategoryUrls(categoryUrls, sortOrder))
-  }, [categoryUrls, sortOrder])
-
-  useEffect(() => {
     setNewCategoryName(category)
   }, [category])
+
+  useEffect(() => {
+    if (isDraggingCategory || isCategoryReorder) {
+      setIsCollapsed(true)
+      return
+    }
+    setIsCollapsed(userCollapsedState)
+  }, [isDraggingCategory, isCategoryReorder, userCollapsedState])
 
   const isDropTarget = isHighlighted || isOver
   const isSelfDragging = isDraggingCategory && draggedCategoryName === category
@@ -640,11 +642,14 @@ export const CustomProjectCategory = ({
   const showManageActions = Boolean(
     handleRenameCategory || handleDeleteCategory,
   )
-  const showBulkActions = localCategoryUrls.length > 0
+  const showBulkActions = sortedCategoryUrls.length > 0
+  const isCollapseDisabled = isDraggingCategory || isCategoryReorder
 
   const handleToggleCollapse = (event: React.MouseEvent) => {
     event.stopPropagation()
-    setIsCollapsed(prev => !prev)
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
+    setUserCollapsedState(newState)
   }
 
   const handleToggleSort = (event: React.MouseEvent) => {
@@ -654,23 +659,22 @@ export const CustomProjectCategory = ({
 
   const handleOpenAllUrlsConfirmed = () => {
     if (handleOpenAllUrls) {
-      handleOpenAllUrls(localCategoryUrls)
+      handleOpenAllUrls(sortedCategoryUrls)
       return
     }
-    for (const item of localCategoryUrls) {
+    for (const item of sortedCategoryUrls) {
       window.open(item.url, '_blank', 'noopener,noreferrer')
     }
   }
 
   const handleDeleteAllUrlsConfirmed = async () => {
-    setLocalCategoryUrls([])
-    for (const item of localCategoryUrls) {
+    for (const item of sortedCategoryUrls) {
       await handleDeleteUrl(projectId, item.url)
     }
   }
 
   const handleOpenAllClick = () => {
-    if (shouldConfirmBulkOpen(localCategoryUrls.length)) {
+    if (shouldConfirmBulkOpen(sortedCategoryUrls.length)) {
       setIsOpenAllConfirmOpen(true)
       return
     }
@@ -708,7 +712,7 @@ export const CustomProjectCategory = ({
   return (
     <>
       <Card
-        ref={setRefs}
+        ref={setNodeRef}
         style={cardStyle}
         className={cardClassName}
         id={categoryDropId}
@@ -727,8 +731,9 @@ export const CustomProjectCategory = ({
             listeners={listeners}
             category={category}
             isCollapsed={isCollapsed}
+            isCollapseDisabled={isCollapseDisabled}
             sortOrder={sortOrder}
-            urlCount={localCategoryUrls.length}
+            urlCount={sortedCategoryUrls.length}
             onToggleCollapse={handleToggleCollapse}
             onToggleSort={handleToggleSort}
           />
@@ -745,7 +750,7 @@ export const CustomProjectCategory = ({
 
         {!isCollapsed && (
           <CategoryContent
-            urls={localCategoryUrls}
+            urls={sortedCategoryUrls}
             isOver={isOver}
             isDropTarget={isDropTarget}
             isReorderTarget={isReorderTarget}
@@ -787,3 +792,8 @@ export const CustomProjectCategory = ({
     </>
   )
 }
+
+const CustomProjectCategory = memo(CustomProjectCategoryComponent)
+CustomProjectCategory.displayName = 'CustomProjectCategory'
+
+export { CustomProjectCategory }

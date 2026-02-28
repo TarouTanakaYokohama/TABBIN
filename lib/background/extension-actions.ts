@@ -3,14 +3,70 @@
  */
 
 import { saveTabsWithAutoCategory } from '@/lib/storage/migration'
-import {
-  addUrlToCustomProject,
-  createCustomProject,
-  getCustomProjects,
-} from '@/lib/storage/projects'
+import { addUrlsToUncategorizedProject } from '@/lib/storage/projects'
 import { getUserSettings } from '@/lib/storage/settings'
 import { openSavedTabsPage } from './saved-tabs-page'
 import { filterTabsByUserSettings, showNotification } from './utils'
+
+const getAllTabsAcrossWindows = async (): Promise<chrome.tabs.Tab[]> => {
+  if (!chrome.windows?.getAll) {
+    return chrome.tabs.query({})
+  }
+
+  try {
+    const windows = await chrome.windows.getAll({
+      populate: true,
+    })
+    const tabs = windows.flatMap(window => window.tabs ?? [])
+    if (tabs.length > 0) {
+      return tabs
+    }
+  } catch (error) {
+    console.warn(
+      'windows.getAll で全タブ取得に失敗したため tabs.query にフォールバックします',
+      error,
+    )
+  }
+
+  return chrome.tabs.query({})
+}
+
+const toSavedTabItems = (
+  tabs: Array<{
+    url?: string
+    title?: string
+  }>,
+): Array<{
+  url: string
+  title: string
+}> => {
+  return tabs
+    .filter(tab => typeof tab.url === 'string' && tab.url.length > 0)
+    .map(tab => ({
+      url: tab.url as string,
+      title: tab.title || '',
+    }))
+}
+
+const syncSavedTabsToCustomMode = async (
+  tabs: Array<{
+    url?: string
+    title?: string
+  }>,
+): Promise<void> => {
+  const savedTabItems = toSavedTabItems(tabs)
+  if (savedTabItems.length === 0) {
+    return
+  }
+  try {
+    await addUrlsToUncategorizedProject(savedTabItems)
+  } catch (error) {
+    console.error(
+      'カスタムモード未分類プロジェクトへの同期に失敗しました:',
+      error,
+    )
+  }
+}
 
 /**
  * ブラウザアクション（拡張機能アイコン）クリック時の処理
@@ -25,31 +81,22 @@ export const handleExtensionActionClick = async (): Promise<void> => {
     const clickBehavior = settings.clickBehavior || 'saveWindowTabs'
     console.log(`選択されたクリック挙動: ${clickBehavior}`)
 
-    // 保存したTabsとURLsを追跡するための配列（カスタムプロジェクト同期用）
-    let savedUrls: {
-      url: string
-      title: string
-    }[] = []
-
     // 選択された挙動に基づいて処理を実行
     switch (clickBehavior) {
       case 'saveCurrentTab':
-        savedUrls = await handleSaveCurrentTab()
+        await handleSaveCurrentTab()
         break
       case 'saveSameDomainTabs':
-        savedUrls = await handleSaveSameDomainTabs()
+        await handleSaveSameDomainTabs()
         break
       case 'saveAllWindowsTabs':
-        savedUrls = await handleSaveAllWindowsTabs()
+        await handleSaveAllWindowsTabs()
         break
       default:
         // 既存の処理: 現在のウィンドウのタブをすべて保存（saveWindowTabsを含む）
-        savedUrls = await handleSaveWindowTabs()
+        await handleSaveWindowTabs()
         break
     }
-
-    // カスタムプロジェクトのデフォルトプロジェクトにも同期保存（背景で処理）
-    await syncToCustomProjects(savedUrls)
   } catch (error: unknown) {
     console.error(
       'エラーが発生しました:',
@@ -85,6 +132,7 @@ export const handleSaveCurrentTab = async (): Promise<
 
   // タブを保存
   await saveTabsWithAutoCategory([activeTab])
+  await syncSavedTabsToCustomMode([activeTab])
 
   // 通知表示
   await showNotification('タブ保存', '現在のタブを保存しました')
@@ -156,6 +204,7 @@ export const handleSaveSameDomainTabs = async (): Promise<
 
     // タブを保存
     await saveTabsWithAutoCategory(filteredTabs)
+    await syncSavedTabsToCustomMode(filteredTabs)
     const [settings] = await Promise.all([
       getUserSettings(),
       showNotification(
@@ -202,7 +251,7 @@ export const handleSaveAllWindowsTabs = async (): Promise<
 > => {
   try {
     // すべてのウィンドウのタブを取得
-    const allTabs = await chrome.tabs.query({})
+    const allTabs = await getAllTabsAcrossWindows()
     console.log(`取得したすべてのタブ数: ${allTabs.length}`)
 
     // タブをフィルタリング（固定タブと除外パターンを除外）
@@ -217,6 +266,7 @@ export const handleSaveAllWindowsTabs = async (): Promise<
 
     // タブを保存
     await saveTabsWithAutoCategory(filteredTabs)
+    await syncSavedTabsToCustomMode(filteredTabs)
     const [, savedTabsTabId] = await Promise.all([
       showNotification(
         'タブ保存',
@@ -274,6 +324,7 @@ export const handleSaveWindowTabs = async (): Promise<
 
   // タブを保存して自動カテゴライズする
   await saveTabsWithAutoCategory(filteredTabs)
+  await syncSavedTabsToCustomMode(filteredTabs)
   console.log('タブの保存と自動カテゴライズが完了しました')
   const [savedTabsTabId, settings] = await Promise.all([
     openSavedTabsPage(),
@@ -317,52 +368,4 @@ export const handleSaveWindowTabs = async (): Promise<
     url: tab.url as string,
     title: tab.title || '',
   }))
-}
-/**
- * カスタムプロジェクトに同期保存（新形式対応）
- */
-export const syncToCustomProjects = async (
-  savedUrls: {
-    url: string
-    title: string
-  }[],
-): Promise<void> => {
-  try {
-    // 新形式でカスタムプロジェクトを取得
-    const customProjects = await getCustomProjects()
-
-    // プロジェクトが存在しなければデフォルトプロジェクトを作成
-    if (customProjects.length === 0) {
-      console.log(
-        'カスタムプロジェクトが存在しないため、デフォルトプロジェクトを作成します',
-      )
-
-      // 新形式でデフォルトプロジェクトを作成
-      const defaultProject = await createCustomProject(
-        'デフォルトプロジェクト',
-        '自動的に作成されたプロジェクト',
-      )
-
-      // URLsを新形式で追加
-      for (const item of savedUrls) {
-        await addUrlToCustomProject(defaultProject.id, item.url, item.title)
-      }
-      console.log('デフォルトプロジェクトを作成し、URLを追加しました')
-    } else {
-      // 最初のプロジェクトに追加
-      const firstProject = customProjects[0]
-      console.log(`既存プロジェクト「${firstProject.name}」にURLを追加します`)
-
-      // 新形式でURLを追加（重複チェックは addUrlToCustomProject 内で実行）
-      for (const item of savedUrls) {
-        await addUrlToCustomProject(firstProject.id, item.url, item.title)
-      }
-      console.log('既存プロジェクトにURLを追加しました')
-    }
-  } catch (syncError) {
-    console.error(
-      'カスタムプロジェクトへの同期中にエラーが発生しました:',
-      syncError,
-    )
-  }
 }

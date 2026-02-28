@@ -188,7 +188,6 @@ const defaultSettings: UserSettings = {
 const baseUrls = [
   { url: 'https://b.com', title: 'B', category: 'Work', savedAt: 2 },
   { url: 'https://a.com', title: 'A', category: 'Work', savedAt: 1 },
-  { url: 'https://x.com', title: 'X', category: 'Other', savedAt: 3 },
   { url: 'https://c.com', title: 'C', category: 'Work' },
 ]
 
@@ -284,7 +283,45 @@ describe('CustomProjectCategory', () => {
     await waitFor(() => {
       expect(handleDeleteUrl).toHaveBeenCalledTimes(3)
     })
-    expect(screen.queryByTestId('project-url-item')).toBeNull()
+    expect(screen.getAllByTestId('project-url-item').length).toBe(3)
+  })
+
+  it('カテゴリ並び替え中は自動で折りたたみ、終了後にユーザー状態へ戻す', () => {
+    const { rerender } = render(<CustomProjectCategory {...createProps()} />)
+
+    expect(screen.getByTestId('card-content')).toBeTruthy()
+
+    rerender(
+      <CustomProjectCategory
+        {...createProps({
+          isDraggingCategory: true,
+          isCategoryReorder: true,
+          draggedCategoryName: 'Other',
+        })}
+      />,
+    )
+
+    expect(screen.queryByTestId('card-content')).toBeNull()
+    expect(
+      (screen.getByRole('button', { name: '展開' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true)
+
+    rerender(
+      <CustomProjectCategory
+        {...createProps({
+          isDraggingCategory: false,
+          isCategoryReorder: false,
+          draggedCategoryName: null,
+        })}
+      />,
+    )
+
+    expect(screen.getByTestId('card-content')).toBeTruthy()
+    expect(
+      (screen.getByRole('button', { name: '折りたたむ' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false)
   })
 
   it('10件以上の一括開く確認ダイアログで handleOpenAllUrls 未指定時は window.open にフォールバックする', async () => {
@@ -390,7 +427,7 @@ describe('CustomProjectCategory', () => {
     const { rerender } = render(
       <CustomProjectCategory
         {...createProps({
-          urls: [{ url: 'https://other.com', title: 'O', category: 'Other' }],
+          urls: [],
           handleRenameCategory: undefined,
           handleDeleteCategory: undefined,
         })}
@@ -424,7 +461,7 @@ describe('CustomProjectCategory', () => {
       />,
     )
     expect(screen.getByText('順序を変更')).toBeTruthy()
-    expect(screen.getByText('カテゴリの順序を変更')).toBeTruthy()
+    expect(screen.queryByTestId('card-content')).toBeNull()
   })
 
   it('urls 未指定フォールバック・self dragging・空状態の isOver スタイルを反映する', () => {
@@ -445,13 +482,37 @@ describe('CustomProjectCategory', () => {
 
     const card = screen.getByTestId('card')
     expect(card.className.includes('opacity-50')).toBe(true)
+    expect(screen.queryByTestId('card-content')).toBeNull()
+    expect(
+      (screen.getByRole('button', { name: '展開' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true)
 
-    const emptyState = screen.getByText(
-      'ここにドロップしてカテゴリに追加',
-    ) as HTMLDivElement
+    useDroppableMock.mockReturnValueOnce({
+      setNodeRef: vi.fn(),
+      isOver: true,
+    })
+
+    cleanup()
+
+    render(
+      <CustomProjectCategory
+        {...createProps({
+          urls: undefined as unknown as typeof baseUrls,
+          isDraggingCategory: false,
+          draggedCategoryName: null,
+        })}
+      />,
+    )
+
+    const emptyState = screen.getByText('ここにドロップしてカテゴリに追加')
     expect(emptyState).toBeTruthy()
-    expect(emptyState.className.includes('border-primary')).toBe(true)
-    expect(emptyState.className.includes('bg-primary/10')).toBe(true)
+    expect(
+      (emptyState as HTMLDivElement).className.includes('border-primary'),
+    ).toBe(true)
+    expect(
+      (emptyState as HTMLDivElement).className.includes('bg-primary/10'),
+    ).toBe(true)
   })
 
   it('savedAt 未指定のソートと、管理ダイアログの未設定ハンドラ/イベント分岐を処理する', () => {

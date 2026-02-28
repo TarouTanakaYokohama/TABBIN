@@ -134,7 +134,7 @@ const createProps = (
   searchQuery: '',
   onSearchChange: vi.fn(),
   customProjects: createCustomProjects(),
-  onAddCategory: vi.fn(),
+  onCreateProject: vi.fn(),
   ...overrides,
 })
 
@@ -193,6 +193,28 @@ describe('Header', () => {
     expect(screen.getByText('ドメイン:1')).toBeTruthy()
   })
 
+  it('urlIds のみを持つグループでもタブ件数を表示できる', () => {
+    const filtered = [
+      {
+        id: 'custom-project-1',
+        domain: 'Project A',
+        urlIds: ['url-1', 'url-2'],
+      },
+    ] as unknown as TabGroup[]
+
+    render(
+      <Header
+        {...createProps({
+          currentMode: 'custom',
+          filteredTabGroups: filtered,
+        })}
+      />,
+    )
+
+    expect(screen.getByText('タブ:2')).toBeTruthy()
+    expect(screen.getByText('ドメイン:1')).toBeTruthy()
+  })
+
   it('domain モードで親カテゴリ管理モーダルを開閉し ViewModeToggle を描画する', () => {
     render(<Header {...createProps()} />)
 
@@ -216,8 +238,8 @@ describe('Header', () => {
     expect(screen.queryByTestId('category-modal')).toBeNull()
   })
 
-  it('custom モードでカテゴリ追加ダイアログの Enter 分岐（空/重複/成功）を処理する', () => {
-    const onAddCategory = vi.fn()
+  it('custom モードでプロジェクト追加ダイアログの Enter 分岐（空/重複/成功）を処理する', () => {
+    const onCreateProject = vi.fn()
     const customProjects = createCustomProjects()
 
     render(
@@ -225,34 +247,84 @@ describe('Header', () => {
         {...createProps({
           currentMode: 'custom',
           customProjects,
-          onAddCategory,
+          onCreateProject,
         })}
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /カテゴリ追加/ }))
-    const input = screen.getByPlaceholderText(
-      '例: ツール、ライブラリ、ドキュメント',
+    fireEvent.click(screen.getByRole('button', { name: /プロジェクト追加/ }))
+    const input = screen.getByPlaceholderText('例: 仕事、調査、後で読む')
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(toastErrorSpy).toHaveBeenCalledWith(
+      'プロジェクト名を入力してください',
     )
 
+    fireEvent.change(input, { target: { value: 'Project A' } })
     fireEvent.keyDown(input, { key: 'Enter' })
-    expect(toastErrorSpy).toHaveBeenCalledWith('カテゴリ名を入力してください')
+    expect(toastErrorSpy).toHaveBeenCalledWith(
+      '同じプロジェクト名は追加できません',
+    )
 
-    fireEvent.change(input, { target: { value: '既存カテゴリ' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(toastErrorSpy).toHaveBeenCalledWith('同じカテゴリ名は追加できません')
-
-    fireEvent.change(input, { target: { value: '新カテゴリ' } })
+    fireEvent.change(input, { target: { value: '新プロジェクト' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
-    expect(onAddCategory).toHaveBeenCalledWith('project-1', '新カテゴリ')
+    expect(onCreateProject).toHaveBeenCalledTimes(1)
+    expect(onCreateProject).toHaveBeenCalledWith('新プロジェクト')
     expect(toastSuccessSpy).toHaveBeenCalledWith(
-      'カテゴリ「新カテゴリ」を追加しました',
+      'プロジェクト「新プロジェクト」を追加しました',
     )
     expect(screen.queryByTestId('dialog-content')).toBeNull()
   })
 
-  it('Dialog の onOpenChange で custom カテゴリダイアログを閉じる', () => {
+  it('IME 変換中の Enter ではプロジェクト追加しない', () => {
+    const onCreateProject = vi.fn()
+
+    render(
+      <Header
+        {...createProps({
+          currentMode: 'custom',
+          onCreateProject,
+        })}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /プロジェクト追加/ }))
+    const input = screen.getByPlaceholderText('例: 仕事、調査、後で読む')
+    fireEvent.change(input, { target: { value: '新プロジェクト' } })
+    fireEvent.keyDown(input, {
+      key: 'Enter',
+      isComposing: true,
+      keyCode: 229,
+    })
+
+    expect(onCreateProject).not.toHaveBeenCalled()
+    expect(toastSuccessSpy).not.toHaveBeenCalled()
+  })
+
+  it('customProjects が空でもプロジェクト追加できる', () => {
+    const onCreateProject = vi.fn()
+
+    render(
+      <Header
+        {...createProps({
+          currentMode: 'custom',
+          customProjects: [],
+          onCreateProject,
+        })}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /プロジェクト追加/ }))
+    const input = screen.getByPlaceholderText('例: 仕事、調査、後で読む')
+    fireEvent.change(input, { target: { value: '新プロジェクト' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(onCreateProject).toHaveBeenCalledTimes(1)
+    expect(onCreateProject).toHaveBeenCalledWith('新プロジェクト')
+  })
+
+  it('Dialog の onOpenChange で custom プロジェクトダイアログを閉じる', () => {
     render(
       <Header
         {...createProps({
@@ -261,14 +333,14 @@ describe('Header', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /カテゴリ追加/ }))
+    fireEvent.click(screen.getByRole('button', { name: /プロジェクト追加/ }))
     expect(screen.getByTestId('dialog-content')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'dialog-close' }))
     expect(screen.queryByTestId('dialog-content')).toBeNull()
   })
 
-  it('Enter 以外のキーでは追加せず、onAddCategory 未指定時のデフォルト関数でも成功分岐を通る', () => {
+  it('Enter 以外のキーでは追加せず、onCreateProject 未指定時のデフォルト関数でも成功分岐を通る', () => {
     render(
       <Header
         {...(createProps({
@@ -279,30 +351,23 @@ describe('Header', () => {
           ],
           filteredTabGroups: undefined,
         }) as React.ComponentProps<typeof Header>)}
-        onAddCategory={
-          undefined as unknown as (
-            projectId: string,
-            categoryName: string,
-          ) => void
-        }
+        onCreateProject={undefined as unknown as (name: string) => void}
       />,
     )
 
     expect(screen.getByText('タブ:0')).toBeTruthy()
     expect(screen.getByText('ドメイン:2')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: /カテゴリ追加/ }))
-    const input = screen.getByPlaceholderText(
-      '例: ツール、ライブラリ、ドキュメント',
-    )
+    fireEvent.click(screen.getByRole('button', { name: /プロジェクト追加/ }))
+    const input = screen.getByPlaceholderText('例: 仕事、調査、後で読む')
 
-    fireEvent.change(input, { target: { value: 'カテゴリX' } })
+    fireEvent.change(input, { target: { value: 'プロジェクトX' } })
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(toastSuccessSpy).not.toHaveBeenCalled()
 
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(toastSuccessSpy).toHaveBeenCalledWith(
-      'カテゴリ「カテゴリX」を追加しました',
+      'プロジェクト「プロジェクトX」を追加しました',
     )
     expect(screen.queryByTestId('dialog-content')).toBeNull()
   })
