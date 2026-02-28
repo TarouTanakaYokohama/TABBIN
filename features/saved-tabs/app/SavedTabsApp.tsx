@@ -1285,6 +1285,7 @@ const SavedTabsApp = () => {
           tabGroups={tabGroups}
           filteredTabGroups={headerFilteredTabGroups}
           customProjects={customProjectsForHeader}
+          filteredCustomProjects={filteredCustomProjects}
           onCreateProject={handleCreateProject}
           currentMode={viewMode}
           onModeChange={handleViewModeChange}
