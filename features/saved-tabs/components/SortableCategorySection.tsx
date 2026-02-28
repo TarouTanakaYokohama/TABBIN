@@ -291,7 +291,14 @@ export const SortableCategorySection = ({
               {displayedCategoryName}
             </h3>
             <span className='text-muted-foreground text-sm'>
-              <Badge variant='secondary'>{urlCount}</Badge>
+              <Tooltip>
+                <TooltipTrigger asChild={true}>
+                  <Badge variant='secondary'>{urlCount}</Badge>
+                </TooltipTrigger>
+                <TooltipContent side='top' className='block lg:hidden'>
+                  タブ数
+                </TooltipContent>
+              </Tooltip>
             </span>
           </div>
 
