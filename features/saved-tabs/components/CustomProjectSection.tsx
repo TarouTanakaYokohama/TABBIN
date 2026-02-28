@@ -6,7 +6,10 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,6 +24,13 @@ import { Textarea } from '@/components/ui/textarea'
 import type { CustomProject } from '@/types/storage'
 import type { CustomProjectSectionProps } from '../types/CustomProjectSection.types'
 import { CustomProjectCard } from './CustomProjectCard'
+
+const createProjectSchema = z.object({
+  name: z.string().trim().min(1, 'プロジェクト名を入力してください'),
+  description: z.string(),
+})
+
+type CreateProjectFormValues = z.infer<typeof createProjectSchema>
 
 export const CustomProjectSection = ({
   projects,
@@ -43,9 +53,22 @@ export const CustomProjectSection = ({
   settings,
 }: CustomProjectSectionProps) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [newProjectName, setNewProjectName] = useState('')
-  const [newProjectDescription, setNewProjectDescription] = useState('')
-  const [nameError, setNameError] = useState<string | null>(null)
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    clearErrors,
+    formState: { errors },
+  } = useForm<CreateProjectFormValues>({
+    resolver: zodResolver(createProjectSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+    },
+    reValidateMode: 'onChange',
+  })
+  const nameError = errors.name?.message ?? null
 
   // ドラッグ中のアイテムの状態
   const [draggedItem, setDraggedItem] = useState<{
@@ -64,35 +87,55 @@ export const CustomProjectSection = ({
     string | null
   >(null)
 
-  const handleCreateClick = () => {
-    // 入力チェック
-    if (!newProjectName.trim()) {
-      setNameError('プロジェクト名を入力してください')
-      return
-    }
-
-    // 既存プロジェクト名との重複チェック
-    if (
-      projects.some(
-        p => p.name.toLowerCase() === newProjectName.trim().toLowerCase(),
-      )
-    ) {
-      setNameError('そのプロジェクト名は既に使用されています')
-      return
-    }
-
-    handleCreateProject(newProjectName, newProjectDescription)
-    setNewProjectName('')
-    setNewProjectDescription('')
-    setNameError(null)
+  const closeCreateDialog = () => {
     setIsCreateDialogOpen(false)
+    reset()
   }
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNewProjectName(e.target.value)
-    if (e.target.value.trim()) {
-      setNameError(null)
+  const handleCreateDialogChange = (open: boolean) => {
+    setIsCreateDialogOpen(open)
+    if (!open) {
+      reset()
     }
+  }
+
+  const handleCreateProjectSubmit = ({
+    name,
+    description,
+  }: CreateProjectFormValues) => {
+    const trimmedName = name.trim()
+
+    if (
+      projects.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())
+    ) {
+      setError('name', {
+        type: 'manual',
+        message: 'そのプロジェクト名は既に使用されています',
+      })
+      return
+    }
+
+    handleCreateProject(trimmedName, description)
+    closeCreateDialog()
+  }
+
+  const nameField = register('name', {
+    onChange: () => {
+      clearErrors('name')
+    },
+  })
+  const descriptionField = register('description')
+
+  const handleNameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') {
+      return
+    }
+    event.preventDefault()
+    void handleSubmit(handleCreateProjectSubmit)()
+  }
+
+  const handleCreateButtonClick = () => {
+    void handleSubmit(handleCreateProjectSubmit)()
   }
 
   // ドラッグ開始時の処理
@@ -294,50 +337,45 @@ export const CustomProjectSection = ({
         </div>
       )}
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <Dialog open={isCreateDialogOpen} onOpenChange={handleCreateDialogChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>新規プロジェクト作成</DialogTitle>
           </DialogHeader>
-          <div className='grid gap-4 py-4'>
-            <div>
-              <Label htmlFor='name'>プロジェクト名 *</Label>
-              <Input
-                id='name'
-                value={newProjectName}
-                onChange={handleNameChange}
-                placeholder='例: ウェブサイトリニューアル、ライブラリ調査'
-                className={`w-full ${nameError ? 'border-red-500' : ''}`}
-              />
-              {nameError && (
-                <p className='mt-1 text-red-500 text-xs'>{nameError}</p>
-              )}
+          <form onSubmit={handleSubmit(handleCreateProjectSubmit)}>
+            <div className='grid gap-4 py-4'>
+              <div>
+                <Label htmlFor='name'>プロジェクト名 *</Label>
+                <Input
+                  id='name'
+                  {...nameField}
+                  onKeyDown={handleNameKeyDown}
+                  placeholder='例: ウェブサイトリニューアル、ライブラリ調査'
+                  className={`w-full ${nameError ? 'border-red-500' : ''}`}
+                />
+                {nameError && (
+                  <p className='mt-1 text-red-500 text-xs'>{nameError}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor='description'>説明（オプション）</Label>
+                <Textarea
+                  id='description'
+                  {...descriptionField}
+                  placeholder='例: ユーザーエクスペリエンスの改善とパフォーマンス最適化'
+                  className='w-full'
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor='description'>説明（オプション）</Label>
-              <Textarea
-                id='description'
-                value={newProjectDescription}
-                onChange={e => setNewProjectDescription(e.target.value)}
-                placeholder='例: ユーザーエクスペリエンスの改善とパフォーマンス最適化'
-                className='w-full'
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant='ghost'
-              onClick={() => {
-                setIsCreateDialogOpen(false)
-                setNameError(null)
-                setNewProjectName('')
-                setNewProjectDescription('')
-              }}
-            >
-              キャンセル
-            </Button>
-            <Button onClick={handleCreateClick}>作成</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button variant='ghost' type='button' onClick={closeCreateDialog}>
+                キャンセル
+              </Button>
+              <Button type='button' onClick={handleCreateButtonClick}>
+                作成
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

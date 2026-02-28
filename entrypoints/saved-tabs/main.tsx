@@ -54,6 +54,7 @@ import { SortableDomainCard } from '@/features/saved-tabs/components/SortableDom
 import { useCategoryManagement } from '@/features/saved-tabs/hooks/useCategoryManagement'
 import { useProjectManagement } from '@/features/saved-tabs/hooks/useProjectManagement'
 import { useTabData } from '@/features/saved-tabs/hooks/useTabData'
+import { moveUrlBetweenProjectsState } from '@/features/saved-tabs/lib/project-state'
 import { handleTabGroupRemoval } from '@/features/saved-tabs/lib/tab-operations'
 import { shouldShowUncategorizedHeader as computeShouldShowUncategorizedHeader } from '@/features/saved-tabs/lib/uncategorized-display'
 import { saveParentCategories } from '@/lib/storage/categories'
@@ -1059,30 +1060,17 @@ const SavedTabs = () => {
           notes: urlItem.notes,
           category: originalCategory,
         })
+        const movedAt = Date.now()
         setCustomProjects(prev =>
-          prev.map(project => {
-            if (project.id === sourceProjectId) {
-              return {
-                ...project,
-                urls: project.urls?.filter(item => item.url !== url) || [],
-                updatedAt: Date.now(),
-              }
-            }
-            if (project.id === targetProjectId) {
-              return {
-                ...project,
-                urls: [
-                  ...(project.urls || []),
-                  {
-                    ...urlItem,
-                    category: originalCategory,
-                    savedAt: Date.now(),
-                  },
-                ],
-                updatedAt: Date.now(),
-              }
-            }
-            return project
+          moveUrlBetweenProjectsState({
+            projects: prev,
+            sourceProjectId,
+            targetProjectId,
+            url: {
+              ...urlItem,
+              category: originalCategory,
+            },
+            movedAt,
           }),
         )
         toast.success('URLを移動しました')

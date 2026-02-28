@@ -20,6 +20,7 @@ import {
   exportSettings,
   importSettings,
 } from '@/features/options/lib/import-export'
+import { sendRuntimeMessage } from '@/lib/browser/runtime'
 
 export const ImportExportSettings: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false)
@@ -89,7 +90,7 @@ export const ImportExportSettings: React.FC = () => {
             setImportDialogOpen(false)
 
             // バックグラウンドに更新を通知
-            chrome.runtime.sendMessage({ action: 'settingsImported' })
+            await sendRuntimeMessage({ action: 'settingsImported' })
           } else {
             toast.error(result.message)
           }
