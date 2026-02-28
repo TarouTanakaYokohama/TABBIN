@@ -12,7 +12,7 @@ import {
 } from './KeywordModalContext'
 
 /** KeywordModalRoot の props */
-type KeywordModalRootProps = {
+interface KeywordModalRootProps {
   /** タブグループデータ */
   group: CategoryKeywordModalProps['group']
   /** モーダル開閉状態 */
@@ -55,7 +55,9 @@ export const KeywordModalRoot = ({
     onUpdateParentCategories,
   })
 
-  if (!isOpen) return null
+  if (!isOpen) {
+    return null
+  }
 
   const contextValue: KeywordModalContextType = {
     state,

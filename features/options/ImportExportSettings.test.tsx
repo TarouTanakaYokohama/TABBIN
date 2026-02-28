@@ -22,12 +22,17 @@ vi.mock('@/features/options/lib/import-export', () => ({
   importSettings: vi.fn(),
 }))
 
+vi.mock('@/lib/browser/runtime', () => ({
+  sendRuntimeMessage: vi.fn(),
+}))
+
 import { toast } from 'sonner'
 import {
   downloadAsJson,
   exportSettings,
   importSettings,
 } from '@/features/options/lib/import-export'
+import { sendRuntimeMessage } from '@/lib/browser/runtime'
 
 type ReaderMode = 'success' | 'empty' | 'error'
 
@@ -64,8 +69,6 @@ class MockFileReader {
   }
 }
 
-const runtimeSendMessage = vi.fn()
-
 const getHiddenFileInput = (container: HTMLElement): HTMLInputElement => {
   const fileInput = container.querySelector(
     'input[type="file"].hidden',
@@ -97,14 +100,8 @@ describe('ImportExportSettingsコンポーネント', () => {
     readerContent = '{"import":"payload"}'
     readerAsync = false
 
-    ;(globalThis as unknown as { FileReader: typeof FileReader }).FileReader =
+    ;(globalThis as { [key: string]: unknown }).FileReader =
       MockFileReader as unknown as typeof FileReader
-
-    ;(globalThis as unknown as { chrome: typeof chrome }).chrome = {
-      runtime: {
-        sendMessage: runtimeSendMessage,
-      },
-    } as unknown as typeof chrome
   })
 
   afterEach(() => {
@@ -341,7 +338,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     })
 
     expect(toast.success).toHaveBeenCalledWith('インポート成功')
-    expect(runtimeSendMessage).toHaveBeenCalledWith({
+    expect(sendRuntimeMessage).toHaveBeenCalledWith({
       action: 'settingsImported',
     })
   })
@@ -366,7 +363,7 @@ describe('ImportExportSettingsコンポーネント', () => {
       expect(toast.error).toHaveBeenCalledWith('バリデーションエラー')
     })
 
-    expect(runtimeSendMessage).not.toHaveBeenCalled()
+    expect(sendRuntimeMessage).not.toHaveBeenCalled()
   })
 
   it('インポートで例外発生時に汎用エラーを表示する', async () => {

@@ -22,7 +22,7 @@ import { getTabGroupUrls } from '@/lib/storage/tabs'
 import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
 
 /** useTabData フックの戻り値型 */
-export type UseTabDataReturn = {
+interface UseTabDataReturn {
   /** 保存済みタブグループ一覧（URLデータなし・rawデータ） */
   tabGroups: TabGroup[]
   /** tabGroups を直接更新するセッター */
@@ -43,7 +43,92 @@ export type UseTabDataReturn = {
    */
   refreshTabGroupsWithUrls: (nextGroups?: TabGroup[]) => Promise<TabGroup[]>
 }
-
+const runInitialMigrations = async (): Promise<void> => {
+  console.log('ページ読み込み時の親カテゴリ移行処理を開始...')
+  try {
+    await migrateParentCategoriesToDomainNames()
+  } catch (error) {
+    console.error('親カテゴリ移行エラー:', error)
+  }
+  try {
+    console.log('URL管理マイグレーションを開始...')
+    await migrateToUrlsStorage()
+    console.log('URL管理マイグレーションが完了しました')
+  } catch (error) {
+    console.error('URL管理マイグレーションエラー:', error)
+  }
+}
+const logSavedTabsSummary = (savedTabs: TabGroup[]): void => {
+  console.log('読み込まれたタブ:', savedTabs)
+  console.log('タブグループ数:', savedTabs.length)
+  for (const group of savedTabs) {
+    console.log(`グループ ${group.domain}:`, {
+      id: group.id,
+      urlIds: group.urlIds?.length || 0,
+      urls: group.urls?.length || 0,
+      urlSubCategories: group.urlSubCategories
+        ? Object.keys(group.urlSubCategories).length
+        : 0,
+    })
+  }
+  if (savedTabs.length === 0) {
+    console.log('タブグループが空です。テストデータの有無を確認...')
+  }
+}
+const ensureValidParentCategories = async (
+  parentCategories: ParentCategory[],
+): Promise<ParentCategory[]> => {
+  const hasInvalidCategory = parentCategories.some(
+    cat => !(cat.domainNames && Array.isArray(cat.domainNames)),
+  )
+  if (!(hasInvalidCategory || parentCategories.length === 0)) {
+    return parentCategories
+  }
+  console.log('無効なカテゴリを検出、再マイグレーションを実行')
+  await migrateParentCategoriesToDomainNames()
+  return await getParentCategories()
+}
+const repairSavedTabParentCategoryIds = (
+  savedTabs: TabGroup[],
+  parentCategories: ParentCategory[],
+): {
+  updatedTabGroups: TabGroup[]
+  needsUpdate: boolean
+} => {
+  let needsUpdate = false
+  const updatedTabGroups = savedTabs.map((group: TabGroup) => {
+    if (group.parentCategoryId) {
+      return group
+    }
+    for (const category of parentCategories) {
+      if (category.domains?.includes(group.id)) {
+        console.log(
+          `TabGroup ${group.domain} のparentCategoryIdを ${category.id} に修復しました (IDベース)`,
+        )
+        needsUpdate = true
+        return {
+          ...group,
+          parentCategoryId: category.id,
+        }
+      }
+      if (category.domainNames?.includes(group.domain)) {
+        console.log(
+          `TabGroup ${group.domain} のparentCategoryIdを ${category.id} に修復しました (ドメイン名ベース)`,
+        )
+        needsUpdate = true
+        return {
+          ...group,
+          parentCategoryId: category.id,
+        }
+      }
+    }
+    return group
+  })
+  return {
+    updatedTabGroups,
+    needsUpdate,
+  }
+}
 /**
  * タブグループデータの管理フック。
  * マイグレーション実行・初回ロード・URL解決・ストレージ変更連携を担う。
@@ -52,10 +137,10 @@ export type UseTabDataReturn = {
  * @param onSettingsLoaded   - 初回ロード時にユーザー設定が確定したときに呼び出されるコールバック
  * @returns UseTabDataReturn
  */
-export function useTabData(
+const useTabData = (
   onCategoriesLoaded: (categories: ParentCategory[]) => void,
   onSettingsLoaded: (settings: UserSettings) => void,
-): UseTabDataReturn {
+): UseTabDataReturn => {
   const [tabGroups, setTabGroups] = useState<TabGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [tabGroupsWithUrls, setTabGroupsWithUrls] = useState<TabGroup[]>([])
@@ -80,7 +165,6 @@ export function useTabData(
       if (groups.length === 0) {
         return []
       }
-
       console.log('タブグループのURL取得を開始...')
       const groupsWithUrls = await Promise.all(
         groups.map(async group => {
@@ -91,7 +175,10 @@ export function useTabData(
               console.log(
                 `グループ ${group.domain}: ${urls.length}個のURLを取得`,
               )
-              return { ...group, urls }
+              return {
+                ...group,
+                urls,
+              }
             }
             if (group.urls && group.urls.length > 0) {
               // 旧形式: そのまま使用
@@ -100,14 +187,19 @@ export function useTabData(
             }
             // URLがない場合
             console.log(`グループ ${group.domain}: URLなし`)
-            return { ...group, urls: [] }
+            return {
+              ...group,
+              urls: [],
+            }
           } catch (error) {
             console.error(`グループ ${group.domain} のURL取得エラー:`, error)
-            return { ...group, urls: [] }
+            return {
+              ...group,
+              urls: [],
+            }
           }
         }),
       )
-
       return groupsWithUrls
     },
     [],
@@ -128,7 +220,6 @@ export function useTabData(
         []
       const normalizedGroups = Array.isArray(groups) ? groups : []
       setTabGroups(normalizedGroups)
-
       const groupsWithUrls = await loadTabGroupsWithUrls(normalizedGroups)
       setTabGroupsWithUrls(groupsWithUrls)
       return normalizedGroups
@@ -140,50 +231,15 @@ export function useTabData(
   useEffect(() => {
     const loadSavedTabs = async () => {
       try {
-        console.log('ページ読み込み時の親カテゴリ移行処理を開始...')
-
-        // まずマイグレーションを実行
-        try {
-          await migrateParentCategoriesToDomainNames()
-        } catch (error) {
-          console.error('親カテゴリ移行エラー:', error)
-        }
-
-        // URL管理のマイグレーションも実行
-        try {
-          console.log('URL管理マイグレーションを開始...')
-          await migrateToUrlsStorage()
-          console.log('URL管理マイグレーションが完了しました')
-        } catch (error) {
-          console.error('URL管理マイグレーションエラー:', error)
-        }
+        await runInitialMigrations()
 
         // データ読み込み
         const storageResult = await chrome.storage.local.get('savedTabs')
         const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
           ? storageResult.savedTabs
           : []
-        console.log('読み込まれたタブ:', savedTabs)
-        console.log('タブグループ数:', savedTabs.length)
-
-        // 各タブグループの詳細を確認
-        for (const group of savedTabs) {
-          console.log(`グループ ${group.domain}:`, {
-            id: group.id,
-            urlIds: group.urlIds?.length || 0,
-            urls: group.urls?.length || 0,
-            urlSubCategories: group.urlSubCategories
-              ? Object.keys(group.urlSubCategories).length
-              : 0,
-          })
-        }
-
-        if (savedTabs.length === 0) {
-          console.log('タブグループが空です。テストデータの有無を確認...')
-        }
-
+        logSavedTabsSummary(savedTabs)
         setTabGroups(savedTabs)
-
         const [urlStorageResult, allStorage, userSettings, parentCategories] =
           await Promise.all([
             chrome.storage.local.get('urls'),
@@ -208,53 +264,17 @@ export function useTabData(
 
         // カテゴリを読み込み
         console.log('読み込まれた親カテゴリ:', parentCategories)
-
-        // カテゴリが空の場合、または無効なカテゴリがある場合
-        const hasInvalidCategory = parentCategories.some(
-          cat => !cat.domainNames || !Array.isArray(cat.domainNames),
-        )
-
-        let finalCategories: ParentCategory[]
-        if (hasInvalidCategory || parentCategories.length === 0) {
-          console.log('無効なカテゴリを検出、再マイグレーションを実行')
-          await migrateParentCategoriesToDomainNames()
-          finalCategories = await getParentCategories()
-        } else {
-          finalCategories = parentCategories
-        }
-
+        const finalCategories =
+          await ensureValidParentCategories(parentCategories)
         onCategoriesLoadedRef.current(finalCategories)
-
-        // TabGroupのparentCategoryId修復処理
-        let needsUpdate = false
-        const updatedTabGroups = savedTabs.map((group: TabGroup) => {
-          if (!group.parentCategoryId) {
-            // parentCategoryIdが設定されていない場合、適切なカテゴリを探す
-            for (const category of parentCategories) {
-              // IDベースで検索
-              if (category.domains?.includes(group.id)) {
-                console.log(
-                  `TabGroup ${group.domain} のparentCategoryIdを ${category.id} に修復しました (IDベース)`,
-                )
-                needsUpdate = true
-                return { ...group, parentCategoryId: category.id }
-              }
-              // ドメイン名ベースで検索
-              if (category.domainNames?.includes(group.domain)) {
-                console.log(
-                  `TabGroup ${group.domain} のparentCategoryIdを ${category.id} に修復しました (ドメイン名ベース)`,
-                )
-                needsUpdate = true
-                return { ...group, parentCategoryId: category.id }
-              }
-            }
-          }
-          return group
-        })
+        const { updatedTabGroups, needsUpdate } =
+          repairSavedTabParentCategoryIds(savedTabs, finalCategories)
 
         // 修復が必要な場合はストレージを更新
         if (needsUpdate) {
-          await chrome.storage.local.set({ savedTabs: updatedTabGroups })
+          await chrome.storage.local.set({
+            savedTabs: updatedTabGroups,
+          })
           setTabGroups(updatedTabGroups)
           console.log('TabGroupのparentCategoryId修復処理が完了しました')
         }
@@ -264,14 +284,12 @@ export function useTabData(
         setIsLoading(false)
       }
     }
-
     loadSavedTabs()
   }, [])
 
   // タブグループが更新されたらURLデータを取得する
   useEffect(() => {
     let cancelled = false
-
     const loadUrlsForTabGroups = async () => {
       const groupsWithUrls = await loadTabGroupsWithUrls(tabGroups)
       if (!cancelled) {
@@ -279,13 +297,11 @@ export function useTabData(
         setTabGroupsWithUrls(groupsWithUrls)
       }
     }
-
     loadUrlsForTabGroups()
     return () => {
       cancelled = true
     }
   }, [tabGroups, loadTabGroupsWithUrls])
-
   return {
     tabGroups,
     setTabGroups,
@@ -295,3 +311,5 @@ export function useTabData(
     refreshTabGroupsWithUrls,
   }
 }
+export { useTabData }
+export type { UseTabDataReturn }

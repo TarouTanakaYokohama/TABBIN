@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test'
+import { type Page, expect, test } from '@playwright/test'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('https://demo.playwright.dev/todomvc')
@@ -435,7 +435,7 @@ test.describe('ルーティング', () => {
   })
 })
 
-async function createDefaultTodos(page: Page) {
+const createDefaultTodos = async (page: Page) => {
   // create a new todo locator
   const newTodo = page.getByPlaceholder('What needs to be done?')
 
@@ -445,29 +445,35 @@ async function createDefaultTodos(page: Page) {
   }
 }
 
-async function checkNumberOfTodosInLocalStorage(page: Page, expected: number) {
-  return await page.waitForFunction(e => {
-    return JSON.parse(localStorage['react-todos']).length === e
-  }, expected)
-}
-
-async function checkNumberOfCompletedTodosInLocalStorage(
+const checkNumberOfTodosInLocalStorage = async (
   page: Page,
   expected: number,
-) {
-  return await page.waitForFunction(e => {
-    return (
-      JSON.parse(localStorage['react-todos']).filter(
-        (todo: { completed: boolean }) => todo.completed,
-      ).length === e
-    )
-  }, expected)
+) => {
+  return await page.waitForFunction(
+    e => JSON.parse(localStorage['react-todos']).length === e,
+    expected,
+  )
 }
 
-async function checkTodosInLocalStorage(page: Page, title: string) {
-  return await page.waitForFunction(t => {
-    return JSON.parse(localStorage['react-todos'])
-      .map((todo: { title: string }) => todo.title)
-      .includes(t)
-  }, title)
+const checkNumberOfCompletedTodosInLocalStorage = async (
+  page: Page,
+  expected: number,
+) => {
+  return await page.waitForFunction(
+    e =>
+      JSON.parse(localStorage['react-todos']).filter(
+        (todo: { completed: boolean }) => todo.completed,
+      ).length === e,
+    expected,
+  )
+}
+
+const checkTodosInLocalStorage = async (page: Page, title: string) => {
+  return await page.waitForFunction(
+    t =>
+      JSON.parse(localStorage['react-todos'])
+        .map((todo: { title: string }) => todo.title)
+        .includes(t),
+    title,
+  )
 }

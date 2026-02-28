@@ -11,7 +11,6 @@ if (!import.meta.env.DEV) {
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { createRoot } from 'react-dom/client'
 import { ThemeProvider } from '@/components/theme-provider'
-
 // UIコンポーネントのインポート
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox' // Switchの代わりにCheckboxをインポート
@@ -400,7 +399,7 @@ const OptionsPage = () => {
             <div className='mt-3 rounded-md border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/30'>
               <div className='flex flex-col gap-3'>
                 <div className='flex items-start'>
-                  <div className='flex-shrink-0 text-yellow-500'>
+                  <div className='shrink-0 text-yellow-500'>
                     <AlertTriangle size={24} />{' '}
                     {/* lucide-reactのアイコンに置き換え */}
                   </div>
@@ -487,7 +486,7 @@ const OptionsPage = () => {
                   type='color'
                   value={settings.colors?.[key] || getDefaultColor(key)}
                   onChange={e => handleColorChange(key, e.target.value)}
-                  className='h-8 w-8 flex-shrink-0 cursor-pointer border-0 p-0'
+                  className='h-8 w-8 shrink-0 cursor-pointer border-0 p-0'
                 />
                 <div className='min-w-0 flex-1'>
                   <Input
@@ -541,7 +540,9 @@ const OptionsPage = () => {
 // Reactコンポーネントをレンダリング
 document.addEventListener('DOMContentLoaded', () => {
   const appContainer = document.getElementById('options-app')
-  if (!appContainer) throw new Error('Failed to find the options app container')
+  if (!appContainer) {
+    throw new Error('Failed to find the options app container')
+  }
 
   const root = createRoot(appContainer)
   root.render(

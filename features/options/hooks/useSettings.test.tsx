@@ -53,7 +53,9 @@ const createChromeMock = () =>
         }),
         removeListener: vi.fn((listener: StorageListener) => {
           const index = listeners.indexOf(listener)
-          if (index >= 0) listeners.splice(index, 1)
+          if (index >= 0) {
+            listeners.splice(index, 1)
+          }
         }),
       },
     },

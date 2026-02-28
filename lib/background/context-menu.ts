@@ -14,7 +14,7 @@ import { openSavedTabsPage } from './saved-tabs-page'
 /**
  * コンテキストメニューを作成する関数
  */
-export function createContextMenus(): void {
+const createContextMenus = (): void => {
   console.log('コンテキストメニュー作成開始')
 
   // 既存のメニューをすべて削除
@@ -24,7 +24,6 @@ export function createContextMenus(): void {
         if (chrome.runtime.lastError) {
           console.error('メニュー削除エラー:', chrome.runtime.lastError)
         }
-
         console.log('既存のコンテキストメニューを削除しました')
 
         // メニュー項目を作成
@@ -45,11 +44,10 @@ export function createContextMenus(): void {
     )
   }
 }
-
 /**
  * メニュー項目を作成
  */
-function createMenuItems(): void {
+const createMenuItems = (): void => {
   const menuItems: Array<{
     id: ContextMenuId
     title: string
@@ -88,24 +86,23 @@ function createMenuItems(): void {
       contexts: ['page'],
     },
   ]
-
   for (const item of menuItems) {
     chrome.contextMenus.create({
       id: item.id,
       title: item.title,
       contexts: item.contexts,
-      ...(item.type && { type: item.type }),
+      ...(item.type && {
+        type: item.type,
+      }),
     })
   }
 }
-
 /**
  * コンテキストメニュークリックハンドラーを設定
  */
-function setupMenuClickHandler(): void {
+const setupMenuClickHandler = (): void => {
   chrome.contextMenus.onClicked.addListener(async (info, _tab) => {
     console.log(`コンテキストメニューがクリックされました: ${info.menuItemId}`)
-
     try {
       switch (info.menuItemId) {
         case 'saveCurrentTab':
@@ -128,6 +125,6 @@ function setupMenuClickHandler(): void {
       console.error('コンテキストメニュー処理エラー:', error)
     }
   })
-
   console.log('コンテキストメニュークリックハンドラーを設定しました')
 }
+export { createContextMenus }

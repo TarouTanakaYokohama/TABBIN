@@ -44,7 +44,7 @@ export const ViewModeToggle = ({
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
+      <TooltipTrigger asChild={true}>
         <div>
           <Select value={currentMode} onValueChange={onChange}>
             <SelectTrigger className='flex h-9 cursor-pointer items-center gap-2'>

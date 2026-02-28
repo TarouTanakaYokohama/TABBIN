@@ -20,6 +20,7 @@ import {
   exportSettings,
   importSettings,
 } from '@/features/options/lib/import-export'
+import { sendRuntimeMessage } from '@/lib/browser/runtime'
 
 export const ImportExportSettings: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false)
@@ -57,7 +58,9 @@ export const ImportExportSettings: React.FC = () => {
   // ファイル読み込み処理
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {
+      return
+    }
 
     processFile(file)
   }
@@ -87,7 +90,7 @@ export const ImportExportSettings: React.FC = () => {
             setImportDialogOpen(false)
 
             // バックグラウンドに更新を通知
-            chrome.runtime.sendMessage({ action: 'settingsImported' })
+            await sendRuntimeMessage({ action: 'settingsImported' })
           } else {
             toast.error(result.message)
           }
@@ -168,14 +171,14 @@ export const ImportExportSettings: React.FC = () => {
 
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className='flex max-h-[90vh] flex-col gap-3 p-4 sm:max-w-md'>
-          <DialogHeader className='flex-shrink-0'>
+          <DialogHeader className='shrink-0'>
             <DialogTitle>設定とタブデータのインポート</DialogTitle>
             <DialogDescription className='text-left'>
               以前にエクスポートしたバックアップファイルから設定とタブデータを復元します。
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className='flex-grow overflow-auto'>
+          <ScrollArea className='grow overflow-auto'>
             <div className='pr-4'>
               {/* マージオプションを追加 */}
               <div className='mb-4 flex items-center space-x-2'>
@@ -232,7 +235,7 @@ export const ImportExportSettings: React.FC = () => {
               </Alert>
             </div>
           </ScrollArea>
-          <DialogFooter className='flex flex-shrink-0 flex-col gap-2 sm:flex-row sm:justify-between'>
+          <DialogFooter className='flex shrink-0 flex-col gap-2 sm:flex-row sm:justify-between'>
             <Button
               variant='secondary'
               onClick={() => setImportDialogOpen(false)}

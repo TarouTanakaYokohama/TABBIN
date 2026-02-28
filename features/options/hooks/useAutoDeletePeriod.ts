@@ -4,7 +4,7 @@ import { autoDeleteOptions } from '@/constants/autoDeleteOptions'
 import type { UserSettings } from '@/types/storage'
 import { isPeriodShortening } from '@/utils/isPeriodShortening'
 
-type ConfirmationState = {
+interface ConfirmationState {
   isVisible: boolean
   message: string
   onConfirm: () => void
@@ -67,7 +67,9 @@ export const useAutoDeletePeriod = (
     // 保留中の設定がなければ、現在の設定値を使用
     const periodToApply = pendingAutoDeletePeriod ?? settings.autoDeletePeriod
 
-    if (!periodToApply) return
+    if (!periodToApply) {
+      return
+    }
 
     // 「自動削除しない」の場合は確認なしで直接適用
     if (periodToApply === 'never') {
@@ -99,7 +101,9 @@ export const useAutoDeletePeriod = (
   const applyAutoDeletePeriod = () => {
     const periodToApply = pendingAutoDeletePeriod ?? settings.autoDeletePeriod
 
-    if (!periodToApply) return
+    if (!periodToApply) {
+      return
+    }
 
     try {
       console.log(`自動削除期間を設定: ${periodToApply}`)

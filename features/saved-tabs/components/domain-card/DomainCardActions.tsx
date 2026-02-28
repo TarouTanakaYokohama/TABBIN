@@ -16,8 +16,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { CategoryKeywordModal } from '@/features/saved-tabs/components/CategoryKeywordModal'
 import { handleSaveKeywords } from '@/features/saved-tabs/lib/category-keywords'
-import { CategoryKeywordModal } from '../CategoryKeywordModal'
 import { useDomainCard } from './DomainCardContext'
 
 /**
@@ -33,10 +33,10 @@ export const DomainCardActions = () => {
 
   return (
     <>
-      <div className='flex flex-shrink-0 items-center gap-2'>
+      <div className='flex shrink-0 items-center gap-2'>
         {/* 子カテゴリ管理 */}
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger asChild={true}>
             <Button
               variant='secondary'
               size='sm'
@@ -57,7 +57,7 @@ export const DomainCardActions = () => {
 
         {/* すべて開く */}
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger asChild={true}>
             <Button
               variant='secondary'
               size='sm'
@@ -88,22 +88,22 @@ export const DomainCardActions = () => {
 
         {/* グループ削除 */}
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger asChild={true}>
             <Button
               variant='secondary'
               size='sm'
               onClick={e => {
                 e.stopPropagation()
                 e.preventDefault()
-                if (!settings.confirmDeleteAll) {
+                if (settings.confirmDeleteAll) {
+                  setIsDeleteConfirmOpen(true)
+                } else {
                   handlers.handleDeleteGroup(group.id)
                   if (isReorderMode) {
                     console.log(
                       `並び替えモード中にドメイン ${group.domain} を削除しました`,
                     )
                   }
-                } else {
-                  setIsDeleteConfirmOpen(true)
                 }
               }}
               className='flex cursor-pointer items-center gap-1'

@@ -34,16 +34,14 @@ export const useSettings = () => {
       changes: { [key: string]: chrome.storage.StorageChange },
       areaName: string,
     ) => {
-      if (areaName === 'local') {
-        if (changes.userSettings) {
-          if (changes.userSettings.newValue) {
-            // newValue は完全な UserSettings オブジェクトであると期待
-            setSettings(changes.userSettings.newValue as UserSettings)
-          } else {
-            // userSettings がストレージから削除された場合 (newValue が undefined)
-            // デフォルト設定に戻す
-            setSettings(defaultSettings)
-          }
+      if (areaName === 'local' && changes.userSettings) {
+        if (changes.userSettings.newValue) {
+          // newValue は完全な UserSettings オブジェクトであると期待
+          setSettings(changes.userSettings.newValue as UserSettings)
+        } else {
+          // userSettings がストレージから削除された場合 (newValue が undefined)
+          // デフォルト設定に戻す
+          setSettings(defaultSettings)
         }
       }
     }

@@ -201,7 +201,9 @@ export const SubCategoryKeywordManager = ({
 
   // リネームモードを開始する関数
   const startRenameMode = () => {
-    if (!activeCategory) return
+    if (!activeCategory) {
+      return
+    }
 
     setIsRenamingSubCategory(true)
     setNewCategoryName(activeCategory)
@@ -217,7 +219,7 @@ export const SubCategoryKeywordManager = ({
 
   // リネームを完了する関数
   const completeRename = async () => {
-    if (!isRenamingSubCategory || !activeCategory || !newCategoryName.trim()) {
+    if (!(isRenamingSubCategory && activeCategory && newCategoryName.trim())) {
       setIsRenamingSubCategory(false)
       return
     }
@@ -249,7 +251,9 @@ export const SubCategoryKeywordManager = ({
 
   // カテゴリ名変更の処理関数
   const handleRenameCategory = async (oldName: string, newName: string) => {
-    if (!oldName || !newName || oldName === newName) return
+    if (!(oldName && newName) || oldName === newName) {
+      return
+    }
 
     console.log(`カテゴリ名を変更: ${oldName} → ${newName}`)
 
@@ -399,7 +403,7 @@ export const SubCategoryKeywordManager = ({
               onClick={() => handleRemoveSubCategory(category)}
               variant='outline'
               size='sm'
-              className='flex-shrink-0 cursor-pointer rounded-l-none'
+              className='shrink-0 cursor-pointer rounded-l-none'
               aria-label={`カテゴリ ${category} を削除`}
             >
               <X size={14} />
@@ -435,9 +439,9 @@ export const SubCategoryKeywordManager = ({
                       cancelRename()
                     }
                   }}
-                  className='flex-grow rounded-l border border-border bg-input p-2 text-foreground'
+                  className='grow rounded-l border border-border bg-input p-2 text-foreground'
                 />
-                <div className='flex flex-shrink-0'>
+                <div className='flex shrink-0'>
                   <Button
                     type='button'
                     onClick={completeRename}
@@ -476,7 +480,7 @@ export const SubCategoryKeywordManager = ({
                   onClick={startRenameMode}
                   variant='outline'
                   size='sm'
-                  className='flex-shrink-0 bg-muted text-foreground text-xs hover:bg-muted/70'
+                  className='shrink-0 bg-muted text-foreground text-xs hover:bg-muted/70'
                 >
                   リネーム
                 </Button>
@@ -502,7 +506,7 @@ export const SubCategoryKeywordManager = ({
                 value={newKeyword}
                 onChange={e => setNewKeyword(e.target.value)}
                 placeholder='例: 技術記事、GitHub、プログラミング'
-                className='flex-grow rounded-l border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
+                className='grow rounded-l border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
@@ -515,10 +519,10 @@ export const SubCategoryKeywordManager = ({
                 onClick={handleAddKeyword}
                 disabled={!newKeyword.trim()}
                 variant='secondary'
-                className={`flex-shrink-0 cursor-pointer rounded-l-none ${
-                  !newKeyword.trim()
-                    ? 'cursor-not-allowed bg-secondary/50 text-muted-foreground'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                className={`shrink-0 cursor-pointer rounded-l-none ${
+                  newKeyword.trim()
+                    ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    : 'cursor-not-allowed bg-secondary/50 text-muted-foreground'
                 }`}
                 aria-label='キーワードを追加'
               >
@@ -546,7 +550,7 @@ export const SubCategoryKeywordManager = ({
                     onClick={() => handleRemoveKeyword(keyword)}
                     variant='ghost'
                     size='sm'
-                    className='ml-1 flex-shrink-0 cursor-pointer p-0 text-muted-foreground hover:bg-transparent hover:text-foreground'
+                    className='ml-1 shrink-0 cursor-pointer p-0 text-muted-foreground hover:bg-transparent hover:text-foreground'
                     aria-label={`キーワード ${keyword} を削除`}
                   >
                     <X size={14} />

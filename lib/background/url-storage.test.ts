@@ -34,7 +34,7 @@ const createSettings = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   }) as Awaited<ReturnType<typeof getUserSettings>>
 
-type StorageState = {
+interface StorageState {
   savedTabs?: Array<{
     id: string
     domain: string
@@ -52,7 +52,7 @@ type StorageState = {
   }>
 }
 
-type ChromeMockOptions = {
+interface ChromeMockOptions {
   rejectGet?: boolean
   rejectSet?: boolean
 }
@@ -582,7 +582,7 @@ describe('url-storage', () => {
         _delay?: number,
         ...args: unknown[]
       ) => {
-        if (typeof callback === 'function') {
+        if (callback instanceof Function) {
           callback(...args)
         }
         return 1 as unknown as ReturnType<typeof setTimeout>
@@ -787,6 +787,42 @@ describe('url-storage', () => {
           domain: 'target.example.com',
           urlIds: ['url-id-2'],
           urlSubCategories: undefined,
+        },
+      ],
+    })
+  })
+
+  it('urlIds形式でURLレコードが未解決の場合はグループを変更しない', async () => {
+    storageState = {
+      savedTabs: [
+        {
+          id: 'group-target',
+          domain: 'target.example.com',
+          urlIds: ['url-id-1'],
+          urlSubCategories: { 'url-id-1': 'catA' },
+        },
+      ],
+      parentCategories: [],
+      urls: [
+        {
+          id: 'url-id-1',
+          url: 'https://another.example.com/page',
+          title: 'Another',
+          savedAt: 1,
+        },
+      ],
+    }
+    setupChromeMock()
+
+    await removeUrlFromStorage('https://target.example.com/page')
+
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      savedTabs: [
+        {
+          id: 'group-target',
+          domain: 'target.example.com',
+          urlIds: ['url-id-1'],
+          urlSubCategories: { 'url-id-1': 'catA' },
         },
       ],
     })

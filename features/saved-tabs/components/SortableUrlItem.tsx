@@ -14,7 +14,15 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import type { SortableUrlItemProps } from '@/types/saved-tabs'
-import { formatDatetime, TimeRemaining } from '@/utils/datetime'
+import { TimeRemaining, formatDatetime } from '@/utils/datetime'
+
+// グローバルのドロップ状態を追跡（ウィンドウ内でのドロップか外部へのドロップかを判定するため）
+let isGlobalInternalDrop = false
+if (typeof window !== 'undefined') {
+  window.addEventListener('drop', () => {
+    isGlobalInternalDrop = true
+  })
+}
 
 // URL項目用のソータブルコンポーネント - 型定義を修正
 export const SortableUrlItem = ({
@@ -51,6 +59,7 @@ export const SortableUrlItem = ({
   const handleDragStart = (e: React.DragEvent<HTMLElement>, url: string) => {
     isDraggingRef.current = true
     windowBlurredDuringDragRef.current = false
+    isGlobalInternalDrop = false
     // URLをテキストとして設定
     e.dataTransfer.setData('text/plain', url)
     // URI-listとしても設定（多くのブラウザやアプリがこのフォーマットを認識）
@@ -65,8 +74,8 @@ export const SortableUrlItem = ({
     chrome.runtime.sendMessage(
       {
         action: 'urlDragStarted',
-        url: url,
-        groupId: groupId,
+        url,
+        groupId,
       },
       response => {
         console.log('ドラッグ開始通知の応答:', response)
@@ -80,8 +89,8 @@ export const SortableUrlItem = ({
     chrome.runtime.sendMessage(
       {
         action: 'urlDropped',
-        url: url,
-        groupId: groupId,
+        url,
+        groupId,
         fromExternal: true,
       },
       response => {
@@ -95,6 +104,7 @@ export const SortableUrlItem = ({
     window.removeEventListener('blur', handleWindowBlur)
 
     const shouldHandleAsExternalDrop =
+      !isGlobalInternalDrop &&
       isDraggingRef.current &&
       (e.dataTransfer.dropEffect === 'copy' ||
         (windowBlurredDuringDragRef.current &&
@@ -110,21 +120,22 @@ export const SortableUrlItem = ({
   }
 
   // コンポーネントのアンマウント時にクリーンアップ
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       window.removeEventListener('blur', handleWindowBlur)
       isDraggingRef.current = false
       windowBlurredDuringDragRef.current = false
-    }
-  }, [handleWindowBlur])
+    },
+    [handleWindowBlur],
+  )
 
   const handleDeleteButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
-    if (!settings.confirmDeleteEach) {
-      handleDeleteUrl(groupId, url)
-    } else {
+    if (settings.confirmDeleteEach) {
       setIsDeleteConfirmOpen(true)
+    } else {
+      handleDeleteUrl(groupId, url)
     }
   }
 
@@ -142,7 +153,7 @@ export const SortableUrlItem = ({
         data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
       >
         <div
-          className='z-10 flex-shrink-0 cursor-grab px-2.5 text-muted-foreground/40 hover:cursor-grab active:cursor-grabbing'
+          className='z-10 shrink-0 cursor-grab px-2.5 text-muted-foreground/40 hover:cursor-grab active:cursor-grabbing'
           {...attributes}
           {...listeners}
         >
@@ -150,7 +161,7 @@ export const SortableUrlItem = ({
         </div>
         <div className='relative min-w-0 flex-1'>
           <Button
-            asChild
+            asChild={true}
             variant='ghost'
             size='sm'
             className='ml-2 flex h-full cursor-pointer items-center justify-start gap-1 overflow-hidden bg-transparent px-1 py-2 pr-8 text-foreground hover:text-foreground'
@@ -159,7 +170,7 @@ export const SortableUrlItem = ({
               href={url as string}
               target='_blank'
               rel='noopener noreferrer'
-              draggable
+              draggable={true}
               onDragStart={e => handleDragStart(e, url as string)}
               onDragEnd={handleDragEnd}
               onClick={e => {
@@ -192,7 +203,7 @@ export const SortableUrlItem = ({
             variant='ghost'
             size='icon'
             onClick={handleDeleteButtonClick}
-            className='pointer-events-none invisible absolute top-0 right-0 bottom-0 my-auto flex-shrink-0 cursor-pointer opacity-0 transition-opacity group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100'
+            className='pointer-events-none invisible absolute top-0 right-0 bottom-0 my-auto shrink-0 cursor-pointer opacity-0 transition-opacity group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100'
             title='タブを削除'
             aria-label='タブを削除'
           >

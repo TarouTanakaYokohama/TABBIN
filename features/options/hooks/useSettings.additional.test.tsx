@@ -53,7 +53,9 @@ const createChromeMock = () =>
         }),
         removeListener: vi.fn((listener: StorageListener) => {
           const index = listeners.indexOf(listener)
-          if (index >= 0) listeners.splice(index, 1)
+          if (index >= 0) {
+            listeners.splice(index, 1)
+          }
         }),
       },
     },
@@ -86,7 +88,7 @@ describe('useSettings の追加分岐', () => {
 
     expect(removeListener).toHaveBeenCalledTimes(1)
     expect(removeListener.mock.calls[0]?.[0]).toBe(listener)
-    expect(typeof removeListener.mock.calls[0]?.[0]).toBe('function')
+    expect(removeListener.mock.calls[0]?.[0]).toEqual(expect.any(Function))
   })
 
   it('updateSetting の永続化に失敗したとき false を返す', async () => {

@@ -35,6 +35,7 @@ export interface CustomProjectCardProps {
     targetProjectId: string,
     url: string,
   ) => void
+  isProjectReorderMode?: boolean
   handleRenameCategory?: (
     projectId: string,
     oldCategoryName: string,

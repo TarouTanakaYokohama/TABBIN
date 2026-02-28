@@ -1,8 +1,8 @@
 import {
-  closestCenter,
   DndContext,
   KeyboardSensor,
   PointerSensor,
+  closestCenter,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
@@ -12,7 +12,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CardContent } from '@/components/ui/card'
-import { SortableDomainCard } from '../SortableDomainCard'
+import { SortableDomainCard } from '@/features/saved-tabs/components/SortableDomainCard'
 import { useCategoryGroup } from './CategoryGroupContext'
 
 /**

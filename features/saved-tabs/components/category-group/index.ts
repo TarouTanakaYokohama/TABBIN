@@ -1,10 +1,12 @@
 export { CategoryGroupActions } from './CategoryGroupActions'
-export { CategoryGroupCollapseButton } from './CategoryGroupCollapseButton'
 export { CategoryGroupContent } from './CategoryGroupContent'
 export type { CategoryGroupContextType } from './CategoryGroupContext'
 export { useCategoryGroup } from './CategoryGroupContext'
+export {
+  CategoryGroupCollapseControl,
+  CategoryGroupReorderControl,
+  CategoryGroupSortControl,
+} from './CategoryGroupControls'
 export { CategoryGroupHeader } from './CategoryGroupHeader'
-export { CategoryGroupReorderControls } from './CategoryGroupReorderControls'
 export { CategoryGroupRoot } from './CategoryGroupRoot'
-export { CategoryGroupSortButton } from './CategoryGroupSortButton'
 export { CategoryGroupTitle } from './CategoryGroupTitle'

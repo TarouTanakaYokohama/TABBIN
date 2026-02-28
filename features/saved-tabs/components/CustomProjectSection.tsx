@@ -1,12 +1,24 @@
 import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
 // DnDのインポートを追加
-import { closestCenter, DndContext, DragOverlay } from '@dnd-kit/core'
 import {
-  arrayMove,
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
   SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,6 +33,32 @@ import { Textarea } from '@/components/ui/textarea'
 import type { CustomProject } from '@/types/storage'
 import type { CustomProjectSectionProps } from '../types/CustomProjectSection.types'
 import { CustomProjectCard } from './CustomProjectCard'
+
+const createProjectSchema = z.object({
+  name: z.string().trim().min(1, 'プロジェクト名を入力してください'),
+  description: z.string(),
+})
+
+type CreateProjectFormValues = z.infer<typeof createProjectSchema>
+
+const resolveTargetProjectId = (over: DragEndEvent['over']): string | null => {
+  const overProjectId = over?.data.current?.projectId
+  if (typeof overProjectId === 'string' && overProjectId.length > 0) {
+    return overProjectId
+  }
+
+  if (typeof over?.id !== 'string') {
+    return null
+  }
+
+  if (over.id.startsWith('project-')) {
+    return over.id.slice('project-'.length)
+  }
+  if (over.id.startsWith('uncategorized-')) {
+    return over.id.slice('uncategorized-'.length)
+  }
+  return null
+}
 
 export const CustomProjectSection = ({
   projects,
@@ -43,9 +81,22 @@ export const CustomProjectSection = ({
   settings,
 }: CustomProjectSectionProps) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [newProjectName, setNewProjectName] = useState('')
-  const [newProjectDescription, setNewProjectDescription] = useState('')
-  const [nameError, setNameError] = useState<string | null>(null)
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    clearErrors,
+    formState: { errors },
+  } = useForm<CreateProjectFormValues>({
+    resolver: zodResolver(createProjectSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+    },
+    reValidateMode: 'onChange',
+  })
+  const nameError = errors.name?.message ?? null
 
   // ドラッグ中のアイテムの状態
   const [draggedItem, setDraggedItem] = useState<{
@@ -58,64 +109,87 @@ export const CustomProjectSection = ({
   const [draggedProject, setDraggedProject] = useState<CustomProject | null>(
     null,
   )
+  const [isProjectReorderMode, setIsProjectReorderMode] = useState(false)
 
   // ドラッグオーバー中のプロジェクトIDを管理
   const [draggedOverProjectId, setDraggedOverProjectId] = useState<
     string | null
   >(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
 
-  const handleCreateClick = () => {
-    // 入力チェック
-    if (!newProjectName.trim()) {
-      setNameError('プロジェクト名を入力してください')
-      return
-    }
-
-    // 既存プロジェクト名との重複チェック
-    if (
-      projects.some(
-        p => p.name.toLowerCase() === newProjectName.trim().toLowerCase(),
-      )
-    ) {
-      setNameError('そのプロジェクト名は既に使用されています')
-      return
-    }
-
-    handleCreateProject(newProjectName, newProjectDescription)
-    setNewProjectName('')
-    setNewProjectDescription('')
-    setNameError(null)
+  const closeCreateDialog = () => {
     setIsCreateDialogOpen(false)
+    reset()
   }
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNewProjectName(e.target.value)
-    if (e.target.value.trim()) {
-      setNameError(null)
+  const handleCreateDialogChange = (open: boolean) => {
+    setIsCreateDialogOpen(open)
+    if (!open) {
+      reset()
     }
+  }
+
+  const handleCreateProjectSubmit = ({
+    name,
+    description,
+  }: CreateProjectFormValues) => {
+    const trimmedName = name.trim()
+
+    if (
+      projects.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())
+    ) {
+      setError('name', {
+        type: 'manual',
+        message: 'そのプロジェクト名は既に使用されています',
+      })
+      return
+    }
+
+    handleCreateProject(trimmedName, description)
+    closeCreateDialog()
+  }
+
+  const nameField = register('name', {
+    onChange: () => {
+      clearErrors('name')
+    },
+  })
+  const descriptionField = register('description')
+
+  const handleNameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') {
+      return
+    }
+    event.preventDefault()
+    void handleSubmit(handleCreateProjectSubmit)()
+  }
+
+  const handleCreateButtonClick = () => {
+    void handleSubmit(handleCreateProjectSubmit)()
   }
 
   // ドラッグ開始時の処理
   const handleDragStart = (event: DragStartEvent) => {
     if (event.active.data.current) {
-      const { url, projectId, title, type } = event.active.data.current as {
-        url?: string
+      const { projectId, type } = event.active.data.current as {
         projectId?: string
-        title?: string
         type: string
       }
 
-      if (type === 'url' && url && projectId && typeof title === 'string') {
-        // URLドラッグの場合
-        console.log(
-          `URLドラッグ開始: ${title} (${url}) from プロジェクト ${projectId}`,
-        )
-        setDraggedItem({ url, projectId, title })
+      if (type === 'url' && projectId) {
+        // URLドラッグではセクション全体の状態更新を最小化する
+        setIsProjectReorderMode(false)
+        setDraggedProject(null)
       } else if (type === 'project' && projectId) {
         // プロジェクトドラッグの場合
-        console.log(`プロジェクトドラッグ開始: ${projectId}`)
         const project = projects.find(p => p.id === projectId)
         if (project) {
+          setIsProjectReorderMode(true)
           setDraggedProject(project)
         }
       }
@@ -124,18 +198,20 @@ export const CustomProjectSection = ({
 
   // ドラッグオーバー時の処理
   const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event
+    const { active, over } = event
+    const activeData = active.data.current
 
-    if (over && event.active.data.current?.type === 'url') {
+    if (over && activeData?.type === 'url') {
       // URLドラッグ時のオーバー処理
+      const sourceProjectId = activeData.projectId as string | undefined
       const projectId = over.data.current?.projectId
-      if (projectId && draggedItem && projectId !== draggedItem.projectId) {
-        setDraggedOverProjectId(projectId)
+      if (projectId && sourceProjectId && projectId !== sourceProjectId) {
+        setDraggedOverProjectId(prev => (prev === projectId ? prev : projectId))
         return
       }
     }
 
-    setDraggedOverProjectId(null)
+    setDraggedOverProjectId(prev => (prev === null ? prev : null))
   }
 
   // ドラッグ終了時の処理
@@ -150,10 +226,6 @@ export const CustomProjectSection = ({
       handleUrlDragEnd(event)
     } else if (dragType === 'project' && over && active.id !== over.id) {
       // プロジェクトドラッグの場合の処理
-      console.log(
-        `プロジェクト順序変更: ${active.id} を ${over.id} の位置に移動`,
-      )
-
       // プロジェクトの順序を変更
       const oldIndex = projects.findIndex(p => p.id === active.id)
       const newIndex = projects.findIndex(p => p.id === over.id)
@@ -169,6 +241,7 @@ export const CustomProjectSection = ({
     }
 
     // すべてのドラッグ状態をリセット
+    setIsProjectReorderMode(false)
     setDraggedItem(null)
     setDraggedProject(null)
     setDraggedOverProjectId(null)
@@ -190,27 +263,14 @@ export const CustomProjectSection = ({
     const draggedUrl = active.id as string
     const sourceProjectId = active.data.current?.projectId as string
 
-    // ドロップ先のデータを取得
-    const targetData = over.data.current
-    if (targetData && targetData.type === 'project') {
-      const targetProjectId = targetData.projectId as string
+    const targetProjectId = resolveTargetProjectId(over)
+    if (!targetProjectId || sourceProjectId === targetProjectId) {
+      return
+    }
 
-      // 同じプロジェクト内なら何もしない
-      if (sourceProjectId === targetProjectId) {
-        return
-      }
-
-      // プロジェクト間のURL移動を実行
-      if (handleMoveUrlBetweenProjects) {
-        console.log(
-          `URL移動の実行: ${sourceProjectId} → ${targetProjectId}, URL: ${draggedUrl}`,
-        )
-        handleMoveUrlBetweenProjects(
-          sourceProjectId,
-          targetProjectId,
-          draggedUrl,
-        )
-      }
+    // プロジェクト間のURL移動を実行
+    if (handleMoveUrlBetweenProjects) {
+      handleMoveUrlBetweenProjects(sourceProjectId, targetProjectId, draggedUrl)
     }
   }
 
@@ -218,6 +278,7 @@ export const CustomProjectSection = ({
     <div>
       {projects.length > 0 ? (
         <DndContext
+          sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
@@ -249,6 +310,7 @@ export const CustomProjectSection = ({
                   draggedItem={draggedItem}
                   // ドラッグオーバー中のプロジェクトIDを渡す
                   isDropTarget={draggedOverProjectId === project.id}
+                  isProjectReorderMode={isProjectReorderMode}
                   handleMoveUrlsBetweenCategories={
                     handleMoveUrlsBetweenCategories
                   }
@@ -281,9 +343,9 @@ export const CustomProjectSection = ({
             プロジェクトがありません
           </div>
           <div className='text-center text-muted-foreground'>
-            デフォルトプロジェクトが必要です
+            表示可能なプロジェクトがありません
             <br />
-            タブは拡張機能アイコンまたは右クリックメニューから保存できます
+            親カテゴリを作成するとプロジェクトとして表示されます
           </div>
           {/* 新規プロジェクト作成ボタンも非表示に
           <Button onClick={() => setIsCreateDialogOpen(true)}>
@@ -294,50 +356,45 @@ export const CustomProjectSection = ({
         </div>
       )}
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <Dialog open={isCreateDialogOpen} onOpenChange={handleCreateDialogChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>新規プロジェクト作成</DialogTitle>
           </DialogHeader>
-          <div className='grid gap-4 py-4'>
-            <div>
-              <Label htmlFor='name'>プロジェクト名 *</Label>
-              <Input
-                id='name'
-                value={newProjectName}
-                onChange={handleNameChange}
-                placeholder='例: ウェブサイトリニューアル、ライブラリ調査'
-                className={`w-full ${nameError ? 'border-red-500' : ''}`}
-              />
-              {nameError && (
-                <p className='mt-1 text-red-500 text-xs'>{nameError}</p>
-              )}
+          <form onSubmit={handleSubmit(handleCreateProjectSubmit)}>
+            <div className='grid gap-4 py-4'>
+              <div>
+                <Label htmlFor='name'>プロジェクト名 *</Label>
+                <Input
+                  id='name'
+                  {...nameField}
+                  onKeyDown={handleNameKeyDown}
+                  placeholder='例: ウェブサイトリニューアル、ライブラリ調査'
+                  className={`w-full ${nameError ? 'border-red-500' : ''}`}
+                />
+                {nameError && (
+                  <p className='mt-1 text-red-500 text-xs'>{nameError}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor='description'>説明（オプション）</Label>
+                <Textarea
+                  id='description'
+                  {...descriptionField}
+                  placeholder='例: ユーザーエクスペリエンスの改善とパフォーマンス最適化'
+                  className='w-full'
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor='description'>説明（オプション）</Label>
-              <Textarea
-                id='description'
-                value={newProjectDescription}
-                onChange={e => setNewProjectDescription(e.target.value)}
-                placeholder='例: ユーザーエクスペリエンスの改善とパフォーマンス最適化'
-                className='w-full'
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant='ghost'
-              onClick={() => {
-                setIsCreateDialogOpen(false)
-                setNameError(null)
-                setNewProjectName('')
-                setNewProjectDescription('')
-              }}
-            >
-              キャンセル
-            </Button>
-            <Button onClick={handleCreateClick}>作成</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button variant='ghost' type='button' onClick={closeCreateDialog}>
+                キャンセル
+              </Button>
+              <Button type='button' onClick={handleCreateButtonClick}>
+                作成
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

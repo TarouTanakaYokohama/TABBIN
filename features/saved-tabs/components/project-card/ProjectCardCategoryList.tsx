@@ -1,5 +1,6 @@
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { CustomProjectCategory } from '../CustomProjectCategory'
+import { useMemo } from 'react'
+import { CustomProjectCategory } from '@/features/saved-tabs/components/CustomProjectCategory'
 import { useProjectCard } from './ProjectCardContext'
 
 /**
@@ -10,6 +11,21 @@ export const ProjectCardCategoryList = () => {
   const { hookState, project, settings, categoryOrder, handlers } =
     useProjectCard()
   const { urls, dnd } = hookState
+  const categoryUrlsByName = useMemo(() => {
+    const buckets = new Map<string, typeof urls.projectUrls>()
+    for (const item of urls.projectUrls) {
+      if (!item.category) {
+        continue
+      }
+      const existing = buckets.get(item.category)
+      if (existing) {
+        existing.push(item)
+        continue
+      }
+      buckets.set(item.category, [item])
+    }
+    return buckets
+  }, [urls.projectUrls])
 
   if (project.categories.length === 0) {
     return null
@@ -20,12 +36,12 @@ export const ProjectCardCategoryList = () => {
       items={categoryOrder}
       strategy={verticalListSortingStrategy}
     >
-      {categoryOrder.map((categoryName, idx) => (
-        <div key={`${project.id}-${idx}`} className='mb-4'>
+      {categoryOrder.map(categoryName => (
+        <div key={`${project.id}-${categoryName}`} className='mb-4'>
           <CustomProjectCategory
             projectId={project.id}
             category={categoryName}
-            urls={urls.projectUrls}
+            urls={categoryUrlsByName.get(categoryName) || []}
             handleOpenUrl={handlers.handleOpenUrl}
             handleDeleteUrl={handlers.handleDeleteUrl}
             handleDeleteCategory={handlers.handleDeleteCategory}
@@ -38,7 +54,7 @@ export const ProjectCardCategoryList = () => {
             isHighlighted={dnd.draggedOverCategory === categoryName}
             isDraggingCategory={dnd.isDraggingCategory}
             draggedCategoryName={dnd.draggedCategoryName}
-            isCategoryReorder={true}
+            isCategoryReorder={dnd.isDraggingCategory}
           />
         </div>
       ))}

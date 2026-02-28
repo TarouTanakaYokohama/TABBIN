@@ -5,11 +5,84 @@
 // タブ作成を制御するためのフラグ
 let isCreatingSavedTabsPage = false
 let savedTabsPageId: number | null = null
-
+const activateAndPinTabIfNeeded = async (
+  tabId: number,
+  isPinned: boolean,
+): Promise<void> => {
+  await chrome.tabs.update(tabId, {
+    active: true,
+  })
+  if (isPinned) {
+    return
+  }
+  try {
+    await chrome.tabs.update(tabId, {
+      pinned: true,
+    })
+    console.log(`タブ ${tabId} をピン留めしました`)
+  } catch (error) {
+    console.error('タブのピン留め設定中にエラー:', error)
+  }
+}
+const reuseStoredSavedTabsPageId = async (): Promise<number | null> => {
+  if (!savedTabsPageId) {
+    return null
+  }
+  try {
+    const tab = await chrome.tabs.get(savedTabsPageId)
+    if (!tab) {
+      return null
+    }
+    console.log(`保存されていたタブID ${savedTabsPageId} を再利用します`)
+    await activateAndPinTabIfNeeded(savedTabsPageId, Boolean(tab.pinned))
+    return savedTabsPageId
+  } catch {
+    console.log('保存されていたタブIDは存在しませんでした。新規作成します。')
+    savedTabsPageId = null
+    return null
+  }
+}
+const findSavedTabsPages = (allTabs: chrome.tabs.Tab[]): chrome.tabs.Tab[] => {
+  return allTabs.filter(
+    tab =>
+      tab.url?.includes('saved-tabs.html') ||
+      tab.pendingUrl?.includes('saved-tabs.html'),
+  )
+}
+const reuseExistingSavedTabsPage = async (
+  savedTabsPages: chrome.tabs.Tab[],
+): Promise<number | null> => {
+  if (savedTabsPages.length === 0) {
+    return null
+  }
+  const mainTab = savedTabsPages[0]
+  savedTabsPageId = mainTab.id || null
+  console.log(`既存のタブを使用します: ${savedTabsPageId}`)
+  if (!savedTabsPageId) {
+    return null
+  }
+  await activateAndPinTabIfNeeded(savedTabsPageId, Boolean(mainTab.pinned))
+  await closeDuplicateTabs(savedTabsPages, savedTabsPageId)
+  return savedTabsPageId
+}
+const createSavedTabsPage = async (
+  savedTabsUrl: string,
+): Promise<number | null> => {
+  console.log('新しいタブを作成します')
+  const newTab = await chrome.tabs.create({
+    url: savedTabsUrl,
+  })
+  savedTabsPageId = newTab.id || null
+  console.log(`新しいsaved-tabsページを作成しました。ID: ${savedTabsPageId}`)
+  if (savedTabsPageId) {
+    await activateAndPinTabIfNeeded(savedTabsPageId, false)
+  }
+  return savedTabsPageId
+}
 /**
  * 保存されたタブを表示する共通関数
  */
-export async function openSavedTabsPage(): Promise<number | null> {
+const openSavedTabsPage = async (): Promise<number | null> => {
   // 既に作成中の場合は待機
   if (isCreatingSavedTabsPage) {
     console.log('既にsaved-tabsページの作成処理が実行中です。待機します...')
@@ -25,104 +98,23 @@ export async function openSavedTabsPage(): Promise<number | null> {
 
   // 作成中フラグをセット
   isCreatingSavedTabsPage = true
-
   try {
     // 保存されたタブを表示するページのURLを構築
     const savedTabsUrl = chrome.runtime.getURL('saved-tabs.html')
     console.log('開くURL:', savedTabsUrl)
-
-    // 既存のタブIDが保存されていれば再利用
-    if (savedTabsPageId) {
-      try {
-        // タブが実際に存在するか確認
-        const tab = await chrome.tabs.get(savedTabsPageId)
-        if (tab) {
-          console.log(`保存されていたタブID ${savedTabsPageId} を再利用します`)
-          await chrome.tabs.update(savedTabsPageId, { active: true })
-
-          // 既存のタブが固定されていない場合は固定する
-          if (!tab.pinned) {
-            try {
-              await chrome.tabs.update(savedTabsPageId, { pinned: true })
-              console.log(`既存のタブ ${savedTabsPageId} をピン留めしました`)
-            } catch (e) {
-              console.error('既存タブのピン留め設定中にエラー:', e)
-            }
-          }
-
-          return savedTabsPageId
-        }
-      } catch (_e) {
-        // タブが見つからない場合は続行して新しく作成
-        console.log(
-          '保存されていたタブIDは存在しませんでした。新規作成します。',
-        )
-        savedTabsPageId = null
-      }
+    const reusedStoredTabId = await reuseStoredSavedTabsPageId()
+    if (reusedStoredTabId) {
+      return reusedStoredTabId
     }
-
-    // まず既存のすべてのタブを取得
     const allTabs = await chrome.tabs.query({})
     console.log(`全タブ数: ${allTabs.length}`)
-
-    // saved-tabs.htmlを含むタブを検索（より広範な検索条件）
-    const savedTabsPages = allTabs.filter(tab => {
-      return (
-        tab.url?.includes('saved-tabs.html') ||
-        tab.pendingUrl?.includes('saved-tabs.html')
-      )
-    })
-
+    const savedTabsPages = findSavedTabsPages(allTabs)
     console.log(`既存のsaved-tabsページ数: ${savedTabsPages.length}`)
-
-    // 既存のタブがある場合
-    if (savedTabsPages.length > 0) {
-      // 最初のタブを使用
-      const mainTab = savedTabsPages[0]
-      savedTabsPageId = mainTab.id || null
-
-      console.log(`既存のタブを使用します: ${savedTabsPageId}`)
-
-      if (savedTabsPageId) {
-        await chrome.tabs.update(savedTabsPageId, { active: true })
-
-        // 既存のタブが固定されていない場合は固定する
-        if (!mainTab.pinned) {
-          try {
-            await chrome.tabs.update(savedTabsPageId, { pinned: true })
-            console.log(`既存のタブ ${savedTabsPageId} をピン留めしました`)
-          } catch (e) {
-            console.error('既存タブのピン留め設定中にエラー:', e)
-          }
-        }
-
-        // 重複タブを閉じる（最初のタブ以外）
-        await closeDuplicateTabs(savedTabsPages, savedTabsPageId)
-      }
-
-      return savedTabsPageId
+    const reusedExistingTabId = await reuseExistingSavedTabsPage(savedTabsPages)
+    if (reusedExistingTabId) {
+      return reusedExistingTabId
     }
-
-    // 新しいタブを作成
-    console.log('新しいタブを作成します')
-
-    // タブを同期的に作成してIDを保存
-    const newTab = await chrome.tabs.create({ url: savedTabsUrl })
-    savedTabsPageId = newTab.id || null
-
-    console.log(`新しいsaved-tabsページを作成しました。ID: ${savedTabsPageId}`)
-
-    // 新しく作成したタブを必ず固定する
-    if (savedTabsPageId) {
-      try {
-        await chrome.tabs.update(savedTabsPageId, { pinned: true })
-        console.log(`タブ ${savedTabsPageId} をピン留めしました`)
-      } catch (e) {
-        console.error('ピン留め設定中にエラー:', e)
-      }
-    }
-
-    return savedTabsPageId
+    return await createSavedTabsPage(savedTabsUrl)
   } catch (error) {
     console.error('saved-tabsページを開く際にエラーが発生しました:', error)
     return null
@@ -131,14 +123,13 @@ export async function openSavedTabsPage(): Promise<number | null> {
     isCreatingSavedTabsPage = false
   }
 }
-
 /**
  * 重複タブを閉じる
  */
-async function closeDuplicateTabs(
+const closeDuplicateTabs = async (
   savedTabsPages: chrome.tabs.Tab[],
   _mainTabId: number,
-): Promise<void> {
+): Promise<void> => {
   if (savedTabsPages.length > 1) {
     console.log(`${savedTabsPages.length - 1}個の重複タブを閉じます`)
     for (let i = 1; i < savedTabsPages.length; i++) {
@@ -154,11 +145,11 @@ async function closeDuplicateTabs(
     }
   }
 }
-
 /**
  * saved-tabsページのIDをリセット（テスト用）
  */
-export function resetSavedTabsPageId(): void {
+const resetSavedTabsPageId = (): void => {
   savedTabsPageId = null
   isCreatingSavedTabsPage = false
 }
+export { openSavedTabsPage, resetSavedTabsPageId }

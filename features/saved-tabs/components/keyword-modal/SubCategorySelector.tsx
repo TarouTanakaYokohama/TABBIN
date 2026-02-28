@@ -37,7 +37,7 @@ export const SubCategorySelector = () => {
         <div className='flex gap-2'>
           {!rename.isRenaming && (
             <Tooltip>
-              <TooltipTrigger asChild>
+              <TooltipTrigger asChild={true}>
                 <Button
                   variant='secondary'
                   size='sm'
@@ -56,7 +56,7 @@ export const SubCategorySelector = () => {
           )}
 
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger asChild={true}>
               <Button
                 variant='secondary'
                 size='sm'

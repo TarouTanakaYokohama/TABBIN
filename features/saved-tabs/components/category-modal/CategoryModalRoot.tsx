@@ -12,7 +12,7 @@ import {
 } from './CategoryModalContext'
 
 /** CategoryModalRoot の props */
-type CategoryModalRootProps = {
+interface CategoryModalRootProps {
   /** モーダルを閉じるハンドラ */
   onClose: () => void
   /** タブグループ一覧 */

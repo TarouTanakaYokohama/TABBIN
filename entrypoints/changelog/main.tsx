@@ -102,7 +102,7 @@ const App: React.FC = () => (
                       key={`${item.version}-${feature.text}`}
                       className='group flex items-start rounded-lg p-3 transition-colors duration-200 hover:bg-accent/10'
                     >
-                      <div className='flex-shrink-0'>
+                      <div className='shrink-0'>
                         <Check
                           aria-hidden='true'
                           className='h-6 w-6 text-chart-1 transition-colors duration-200 group-hover:text-chart-4'
@@ -127,7 +127,9 @@ const App: React.FC = () => (
 
 document.addEventListener('DOMContentLoaded', () => {
   const appContainer = document.getElementById('app')
-  if (!appContainer) throw new Error('Failed to find the app container')
+  if (!appContainer) {
+    throw new Error('Failed to find the app container')
+  }
 
   const root = createRoot(appContainer)
   root.render(

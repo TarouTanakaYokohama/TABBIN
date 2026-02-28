@@ -10,6 +10,10 @@ vi.mock('@/lib/storage/migration', () => ({
   migrateToUrlsStorage: vi.fn(),
 }))
 
+vi.mock('@/lib/storage/projects', () => ({
+  addUrlsToUncategorizedProject: vi.fn(),
+}))
+
 vi.mock('@/lib/storage/settings', () => {
   const defaultSettings: UserSettings = {
     removeTabAfterOpen: true,
@@ -36,21 +40,53 @@ vi.mock('@/lib/storage/settings', () => {
 
 vi.mock('@/lib/storage/urls', () => ({
   createOrUpdateUrlRecord: vi.fn(),
+  createOrUpdateUrlRecordsBatch: vi.fn(),
 }))
 
 import { saveParentCategories } from '@/lib/storage/categories'
 import { migrateToUrlsStorage } from '@/lib/storage/migration'
+import { addUrlsToUncategorizedProject } from '@/lib/storage/projects'
 import {
   defaultSettings,
   getUserSettings,
   saveUserSettings,
 } from '@/lib/storage/settings'
-import { createOrUpdateUrlRecord } from '@/lib/storage/urls'
+import {
+  createOrUpdateUrlRecord,
+  createOrUpdateUrlRecordsBatch,
+} from '@/lib/storage/urls'
 import { downloadAsJson, exportSettings, importSettings } from './import-export'
 
 type StorageStore = Record<string, unknown>
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+
+const readStorageByKeys = (
+  store: StorageStore,
+  keys?: string | string[] | Record<string, unknown>,
+) => {
+  if (keys == null) {
+    return clone(store)
+  }
+
+  if (typeof keys === 'string') {
+    return { [keys]: clone(store[keys]) }
+  }
+
+  if (Array.isArray(keys)) {
+    const result: Record<string, unknown> = {}
+    for (const key of keys) {
+      result[key] = clone(store[key])
+    }
+    return result
+  }
+
+  const result: Record<string, unknown> = {}
+  for (const [key, fallback] of Object.entries(keys)) {
+    result[key] = store[key] === undefined ? clone(fallback) : clone(store[key])
+  }
+  return result
+}
 
 const createChromeMock = (
   initialStore: StorageStore = {},
@@ -66,29 +102,7 @@ const createChromeMock = (
       if (options.failGet) {
         throw new Error('storage get failed')
       }
-
-      if (keys == null) {
-        return clone(store)
-      }
-
-      if (typeof keys === 'string') {
-        return { [keys]: clone(store[keys]) }
-      }
-
-      if (Array.isArray(keys)) {
-        const result: Record<string, unknown> = {}
-        for (const key of keys) {
-          result[key] = clone(store[key])
-        }
-        return result
-      }
-
-      const result: Record<string, unknown> = {}
-      for (const [key, fallback] of Object.entries(keys)) {
-        result[key] =
-          store[key] === undefined ? clone(fallback) : clone(store[key])
-      }
-      return result
+      return readStorageByKeys(store, keys)
     },
   )
 
@@ -135,6 +149,7 @@ describe('import-export ユーティリティ', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(migrateToUrlsStorage).mockResolvedValue(undefined)
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(new Map())
   })
 
   afterEach(() => {
@@ -359,15 +374,17 @@ describe('import-export ユーティリティ', () => {
   it('マージ済みプレースホルダーマップの has() が予期せず true を返しても処理できる', async () => {
     const originalHas = Map.prototype.has
     let hasCallCount = 0
-    const hasSpy = vi.spyOn(Map.prototype, 'has').mockImplementation(function (
-      this: Map<unknown, unknown>,
-      key: unknown,
-    ) {
+    const hasSpy = vi.spyOn(Map.prototype, 'has')
+    hasSpy.mockImplementation((key: unknown) => {
       hasCallCount += 1
       if (hasCallCount === 2 && key === 'forced-skip-placeholder-id') {
         return true
       }
-      return originalHas.call(this, key)
+      const context = hasSpy.mock.contexts[hasSpy.mock.calls.length - 1] as Map<
+        unknown,
+        unknown
+      >
+      return originalHas.call(context, key)
     })
 
     createChromeMock({
@@ -429,20 +446,20 @@ describe('import-export ユーティリティ', () => {
   })
 
   it('downloadAsJson は一時的なアンカーを作成してクリーンアップする', () => {
-    const originalCreateObjectURL = URL.createObjectURL
-    const originalRevokeObjectURL = URL.revokeObjectURL
-    const createObjectURL = vi.fn(() => 'blob:mock-url')
-    const revokeObjectURL = vi.fn()
+    const originalCreateObjectUrl = URL.createObjectURL
+    const originalRevokeObjectUrl = URL.revokeObjectURL
+    const createObjectUrl = vi.fn(() => 'blob:mock-url')
+    const revokeObjectUrl = vi.fn()
 
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       writable: true,
-      value: createObjectURL,
+      value: createObjectUrl,
     })
     Object.defineProperty(URL, 'revokeObjectURL', {
       configurable: true,
       writable: true,
-      value: revokeObjectURL,
+      value: revokeObjectUrl,
     })
 
     const clickSpy = vi
@@ -466,9 +483,9 @@ describe('import-export ユーティリティ', () => {
       'backup.json',
     )
 
-    expect(createObjectURL).toHaveBeenCalledTimes(1)
+    expect(createObjectUrl).toHaveBeenCalledTimes(1)
     expect(clickSpy).toHaveBeenCalledTimes(1)
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:mock-url')
     expect(document.querySelector('a[download="backup.json"]')).toBeNull()
 
     rafSpy.mockRestore()
@@ -477,12 +494,12 @@ describe('import-export ユーティリティ', () => {
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       writable: true,
-      value: originalCreateObjectURL,
+      value: originalCreateObjectUrl,
     })
     Object.defineProperty(URL, 'revokeObjectURL', {
       configurable: true,
       writable: true,
-      value: originalRevokeObjectURL,
+      value: originalRevokeObjectUrl,
     })
   })
 
@@ -563,9 +580,10 @@ describe('import-export ユーティリティ', () => {
       undefined,
     )
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         id: 'restored-group',
@@ -767,15 +785,35 @@ describe('import-export ユーティリティ', () => {
     })
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
 
+    const isUrlsDefaultRequest = (
+      keys?: string | string[] | Record<string, unknown>,
+    ): keys is Record<string, unknown> =>
+      Boolean(
+        keys &&
+          typeof keys === 'object' &&
+          !Array.isArray(keys) &&
+          'urls' in keys,
+      )
+
+    const buildUndefinedResponse = (
+      keys?: string | string[] | Record<string, unknown>,
+    ) => {
+      if (keys == null) {
+        return {}
+      }
+      if (typeof keys === 'string') {
+        return { [keys]: undefined }
+      }
+      if (Array.isArray(keys)) {
+        return Object.fromEntries(keys.map(key => [key, undefined]))
+      }
+      return Object.fromEntries(Object.entries(keys))
+    }
+
     let urlsGetCount = 0
     get.mockImplementation(
       async (keys?: string | string[] | Record<string, unknown>) => {
-        if (
-          keys &&
-          typeof keys === 'object' &&
-          !Array.isArray(keys) &&
-          'urls' in keys
-        ) {
+        if (isUrlsDefaultRequest(keys)) {
           urlsGetCount += 1
           if (urlsGetCount === 1) {
             return { urls: [existingUrlRecord] }
@@ -784,17 +822,7 @@ describe('import-export ユーティリティ', () => {
           return { urls: [existingUrlRecord, lateAvailablePlaceholder] }
         }
 
-        if (keys == null) {
-          return {}
-        }
-        if (typeof keys === 'string') {
-          return { [keys]: undefined }
-        }
-        if (Array.isArray(keys)) {
-          return Object.fromEntries(keys.map(key => [key, undefined]))
-        }
-
-        return Object.fromEntries(Object.entries(keys))
+        return buildUndefinedResponse(keys)
       },
     )
 
@@ -829,9 +857,10 @@ describe('import-export ユーティリティ', () => {
     expect(result.message).toContain('0件の代替URLを生成しました')
     expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         id: 'raw-fallback-group',
@@ -890,9 +919,10 @@ describe('import-export ユーティリティ', () => {
     expect(result.success).toBe(true)
     expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         id: 'empty-group',
@@ -1062,9 +1092,10 @@ describe('import-export ユーティリティ', () => {
 
     expect(result.success).toBe(true)
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         id: 'existing-group',
@@ -1138,9 +1169,10 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), true)
 
     expect(result.success).toBe(true)
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         urlIds: ['dup-id'],
@@ -1192,9 +1224,10 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), true)
 
     expect(result.success).toBe(true)
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         categoryKeywords: [{ categoryName: 'edge', keywords: [] }],
@@ -1205,14 +1238,16 @@ describe('import-export ユーティリティ', () => {
 
   it('merge モードでは has() 後の keyword map 参照が undefined を返しても処理できる', async () => {
     const originalGet = Map.prototype.get
-    const getSpy = vi.spyOn(Map.prototype, 'get').mockImplementation(function (
-      this: Map<unknown, unknown>,
-      key: unknown,
-    ) {
+    const getSpy = vi.spyOn(Map.prototype, 'get')
+    getSpy.mockImplementation((key: unknown) => {
       if (key === 'force-undefined-existing-item') {
-        return undefined
+        return
       }
-      return originalGet.call(this, key)
+      const context = getSpy.mock.contexts[getSpy.mock.calls.length - 1] as Map<
+        unknown,
+        unknown
+      >
+      return originalGet.call(context, key)
     })
 
     const { set } = createChromeMock({
@@ -1429,9 +1464,10 @@ describe('import-export ユーティリティ', () => {
       ]),
     )
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg).toHaveLength(2)
 
     const mergedExisting = savedTabsArg.find(
@@ -1476,6 +1512,16 @@ describe('import-export ユーティリティ', () => {
         categoryKeywords: [{ categoryName: 'topic', keywords: ['keyword'] }],
       }),
     )
+    expect(addUrlsToUncategorizedProject).toHaveBeenCalledWith([
+      {
+        url: 'https://existing.example.com/new',
+        title: 'Existing New',
+      },
+      {
+        url: 'https://new.example.com/path',
+        title: 'New Domain',
+      },
+    ])
   })
 
   it('importSettings は overwrite モードで全データを置き換える', async () => {
@@ -1563,9 +1609,10 @@ describe('import-export ユーティリティ', () => {
       },
     ])
 
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg).toHaveLength(1)
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
@@ -1578,6 +1625,143 @@ describe('import-export ユーティリティ', () => {
         savedAt: 999,
       }),
     )
+    expect(addUrlsToUncategorizedProject).toHaveBeenCalledWith([
+      {
+        url: 'https://replace.example.com/fail',
+        title: 'fail',
+      },
+      {
+        url: 'https://replace.example.com/ok',
+        title: 'ok',
+      },
+    ])
+  })
+
+  it('カスタムモード同期に失敗しても importSettings は成功を返す', async () => {
+    createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecord).mockResolvedValue({
+      id: 'sync-failure-url',
+      url: 'https://sync-failure.example.com',
+      title: 'sync-failure',
+      savedAt: 1,
+    })
+    vi.mocked(addUrlsToUncategorizedProject).mockRejectedValueOnce(
+      new Error('sync failed'),
+    )
+
+    const imported = {
+      version: '3.1.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'sync-failure-group',
+          domain: 'https://sync-failure.example.com',
+          urls: [
+            {
+              url: 'https://sync-failure.example.com',
+              title: 'sync-failure',
+            },
+          ],
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), true)
+
+    expect(result.success).toBe(true)
+    expect(addUrlsToUncategorizedProject).toHaveBeenCalledWith([
+      {
+        url: 'https://sync-failure.example.com',
+        title: 'sync-failure',
+      },
+    ])
+    expect(console.error).toHaveBeenCalledWith(
+      'カスタムモード同期エラー:',
+      expect.any(Error),
+    )
+  })
+
+  it('importSettings は大量URL時にURL変換を一括で実行する', async () => {
+    const { set } = createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const importedUrls = Array.from({
+      length: 101,
+    }).map((_, index) => ({
+      url: `https://bulk.example.com/page-${index}`,
+      title: `Bulk ${index}`,
+    }))
+
+    const bulkMap = new Map(
+      importedUrls.slice(0, 100).map((item, index) => [
+        item.url,
+        {
+          id: `bulk-id-${index}`,
+          url: item.url,
+          title: item.title,
+          savedAt: index,
+        },
+      ]),
+    )
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(
+      bulkMap as Map<
+        string,
+        {
+          id: string
+          url: string
+          title: string
+          savedAt: number
+        }
+      >,
+    )
+
+    const imported = {
+      version: '6.0.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'bulk-group',
+          domain: 'https://bulk.example.com',
+          urls: importedUrls,
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), true)
+
+    expect(result.success).toBe(true)
+    expect(createOrUpdateUrlRecordsBatch).toHaveBeenCalledTimes(1)
+    expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
+    expect(savedTabsArg[0]?.urlIds).toHaveLength(100)
   })
 
   it('overwrite モードでは不正な keyword と subcategory エントリを正規化する', async () => {
@@ -1628,9 +1812,10 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), false)
 
     expect(result.success).toBe(true)
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         subCategories: ['ObjSub', 'StrSub'],
@@ -1673,9 +1858,10 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), false)
 
     expect(result.success).toBe(true)
-    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Array<
-      Record<string, unknown>
-    >
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
     expect(savedTabsArg[0]).toEqual(
       expect.objectContaining({
         id: 'minimal-group',

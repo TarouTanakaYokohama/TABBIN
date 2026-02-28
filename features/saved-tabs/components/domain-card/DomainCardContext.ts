@@ -5,7 +5,7 @@ import type { UserSettings } from '@/types/storage'
 import type { useDomainCardState } from '../../hooks/useDomainCardState'
 
 /** DomainCard のコンテキスト型 */
-export type DomainCardContextType = {
+export interface DomainCardContextType {
   /** フック戻り値 */
   state: ReturnType<typeof useDomainCardState>
   /** タブグループデータ */
@@ -28,5 +28,5 @@ export type DomainCardContextType = {
   }
 }
 
-export const { Context: DomainCardContext, useCompoundContext: useDomainCard } =
+export const { context: DomainCardContext, useCompoundContext: useDomainCard } =
   createCompoundContext<DomainCardContextType>('DomainCard')

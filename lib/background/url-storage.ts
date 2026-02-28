@@ -12,28 +12,25 @@ let draggedUrlInfo: DraggedUrlInfo | null = null
 /**
  * ドラッグ情報を設定
  */
-export function setDraggedUrlInfo(info: DraggedUrlInfo): void {
+const setDraggedUrlInfo = (info: DraggedUrlInfo): void => {
   draggedUrlInfo = info
 }
-
 /**
  * ドラッグ情報を取得
  */
-export function getDraggedUrlInfo(): DraggedUrlInfo | null {
+const getDraggedUrlInfo = (): DraggedUrlInfo | null => {
   return draggedUrlInfo
 }
-
 /**
  * ドラッグ情報をクリア
  */
-export function clearDraggedUrlInfo(): void {
+const clearDraggedUrlInfo = (): void => {
   draggedUrlInfo = null
 }
-
 /**
  * URLを正規化する関数（比較のため）
  */
-export function normalizeUrl(url: string): string {
+const normalizeUrl = (url: string): string => {
   try {
     // 不要なパラメータやフラグメントを取り除く
     return url.trim().toLowerCase().split('#')[0].split('?')[0]
@@ -41,11 +38,79 @@ export function normalizeUrl(url: string): string {
     return url.toLowerCase()
   }
 }
-
+const removeUrlIdFromGroup = (
+  group: TabGroup,
+  matchedUrlId: string,
+  removedGroupIds: string[],
+): TabGroup[] => {
+  if (!(Array.isArray(group.urlIds) && group.urlIds.includes(matchedUrlId))) {
+    return [group]
+  }
+  const updatedUrlIds = group.urlIds.filter(id => id !== matchedUrlId)
+  const updatedUrlSubCategories = group.urlSubCategories
+    ? Object.fromEntries(
+        Object.entries(group.urlSubCategories).filter(([urlId]) => {
+          return urlId !== matchedUrlId
+        }),
+      )
+    : undefined
+  if (updatedUrlIds.length === 0) {
+    removedGroupIds.push(group.id)
+    return []
+  }
+  return [
+    {
+      ...group,
+      urlIds: updatedUrlIds,
+      urlSubCategories:
+        updatedUrlSubCategories &&
+        Object.keys(updatedUrlSubCategories).length > 0
+          ? updatedUrlSubCategories
+          : undefined,
+    },
+  ]
+}
+const removeLegacyUrlFromGroup = (
+  group: TabGroup,
+  url: string,
+  removedGroupIds: string[],
+): TabGroup[] => {
+  if (!Array.isArray(group.urls)) {
+    return [group]
+  }
+  const updatedUrls = group.urls.filter(item => item.url !== url)
+  if (updatedUrls.length === group.urls.length) {
+    return [group]
+  }
+  if (updatedUrls.length === 0) {
+    removedGroupIds.push(group.id)
+    return []
+  }
+  return [
+    {
+      ...group,
+      urls: updatedUrls,
+    },
+  ]
+}
+const updateGroupAfterUrlRemoval = (
+  group: TabGroup,
+  url: string,
+  matchedUrlId: string | undefined,
+  removedGroupIds: string[],
+): TabGroup[] => {
+  if (Array.isArray(group.urlIds)) {
+    if (!matchedUrlId) {
+      return [group]
+    }
+    return removeUrlIdFromGroup(group, matchedUrlId, removedGroupIds)
+  }
+  return removeLegacyUrlFromGroup(group, url, removedGroupIds)
+}
 /**
  * URLをストレージから削除する関数（カテゴリ設定とマッピングを保持）
  */
-export async function removeUrlFromStorage(url: string): Promise<void> {
+const removeUrlFromStorage = async (url: string): Promise<void> => {
   try {
     const storageResult = await chrome.storage.local.get(['savedTabs', 'urls'])
     const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
@@ -58,55 +123,9 @@ export async function removeUrlFromStorage(url: string): Promise<void> {
     const removedGroupIds: string[] = []
 
     // URLを含むグループのみを更新（新形式 urlIds / 旧形式 urls の両方に対応）
-    const updatedGroups: TabGroup[] = savedTabs.flatMap((group: TabGroup) => {
-      if (Array.isArray(group.urlIds)) {
-        if (!matchedUrlId || !group.urlIds.includes(matchedUrlId)) {
-          return [group]
-        }
-
-        const updatedUrlIds = group.urlIds.filter(id => id !== matchedUrlId)
-        const updatedUrlSubCategories = group.urlSubCategories
-          ? Object.fromEntries(
-              Object.entries(group.urlSubCategories).filter(
-                ([urlId]) => urlId !== matchedUrlId,
-              ),
-            )
-          : undefined
-
-        if (updatedUrlIds.length === 0) {
-          removedGroupIds.push(group.id)
-          return []
-        }
-
-        return [
-          {
-            ...group,
-            urlIds: updatedUrlIds,
-            urlSubCategories:
-              updatedUrlSubCategories &&
-              Object.keys(updatedUrlSubCategories).length > 0
-                ? updatedUrlSubCategories
-                : undefined,
-          },
-        ]
-      }
-
-      if (Array.isArray(group.urls)) {
-        const updatedUrls = group.urls.filter(item => item.url !== url)
-        if (updatedUrls.length === group.urls.length) {
-          return [group]
-        }
-
-        if (updatedUrls.length === 0) {
-          removedGroupIds.push(group.id)
-          return []
-        }
-
-        return [{ ...group, urls: updatedUrls }]
-      }
-
-      return [group]
-    })
+    const updatedGroups: TabGroup[] = savedTabs.flatMap((group: TabGroup) =>
+      updateGroupAfterUrlRemoval(group, url, matchedUrlId, removedGroupIds),
+    )
 
     // 空になったグループに紐づくカテゴリ更新を先に実行する
     await Promise.all(
@@ -114,27 +133,27 @@ export async function removeUrlFromStorage(url: string): Promise<void> {
     )
 
     // 更新したグループをストレージに保存
-    await chrome.storage.local.set({ savedTabs: updatedGroups })
+    await chrome.storage.local.set({
+      savedTabs: updatedGroups,
+    })
     console.log(`ストレージからURL ${url} を削除しました`)
   } catch (error) {
     console.error('URLの削除中にエラーが発生しました:', error)
     throw error
   }
 }
-
 /**
  * TabGroupが空になった時の処理関数
  */
-async function handleTabGroupRemoval(groupId: string): Promise<void> {
+const handleTabGroupRemoval = async (groupId: string): Promise<void> => {
   console.log(`空になったグループの処理を開始: ${groupId}`)
   await removeFromParentCategories(groupId)
   console.log(`グループ ${groupId} の処理が完了しました`)
 }
-
 /**
  * グループを親カテゴリから削除する関数を更新
  */
-async function removeFromParentCategories(groupId: string): Promise<void> {
+const removeFromParentCategories = async (groupId: string): Promise<void> => {
   try {
     const [categoriesStorage, tabsStorage] = await Promise.all([
       chrome.storage.local.get('parentCategories'),
@@ -147,14 +166,12 @@ async function removeFromParentCategories(groupId: string): Promise<void> {
       (group: TabGroup) => group.id === groupId,
     )
     const domainName = groupToRemove?.domain
-
-    if (!groupToRemove || !domainName) {
+    if (!(groupToRemove && domainName)) {
       console.log(
         `削除対象のグループID ${groupId} が見つからないか、ドメイン名がありません`,
       )
       return
     }
-
     console.log(
       `カテゴリから削除: グループID ${groupId}, ドメイン ${domainName}`,
     )
@@ -169,19 +186,21 @@ async function removeFromParentCategories(groupId: string): Promise<void> {
         }
 
         // ドメイン名がdomainNamesにあるか確認してログ出力
-        if (category.domainNames && Array.isArray(category.domainNames)) {
-          if (category.domainNames.includes(domainName)) {
-            console.log(
-              `ドメイン名 ${domainName} は ${category.name} のdomainNamesに保持されます`,
-            )
-          }
+        if (
+          category.domainNames &&
+          Array.isArray(category.domainNames) &&
+          category.domainNames.includes(domainName)
+        ) {
+          console.log(
+            `ドメイン名 ${domainName} は ${category.name} のdomainNamesに保持されます`,
+          )
         }
-
         return updated
       },
     )
-
-    await chrome.storage.local.set({ parentCategories: updatedCategories })
+    await chrome.storage.local.set({
+      parentCategories: updatedCategories,
+    })
 
     // 必要ならドメイン-カテゴリのマッピングを更新（削除しない）
     if (groupToRemove.parentCategoryId) {
@@ -189,7 +208,6 @@ async function removeFromParentCategories(groupId: string): Promise<void> {
         `ドメイン ${domainName} のマッピングを親カテゴリ ${groupToRemove.parentCategoryId} に保持します`,
       )
     }
-
     console.log(
       `カテゴリからグループID ${groupId} を削除しました（ドメイン名を保持）`,
     )
@@ -200,16 +218,15 @@ async function removeFromParentCategories(groupId: string): Promise<void> {
     )
   }
 }
-
 /**
  * ドラッグ開始処理
  */
-export function handleUrlDragStarted(url: string): void {
+const handleUrlDragStarted = (url: string): void => {
   console.log('ドラッグ開始を検知:', url)
 
   // ドラッグ情報を一時保存
   draggedUrlInfo = {
-    url: url,
+    url,
     timestamp: Date.now(),
     processed: false,
   }
@@ -227,14 +244,13 @@ export function handleUrlDragStarted(url: string): void {
     draggedUrlInfo.timeoutId = dragTimeout
   }
 }
-
 /**
  * ドラッグドロップ処理
  */
-export async function handleUrlDropped(
+const handleUrlDropped = async (
   url: string,
   fromExternal?: boolean,
-): Promise<string> {
+): Promise<string> => {
   console.log('URLドロップを検知:', url)
 
   // fromExternal フラグが true の場合のみ処理（外部ドラッグの場合のみ）
@@ -253,15 +269,13 @@ export async function handleUrlDropped(
       throw error
     }
   }
-
   console.log('内部操作のため削除をスキップ')
   return 'internal_operation'
 }
-
 /**
  * 新しいタブ作成時の処理
  */
-export async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
+const handleTabCreated = async (tab: chrome.tabs.Tab): Promise<void> => {
   console.log('新しいタブが作成されました:', tab.url)
 
   // ドラッグされた情報が存在するか確認
@@ -272,7 +286,6 @@ export async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
     // URLを正規化して比較
     const normalizedDraggedUrl = normalizeUrl(draggedUrlInfo.url)
     const normalizedTabUrl = normalizeUrl(tab.url || '')
-
     console.log('正規化されたドラッグURL:', normalizedDraggedUrl)
     console.log('正規化された新タブURL:', normalizedTabUrl)
 
@@ -285,11 +298,9 @@ export async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
         normalizedDraggedUrl.includes(normalizedTabUrl))
     ) {
       console.log('URLが一致または類似しています')
-
       try {
         // 処理済みとマーク
         draggedUrlInfo.processed = true
-
         const settings = await getUserSettings()
         if (settings.removeTabAfterOpen) {
           console.log('設定に基づきURLを削除します:', draggedUrlInfo.url)
@@ -307,4 +318,14 @@ export async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
       console.log('URLが一致しません。削除をスキップします')
     }
   }
+}
+export {
+  clearDraggedUrlInfo,
+  getDraggedUrlInfo,
+  handleTabCreated,
+  handleUrlDragStarted,
+  handleUrlDropped,
+  normalizeUrl,
+  removeUrlFromStorage,
+  setDraggedUrlInfo,
 }

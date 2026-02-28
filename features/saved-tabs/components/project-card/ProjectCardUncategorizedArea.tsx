@@ -1,5 +1,5 @@
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { ProjectUrlItem } from '../ProjectUrlItem'
+import { ProjectUrlItem } from '@/features/saved-tabs/components/ProjectUrlItem'
 import { useProjectCard } from './ProjectCardContext'
 
 /**

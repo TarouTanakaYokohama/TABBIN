@@ -299,7 +299,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     })
 
     const onUpdated = safelyUpdateGroupUrlsMock.mock.calls[0]?.[2]
-    expect(typeof onUpdated).toBe('function')
+    expect(onUpdated).toEqual(expect.any(Function))
     onUpdated?.()
     expect(console.log).toHaveBeenCalled()
   })

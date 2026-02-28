@@ -3,7 +3,7 @@ import type { TabGroup } from '@/types/storage'
 import type { useCategoryModal } from '../../hooks/useCategoryModal'
 
 /** CategoryModal のコンテキスト型 */
-export type CategoryModalContextType = {
+export interface CategoryModalContextType {
   /** フック戻り値 */
   state: ReturnType<typeof useCategoryModal>
   /** タブグループ一覧 */
@@ -11,6 +11,6 @@ export type CategoryModalContextType = {
 }
 
 export const {
-  Context: CategoryModalContext,
+  context: CategoryModalContext,
   useCompoundContext: useCategoryModalContext,
 } = createCompoundContext<CategoryModalContextType>('CategoryModal')

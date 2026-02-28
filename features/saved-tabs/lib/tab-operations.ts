@@ -6,82 +6,77 @@ import {
 } from '@/lib/storage/categories'
 import type { TabGroup } from '@/types/storage'
 
+const ensureDomainNameInParentCategory = async (
+  groupToRemove: TabGroup,
+): Promise<void> => {
+  if (!groupToRemove.parentCategoryId) {
+    return
+  }
+  const parentCategories = await getParentCategories()
+  const parentCategory = parentCategories.find(
+    cat => cat.id === groupToRemove.parentCategoryId,
+  )
+  if (!parentCategory) {
+    return
+  }
+  const hasDomainName = parentCategory.domainNames?.includes(
+    groupToRemove.domain,
+  )
+  if (hasDomainName) {
+    return
+  }
+  const updatedCategory = {
+    ...parentCategory,
+    domainNames: [...(parentCategory.domainNames || []), groupToRemove.domain],
+  }
+  await saveParentCategories(
+    parentCategories.map(cat =>
+      cat.id === groupToRemove.parentCategoryId ? updatedCategory : cat,
+    ),
+  )
+  console.log(
+    `ドメイン ${groupToRemove.domain} を親カテゴリのdomainNamesに追加しました`,
+  )
+}
+const updateDomainCategoryMappingIfNeeded = async (
+  groupToRemove: TabGroup,
+): Promise<void> => {
+  if (!groupToRemove.parentCategoryId) {
+    return
+  }
+  await updateDomainCategoryMapping(
+    groupToRemove.domain,
+    groupToRemove.parentCategoryId,
+  )
+  console.log(`ドメイン ${groupToRemove.domain} のマッピングを更新しました`)
+}
 /**
  * タブグループ削除前の処理関数
  * グループのカテゴリ設定を保存します
  *
  * @param groupId 削除対象のグループID
  */
-export async function handleTabGroupRemoval(groupId: string): Promise<void> {
+export const handleTabGroupRemoval = async (groupId: string): Promise<void> => {
   try {
     const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
     const groupToRemove = savedTabs.find(
       (group: TabGroup) => group.id === groupId,
     )
-    if (groupToRemove?.domain) {
-      console.log(`グループ削除前の処理: ${groupToRemove.domain}`)
-
-      // カテゴリ設定を永続化
-      await updateDomainCategorySettings(
-        groupToRemove.domain,
-        groupToRemove.subCategories || [],
-        groupToRemove.categoryKeywords || [],
-      )
-
-      // 親カテゴリにドメイン名を確実に保持させる
-      if (groupToRemove.parentCategoryId) {
-        const parentCategories = await getParentCategories()
-        const parentCategory = parentCategories.find(
-          cat => cat.id === groupToRemove.parentCategoryId,
-        )
-
-        if (parentCategory) {
-          // domainNamesが存在し、このドメイン名を含んでいるか確認
-          const hasDomainName = parentCategory.domainNames?.includes(
-            groupToRemove.domain,
-          )
-
-          if (!hasDomainName) {
-            // ドメイン名を追加
-            const updatedCategory = {
-              ...parentCategory,
-              domainNames: [
-                ...(parentCategory.domainNames || []),
-                groupToRemove.domain,
-              ],
-            }
-
-            // 親カテゴリを更新
-            await saveParentCategories(
-              parentCategories.map(cat =>
-                cat.id === groupToRemove.parentCategoryId
-                  ? updatedCategory
-                  : cat,
-              ),
-            )
-            console.log(
-              `ドメイン ${groupToRemove.domain} を親カテゴリのdomainNamesに追加しました`,
-            )
-          }
-        }
-      }
-
-      // ドメイン-カテゴリマッピングも保持
-      if (groupToRemove.parentCategoryId) {
-        await updateDomainCategoryMapping(
-          groupToRemove.domain,
-          groupToRemove.parentCategoryId,
-        )
-        console.log(
-          `ドメイン ${groupToRemove.domain} のマッピングを更新しました`,
-        )
-      }
+    if (!groupToRemove?.domain) {
+      return
     }
+    console.log(`グループ削除前の処理: ${groupToRemove.domain}`)
+    await updateDomainCategorySettings(
+      groupToRemove.domain,
+      groupToRemove.subCategories || [],
+      groupToRemove.categoryKeywords || [],
+    )
+    await ensureDomainNameInParentCategory(groupToRemove)
+    await updateDomainCategoryMappingIfNeeded(groupToRemove)
   } catch (error) {
     console.error('タブグループ削除前処理エラー:', error)
   }
 }
-
 /**
  * カテゴリ内のタブ削除を安全に処理する関数
  *
@@ -89,11 +84,11 @@ export async function handleTabGroupRemoval(groupId: string): Promise<void> {
  * @param urls 更新後のURL一覧
  * @param callback 成功時のコールバック
  */
-export async function safelyUpdateGroupUrls(
+export const safelyUpdateGroupUrls = async (
   groupId: string,
   urls: TabGroup['urls'],
   callback?: () => void,
-): Promise<void> {
+): Promise<void> => {
   try {
     // ローカルストレージからタブを取得
     const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
@@ -111,14 +106,18 @@ export async function safelyUpdateGroupUrls(
     // グループ内のURLが空になる場合でも、グループ自体は維持（表示はしない）
     const updatedTabs = savedTabs.map((tab: TabGroup) => {
       if (tab.id === groupId) {
-        return { ...tab, urls }
+        return {
+          ...tab,
+          urls,
+        }
       }
       return tab
     })
 
     // 更新を保存
-    await chrome.storage.local.set({ savedTabs: updatedTabs })
-
+    await chrome.storage.local.set({
+      savedTabs: updatedTabs,
+    })
     const urlCount = urls?.length ?? 0
 
     // URLsが空の場合はコンソールにその旨を出力
@@ -135,7 +134,7 @@ export async function safelyUpdateGroupUrls(
           .catch(() => {
             // エラーは無視（拡張がアクティブでない場合など）
           })
-      } catch (_e) {
+      } catch {
         // メッセージ送信エラーは無視
       }
     } else {
@@ -148,7 +147,6 @@ export async function safelyUpdateGroupUrls(
     if (callback) {
       Promise.resolve().then(callback)
     }
-
     return Promise.resolve()
   } catch (error) {
     console.error('タブ更新エラー:', error)

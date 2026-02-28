@@ -2,17 +2,17 @@ import { useDndMonitor } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useMemo } from 'react'
+import { CategoryManagementModal } from '@/features/saved-tabs/components/CategoryManagementModal'
+import { useCategoryGroupState } from '@/features/saved-tabs/hooks/useCategoryGroupState'
 import type { CategoryGroupProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
-import { useCategoryGroupState } from '../../hooks/useCategoryGroupState'
-import { CategoryManagementModal } from '../CategoryManagementModal'
 import {
   CategoryGroupContext,
   type CategoryGroupContextType,
 } from './CategoryGroupContext'
 
 /** CategoryGroupRoot の props */
-type CategoryGroupRootProps = {
+interface CategoryGroupRootProps {
   /** 親カテゴリデータ */
   category: CategoryGroupProps['category']
   /** ドメイングループ配列 */

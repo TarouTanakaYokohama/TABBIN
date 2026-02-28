@@ -9,16 +9,22 @@ export type SortOrder = 'default' | 'asc' | 'desc'
  * @param items ソート対象の配列
  * @param getKey ソートキー取得関数（例: item => item.domain）
  */
-export function useSortOrder<T>(items: T[], getKey: (item: T) => string) {
+export const useSortOrder = <T>(items: T[], getKey: (item: T) => string) => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('default')
-
   const sortedItems = useMemo(() => {
-    if (sortOrder === 'default') return items
+    if (sortOrder === 'default') {
+      return items
+    }
     const arr = [...items]
     arr.sort((a, b) => getKey(a).localeCompare(getKey(b)))
-    if (sortOrder === 'desc') arr.reverse()
+    if (sortOrder === 'desc') {
+      arr.reverse()
+    }
     return arr
   }, [items, sortOrder, getKey])
-
-  return { sortOrder, setSortOrder, sortedItems }
+  return {
+    sortOrder,
+    setSortOrder,
+    sortedItems,
+  }
 }

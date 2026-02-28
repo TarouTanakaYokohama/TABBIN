@@ -26,7 +26,7 @@ export const CategoryGroupTitle = () => {
         <h2 className='font-bold text-foreground text-xl'>{category.name}</h2>
         <span className='flex gap-2 text-muted-foreground'>
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger asChild={true}>
               <Badge variant='secondary'>{allUrls?.length ?? 0}</Badge>
             </TooltipTrigger>
             <TooltipContent side='top' className='block lg:hidden'>
@@ -34,7 +34,7 @@ export const CategoryGroupTitle = () => {
             </TooltipContent>
           </Tooltip>
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger asChild={true}>
               <Badge variant='secondary'>{visibleDomainsCount}</Badge>
             </TooltipTrigger>
             <TooltipContent side='top' className='block lg:hidden'>

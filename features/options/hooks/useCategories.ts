@@ -36,15 +36,13 @@ export const useCategories = () => {
       changes: { [key: string]: chrome.storage.StorageChange },
       areaName: string,
     ) => {
-      if (areaName === 'local') {
-        if (changes.parentCategories) {
-          const nextParentCategories = Array.isArray(
-            changes.parentCategories.newValue,
-          )
-            ? (changes.parentCategories.newValue as ParentCategory[])
-            : []
-          setParentCategories(nextParentCategories)
-        }
+      if (areaName === 'local' && changes.parentCategories) {
+        const nextParentCategories = Array.isArray(
+          changes.parentCategories.newValue,
+        )
+          ? (changes.parentCategories.newValue as ParentCategory[])
+          : []
+        setParentCategories(nextParentCategories)
       }
     }
 

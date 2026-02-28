@@ -9,9 +9,15 @@ import { createOrUpdateUrlRecord, getUrlRecordsByIds } from './urls'
 /**
  * TabGroupからURLデータを取得する（新旧形式対応）
  */
-export async function getTabGroupUrls(
+const getTabGroupUrls = async (
   tabGroup: TabGroup,
-): Promise<Array<UrlRecord & { subCategory?: string }>> {
+): Promise<
+  Array<
+    UrlRecord & {
+      subCategory?: string
+    }
+  >
+> => {
   // マイグレーションを実行（未実行の場合）
   await migrateToUrlsStorage()
 
@@ -23,30 +29,27 @@ export async function getTabGroupUrls(
       subCategory: tabGroup.urlSubCategories?.[record.id],
     }))
   }
-
   return []
 }
-
 /**
  * TabGroupにURLを追加する（新形式対応）
  */
-export async function addUrlToTabGroup(
+const addUrlToTabGroup = async (
   groupId: string,
   url: string,
   title: string,
   subCategory?: string,
-): Promise<void> {
+): Promise<void> => {
   // マイグレーションを実行（未実行の場合）
   await migrateToUrlsStorage()
-
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
   const groupIndex = savedTabs.findIndex((g: TabGroup) => g.id === groupId)
-
-  if (groupIndex === -1) return
+  if (groupIndex === -1) {
+    return
+  }
 
   // URLレコードを作成または更新
   const urlRecord = await createOrUpdateUrlRecord(url, title)
-
   const group = savedTabs[groupIndex]
 
   // URLIDsが存在しない場合は初期化
@@ -66,21 +69,20 @@ export async function addUrlToTabGroup(
     }
     group.urlSubCategories[urlRecord.id] = subCategory
   }
-
   savedTabs[groupIndex] = group
-  await chrome.storage.local.set({ savedTabs })
-}
-
-// 子カテゴリを追加する関数（永続設定にも保存）
-export async function addSubCategoryToGroup(
+  await chrome.storage.local.set({
+    savedTabs,
+  })
+} // 子カテゴリを追加する関数（永続設定にも保存）
+const addSubCategoryToGroup = async (
   groupId: string,
   subCategoryName: string,
-): Promise<void> {
+): Promise<void> => {
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-
   const group = savedTabs.find((g: TabGroup) => g.id === groupId)
-  if (!group) return
-
+  if (!group) {
+    return
+  }
   const updatedGroups = savedTabs.map((existingGroup: TabGroup) => {
     if (existingGroup.id === groupId) {
       const subCategories = existingGroup.subCategories || []
@@ -95,13 +97,14 @@ export async function addSubCategoryToGroup(
   })
 
   // タブグループの更新
-  await chrome.storage.local.set({ savedTabs: updatedGroups })
+  await chrome.storage.local.set({
+    savedTabs: updatedGroups,
+  })
 
   // ドメイン別設定にも保存して永続化
   if (group) {
     const settings = await getDomainCategorySettings()
     const existingSetting = settings.find(s => s.domain === group.domain)
-
     if (existingSetting) {
       // 既存の設定がある場合は更新
       if (!existingSetting.subCategories.includes(subCategoryName)) {
@@ -118,51 +121,47 @@ export async function addSubCategoryToGroup(
       await saveDomainCategorySettings(settings)
     }
   }
-}
-
-// URLに子カテゴリを設定する関数（新形式対応）
-export async function setUrlSubCategory(
+} // URLに子カテゴリを設定する関数（新形式対応）
+const setUrlSubCategory = async (
   groupId: string,
   url: string,
   subCategory: string,
-): Promise<void> {
+): Promise<void> => {
   // マイグレーションを実行（未実行の場合）
   await migrateToUrlsStorage()
-
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
   const groupIndex = savedTabs.findIndex((g: TabGroup) => g.id === groupId)
-
-  if (groupIndex === -1) return
-
+  if (groupIndex === -1) {
+    return
+  }
   const group = savedTabs[groupIndex]
 
   // 新形式のみサポート: URLIDsからURLレコードを探してサブカテゴリを設定
   if (group.urlIds && group.urlIds.length > 0) {
     const urlRecords = await getUrlRecordsByIds(group.urlIds)
     const urlRecord = urlRecords.find(record => record.url === url)
-
     if (urlRecord) {
       if (!group.urlSubCategories) {
         group.urlSubCategories = {}
       }
       group.urlSubCategories[urlRecord.id] = subCategory
-
       savedTabs[groupIndex] = group
-      await chrome.storage.local.set({ savedTabs })
+      await chrome.storage.local.set({
+        savedTabs,
+      })
     }
   }
-}
-
-// 子カテゴリにキーワードを設定する関数（永続設定にも保存）
-export async function setCategoryKeywords(
+} // 子カテゴリにキーワードを設定する関数（永続設定にも保存）
+const setCategoryKeywords = async (
   groupId: string,
   categoryName: string,
   keywords: string[],
-): Promise<void> {
+): Promise<void> => {
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-
   const group = savedTabs.find((g: TabGroup) => g.id === groupId)
-  if (!group) return
+  if (!group) {
+    return
+  }
 
   // 更新するグループを見つける
   const updatedGroups = savedTabs.map((currentGroup: TabGroup) => {
@@ -174,9 +173,7 @@ export async function setCategoryKeywords(
       const categoryIndex = categoryKeywords.findIndex(
         (ck: SubCategoryKeyword) => ck.categoryName === categoryName,
       )
-
       const updatedCategoryKeywords = [...categoryKeywords]
-
       if (categoryIndex >= 0) {
         // 既存カテゴリの更新
         updatedCategoryKeywords[categoryIndex] = {
@@ -185,7 +182,10 @@ export async function setCategoryKeywords(
         }
       } else {
         // 新規カテゴリの追加
-        updatedCategoryKeywords.push({ categoryName, keywords })
+        updatedCategoryKeywords.push({
+          categoryName,
+          keywords,
+        })
       }
 
       // グループを更新（URLsはそのまま保持）
@@ -198,19 +198,19 @@ export async function setCategoryKeywords(
   })
 
   // タブグループの更新
-  await chrome.storage.local.set({ savedTabs: updatedGroups })
+  await chrome.storage.local.set({
+    savedTabs: updatedGroups,
+  })
 
   // ドメイン別設定にも保存して永続化
   if (group) {
     const settings = await getDomainCategorySettings()
     const existingSetting = settings.find(s => s.domain === group.domain)
-
     if (existingSetting) {
       // 既存の設定がある場合は更新
       const keywordIndex = existingSetting.categoryKeywords.findIndex(
         ck => ck.categoryName === categoryName,
       )
-
       if (keywordIndex >= 0) {
         // 既存のキーワード設定を更新
         existingSetting.categoryKeywords[keywordIndex].keywords = keywords
@@ -221,14 +221,18 @@ export async function setCategoryKeywords(
           keywords,
         })
       }
-
       await saveDomainCategorySettings(settings)
     } else {
       // 新しい設定を作成
       settings.push({
         domain: group.domain,
         subCategories: group.subCategories || [],
-        categoryKeywords: [{ categoryName, keywords }],
+        categoryKeywords: [
+          {
+            categoryName,
+            keywords,
+          },
+        ],
       })
       await saveDomainCategorySettings(settings)
     }
@@ -237,90 +241,94 @@ export async function setCategoryKeywords(
   // キーワードが更新されたら、既存の全タブに対して自動的に再カテゴライズを実行
   await autoCategorizeTabs(groupId)
 }
-
-// キーワードに基づいて自動的にURLを分類する（新形式対応）
-export async function autoCategorizeTabs(groupId: string): Promise<void> {
-  // マイグレーションを実行（未実行の場合）
-  await migrateToUrlsStorage()
-
-  const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-
-  // 重複チェックを追加
+const dedupeTabGroups = (savedTabs: TabGroup[]): TabGroup[] => {
   const uniqueIds = new Set<string>()
   const uniqueGroups: TabGroup[] = []
-
   for (const group of savedTabs) {
-    if (!uniqueIds.has(group.id)) {
-      uniqueIds.add(group.id)
-      uniqueGroups.push(group)
-    } else {
+    if (uniqueIds.has(group.id)) {
       console.warn(
         `自動カテゴリ実行前に重複検出: ${group.id} (${group.domain})`,
       )
+      continue
     }
+    uniqueIds.add(group.id)
+    uniqueGroups.push(group)
   }
-
-  // 重複があれば修正
   if (uniqueGroups.length < savedTabs.length) {
     console.log(
       `カテゴリ処理前に重複を修正: ${savedTabs.length} → ${uniqueGroups.length}`,
     )
   }
-
+  return uniqueGroups
+}
+const categorizeUrlIdsByKeywords = (
+  urlRecords: UrlRecord[],
+  categoryKeywords: TabGroup['categoryKeywords'],
+  currentMapping: Record<string, string> = {},
+): Record<string, string> => {
+  const updatedSubCategories: Record<string, string> = {
+    ...currentMapping,
+  }
+  if (!categoryKeywords) {
+    return updatedSubCategories
+  }
+  for (const urlRecord of urlRecords) {
+    const title = urlRecord.title.toLowerCase()
+    for (const categoryKeyword of categoryKeywords) {
+      const matchesKeyword = categoryKeyword.keywords.some((keyword: string) =>
+        title.includes(keyword.toLowerCase()),
+      )
+      if (matchesKeyword) {
+        updatedSubCategories[urlRecord.id] = categoryKeyword.categoryName
+        break
+      }
+    }
+  }
+  return updatedSubCategories
+}
+const applySubCategoryMapping = (
+  groups: TabGroup[],
+  groupId: string,
+  mapping: Record<string, string>,
+): void => {
+  const groupIndex = groups.findIndex(group => group.id === groupId)
+  if (groupIndex >= 0) {
+    groups[groupIndex].urlSubCategories = mapping
+  }
+} // キーワードに基づいて自動的にURLを分類する（新形式対応）
+const autoCategorizeTabs = async (groupId: string): Promise<void> => {
+  // マイグレーションを実行（未実行の場合）
+  await migrateToUrlsStorage()
+  const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+  const uniqueGroups = dedupeTabGroups(savedTabs)
   const targetGroup = uniqueGroups.find(
     (group: TabGroup) => group.id === groupId,
   )
-  if (
-    !targetGroup ||
-    !targetGroup.categoryKeywords ||
-    targetGroup.categoryKeywords.length === 0
-  ) {
+  const categoryKeywords = targetGroup?.categoryKeywords
+  if (!(categoryKeywords && categoryKeywords.length > 0)) {
     console.log('カテゴリキーワードがないか、グループが見つかりません')
     return // カテゴリキーワードがない場合は何もしない
   }
 
-  // この時点でtargetGroup.categoryKeywordsは必ず存在する
-  const categoryKeywords = targetGroup.categoryKeywords
-
   // 新形式のみサポート: URLIDsからURLレコードを取得して分類
   if (targetGroup.urlIds && targetGroup.urlIds.length > 0) {
     const urlRecords = await getUrlRecordsByIds(targetGroup.urlIds)
-    const updatedSubCategories: Record<string, string> = {
-      ...targetGroup.urlSubCategories,
-    }
-
-    for (const urlRecord of urlRecords) {
-      const title = urlRecord.title.toLowerCase()
-
-      for (const catKeyword of categoryKeywords) {
-        // いずれかのキーワードがタイトルに含まれているか確認
-        const matchesKeyword = catKeyword.keywords.some((keyword: string) =>
-          title.includes(keyword.toLowerCase()),
-        )
-
-        if (matchesKeyword) {
-          updatedSubCategories[urlRecord.id] = catKeyword.categoryName
-          break // 最初にマッチしたカテゴリを採用
-        }
-      }
-    }
-
-    // 更新されたサブカテゴリ情報を保存
-    const groupIndex = uniqueGroups.findIndex(g => g.id === groupId)
-    if (groupIndex >= 0) {
-      uniqueGroups[groupIndex].urlSubCategories = updatedSubCategories
-    }
+    const updatedSubCategories = categorizeUrlIdsByKeywords(
+      urlRecords,
+      categoryKeywords,
+      targetGroup.urlSubCategories,
+    )
+    applySubCategoryMapping(uniqueGroups, groupId, updatedSubCategories)
   }
-
-  await chrome.storage.local.set({ savedTabs: uniqueGroups })
-}
-
-// 新しい子カテゴリを追加時、キーワード設定も初期化する拡張版関数
-export async function addSubCategoryWithKeywords(
+  await chrome.storage.local.set({
+    savedTabs: uniqueGroups,
+  })
+} // 新しい子カテゴリを追加時、キーワード設定も初期化する拡張版関数
+const addSubCategoryWithKeywords = async (
   groupId: string,
   subCategoryName: string,
   keywords: string[] = [],
-): Promise<void> {
+): Promise<void> => {
   // 既存の子カテゴリ追加処理
   await addSubCategoryToGroup(groupId, subCategoryName)
 
@@ -328,15 +336,12 @@ export async function addSubCategoryWithKeywords(
   if (keywords.length > 0) {
     await setCategoryKeywords(groupId, subCategoryName, keywords)
   }
-}
-
-// 既存の設定を新しいタブグループに復元する関数
-export async function restoreCategorySettings(
+} // 既存の設定を新しいタブグループに復元する関数
+const restoreCategorySettings = async (
   tabGroup: TabGroup,
-): Promise<TabGroup> {
+): Promise<TabGroup> => {
   const settings = await getDomainCategorySettings()
   const domainSettings = settings.find(s => s.domain === tabGroup.domain)
-
   if (domainSettings) {
     return {
       ...tabGroup,
@@ -344,25 +349,22 @@ export async function restoreCategorySettings(
       categoryKeywords: domainSettings.categoryKeywords,
     }
   }
-
   return tabGroup
 }
-
 /**
  * TabGroup内のURLの順序を並び替える（新形式対応）
  */
-export async function reorderTabGroupUrls(
+const reorderTabGroupUrls = async (
   groupId: string,
   newUrlOrder: string[], // URL文字列の配列
-): Promise<void> {
+): Promise<void> => {
   // マイグレーションを実行（未実行の場合）
   await migrateToUrlsStorage()
-
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
   const groupIndex = savedTabs.findIndex((g: TabGroup) => g.id === groupId)
-
-  if (groupIndex === -1) return
-
+  if (groupIndex === -1) {
+    return
+  }
   const group = savedTabs[groupIndex]
 
   // 新形式のみサポート: URLIDsから現在のURLレコードを取得
@@ -371,7 +373,6 @@ export async function reorderTabGroupUrls(
 
     // 新しい順序に基づいてURLIDsを並び替え
     const reorderedUrlIds: string[] = []
-
     for (const url of newUrlOrder) {
       const urlRecord = urlRecords.find(record => record.url === url)
       if (urlRecord && group.urlIds.includes(urlRecord.id)) {
@@ -389,37 +390,35 @@ export async function reorderTabGroupUrls(
     // 並び替えたURLIDsを保存
     group.urlIds = reorderedUrlIds
     savedTabs[groupIndex] = group
-    await chrome.storage.local.set({ savedTabs })
-
+    await chrome.storage.local.set({
+      savedTabs,
+    })
     console.log(
       `グループ ${groupId} のURL順序を並び替えました:`,
       reorderedUrlIds,
     )
   }
 }
-
 /**
  * TabGroupからURLを削除する（新形式対応）
  */
-export async function removeUrlFromTabGroup(
+const removeUrlFromTabGroup = async (
   groupId: string,
   url: string,
-): Promise<void> {
+): Promise<void> => {
   // マイグレーションを実行（未実行の場合）
   await migrateToUrlsStorage()
-
   const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
   const groupIndex = savedTabs.findIndex((g: TabGroup) => g.id === groupId)
-
-  if (groupIndex === -1) return
-
+  if (groupIndex === -1) {
+    return
+  }
   const group = savedTabs[groupIndex]
 
   // 新形式のみサポート: URLIDsからURLを削除
   if (group.urlIds && group.urlIds.length > 0) {
     const urlRecords = await getUrlRecordsByIds(group.urlIds)
     const urlRecord = urlRecords.find(record => record.url === url)
-
     if (urlRecord) {
       // URLIDsから削除
       group.urlIds = group.urlIds.filter((id: string) => id !== urlRecord.id)
@@ -438,9 +437,22 @@ export async function removeUrlFromTabGroup(
       } else {
         savedTabs[groupIndex] = group
       }
-
-      await chrome.storage.local.set({ savedTabs })
+      await chrome.storage.local.set({
+        savedTabs,
+      })
       console.log(`URL ${url} をグループ ${groupId} から削除しました`)
     }
   }
+}
+export {
+  addSubCategoryToGroup,
+  addSubCategoryWithKeywords,
+  addUrlToTabGroup,
+  autoCategorizeTabs,
+  getTabGroupUrls,
+  removeUrlFromTabGroup,
+  reorderTabGroupUrls,
+  restoreCategorySettings,
+  setCategoryKeywords,
+  setUrlSubCategory,
 }

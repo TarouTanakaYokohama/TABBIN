@@ -13,7 +13,7 @@ import {
 describe('Dialogコンポーネント', () => {
   it('トリガーとクローズのラッパーに slot 属性を付与して描画する', () => {
     render(
-      <Dialog open>
+      <Dialog open={true}>
         <DialogTrigger>Open Dialog</DialogTrigger>
         <DialogContent>
           <DialogTitle>Dialog Title</DialogTitle>

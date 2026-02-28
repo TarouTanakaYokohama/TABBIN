@@ -7,11 +7,15 @@ import type { ParentCategory, TabGroup } from '@/types/storage'
 const categoryNameSchema = z
   .string()
   .trim()
-  .min(1, { message: 'カテゴリ名を入力してください' })
-  .max(25, { message: 'カテゴリ名は25文字以下にしてください' })
+  .min(1, {
+    message: 'カテゴリ名を入力してください',
+  })
+  .max(25, {
+    message: 'カテゴリ名は25文字以下にしてください',
+  })
 
 /** useCategoryKeywordModal フックの引数 */
-type UseCategoryKeywordModalParams = {
+interface UseCategoryKeywordModalParams {
   /** タブグループデータ */
   group: TabGroup
   /** モーダル開閉状態 */
@@ -25,20 +29,77 @@ type UseCategoryKeywordModalParams = {
   /** 親カテゴリ更新ハンドラ */
   onUpdateParentCategories?: (categories: ParentCategory[]) => void
 }
-
+const resolveSelectedParentCategoryId = (
+  storedCategories: ParentCategory[],
+  group: TabGroup,
+): string => {
+  if (group.parentCategoryId) {
+    return group.parentCategoryId
+  }
+  const matchedCategory = storedCategories.find(
+    category =>
+      category.domains.includes(group.id) ||
+      category.domainNames.includes(group.domain),
+  )
+  return matchedCategory ? matchedCategory.id : 'none'
+}
+const renameCategoryInTab = (
+  tab: TabGroup,
+  groupId: string,
+  activeCategory: string,
+  validName: string,
+): TabGroup => {
+  if (tab.id !== groupId) {
+    return tab
+  }
+  const updatedSubCategories =
+    tab.subCategories?.map(cat => (cat === activeCategory ? validName : cat)) ||
+    []
+  const updatedCategoryKeywords =
+    tab.categoryKeywords?.map(ck =>
+      ck.categoryName === activeCategory
+        ? {
+            ...ck,
+            categoryName: validName,
+          }
+        : ck,
+    ) || []
+  const updatedUrls = (tab.urls || []).map(url =>
+    url.subCategory === activeCategory
+      ? {
+          ...url,
+          subCategory: validName,
+        }
+      : url,
+  )
+  const updatedSubCategoryOrder = (tab.subCategoryOrder || []).map(cat =>
+    cat === activeCategory ? validName : cat,
+  )
+  const updatedAllOrder = (tab.subCategoryOrderWithUncategorized || []).map(
+    cat => (cat === activeCategory ? validName : cat),
+  )
+  return {
+    ...tab,
+    subCategories: updatedSubCategories,
+    categoryKeywords: updatedCategoryKeywords,
+    urls: updatedUrls,
+    subCategoryOrder: updatedSubCategoryOrder,
+    subCategoryOrderWithUncategorized: updatedAllOrder,
+  }
+}
 /**
  * CategoryKeywordModal の状態ロジックを管理するカスタムフック
  * @param params フックの引数
  * @returns サブカテゴリ・キーワード・リネーム・削除・親カテゴリ関連の状態と操作
  */
-export function useCategoryKeywordModal({
+export const useCategoryKeywordModal = ({
   group,
   isOpen,
   onSave,
   onDeleteCategory,
   initialParentCategories,
   onUpdateParentCategories,
-}: UseCategoryKeywordModalParams) {
+}: UseCategoryKeywordModalParams) => {
   // --- サブカテゴリ選択状態 ---
   const [activeCategory, setActiveCategory] = useState<string>(
     group.subCategories && group.subCategories.length > 0
@@ -106,35 +167,21 @@ export function useCategoryKeywordModal({
 
   // --- 親カテゴリ読み込み ---
   const loadParentCategories = useCallback(async () => {
-    if (!isOpen) return
-
+    if (!isOpen) {
+      return
+    }
     try {
       const { parentCategories: stored = [] } =
         await chrome.storage.local.get('parentCategories')
       const storedCategories = stored as ParentCategory[]
-
       setInternalParentCategories(storedCategories)
-
       if (onUpdateParentCategories) {
         await onUpdateParentCategories(storedCategories)
       }
-
-      let newParentId = 'none'
-
-      if (group.parentCategoryId) {
-        newParentId = group.parentCategoryId
-      } else {
-        for (const category of storedCategories) {
-          if (
-            category.domains.includes(group.id) ||
-            category.domainNames.includes(group.domain)
-          ) {
-            newParentId = category.id
-            break
-          }
-        }
-      }
-
+      const newParentId = resolveSelectedParentCategoryId(
+        storedCategories,
+        group,
+      )
       if (selectedParentCategory !== newParentId) {
         setSelectedParentCategory(newParentId)
       }
@@ -152,12 +199,10 @@ export function useCategoryKeywordModal({
   ])
 
   // --- モーダル開閉時の初期化 ---
-  // biome-ignore lint/correctness/useExhaustiveDependencies: loadParentCategoriesは変更されない
   useEffect(() => {
     const initializeCategories = async () => {
       if (isOpen) {
         await loadParentCategories()
-
         const handleStorageChange = (changes: {
           [key: string]: chrome.storage.StorageChange
         }) => {
@@ -165,15 +210,12 @@ export function useCategoryKeywordModal({
             loadParentCategories()
           }
         }
-
         chrome.storage.onChanged.addListener(handleStorageChange)
-
         return () => {
           chrome.storage.onChanged.removeListener(handleStorageChange)
         }
       }
     }
-
     initializeCategories()
   }, [isOpen])
 
@@ -197,19 +239,17 @@ export function useCategoryKeywordModal({
 
   // --- キーワード追加 ---
   const handleAddKeyword = useCallback(() => {
-    if (!newKeyword.trim()) return
-
+    if (!newKeyword.trim()) {
+      return
+    }
     const trimmedKeyword = newKeyword.trim()
-
     const isDuplicate = keywords.some(
       keyword => keyword.toLowerCase() === trimmedKeyword.toLowerCase(),
     )
-
     if (isDuplicate) {
       toast.error('このキーワードは既に追加されています')
       return
     }
-
     const updatedKeywords = [...keywords, trimmedKeyword]
     setKeywords(updatedKeywords)
     setNewKeyword('')
@@ -221,7 +261,6 @@ export function useCategoryKeywordModal({
     async (keywordToRemove: string) => {
       const updatedKeywords = keywords.filter(k => k !== keywordToRemove)
       setKeywords(updatedKeywords)
-
       try {
         const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
         const updatedGroups = (savedTabs as TabGroup[]).map(g =>
@@ -230,18 +269,26 @@ export function useCategoryKeywordModal({
                 ...g,
                 categoryKeywords: (g.categoryKeywords || []).map(ck =>
                   ck.categoryName === activeCategory
-                    ? { ...ck, keywords: updatedKeywords }
+                    ? {
+                        ...ck,
+                        keywords: updatedKeywords,
+                      }
                     : ck,
                 ),
                 urls: (g.urls || []).map(item =>
                   item.subCategory === activeCategory
-                    ? { ...item, subCategory: undefined }
+                    ? {
+                        ...item,
+                        subCategory: undefined,
+                      }
                     : item,
                 ),
               }
             : g,
         )
-        await chrome.storage.local.set({ savedTabs: updatedGroups })
+        await chrome.storage.local.set({
+          savedTabs: updatedGroups,
+        })
       } catch (error) {
         console.error('キーワード削除に伴う保存処理に失敗しました:', error)
       }
@@ -271,25 +318,21 @@ export function useCategoryKeywordModal({
 
   // --- サブカテゴリ追加 ---
   const handleAddSubCategory = useCallback(async () => {
-    if (!newSubCategory.trim() || isProcessing) return
-
+    if (!newSubCategory.trim() || isProcessing) {
+      return
+    }
     if (!validateCategoryName(newSubCategory.trim(), setSubCategoryNameError)) {
       return
     }
-
     if (group.subCategories?.includes(newSubCategory.trim())) {
       setSubCategoryNameError('このカテゴリ名は既に存在しています')
       toast.error('このカテゴリ名は既に存在しています')
       return
     }
-
     setIsProcessing(true)
-
     try {
       const validName = newSubCategory.trim()
-
       const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-
       const updatedTabs = savedTabs.map((tab: TabGroup) => {
         if (tab.id === group.id) {
           return {
@@ -299,9 +342,9 @@ export function useCategoryKeywordModal({
         }
         return tab
       })
-
-      await chrome.storage.local.set({ savedTabs: updatedTabs })
-
+      await chrome.storage.local.set({
+        savedTabs: updatedTabs,
+      })
       setActiveCategory(validName)
       setNewSubCategory('')
       setSubCategoryNameError(null)
@@ -322,17 +365,16 @@ export function useCategoryKeywordModal({
 
   // --- カテゴリ削除 ---
   const handleDeleteCategory = useCallback(async () => {
-    if (!activeCategory) return
-
-    if (typeof onDeleteCategory !== 'function') {
+    if (!activeCategory) {
+      return
+    }
+    if (!(onDeleteCategory instanceof Function)) {
       console.error('削除関数が定義されていません')
       return
     }
-
     try {
       const categoryToDelete = activeCategory
       await onDeleteCategory(group.id, categoryToDelete)
-
       if (group.subCategories && group.subCategories.length > 1) {
         const updatedSubCategories = group.subCategories.filter(
           (cat: string) => cat !== categoryToDelete,
@@ -345,7 +387,6 @@ export function useCategoryKeywordModal({
       } else {
         setActiveCategory('')
       }
-
       setShowDeleteConfirm(false)
     } catch (error) {
       console.error('カテゴリ削除エラー:', error)
@@ -381,19 +422,20 @@ export function useCategoryKeywordModal({
       setCategoryRenameError(null)
       return
     }
-
-    if (isProcessing) return
-
+    if (isProcessing) {
+      return
+    }
     if (!validateCategoryName(newCategoryName.trim(), setCategoryRenameError)) {
       requestAnimationFrame(() => {
         const inputElement = document.querySelector(
           'input[data-rename-input]',
         ) as HTMLInputElement
-        if (inputElement) inputElement.focus()
+        if (inputElement) {
+          inputElement.focus()
+        }
       })
       return
     }
-
     if (group.subCategories?.includes(newCategoryName.trim())) {
       setCategoryRenameError('このカテゴリ名は既に存在しています')
       toast.error('このカテゴリ名は既に存在しています')
@@ -401,73 +443,26 @@ export function useCategoryKeywordModal({
         const inputElement = document.querySelector(
           'input[data-rename-input]',
         ) as HTMLInputElement
-        if (inputElement) inputElement.focus()
+        if (inputElement) {
+          inputElement.focus()
+        }
       })
       return
     }
-
     setIsProcessing(true)
-
     try {
       const validName = newCategoryName.trim()
-
       const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-
-      const updatedTabs = savedTabs.map((tab: TabGroup) => {
-        if (tab.id === group.id) {
-          const updatedSubCategories =
-            tab.subCategories?.map(cat =>
-              cat === activeCategory ? validName : cat,
-            ) || []
-
-          const updatedCategoryKeywords =
-            tab.categoryKeywords?.map(ck => {
-              if (ck.categoryName === activeCategory) {
-                return { ...ck, categoryName: validName }
-              }
-              return ck
-            }) || []
-
-          const updatedUrls = (tab.urls || []).map(url => {
-            if (url.subCategory === activeCategory) {
-              return { ...url, subCategory: validName }
-            }
-            return url
-          })
-
-          let updatedSubCategoryOrder = tab.subCategoryOrder || []
-          if (updatedSubCategoryOrder.includes(activeCategory)) {
-            updatedSubCategoryOrder = updatedSubCategoryOrder.map(cat =>
-              cat === activeCategory ? validName : cat,
-            )
-          }
-
-          let updatedAllOrder = tab.subCategoryOrderWithUncategorized || []
-          if (updatedAllOrder.includes(activeCategory)) {
-            updatedAllOrder = updatedAllOrder.map(cat =>
-              cat === activeCategory ? validName : cat,
-            )
-          }
-
-          return {
-            ...tab,
-            subCategories: updatedSubCategories,
-            categoryKeywords: updatedCategoryKeywords,
-            urls: updatedUrls,
-            subCategoryOrder: updatedSubCategoryOrder,
-            subCategoryOrderWithUncategorized: updatedAllOrder,
-          }
-        }
-        return tab
+      const updatedTabs = savedTabs.map((tab: TabGroup) =>
+        renameCategoryInTab(tab, group.id, activeCategory, validName),
+      )
+      await chrome.storage.local.set({
+        savedTabs: updatedTabs,
       })
-
-      await chrome.storage.local.set({ savedTabs: updatedTabs })
-
       setActiveCategory(validName)
       setIsRenaming(false)
       setNewCategoryName('')
       setCategoryRenameError(null)
-
       toast.success(
         `カテゴリ名を「${activeCategory}」から「${validName}」に変更しました`,
       )
@@ -485,7 +480,6 @@ export function useCategoryKeywordModal({
     group.id,
     validateCategoryName,
   ])
-
   return {
     /** サブカテゴリ関連 */
     subcategory: {

@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronRight, GripVertical, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +16,15 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { CustomProject, UserSettings } from '@/types/storage'
 
-export interface ProjectUrlItemProps {
+// グローバルのドロップ状態を追跡（ウィンドウ内でのドロップか外部へのドロップかを判定するため）
+let isGlobalInternalDrop = false
+if (typeof window !== 'undefined') {
+  window.addEventListener('drop', () => {
+    isGlobalInternalDrop = true
+  })
+}
+
+interface ProjectUrlItemProps {
   item: NonNullable<CustomProject['urls']>[0]
   projectId: string
   handleOpenUrl: (url: string) => void
@@ -35,19 +43,23 @@ export interface ProjectUrlItemProps {
 }
 
 // カテゴリ名から表示名を取得する関数を追加
-export const getCategoryDisplayName = (category?: string) => {
-  if (!category) return ''
+const getCategoryDisplayName = (category?: string) => {
+  if (!category) {
+    return ''
+  }
   const parts = category.split('/')
-  return parts[parts.length - 1]
+  return parts.at(-1)
 }
 
 // カテゴリの階層レベルを取得
-export const getCategoryLevel = (category?: string) => {
-  if (!category) return 0
+const getCategoryLevel = (category?: string) => {
+  if (!category) {
+    return 0
+  }
   return category.split('/').length - 1
 }
 
-export const ProjectUrlItem = ({
+const ProjectUrlItemComponent = ({
   item,
   projectId,
   handleOpenUrl,
@@ -76,7 +88,7 @@ export const ProjectUrlItem = ({
     data: {
       type: 'url',
       url: originalUrl,
-      projectId: projectId,
+      projectId,
       title: item.title || originalUrl.substring(0, 30), // タイトルがない場合はURLの一部を使用
       isUncategorized: !item.category,
       category: item.category,
@@ -85,7 +97,7 @@ export const ProjectUrlItem = ({
       // カテゴリ操作に関する情報を追加
       canMoveToUncategorized: true,
       originalCategory: item.category,
-      hasCategory: !!item.category, // カテゴリ有無の明示的なフラグ
+      hasCategory: Boolean(item.category), // カテゴリ有無の明示的なフラグ
       // 親コンテナ情報を追加
       parent: parentType
         ? { type: parentType, id: `${parentType}-${projectId}` }
@@ -122,6 +134,7 @@ export const ProjectUrlItem = ({
   const handleDragStart = (e: React.DragEvent<HTMLElement>) => {
     isDraggingRef.current = true
     windowBlurredDuringDragRef.current = false
+    isGlobalInternalDrop = false
 
     e.dataTransfer.setData('text/plain', originalUrl)
     e.dataTransfer.setData('text/uri-list', originalUrl)
@@ -142,6 +155,7 @@ export const ProjectUrlItem = ({
   const handleDragEnd = (e: React.DragEvent<HTMLElement>) => {
     window.removeEventListener('blur', handleWindowBlur)
     const shouldHandleAsExternalDrop =
+      !isGlobalInternalDrop &&
       isDraggingRef.current &&
       (e.dataTransfer.dropEffect === 'copy' ||
         (windowBlurredDuringDragRef.current &&
@@ -155,13 +169,14 @@ export const ProjectUrlItem = ({
     windowBlurredDuringDragRef.current = false
   }
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       window.removeEventListener('blur', handleWindowBlur)
       isDraggingRef.current = false
       windowBlurredDuringDragRef.current = false
-    }
-  }, [handleWindowBlur])
+    },
+    [handleWindowBlur],
+  )
 
   // カテゴリの階層情報
   const categoryLevel = getCategoryLevel(item.category)
@@ -179,7 +194,7 @@ export const ProjectUrlItem = ({
         data-url={originalUrl}
         data-project-id={projectId}
         data-category={item.category}
-        data-has-category={!!item.category}
+        data-has-category={Boolean(item.category)}
         data-category-level={categoryLevel}
         data-parent-type={parentType || ''}
         data-in-uncategorized={isInUncategorizedArea ? 'true' : 'false'}
@@ -194,7 +209,7 @@ export const ProjectUrlItem = ({
         {/* タイトル＋バッジ部 */}
         <div className='flex min-w-0 flex-1 items-center'>
           <Button
-            asChild
+            asChild={true}
             variant='ghost'
             size='sm'
             className='flex flex-1 items-center gap-1 overflow-hidden text-left text-foreground hover:text-foreground hover:underline'
@@ -203,7 +218,7 @@ export const ProjectUrlItem = ({
               href={item.url}
               target='_blank'
               rel='noopener noreferrer'
-              draggable
+              draggable={true}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onClick={e => {
@@ -236,10 +251,10 @@ export const ProjectUrlItem = ({
             onClick={e => {
               e.preventDefault()
               e.stopPropagation()
-              if (!settings.confirmDeleteEach) {
-                handleDeleteUrl(projectId, item.url)
-              } else {
+              if (settings.confirmDeleteEach) {
                 setIsDeleteConfirmOpen(true)
+              } else {
+                handleDeleteUrl(projectId, item.url)
               }
             }}
             className='h-8 w-8 cursor-pointer p-0'
@@ -275,3 +290,9 @@ export const ProjectUrlItem = ({
     </>
   )
 }
+
+const ProjectUrlItem = memo(ProjectUrlItemComponent)
+ProjectUrlItem.displayName = 'ProjectUrlItem'
+
+export type { ProjectUrlItemProps }
+export { getCategoryDisplayName, getCategoryLevel, ProjectUrlItem }

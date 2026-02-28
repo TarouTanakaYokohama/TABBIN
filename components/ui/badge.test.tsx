@@ -14,7 +14,7 @@ describe('Badgeコンポーネント', () => {
 
   it('asChild=trueなら子要素として描画する', () => {
     render(
-      <Badge asChild variant='outline'>
+      <Badge asChild={true} variant='outline'>
         <a href='/docs'>Docs Badge</a>
       </Badge>,
     )

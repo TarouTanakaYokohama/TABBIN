@@ -6,22 +6,26 @@ import { createContext, use } from 'react'
  * @param componentName コンポーネント名（エラーメッセージ用）
  * @returns Context と useCompoundContext フック
  */
-export function createCompoundContext<T>(componentName: string): {
+export const createCompoundContext = <T>(
+  componentName: string,
+): {
   /** コンテキストオブジェクト（Provider として使用） */
-  Context: React.Context<T | null>
+  context: React.Context<T | null>
   /** コンテキストにアクセスするためのフック */
   useCompoundContext: () => T
-} {
-  const Context = createContext<T | null>(null)
+} => {
+  const context = createContext<T | null>(null)
 
   /** コンテキストにアクセスするためのフック */
   const useCompoundContext = (): T => {
-    const context = use(Context)
-    if (!context) {
+    const currentContext = use(context)
+    if (!currentContext) {
       throw new Error(`${componentName}のProvider内で使用してください`)
     }
-    return context
+    return currentContext
   }
-
-  return { Context, useCompoundContext }
+  return {
+    context,
+    useCompoundContext,
+  }
 }

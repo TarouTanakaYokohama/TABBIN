@@ -1,12 +1,14 @@
 import { memo, useMemo } from 'react'
 import type { CategoryGroupProps } from '@/types/saved-tabs'
 import { CategoryGroupActions } from './category-group/CategoryGroupActions'
-import { CategoryGroupCollapseButton } from './category-group/CategoryGroupCollapseButton'
 import { CategoryGroupContent } from './category-group/CategoryGroupContent'
+import {
+  CategoryGroupCollapseControl,
+  CategoryGroupReorderControl,
+  CategoryGroupSortControl,
+} from './category-group/CategoryGroupControls'
 import { CategoryGroupHeader } from './category-group/CategoryGroupHeader'
-import { CategoryGroupReorderControls } from './category-group/CategoryGroupReorderControls'
 import { CategoryGroupRoot } from './category-group/CategoryGroupRoot'
-import { CategoryGroupSortButton } from './category-group/CategoryGroupSortButton'
 import { CategoryGroupTitle } from './category-group/CategoryGroupTitle'
 
 /**
@@ -62,12 +64,12 @@ const CategoryGroupComponent = ({
       handlers={handlers}
     >
       <CategoryGroupHeader>
-        <div className='flex flex-grow items-center gap-2'>
-          <CategoryGroupCollapseButton />
-          <CategoryGroupSortButton />
+        <div className='flex grow items-center gap-2'>
+          <CategoryGroupCollapseControl />
+          <CategoryGroupSortControl />
           <CategoryGroupTitle />
         </div>
-        <CategoryGroupReorderControls />
+        <CategoryGroupReorderControl />
         <CategoryGroupActions />
       </CategoryGroupHeader>
       <CategoryGroupContent />
