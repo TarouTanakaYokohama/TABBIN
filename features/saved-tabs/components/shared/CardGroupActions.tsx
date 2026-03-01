@@ -26,6 +26,7 @@ interface CardGroupActionsProps {
   openAllThreshold?: number
   itemName?: string
   warningMessage?: string
+  manageLabel?: string
 }
 
 /**
@@ -41,6 +42,7 @@ export const CardGroupActions = ({
   openAllThreshold = 10,
   itemName = 'アイテム',
   warningMessage = 'すべてのドメインを削除します。この操作は元に戻せません。',
+  manageLabel = '管理',
 }: CardGroupActionsProps) => {
   const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
   const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false)
@@ -57,14 +59,14 @@ export const CardGroupActions = ({
                 size='sm'
                 onClick={onManage}
                 className='flex cursor-pointer items-center gap-1'
-                aria-label='管理'
+                aria-label={manageLabel}
               >
                 <Settings size={14} />
-                <span className='hidden lg:inline'>管理</span>
+                <span className='hidden lg:inline'>{manageLabel}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side='top' className='block lg:hidden'>
-              管理
+              {manageLabel}
             </TooltipContent>
           </Tooltip>
         )}

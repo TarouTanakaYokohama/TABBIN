@@ -45,6 +45,7 @@ export const CategoryGroupActions = () => {
   return (
     <CardGroupActions
       onManage={() => modal.setIsModalOpen(true)}
+      manageLabel='親カテゴリ管理'
       onOpenAll={urlsToOpen.length > 0 ? handleOpenAll : undefined}
       onDeleteAll={domainsToUse.length > 0 ? executeDeleteAll : undefined}
       onConfirmOpenAll={urlsToOpen.length >= 10}
