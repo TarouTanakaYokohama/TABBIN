@@ -17,7 +17,7 @@ import { getParentCategories } from '@/lib/storage/categories'
 import { getCustomProjects } from '@/lib/storage/projects'
 import { getUserSettings } from '@/lib/storage/settings'
 import { getUrlRecords } from '@/lib/storage/urls'
-import type { AiChatToolTrace } from '@/types/background'
+import type { AiChatToolTrace, OllamaErrorDetails } from '@/types/background'
 import { createAiChatTools } from './ai-chat-tools'
 
 interface OllamaModelOption {
@@ -56,28 +56,66 @@ interface RunAiChatRequestOptions {
 
 const OLLAMA_BASE_URL = 'http://localhost:11434'
 const OLLAMA_TAGS_URL = `${OLLAMA_BASE_URL}/api/tags`
+const OLLAMA_DOWNLOAD_URL = 'https://ollama.com/download'
+const OLLAMA_FAQ_URL =
+  'https://docs.ollama.com/faq#how-do-i-configure-ollama-server'
+
+type OllamaStructuredError = Error & {
+  ollamaError: OllamaErrorDetails
+}
+
 const getExtensionOrigin = (): string | null => {
+  try {
+    const extensionUrl = chrome?.runtime?.getURL?.('')
+    if (extensionUrl) {
+      const parsedUrl = new URL(extensionUrl)
+      if (parsedUrl.protocol && parsedUrl.host) {
+        return `${parsedUrl.protocol}//${parsedUrl.host}`
+      }
+    }
+  } catch {
+    // fallback to runtime.id
+  }
+
   const extensionId = chrome?.runtime?.id
   return extensionId ? `chrome-extension://${extensionId}` : null
 }
 
+const getConfiguredOllamaOrigin = (): string => {
+  const extensionOrigin = getExtensionOrigin()
+
+  return extensionOrigin ?? 'chrome-extension://*'
+}
+
+const createBaseOllamaErrorDetails = (): Pick<
+  OllamaErrorDetails,
+  'baseUrl' | 'downloadUrl' | 'faqUrl' | 'tagsUrl'
+> => ({
+  baseUrl: OLLAMA_BASE_URL,
+  downloadUrl: OLLAMA_DOWNLOAD_URL,
+  faqUrl: OLLAMA_FAQ_URL,
+  tagsUrl: OLLAMA_TAGS_URL,
+})
+
 const createOllamaSetupInstructions = (): string =>
-  [
-    `接続先 URL: ${OLLAMA_BASE_URL}`,
-    `確認 URL: ${OLLAMA_TAGS_URL}`,
-    `確認コマンド: curl ${OLLAMA_TAGS_URL}`,
-    'macOS で Ollama.app を使う場合:',
-    'launchctl setenv OLLAMA_ORIGINS "chrome-extension://*"',
-    'その後に Ollama を再起動してください。',
-    'ollama serve を直接使う場合:',
-    'OLLAMA_ORIGINS="chrome-extension://*" ollama serve',
-  ].join('\n')
+  (() => {
+    const configuredOrigin = getConfiguredOllamaOrigin()
+
+    return [
+      `接続先 URL: ${OLLAMA_BASE_URL}`,
+      `確認 URL: ${OLLAMA_TAGS_URL}`,
+      `確認コマンド: curl ${OLLAMA_TAGS_URL}`,
+      'macOS で Ollama.app を使う場合:',
+      `launchctl setenv OLLAMA_ORIGINS "${configuredOrigin}"`,
+      'その後に Ollama を再起動してください。',
+      'ollama serve を直接使う場合:',
+      `OLLAMA_ORIGINS="${configuredOrigin}" ollama serve`,
+      `FAQ: ${OLLAMA_FAQ_URL}`,
+    ].join('\n')
+  })()
 
 const createOllamaForbiddenErrorMessage = (): string => {
-  const extensionOrigin = getExtensionOrigin()
-  const allowedOrigins = extensionOrigin
-    ? `${extensionOrigin} または chrome-extension://*`
-    : 'chrome-extension://*'
+  const allowedOrigins = getConfiguredOllamaOrigin()
 
   return [
     'Ollama が拡張機能からのアクセスを拒否しました (403 Forbidden)。',
@@ -89,9 +127,32 @@ const createOllamaForbiddenErrorMessage = (): string => {
 const createOllamaConnectionErrorMessage = (): string => {
   return [
     'Ollama に接続できませんでした。',
+    `まだインストールしていない場合: ${OLLAMA_DOWNLOAD_URL}`,
     createOllamaSetupInstructions(),
   ].join('\n')
 }
+
+const createOllamaError = (
+  message: string,
+  ollamaError: OllamaErrorDetails,
+): OllamaStructuredError =>
+  Object.assign(new Error(message), {
+    ollamaError,
+  })
+
+const createOllamaForbiddenError = (): OllamaStructuredError =>
+  createOllamaError(createOllamaForbiddenErrorMessage(), {
+    ...createBaseOllamaErrorDetails(),
+    allowedOrigins: getConfiguredOllamaOrigin(),
+    kind: 'forbidden',
+  })
+
+const createOllamaConnectionError = (): OllamaStructuredError =>
+  createOllamaError(createOllamaConnectionErrorMessage(), {
+    ...createBaseOllamaErrorDetails(),
+    allowedOrigins: getConfiguredOllamaOrigin(),
+    kind: 'notInstalledOrNotRunning',
+  })
 
 const isForbiddenError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error)
@@ -372,13 +433,13 @@ const listLocalOllamaModels = async (
     })
   } catch (error) {
     if (isConnectionError(error)) {
-      throw new Error(createOllamaConnectionErrorMessage())
+      throw createOllamaConnectionError()
     }
     throw error
   }
 
   if (response.status === 403) {
-    throw new Error(createOllamaForbiddenErrorMessage())
+    throw createOllamaForbiddenError()
   }
 
   if (!response.ok) {
@@ -507,10 +568,10 @@ const runAiChatRequest = async (
       })
     } catch (error) {
       if (isForbiddenError(error)) {
-        throw new Error(createOllamaForbiddenErrorMessage())
+        throw createOllamaForbiddenError()
       }
       if (isConnectionError(error)) {
-        throw new Error(createOllamaConnectionErrorMessage())
+        throw createOllamaConnectionError()
       }
       throw error
     }

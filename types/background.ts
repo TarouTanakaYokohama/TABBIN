@@ -144,6 +144,15 @@ export interface AlarmStatusResponse {
   scheduledTime?: number
 }
 
+export interface OllamaErrorDetails {
+  kind: 'forbidden' | 'notInstalledOrNotRunning'
+  faqUrl: string
+  downloadUrl: string
+  baseUrl: string
+  tagsUrl: string
+  allowedOrigins?: string
+}
+
 export interface OllamaModelListResponse {
   status: 'ok' | 'error'
   models?: Array<{
@@ -152,6 +161,7 @@ export interface OllamaModelListResponse {
     modifiedAt?: string
   }>
   error?: string
+  ollamaError?: OllamaErrorDetails
 }
 
 export interface AiChatToolTrace {
@@ -172,6 +182,7 @@ export interface AiChatResponse {
   reasoning?: string
   toolTraces?: AiChatToolTrace[]
   error?: string
+  ollamaError?: OllamaErrorDetails
 }
 
 export const AI_CHAT_STREAM_PORT_NAME = 'ai-chat-stream'
@@ -204,6 +215,7 @@ export interface AiChatStreamCompleteMessage {
 export interface AiChatStreamErrorMessage {
   type: 'error'
   error: string
+  ollamaError?: OllamaErrorDetails
 }
 
 export type AiChatStreamClientMessage = RunAiChatStreamPortMessage

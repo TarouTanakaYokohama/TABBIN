@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import {
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
   useEffect,
   useRef,
   useState,
@@ -86,6 +87,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { AI_CHAT_TOOL_DEFINITIONS } from '@/constants/aiChatTools'
+import {
+  OllamaErrorNotice,
+  type OllamaErrorPlatform,
+} from '@/features/ai-chat/components/OllamaErrorNotice'
 import { OllamaModelSelector } from '@/features/ai-chat/components/OllamaModelSelector'
 import {
   AI_CHAT_MAX_ATTACHMENTS,
@@ -116,6 +121,7 @@ import type {
   AiChatResponse,
   AiChatStreamServerMessage,
   AiChatToolTrace,
+  OllamaErrorDetails,
   OllamaModelListResponse,
 } from '@/types/background'
 import { AI_CHAT_STREAM_PORT_NAME } from '@/types/background'
@@ -124,6 +130,7 @@ import type { AiSystemPromptPreset, UserSettings } from '@/types/storage'
 interface ChatMessage {
   attachments?: AiChatAttachment[]
   id: string
+  ollamaError?: OllamaErrorDetails
   role: 'user' | 'assistant'
   content: string
   isStreaming?: boolean
@@ -139,6 +146,7 @@ interface ChatMessageSource {
 interface SavedTabsChatPanelProps {
   activeSystemPromptId: string
   chatErrorMessage: string
+  chatOllamaError?: OllamaErrorDetails
   input: string
   isConversationCopied: boolean
   isCopyDisabled: boolean
@@ -166,8 +174,10 @@ interface SavedTabsChatPanelProps {
   onSelectSuggestion: (value: string) => void
   onSelectSystemPrompt: (promptId: string) => void
   onSubmit: PromptInputProps['onSubmit']
+  platform: OllamaErrorPlatform
   sidebarWidth: number
   setupErrorMessage: string
+  setupOllamaError?: OllamaErrorDetails
   systemPrompts: AiSystemPromptPreset[]
 }
 
@@ -395,6 +405,32 @@ const isAiChatConfigured = (settings: UserSettings | null): boolean =>
 
 const getAiChatErrorMessage = (response: AiChatResponse | undefined): string =>
   response?.error || 'AI からの応答を取得できませんでした。'
+
+const getAiChatOllamaError = (
+  response: AiChatResponse | undefined,
+): OllamaErrorDetails | undefined => response?.ollamaError
+
+const getRuntimePlatform = async (): Promise<OllamaErrorPlatform> => {
+  if (!chrome?.runtime?.getPlatformInfo) {
+    return 'unknown'
+  }
+
+  try {
+    const platformInfo = await new Promise<chrome.runtime.PlatformInfo | null>(
+      resolve => {
+        chrome.runtime.getPlatformInfo(info => {
+          resolve(info ?? null)
+        })
+      },
+    )
+
+    return platformInfo?.os === 'mac' || platformInfo?.os === 'win'
+      ? platformInfo.os
+      : 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}
 
 const getAttachmentInputErrorMessage = (error: {
   code: 'accept' | 'max_file_size' | 'max_files'
@@ -1056,6 +1092,81 @@ const ChatMessageAttachments = ({
   </Attachments>
 )
 
+const ChatConversationMessage = ({
+  message,
+  platform,
+}: {
+  message: ChatMessage
+  platform: OllamaErrorPlatform
+}) => {
+  const messageSources =
+    message.role === 'assistant' ? getMessageSources(message.toolTraces) : []
+  const messageBody = message.ollamaError ? (
+    <OllamaErrorNotice
+      className='text-sm'
+      error={message.ollamaError}
+      platform={platform}
+    />
+  ) : (
+    <MessageResponse>{message.content}</MessageResponse>
+  )
+  const shouldShowStreamingShimmer =
+    message.role === 'assistant' &&
+    message.isStreaming &&
+    message.content.length === 0
+
+  return (
+    <Message from={message.role}>
+      {messageSources.length > 0 ? (
+        <Sources
+          className='mb-0 rounded-md border border-border/70 bg-background/70 px-3 py-2 text-foreground'
+          data-slot='sources'
+        >
+          <SourcesTrigger
+            className='w-full justify-between text-muted-foreground'
+            count={messageSources.length}
+          >
+            <span className='font-medium text-[11px] uppercase tracking-wide'>
+              参照ソース {messageSources.length}件
+            </span>
+            <ChevronDown className='h-4 w-4' />
+          </SourcesTrigger>
+          <SourcesContent className='w-full'>
+            {messageSources.map(source => (
+              <Source href={source.url} key={source.url} title={source.title} />
+            ))}
+          </SourcesContent>
+        </Sources>
+      ) : null}
+
+      {message.role === 'assistant' ? (
+        <AssistantMessageDiagnostics
+          isStreaming={message.isStreaming}
+          reasoning={message.reasoning}
+          toolTraces={message.toolTraces}
+        />
+      ) : null}
+
+      <MessageContent
+        className={cn(
+          message.role === 'user'
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted text-foreground',
+          'wrap-break-word whitespace-pre-wrap',
+        )}
+      >
+        {message.attachments && message.attachments.length > 0 ? (
+          <ChatMessageAttachments attachments={message.attachments} />
+        ) : null}
+        {messageBody}
+        {shouldShowStreamingShimmer ? (
+          <Shimmer className='text-sm'>回答を組み立てています...</Shimmer>
+        ) : null}
+      </MessageContent>
+    </Message>
+  )
+}
+
 const ChatPromptComposer = ({
   input,
   isCompactLayout,
@@ -1069,7 +1180,9 @@ const ChatPromptComposer = ({
   onInputChange,
   onSelectModel,
   onSubmit,
+  platform,
   setupErrorMessage,
+  setupOllamaError,
 }: Pick<
   SavedTabsChatPanelProps,
   | 'input'
@@ -1084,7 +1197,9 @@ const ChatPromptComposer = ({
   | 'onInputChange'
   | 'onSelectModel'
   | 'onSubmit'
+  | 'platform'
   | 'setupErrorMessage'
+  | 'setupOllamaError'
 >) => {
   const compactSubmitLabel = isSubmitting ? '送信中...' : '送信'
   const isSubmitDisabled =
@@ -1169,6 +1284,8 @@ const ChatPromptComposer = ({
             models={modelOptions}
             onFetchModels={onFetchModels}
             onSelectModel={onSelectModel}
+            ollamaError={setupOllamaError}
+            platform={platform}
             selectedModel={modelName}
           />
         </div>
@@ -1192,6 +1309,7 @@ const ChatPromptComposer = ({
 const SavedTabsChatPanel = ({
   activeSystemPromptId,
   chatErrorMessage,
+  chatOllamaError,
   input,
   isConversationCopied,
   isCopyDisabled,
@@ -1216,12 +1334,32 @@ const SavedTabsChatPanel = ({
   onSelectSuggestion,
   onSelectSystemPrompt,
   onSubmit,
+  platform,
   sidebarWidth,
   setupErrorMessage,
+  setupOllamaError,
   systemPrompts,
 }: SavedTabsChatPanelProps) => {
   if (!isOpen) {
     return null
+  }
+
+  let chatErrorContent: ReactNode = null
+
+  if (chatOllamaError) {
+    chatErrorContent = (
+      <OllamaErrorNotice
+        className='shrink-0 text-destructive text-sm'
+        error={chatOllamaError}
+        platform={platform}
+      />
+    )
+  } else if (chatErrorMessage) {
+    chatErrorContent = (
+      <p className='wrap-break-word shrink-0 whitespace-pre-line text-destructive text-sm'>
+        {chatErrorMessage}
+      </p>
+    )
   }
 
   return (
@@ -1267,71 +1405,13 @@ const SavedTabsChatPanel = ({
               className={cn(isCompactLayout && 'gap-5 p-3')}
               scrollClassName='overscroll-contain'
             >
-              {messages.map(message => {
-                const messageSources =
-                  message.role === 'assistant'
-                    ? getMessageSources(message.toolTraces)
-                    : []
-
-                return (
-                  <Message key={message.id} from={message.role}>
-                    {messageSources.length > 0 ? (
-                      <Sources
-                        className='mb-0 rounded-md border border-border/70 bg-background/70 px-3 py-2 text-foreground'
-                        data-slot='sources'
-                      >
-                        <SourcesTrigger
-                          className='w-full justify-between text-muted-foreground'
-                          count={messageSources.length}
-                        >
-                          <span className='font-medium text-[11px] uppercase tracking-wide'>
-                            参照ソース {messageSources.length}件
-                          </span>
-                          <ChevronDown className='h-4 w-4' />
-                        </SourcesTrigger>
-                        <SourcesContent className='w-full'>
-                          {messageSources.map(source => (
-                            <Source
-                              href={source.url}
-                              key={source.url}
-                              title={source.title}
-                            />
-                          ))}
-                        </SourcesContent>
-                      </Sources>
-                    ) : null}
-                    {message.role === 'assistant' ? (
-                      <AssistantMessageDiagnostics
-                        isStreaming={message.isStreaming}
-                        reasoning={message.reasoning}
-                        toolTraces={message.toolTraces}
-                      />
-                    ) : null}
-                    <MessageContent
-                      className={cn(
-                        message.role === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-foreground',
-                        'wrap-break-word whitespace-pre-wrap',
-                      )}
-                    >
-                      {message.attachments && message.attachments.length > 0 ? (
-                        <ChatMessageAttachments
-                          attachments={message.attachments}
-                        />
-                      ) : null}
-                      <MessageResponse>{message.content}</MessageResponse>
-                      {message.role === 'assistant' &&
-                      message.isStreaming &&
-                      message.content.length === 0 ? (
-                        <Shimmer className='text-sm'>
-                          回答を組み立てています...
-                        </Shimmer>
-                      ) : null}
-                    </MessageContent>
-                  </Message>
-                )
-              })}
+              {messages.map(message => (
+                <ChatConversationMessage
+                  key={message.id}
+                  message={message}
+                  platform={platform}
+                />
+              ))}
             </ConversationContent>
             <ConversationScrollButton
               aria-label='最新メッセージへ移動'
@@ -1350,11 +1430,7 @@ const SavedTabsChatPanel = ({
               />
             ) : null}
 
-            {chatErrorMessage ? (
-              <p className='wrap-break-word shrink-0 whitespace-pre-line text-destructive text-sm'>
-                {chatErrorMessage}
-              </p>
-            ) : null}
+            {chatErrorContent}
 
             <ChatPromptComposer
               input={input}
@@ -1369,7 +1445,9 @@ const SavedTabsChatPanel = ({
               onInputChange={onInputChange}
               onSelectModel={onSelectModel}
               onSubmit={onSubmit}
+              platform={platform}
               setupErrorMessage={setupErrorMessage}
+              setupOllamaError={setupOllamaError}
             />
           </div>
         </CardContent>
@@ -1389,6 +1467,9 @@ const SavedTabsChatWidget = ({
   const [isConversationCopied, setIsConversationCopied] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [chatOllamaError, setChatOllamaError] = useState<
+    OllamaErrorDetails | undefined
+  >(undefined)
   const [modelOptions, setModelOptions] = useState<
     {
       label: string
@@ -1398,6 +1479,10 @@ const SavedTabsChatWidget = ({
   const [isLoadingModels, setIsLoadingModels] = useState(false)
   const [isSavingModel, setIsSavingModel] = useState(false)
   const [setupErrorMessage, setSetupErrorMessage] = useState('')
+  const [setupOllamaError, setSetupOllamaError] = useState<
+    OllamaErrorDetails | undefined
+  >(undefined)
+  const [platform, setPlatform] = useState<OllamaErrorPlatform>('unknown')
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_CHAT_SIDEBAR_WIDTH)
   const [isPromptManagerOpen, setIsPromptManagerOpen] = useState(false)
   const [promptDrafts, setPromptDrafts] = useState<AiSystemPromptPreset[]>([])
@@ -1417,6 +1502,20 @@ const SavedTabsChatWidget = ({
   useEffect(() => {
     sidebarWidthRef.current = sidebarWidth
   }, [sidebarWidth])
+
+  useEffect(() => {
+    let isMounted = true
+
+    void getRuntimePlatform().then(nextPlatform => {
+      if (isMounted) {
+        setPlatform(nextPlatform)
+      }
+    })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -1568,6 +1667,7 @@ const SavedTabsChatWidget = ({
   const handleFetchModels = async () => {
     setIsLoadingModels(true)
     setSetupErrorMessage('')
+    setSetupOllamaError(undefined)
 
     const response = await requestOllamaModels()
 
@@ -1576,6 +1676,7 @@ const SavedTabsChatWidget = ({
       setSetupErrorMessage(
         response?.error || 'モデル一覧を取得できませんでした',
       )
+      setSetupOllamaError(response?.ollamaError)
       setIsLoadingModels(false)
       return
     }
@@ -1586,6 +1687,7 @@ const SavedTabsChatWidget = ({
         label: model.label,
       })),
     )
+    setSetupOllamaError(undefined)
     setIsLoadingModels(false)
   }
 
@@ -1598,6 +1700,7 @@ const SavedTabsChatWidget = ({
 
     setIsSavingModel(true)
     setSetupErrorMessage('')
+    setSetupOllamaError(undefined)
 
     try {
       await saveUserSettings(nextSettings)
@@ -1622,6 +1725,7 @@ const SavedTabsChatWidget = ({
     setIsConversationCopied(false)
     setInput('')
     setErrorMessage('')
+    setChatOllamaError(undefined)
     setIsSubmitting(false)
   }
 
@@ -1842,6 +1946,7 @@ const SavedTabsChatWidget = ({
       setSettings(nextSettings)
       handleResetConversation()
     } catch {
+      setChatOllamaError(undefined)
       setErrorMessage('システムプロンプトの切り替えを保存できませんでした')
     }
   }
@@ -1861,11 +1966,14 @@ const SavedTabsChatWidget = ({
   const setAssistantErrorState = (
     assistantMessageId: string,
     nextError: string,
+    ollamaError?: OllamaErrorDetails,
   ) => {
     setErrorMessage(nextError)
+    setChatOllamaError(ollamaError)
     replaceMessage(assistantMessageId, {
       content: nextError,
       isStreaming: false,
+      ollamaError,
     })
     setIsSubmitting(false)
   }
@@ -1897,9 +2005,11 @@ const SavedTabsChatWidget = ({
     replaceMessage(assistantMessageId, {
       content: streamMessage.answer,
       isStreaming: false,
+      ollamaError: undefined,
       reasoning: streamMessage.reasoning,
       toolTraces: streamMessage.toolTraces,
     })
+    setChatOllamaError(undefined)
     setIsSubmitting(false)
     disconnectStreamPort(streamPort)
   }
@@ -1909,7 +2019,11 @@ const SavedTabsChatWidget = ({
     streamPort: { disconnect: () => void },
     streamMessage: Extract<AiChatStreamServerMessage, { type: 'error' }>,
   ) => {
-    setAssistantErrorState(assistantMessageId, streamMessage.error)
+    setAssistantErrorState(
+      assistantMessageId,
+      streamMessage.error,
+      streamMessage.ollamaError,
+    )
     disconnectStreamPort(streamPort)
   }
 
@@ -2008,6 +2122,7 @@ const SavedTabsChatWidget = ({
     ])
     setInput('')
     setErrorMessage('')
+    setChatOllamaError(undefined)
     setIsSubmitting(true)
 
     disconnectActivePort()
@@ -2063,20 +2178,21 @@ const SavedTabsChatWidget = ({
       replaceMessage(assistantMessageId, {
         content: response.answer,
         isStreaming: false,
+        ollamaError: undefined,
         reasoning: response.reasoning,
         toolTraces: response.toolTraces,
       })
+      setChatOllamaError(undefined)
       setIsSubmitting(false)
       return
     }
 
     const nextError = getAiChatErrorMessage(response)
-    setErrorMessage(nextError)
-    replaceMessage(assistantMessageId, {
-      content: nextError,
-      isStreaming: false,
-    })
-    setIsSubmitting(false)
+    setAssistantErrorState(
+      assistantMessageId,
+      nextError,
+      getAiChatOllamaError(response),
+    )
   }
 
   const handleSubmit: PromptInputProps['onSubmit'] = async ({
@@ -2116,6 +2232,7 @@ const SavedTabsChatWidget = ({
       <SavedTabsChatPanel
         activeSystemPromptId={resolvedSettings.activeAiSystemPromptId ?? ''}
         chatErrorMessage={errorMessage}
+        chatOllamaError={chatOllamaError}
         input={input}
         isConversationCopied={isConversationCopied}
         isCopyDisabled={messages.every(
@@ -2151,8 +2268,10 @@ const SavedTabsChatWidget = ({
           void handleSelectSystemPrompt(promptId)
         }}
         onSubmit={handleSubmit}
+        platform={platform}
         sidebarWidth={sidebarWidth}
         setupErrorMessage={setupErrorMessage}
+        setupOllamaError={setupOllamaError}
         systemPrompts={resolvedSettings.aiSystemPrompts ?? []}
       />
 

@@ -38,6 +38,17 @@ vi.mock('@/lib/storage/categories', () => ({
 
 import { listLocalOllamaModels, runAiChatRequest } from './ai-chat'
 
+type OllamaErrorLike = Error & {
+  ollamaError?: {
+    allowedOrigins?: string
+    baseUrl: string
+    downloadUrl: string
+    faqUrl: string
+    kind: 'forbidden' | 'notInstalledOrNotRunning'
+    tagsUrl: string
+  }
+}
+
 describe('listLocalOllamaModels', () => {
   beforeEach(() => {
     ;(
@@ -131,7 +142,84 @@ describe('listLocalOllamaModels', () => {
       'http://localhost:11434/api/tags',
     )
     await expect(listLocalOllamaModels(fetchMock)).rejects.toThrow(
-      'launchctl setenv OLLAMA_ORIGINS "chrome-extension://*"',
+      'launchctl setenv OLLAMA_ORIGINS "chrome-extension://test-extension-id"',
+    )
+  })
+
+  it('403 なら構造化された forbidden の Ollama エラーを持つ', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+    })
+
+    const error = (await listLocalOllamaModels(fetchMock).catch(
+      caughtError => caughtError,
+    )) as OllamaErrorLike
+
+    expect(error).toBeInstanceOf(Error)
+    expect(error.ollamaError).toEqual({
+      allowedOrigins: 'chrome-extension://test-extension-id',
+      baseUrl: 'http://localhost:11434',
+      downloadUrl: 'https://ollama.com/download',
+      faqUrl: 'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+      kind: 'forbidden',
+      tagsUrl: 'http://localhost:11434/api/tags',
+    })
+  })
+
+  it('拡張 root URL が取れるなら slash を除いた origin を優先する', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+    })
+
+    ;(
+      globalThis as typeof globalThis & {
+        chrome?: typeof chrome
+      }
+    ).chrome = {
+      runtime: {
+        getURL: vi.fn(() => 'chrome-extension://strict-extension-id/'),
+        id: 'fallback-extension-id',
+      },
+    } as unknown as typeof chrome
+
+    const error = (await listLocalOllamaModels(fetchMock).catch(
+      caughtError => caughtError,
+    )) as OllamaErrorLike
+
+    expect(error.ollamaError).toEqual(
+      expect.objectContaining({
+        allowedOrigins: 'chrome-extension://strict-extension-id',
+      }),
+    )
+  })
+
+  it('拡張 root URL の host が空なら runtime.id に fallback する', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+    })
+
+    ;(
+      globalThis as typeof globalThis & {
+        chrome?: typeof chrome
+      }
+    ).chrome = {
+      runtime: {
+        getURL: vi.fn(() => 'chrome-extension:///'),
+        id: 'fallback-extension-id',
+      },
+    } as unknown as typeof chrome
+
+    const error = (await listLocalOllamaModels(fetchMock).catch(
+      caughtError => caughtError,
+    )) as OllamaErrorLike
+
+    expect(error.ollamaError).toEqual(
+      expect.objectContaining({
+        allowedOrigins: 'chrome-extension://fallback-extension-id',
+      }),
     )
   })
 
@@ -180,8 +268,28 @@ describe('listLocalOllamaModels', () => {
       'curl http://localhost:11434/api/tags',
     )
     await expect(listLocalOllamaModels(fetchMock)).rejects.toThrow(
-      'OLLAMA_ORIGINS="chrome-extension://*" ollama serve',
+      'OLLAMA_ORIGINS="chrome-extension://test-extension-id" ollama serve',
     )
+  })
+
+  it('Failed to fetch なら構造化された接続エラーを持つ', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValue(new TypeError('Failed to fetch'))
+
+    const error = (await listLocalOllamaModels(fetchMock).catch(
+      caughtError => caughtError,
+    )) as OllamaErrorLike
+
+    expect(error).toBeInstanceOf(Error)
+    expect(error.ollamaError).toEqual({
+      allowedOrigins: 'chrome-extension://test-extension-id',
+      baseUrl: 'http://localhost:11434',
+      downloadUrl: 'https://ollama.com/download',
+      faqUrl: 'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+      kind: 'notInstalledOrNotRunning',
+      tagsUrl: 'http://localhost:11434/api/tags',
+    })
   })
 
   it('文字列の Failed to fetch でも接続案内に変換する', async () => {
@@ -1211,6 +1319,25 @@ describe('runAiChatRequest', () => {
     ).rejects.toThrow('chrome-extension://test-extension-id')
   })
 
+  it('Ollama から 403 が返ったら構造化された forbidden の Ollama エラーに変換する', async () => {
+    mocked.generateText.mockRejectedValue(new Error('Error 403: Forbidden'))
+
+    const error = (await runAiChatRequest({
+      history: [],
+      prompt: 'test',
+    }).catch(caughtError => caughtError)) as OllamaErrorLike
+
+    expect(error).toBeInstanceOf(Error)
+    expect(error.ollamaError).toEqual({
+      allowedOrigins: 'chrome-extension://test-extension-id',
+      baseUrl: 'http://localhost:11434',
+      downloadUrl: 'https://ollama.com/download',
+      faqUrl: 'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+      kind: 'forbidden',
+      tagsUrl: 'http://localhost:11434/api/tags',
+    })
+  })
+
   it('403 以外の generateText エラーはそのまま再throwする', async () => {
     mocked.generateText.mockRejectedValue(new Error('model unavailable'))
 
@@ -1253,6 +1380,27 @@ describe('runAiChatRequest', () => {
         history: [],
         prompt: 'test',
       }),
-    ).rejects.toThrow('launchctl setenv OLLAMA_ORIGINS "chrome-extension://*"')
+    ).rejects.toThrow(
+      'launchctl setenv OLLAMA_ORIGINS "chrome-extension://test-extension-id"',
+    )
+  })
+
+  it('Failed to fetch でも構造化された接続エラーに変換する', async () => {
+    mocked.generateText.mockRejectedValue(new Error('Failed to fetch'))
+
+    const error = (await runAiChatRequest({
+      history: [],
+      prompt: 'test',
+    }).catch(caughtError => caughtError)) as OllamaErrorLike
+
+    expect(error).toBeInstanceOf(Error)
+    expect(error.ollamaError).toEqual({
+      allowedOrigins: 'chrome-extension://test-extension-id',
+      baseUrl: 'http://localhost:11434',
+      downloadUrl: 'https://ollama.com/download',
+      faqUrl: 'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+      kind: 'notInstalledOrNotRunning',
+      tagsUrl: 'http://localhost:11434/api/tags',
+    })
   })
 })
