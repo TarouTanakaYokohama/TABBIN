@@ -15,6 +15,7 @@ const mocked = vi.hoisted(() => ({
   conversationScrollButtonClick: vi.fn(),
   conversationScrollButtonVisible: false,
   getUserSettings: vi.fn(),
+  platformOs: 'mac',
   saveUserSettings: vi.fn(),
   sendRuntimeMessage: vi.fn(),
   toastError: vi.fn(),
@@ -107,6 +108,18 @@ const storageListeners: StorageListener[] = []
 
 const createChromeMock = () =>
   ({
+    runtime: {
+      getPlatformInfo: vi.fn(
+        (callback: (info: chrome.runtime.PlatformInfo) => void) => {
+          callback({
+            arch: 'x86-64',
+            // biome-ignore lint/style/useNamingConvention: Chrome PlatformInfo uses nacl_arch
+            nacl_arch: 'x86-64',
+            os: mocked.platformOs as chrome.runtime.PlatformOs,
+          })
+        },
+      ),
+    },
     storage: {
       onChanged: {
         addListener: vi.fn((listener: StorageListener) => {
@@ -166,6 +179,7 @@ describe('SavedTabsChatWidget', () => {
     vi.clearAllMocks()
     mocked.connectRuntimePort.mockResolvedValue(null)
     mocked.conversationScrollButtonVisible = false
+    mocked.platformOs = 'mac'
     mocked.saveUserSettings.mockResolvedValue(undefined)
     mocked.toastError.mockReset()
     mocked.toastSuccess.mockReset()
@@ -1400,6 +1414,75 @@ describe('SavedTabsChatWidget', () => {
     ).toHaveLength(2)
   })
 
+  it('stream の Ollama 403 エラーでは macOS 向け設定案内と FAQ リンクを表示する', async () => {
+    mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
+    mocked.platformOs = 'mac'
+    let handlePortMessage: ((message: unknown) => void) | undefined
+    const port = {
+      disconnect: vi.fn(),
+      onDisconnect: {
+        addListener: vi.fn(),
+      },
+      onMessage: {
+        addListener: vi.fn(listener => {
+          handlePortMessage = listener
+        }),
+      },
+      postMessage: vi.fn(),
+    }
+    mocked.connectRuntimePort.mockResolvedValue(port)
+
+    render(<SavedTabsChatWidget />)
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'AIチャットを開く',
+      }),
+    )
+
+    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+      target: {
+        value: '最近よく保存しているジャンルは？',
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(port.postMessage).toHaveBeenCalledWith({
+        history: [],
+        prompt: '最近よく保存しているジャンルは？',
+        type: 'run',
+      })
+    })
+
+    handlePortMessage?.({
+      error: 'Ollama が拡張機能からのアクセスを拒否しました (403 Forbidden)。',
+      ollamaError: {
+        allowedOrigins: 'chrome-extension://test-extension-id',
+        baseUrl: 'http://localhost:11434',
+        downloadUrl: 'https://ollama.com/download',
+        faqUrl: 'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+        kind: 'forbidden',
+        tagsUrl: 'http://localhost:11434/api/tags',
+      },
+      type: 'error',
+    })
+
+    expect(
+      await screen.findAllByText(
+        'launchctl setenv OLLAMA_ORIGINS "chrome-extension://test-extension-id"',
+      ),
+    ).toHaveLength(2)
+    expect(
+      screen.getAllByText('chrome-extension://test-extension-id'),
+    ).not.toHaveLength(0)
+    expect(
+      screen.getAllByRole('link', {
+        name: 'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+      }),
+    ).toHaveLength(2)
+  })
+
   it('設定取得に失敗しても未設定として扱い、close ボタンで閉じる', async () => {
     mocked.getUserSettings.mockRejectedValue(new Error('failed to load'))
 
@@ -1622,5 +1705,57 @@ describe('SavedTabsChatWidget', () => {
       ).toBe(false)
     })
     expect(screen.queryByText('Ollama: llama3.2')).toBeNull()
+  })
+
+  it('モデル一覧取得の Ollama 接続エラーでは Windows 向け案内とダウンロードリンクを表示する', async () => {
+    mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
+    mocked.platformOs = 'win'
+    mocked.sendRuntimeMessage.mockResolvedValue({
+      error: 'Ollama に接続できませんでした。',
+      ollamaError: {
+        allowedOrigins: 'chrome-extension://test-extension-id',
+        baseUrl: 'http://localhost:11434',
+        downloadUrl: 'https://ollama.com/download',
+        faqUrl: 'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+        kind: 'notInstalledOrNotRunning',
+        tagsUrl: 'http://localhost:11434/api/tags',
+      },
+      status: 'error',
+    })
+
+    render(<SavedTabsChatWidget />)
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'AIチャットを開く',
+      }),
+    )
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'llama3.2' }))
+
+    await waitFor(() => {
+      expect(mocked.sendRuntimeMessage).toHaveBeenCalledWith({
+        action: 'listOllamaModels',
+      })
+    })
+
+    expect(
+      await screen.findByText(
+        'Windows では OLLAMA_ORIGINS を環境変数として設定してください。',
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.getByText('chrome-extension://test-extension-id'),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('link', {
+        name: 'https://ollama.com/download',
+      }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('link', {
+        name: 'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+      }),
+    ).toBeTruthy()
   })
 })

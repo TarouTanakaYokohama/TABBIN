@@ -8,6 +8,7 @@ import type {
   AiChatStreamErrorMessage,
   AlarmStatusResponse,
   BackgroundMessage,
+  OllamaErrorDetails,
   OllamaModelListResponse,
   RunAiChatStreamPortMessage,
   StatusResponse,
@@ -26,6 +27,22 @@ import {
   handleUrlDropped,
   removeUrlFromStorage,
 } from './url-storage'
+
+const getOllamaErrorDetails = (
+  error: unknown,
+): OllamaErrorDetails | undefined => {
+  if (!(error instanceof Error)) {
+    return undefined
+  }
+
+  const maybeOllamaError = (
+    error as Error & {
+      ollamaError?: OllamaErrorDetails
+    }
+  ).ollamaError
+
+  return maybeOllamaError
+}
 
 /**
  * メッセージリスナーを設定
@@ -328,6 +345,7 @@ const handleListOllamaModelsMessage = (
       sendResponse({
         status: 'error',
         error: error instanceof Error ? error.message : String(error),
+        ollamaError: getOllamaErrorDetails(error),
       })
     })
 }
@@ -362,6 +380,7 @@ const handleRunAiChatMessage = (
       sendResponse({
         status: 'error',
         error: error instanceof Error ? error.message : String(error),
+        ollamaError: getOllamaErrorDetails(error),
       })
     })
 }
@@ -405,6 +424,7 @@ const handleAiChatStreamPortMessage = (
       const errorMessage: AiChatStreamErrorMessage = {
         type: 'error',
         error: error instanceof Error ? error.message : String(error),
+        ollamaError: getOllamaErrorDetails(error),
       }
 
       port.postMessage(errorMessage)

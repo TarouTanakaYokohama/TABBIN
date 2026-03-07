@@ -674,6 +674,74 @@ describe('setupMessageListener', () => {
     })
   })
 
+  it('Ollama 構造化エラーを listOllamaModels と runAiChat の応答に含める', async () => {
+    const { listener } = setupListener()
+    const modelError = Object.assign(new Error('ollama down'), {
+      ollamaError: {
+        baseUrl: 'http://localhost:11434',
+        downloadUrl: 'https://ollama.com/download',
+        faqUrl: 'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+        kind: 'notInstalledOrNotRunning',
+        tagsUrl: 'http://localhost:11434/api/tags',
+      },
+    })
+    const chatError = Object.assign(new Error('forbidden'), {
+      ollamaError: {
+        allowedOrigins: 'chrome-extension://test-extension-id',
+        baseUrl: 'http://localhost:11434',
+        downloadUrl: 'https://ollama.com/download',
+        faqUrl: 'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+        kind: 'forbidden',
+        tagsUrl: 'http://localhost:11434/api/tags',
+      },
+    })
+
+    mocked.listLocalOllamaModels.mockRejectedValueOnce(modelError)
+    mocked.runAiChatRequest.mockRejectedValueOnce(chatError)
+
+    const modelsResponse = vi.fn()
+    const aiResponse = vi.fn()
+
+    listener(
+      { action: 'listOllamaModels' },
+      {} as chrome.runtime.MessageSender,
+      modelsResponse,
+    )
+    listener(
+      { action: 'runAiChat', history: [], prompt: 'test' },
+      {} as chrome.runtime.MessageSender,
+      aiResponse,
+    )
+
+    await vi.waitFor(() => {
+      expect(modelsResponse).toHaveBeenCalledWith({
+        error: 'ollama down',
+        ollamaError: {
+          baseUrl: 'http://localhost:11434',
+          downloadUrl: 'https://ollama.com/download',
+          faqUrl:
+            'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+          kind: 'notInstalledOrNotRunning',
+          tagsUrl: 'http://localhost:11434/api/tags',
+        },
+        status: 'error',
+      })
+      expect(aiResponse).toHaveBeenCalledWith({
+        error: 'forbidden',
+        ollamaError: {
+          allowedOrigins: 'chrome-extension://test-extension-id',
+          baseUrl: 'http://localhost:11434',
+          downloadUrl: 'https://ollama.com/download',
+          faqUrl:
+            'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+          kind: 'forbidden',
+          tagsUrl: 'http://localhost:11434/api/tags',
+        },
+        status: 'error',
+      })
+    })
+  })
+
   it('ai-chat-stream port では step ごとに進捗を返してから完了を返す', async () => {
     const { portListener } = setupListener()
     let onPortMessage: ((message: unknown) => void) | undefined
@@ -888,6 +956,61 @@ describe('setupMessageListener', () => {
     await vi.waitFor(() => {
       expect(streamPort.postMessage).toHaveBeenCalledWith({
         error: 'plain-stream-error',
+        type: 'error',
+      })
+    })
+  })
+
+  it('ai-chat-stream では構造化された Ollama エラーも error payload に含める', async () => {
+    const { portListener } = setupListener()
+    let onPortMessage: ((message: unknown) => void) | undefined
+    const streamPort = {
+      disconnect: vi.fn(),
+      name: 'ai-chat-stream',
+      onDisconnect: {
+        addListener: vi.fn(),
+      },
+      onMessage: {
+        addListener: vi.fn(listener => {
+          onPortMessage = listener
+        }),
+      },
+      postMessage: vi.fn(),
+    } as unknown as chrome.runtime.Port
+
+    mocked.runAiChatRequest.mockRejectedValueOnce(
+      Object.assign(new Error('forbidden'), {
+        ollamaError: {
+          allowedOrigins: 'chrome-extension://test-extension-id',
+          baseUrl: 'http://localhost:11434',
+          downloadUrl: 'https://ollama.com/download',
+          faqUrl:
+            'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+          kind: 'forbidden',
+          tagsUrl: 'http://localhost:11434/api/tags',
+        },
+      }),
+    )
+
+    portListener(streamPort)
+    onPortMessage?.({
+      history: [],
+      prompt: 'test',
+      type: 'run',
+    })
+
+    await vi.waitFor(() => {
+      expect(streamPort.postMessage).toHaveBeenCalledWith({
+        error: 'forbidden',
+        ollamaError: {
+          allowedOrigins: 'chrome-extension://test-extension-id',
+          baseUrl: 'http://localhost:11434',
+          downloadUrl: 'https://ollama.com/download',
+          faqUrl:
+            'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
+          kind: 'forbidden',
+          tagsUrl: 'http://localhost:11434/api/tags',
+        },
         type: 'error',
       })
     })
