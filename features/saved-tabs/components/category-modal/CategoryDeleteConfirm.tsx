@@ -1,5 +1,6 @@
 import { Trash } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { SavedTabsResponsiveLabel } from '../shared/SavedTabsResponsive'
 import { useCategoryModalContext } from './CategoryModalContext'
 
 /**
@@ -44,7 +45,7 @@ export const CategoryDeleteConfirm = () => {
           className='flex items-center gap-1'
         >
           <Trash size={14} />
-          <span className='hidden lg:inline'>削除</span>
+          <SavedTabsResponsiveLabel>削除</SavedTabsResponsiveLabel>
         </Button>
       </div>
     </div>

@@ -237,6 +237,48 @@
       "tailwindDirectives": true
     }
   },
+  "overrides": [
+    {
+      "includes": ["components/ai-elements/**"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off",
+            "noImplicitCoercions": "off"
+          },
+          "security": {
+            "noDangerouslySetInnerHtml": "off"
+          },
+          "style": {
+            "useExportsLast": "off",
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["components/ui/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useKeyWithClickEvents": "off",
+            "useSemanticElements": "off"
+          },
+          "nursery": {
+            "useSortedClasses": "off"
+          },
+          "style": {
+            "useConsistentTypeDefinitions": "off",
+            "useExportsLast": "off",
+            "useImportType": "off"
+          },
+          "suspicious": {
+            "noReactForwardRef": "off"
+          }
+        }
+      }
+    }
+  ],
   "json": {
     "parser": { "allowComments": true },
     "formatter": {

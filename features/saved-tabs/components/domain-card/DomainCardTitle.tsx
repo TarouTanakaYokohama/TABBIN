@@ -1,10 +1,7 @@
 import { GripVertical } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { SavedTabsResponsiveTooltipContent } from '../shared/SavedTabsResponsive'
 import { useDomainCard } from './DomainCardContext'
 
 /**
@@ -31,9 +28,9 @@ export const DomainCardTitle = () => {
           <TooltipTrigger asChild={true}>
             <Badge variant='secondary'>{group.urls?.length || 0}</Badge>
           </TooltipTrigger>
-          <TooltipContent side='top' className='block lg:hidden'>
+          <SavedTabsResponsiveTooltipContent side='top'>
             タブ数
-          </TooltipContent>
+          </SavedTabsResponsiveTooltipContent>
         </Tooltip>
       </span>
     </div>

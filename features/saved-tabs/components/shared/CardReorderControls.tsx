@@ -1,11 +1,11 @@
 import { Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import {
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from './SavedTabsResponsive'
 
 /** CardReorderControls の props */
 interface CardReorderControlsProps {
@@ -51,12 +51,12 @@ export const CardReorderControls = ({
             aria-label={cancelLabel}
           >
             <X size={14} />
-            <span className='hidden lg:inline'>キャンセル</span>
+            <SavedTabsResponsiveLabel>キャンセル</SavedTabsResponsiveLabel>
           </Button>
         </TooltipTrigger>
-        <TooltipContent side='top' className='block lg:hidden'>
+        <SavedTabsResponsiveTooltipContent side='top'>
           並び替えをキャンセル
-        </TooltipContent>
+        </SavedTabsResponsiveTooltipContent>
       </Tooltip>
 
       <Tooltip>
@@ -69,12 +69,12 @@ export const CardReorderControls = ({
             aria-label={confirmLabel}
           >
             <Check size={14} />
-            <span className='hidden lg:inline'>確定</span>
+            <SavedTabsResponsiveLabel>確定</SavedTabsResponsiveLabel>
           </Button>
         </TooltipTrigger>
-        <TooltipContent side='top' className='block lg:hidden'>
+        <SavedTabsResponsiveTooltipContent side='top'>
           並び替えを確定
-        </TooltipContent>
+        </SavedTabsResponsiveTooltipContent>
       </Tooltip>
     </div>
   )

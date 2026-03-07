@@ -1,10 +1,7 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { SavedTabsResponsiveTooltipContent } from './SavedTabsResponsive'
 
 /** CardCollapseControl の props */
 interface CardCollapseControlProps {
@@ -57,9 +54,9 @@ export const CardCollapseControl = ({
           {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side='top' className='block lg:hidden'>
+      <SavedTabsResponsiveTooltipContent side='top'>
         {tooltipLabel}
-      </TooltipContent>
+      </SavedTabsResponsiveTooltipContent>
     </Tooltip>
   )
 }

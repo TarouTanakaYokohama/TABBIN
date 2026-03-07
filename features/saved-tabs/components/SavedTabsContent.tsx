@@ -13,14 +13,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { safelyUpdateGroupUrls } from '@/features/saved-tabs/lib/tab-operations'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { removeUrlFromTabGroup } from '@/lib/storage/tabs'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
+import {
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from './shared/SavedTabsResponsive'
 import { CategorySection } from './TimeRemaining'
 
 // 並び替え可能なカテゴリセクションコンポーネント
@@ -77,23 +77,13 @@ export const SortableCategorySection = ({
       const urlsToDelete = [...urls]
       const urlsToRemove = urlsToDelete.map(item => item.url)
 
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-      const currentGroup = savedTabs.find(
-        (tab: { id: string }) => tab.id === props.groupId,
-      )
-
-      if (currentGroup) {
-        const existingUrls = currentGroup.urls ?? []
-        const remainingUrls = existingUrls.filter(
-          (urlItem: { url: string }) => !urlsToRemove.includes(urlItem.url),
-        )
-
-        await safelyUpdateGroupUrls(props.groupId, remainingUrls, () => {
-          console.log(
-            `カテゴリ「${categoryDisplayName}」から${urlsToRemove.length}件のURLを削除しました`,
-          )
-        })
+      for (const url of urlsToRemove) {
+        await removeUrlFromTabGroup(props.groupId, url)
+        await new Promise(resolve => setTimeout(resolve, 10))
       }
+      console.log(
+        `カテゴリ「${categoryDisplayName}」から${urlsToRemove.length}件のURLを削除しました`,
+      )
     } catch (error) {
       console.error('削除処理中にエラーが発生しました:', error)
     } finally {
@@ -159,12 +149,14 @@ export const SortableCategorySection = ({
                   style={{ position: 'relative' }}
                 >
                   <ExternalLink size={14} />
-                  <span className='hidden lg:inline'>すべて開く</span>
+                  <SavedTabsResponsiveLabel>
+                    すべて開く
+                  </SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='block lg:hidden'>
+              <SavedTabsResponsiveTooltipContent side='top'>
                 すべてのタブを開く
-              </TooltipContent>
+              </SavedTabsResponsiveTooltipContent>
             </Tooltip>
 
             {/* 削除ボタンを追加 */}
@@ -180,14 +172,14 @@ export const SortableCategorySection = ({
                     disabled={isDeleting}
                   >
                     <Trash size={14} />
-                    <span className='hidden lg:inline'>
+                    <SavedTabsResponsiveLabel>
                       {isDeleting ? '削除中...' : 'すべて削除'}
-                    </span>
+                    </SavedTabsResponsiveLabel>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='top' className='block lg:hidden'>
+                <SavedTabsResponsiveTooltipContent side='top'>
                   すべてのタブを削除
-                </TooltipContent>
+                </SavedTabsResponsiveTooltipContent>
               </Tooltip>
             )}
           </div>

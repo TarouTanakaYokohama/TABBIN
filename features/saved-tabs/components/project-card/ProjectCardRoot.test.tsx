@@ -9,11 +9,15 @@ const {
   useDroppableMock,
   projectDragListenerMock,
   useCustomProjectCardMock,
+  registerHandlersMock,
+  unregisterHandlersMock,
 } = vi.hoisted(() => ({
   useSortableMock: vi.fn(),
   useDroppableMock: vi.fn(),
   projectDragListenerMock: vi.fn(),
   useCustomProjectCardMock: vi.fn(),
+  registerHandlersMock: vi.fn(),
+  unregisterHandlersMock: vi.fn(),
 }))
 
 vi.mock('@dnd-kit/sortable', () => ({
@@ -22,29 +26,6 @@ vi.mock('@dnd-kit/sortable', () => ({
 }))
 
 vi.mock('@dnd-kit/core', () => ({
-  DndContext: ({
-    children,
-    onDragOver,
-    onDragEnd,
-  }: {
-    children: React.ReactNode
-    onDragOver?: (event: unknown) => void
-    onDragEnd?: (event: unknown) => void
-  }) => (
-    <div data-testid='dnd-context'>
-      <button
-        type='button'
-        aria-label='trigger-drag-over'
-        onClick={() => onDragOver?.({ type: 'drag-over-event' })}
-      />
-      <button
-        type='button'
-        aria-label='trigger-drag-end'
-        onClick={() => onDragEnd?.({ type: 'drag-end-event' })}
-      />
-      {children}
-    </div>
-  ),
   KeyboardSensor: vi.fn(),
   PointerSensor: vi.fn(),
   useDroppable: useDroppableMock,
@@ -72,6 +53,24 @@ vi.mock('@/components/ui/card', () => ({
   CardContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid='card-content'>{children}</div>
   ),
+  CardHeader: ({
+    children,
+    ...props
+  }: { children: React.ReactNode } & Record<string, unknown>) => (
+    <div data-testid='card-header' {...props}>
+      {children}
+    </div>
+  ),
+}))
+
+vi.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }))
 
 vi.mock('../../hooks/useCustomProjectCard', () => ({
@@ -85,6 +84,13 @@ vi.mock('./ProjectCardContext', () => ({
     children: React.ReactNode
     value: unknown
   }) => <>{children}</>,
+}))
+
+vi.mock('../../contexts/DragHandlersContext', () => ({
+  useDragHandlers: () => ({
+    registerHandlers: registerHandlersMock,
+    unregisterHandlers: unregisterHandlersMock,
+  }),
 }))
 
 import { ProjectCardRoot } from './ProjectCardRoot'
@@ -213,27 +219,27 @@ describe('ProjectCardRoot', () => {
     expect(screen.getByText('Project A')).toBeTruthy()
     expect(screen.getByText('Project Description')).toBeTruthy()
 
-    const dragHandle = screen.getByRole('button', {
-      name: 'プロジェクト順を変更',
-    })
-    expect(dragHandle.getAttribute('data-sortable-attr')).toBe('project')
-    fireEvent.pointerDown(dragHandle)
+    // 以前はbutton要素でしたが、CardGroupTitle内でdiv要素に変更され、
+    // aria-labelなどは付与されていないため、親の attributes から取得した属性で検証します
+    const dragHandle = screen
+      .getByText('Project A')
+      .closest('div[data-sortable-attr="project"]')
+    expect(dragHandle).toBeTruthy()
+    if (dragHandle) {
+      fireEvent.pointerDown(dragHandle)
+    }
     expect(projectDragListenerMock).toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'trigger-drag-over' }))
-    expect(hookState.dnd.handleDragOver).toHaveBeenCalledWith(
-      { type: 'drag-over-event' },
-      props.project,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'trigger-drag-end' }))
-    expect(hookState.dnd.handleUrlDragEnd).toHaveBeenCalledWith(
-      { type: 'drag-end-event' },
-      false,
+    expect(registerHandlersMock).toHaveBeenCalledWith(
+      props.project.id,
+      expect.objectContaining({
+        handleDragOver: hookState.dnd.handleDragOver,
+        handleUrlDragEnd: hookState.dnd.handleUrlDragEnd,
+      }),
     )
   })
 
-  it('カテゴリ並び替え中は handleCategoryDragEnd を呼ぶ', () => {
+  it('カテゴリ並び替え中は handleCategoryDragEnd を呼ぶためのハンドラが登録される', () => {
     const props = createProps()
     const hookState = createHookState({
       isDraggingCategory: true,
@@ -246,11 +252,12 @@ describe('ProjectCardRoot', () => {
       </ProjectCardRoot>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'trigger-drag-end' }))
-    expect(hookState.dnd.handleCategoryDragEnd).toHaveBeenCalledWith({
-      type: 'drag-end-event',
-    })
-    expect(hookState.dnd.handleUrlDragEnd).not.toHaveBeenCalled()
+    expect(registerHandlersMock).toHaveBeenCalledWith(
+      props.project.id,
+      expect.objectContaining({
+        handleCategoryDragEnd: hookState.dnd.handleCategoryDragEnd,
+      }),
+    )
   })
 
   it('外部アイテムのドロップ誘導・ローディング表示・空状態の分岐を描画する', () => {
@@ -345,7 +352,6 @@ describe('ProjectCardRoot', () => {
       </ProjectCardRoot>,
     )
 
-    expect(screen.queryByTestId('dnd-context')).toBeNull()
     expect(
       screen.getByText(/並び替え中のためカテゴリを折りたたんでいます/),
     ).toBeTruthy()

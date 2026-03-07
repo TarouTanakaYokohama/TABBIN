@@ -194,25 +194,45 @@ describe('Header', () => {
   })
 
   it('urlIds のみを持つグループでもタブ件数を表示できる', () => {
-    const filtered = [
+    const filteredTabGroups = [
       {
-        id: 'custom-project-1',
-        domain: 'Project A',
+        id: 'group-1',
+        domain: 'Domain A',
         urlIds: ['url-1', 'url-2'],
       },
     ] as unknown as TabGroup[]
 
-    render(
+    const filteredCustomProjects = [
+      {
+        id: 'custom-project-1',
+        name: 'Project A',
+        urlIds: ['url-1', 'url-2'],
+      },
+    ] as unknown as CustomProject[]
+
+    const { rerender } = render(
       <Header
         {...createProps({
-          currentMode: 'custom',
-          filteredTabGroups: filtered,
+          currentMode: 'domain',
+          filteredTabGroups,
         })}
       />,
     )
 
     expect(screen.getByText('タブ:2')).toBeTruthy()
     expect(screen.getByText('ドメイン:1')).toBeTruthy()
+
+    rerender(
+      <Header
+        {...createProps({
+          currentMode: 'custom',
+          filteredCustomProjects,
+        })}
+      />,
+    )
+
+    expect(screen.getByText('タブ:2')).toBeTruthy()
+    expect(screen.getByText('プロジェクト:1')).toBeTruthy()
   })
 
   it('domain モードで親カテゴリ管理モーダルを開閉し ViewModeToggle を描画する', () => {
@@ -345,18 +365,32 @@ describe('Header', () => {
       <Header
         {...(createProps({
           currentMode: 'custom',
-          tabGroups: [
-            { id: 'g1', domain: 'a.com', urls: undefined },
-            { id: 'g2', domain: 'b.com', urls: [] },
+          customProjects: [
+            {
+              id: 'p1',
+              name: 'p1',
+              categories: [],
+              createdAt: 0,
+              updatedAt: 0,
+              urls: undefined,
+            },
+            {
+              id: 'p2',
+              name: 'p2',
+              categories: [],
+              createdAt: 0,
+              updatedAt: 0,
+              urls: [],
+            },
           ],
-          filteredTabGroups: undefined,
+          filteredCustomProjects: undefined,
         }) as React.ComponentProps<typeof Header>)}
         onCreateProject={undefined as unknown as (name: string) => void}
       />,
     )
 
     expect(screen.getByText('タブ:0')).toBeTruthy()
-    expect(screen.getByText('ドメイン:2')).toBeTruthy()
+    expect(screen.getByText('プロジェクト:2')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: /プロジェクト追加/ }))
     const input = screen.getByPlaceholderText('例: 仕事、調査、後で読む')

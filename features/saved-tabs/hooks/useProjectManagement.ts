@@ -22,6 +22,7 @@ import {
   getViewMode,
   removeCategoryFromProject,
   removeUrlFromCustomProject,
+  removeUrlsFromCustomProject,
   renameCategoryInProject,
   reorderProjectUrls,
   saveViewMode,
@@ -89,9 +90,18 @@ interface UseProjectManagementReturn {
   /**
    * プロジェクトから URL を削除する。
    * @param projectId - 対象プロジェクトの ID
-   * @param url - 削除する URL
+   * @param url - 削除する URL 文字列
    */
   handleDeleteUrlFromProject: (projectId: string, url: string) => Promise<void>
+  /**
+   * プロジェクトから複数の URL を一括削除する。
+   * @param projectId - 対象プロジェクトの ID
+   * @param urls - 削除する URL 配列
+   */
+  handleDeleteUrlsFromProject: (
+    projectId: string,
+    urls: string[],
+  ) => Promise<void>
   /**
    * プロジェクトにカテゴリを追加する。
    * @param projectId - 対象プロジェクトの ID
@@ -347,6 +357,22 @@ const useProjectManagement = (
     [],
   )
 
+  /** プロジェクトから 複数のURL を削除する */
+  const handleDeleteUrlsFromProject = useCallback(
+    async (projectId: string, urls: string[]): Promise<void> => {
+      try {
+        await removeUrlsFromCustomProject(projectId, urls)
+        const updatedProjects = await getCustomProjects()
+        setCustomProjects(updatedProjects)
+        toast.success(`${urls.length}件のURLを削除しました`)
+      } catch (error) {
+        console.error('URL一括削除エラー:', error)
+        toast.error('URLの削除に失敗しました')
+      }
+    },
+    [],
+  )
+
   /** プロジェクトにカテゴリを追加する */
   const handleAddCategory = useCallback(
     async (projectId: string, categoryName: string): Promise<void> => {
@@ -579,6 +605,7 @@ const useProjectManagement = (
     handleRenameProject,
     handleAddUrlToProject,
     handleDeleteUrlFromProject,
+    handleDeleteUrlsFromProject,
     handleAddCategory,
     handleDeleteProjectCategory,
     handleSetUrlCategory,

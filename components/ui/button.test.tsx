@@ -9,7 +9,8 @@ describe('Buttonコンポーネント', () => {
 
     const button = screen.getByRole('button', { name: 'Default Button' })
     expect(button.tagName).toBe('BUTTON')
-    expect(button.getAttribute('data-slot')).toBe('button')
+    expect(button.className).toContain('inline-flex')
+    expect(button.className).toContain('bg-primary')
   })
 
   it('asChild が true のとき子要素を描画する', () => {
@@ -21,7 +22,7 @@ describe('Buttonコンポーネント', () => {
 
     const link = screen.getByRole('link', { name: 'Read Docs' })
     expect(link.tagName).toBe('A')
-    expect(link.getAttribute('data-slot')).toBe('button')
     expect(link.getAttribute('href')).toBe('/docs')
+    expect(link.className).toContain('inline-flex')
   })
 })

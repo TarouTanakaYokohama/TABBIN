@@ -1,10 +1,7 @@
-import { GripVertical } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { CardGroupTitle } from '../shared/CardGroupTitle'
+import { SavedTabsResponsiveTooltipContent } from '../shared/SavedTabsResponsive'
 import { useCategoryGroup } from './CategoryGroupContext'
 
 /**
@@ -15,34 +12,33 @@ export const CategoryGroupTitle = () => {
   const { category, allUrls, visibleDomainsCount, sortable } =
     useCategoryGroup()
 
+  const badges = (
+    <>
+      <Tooltip>
+        <TooltipTrigger asChild={true}>
+          <Badge variant='secondary'>{allUrls?.length ?? 0}</Badge>
+        </TooltipTrigger>
+        <SavedTabsResponsiveTooltipContent side='top'>
+          タブ数
+        </SavedTabsResponsiveTooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild={true}>
+          <Badge variant='secondary'>{visibleDomainsCount}</Badge>
+        </TooltipTrigger>
+        <SavedTabsResponsiveTooltipContent side='top'>
+          ドメイン数
+        </SavedTabsResponsiveTooltipContent>
+      </Tooltip>
+    </>
+  )
+
   return (
-    <div
-      className='flex w-full cursor-grab items-center gap-2 text-foreground hover:cursor-grab active:cursor-grabbing'
-      {...sortable.attributes}
-      {...sortable.listeners}
-    >
-      <GripVertical size={16} aria-hidden='true' />
-      <div className='flex items-center gap-2'>
-        <h2 className='font-bold text-foreground text-xl'>{category.name}</h2>
-        <span className='flex gap-2 text-muted-foreground'>
-          <Tooltip>
-            <TooltipTrigger asChild={true}>
-              <Badge variant='secondary'>{allUrls?.length ?? 0}</Badge>
-            </TooltipTrigger>
-            <TooltipContent side='top' className='block lg:hidden'>
-              タブ数
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild={true}>
-              <Badge variant='secondary'>{visibleDomainsCount}</Badge>
-            </TooltipTrigger>
-            <TooltipContent side='top' className='block lg:hidden'>
-              ドメイン数
-            </TooltipContent>
-          </Tooltip>
-        </span>
-      </div>
-    </div>
+    <CardGroupTitle
+      title={category.name}
+      badges={badges}
+      sortableAttributes={sortable.attributes}
+      sortableListeners={sortable.listeners}
+    />
   )
 }

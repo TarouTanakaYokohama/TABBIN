@@ -9,13 +9,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import type { CustomProject, TabGroup, ViewMode } from '@/types/storage'
 import { CategoryModal } from './CategoryModal'
+import {
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from './shared/SavedTabsResponsive'
 import { ViewModeToggle } from './ViewModeToggle'
 
 interface HeaderProps {
@@ -27,6 +27,7 @@ interface HeaderProps {
   onSearchChange: (query: string) => void
   onOpenFilter?: () => void
   customProjects: CustomProject[]
+  filteredCustomProjects?: CustomProject[]
   onCreateProject: (name: string) => void
 }
 
@@ -38,6 +39,7 @@ export const Header = ({
   searchQuery,
   onSearchChange,
   customProjects = [],
+  filteredCustomProjects,
   onCreateProject = () => {},
 }: HeaderProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -45,7 +47,8 @@ export const Header = ({
     useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const groupsForDisplay = filteredTabGroups || tabGroups
-  const tabCount = groupsForDisplay.reduce((sum, group) => {
+  const customGroupsForDisplay = filteredCustomProjects || customProjects
+  const domainTabCount = groupsForDisplay.reduce((sum, group) => {
     if (group.urls) {
       return sum + group.urls.length
     }
@@ -54,6 +57,18 @@ export const Header = ({
     }
     return sum
   }, 0)
+
+  const customTabCount = customGroupsForDisplay.reduce((sum, project) => {
+    if (project.urls) {
+      return sum + project.urls.length
+    }
+    if (project.urlIds) {
+      return sum + project.urlIds.length
+    }
+    return sum
+  }, 0)
+
+  const tabCount = currentMode === 'custom' ? customTabCount : domainTabCount
   const handleCustomProjectEnter = (
     event: React.KeyboardEvent<HTMLInputElement>,
   ) => {
@@ -129,12 +144,14 @@ export const Header = ({
                 className='flex h-9 cursor-pointer items-center gap-2'
               >
                 <Plus size={16} />
-                <span className='hidden lg:inline'>親カテゴリ管理</span>
+                <SavedTabsResponsiveLabel>
+                  親カテゴリ管理
+                </SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='block lg:hidden'>
+            <SavedTabsResponsiveTooltipContent side='top'>
               親カテゴリ管理
-            </TooltipContent>
+            </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         )}
         {currentMode === 'custom' && (
@@ -147,12 +164,14 @@ export const Header = ({
                 className='flex h-9 cursor-pointer items-center gap-2'
               >
                 <Plus size={16} />
-                <span className='hidden lg:inline'>プロジェクト追加</span>
+                <SavedTabsResponsiveLabel>
+                  プロジェクト追加
+                </SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='block lg:hidden'>
+            <SavedTabsResponsiveTooltipContent side='top'>
               プロジェクト追加
-            </TooltipContent>
+            </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         )}
         <ViewModeToggle currentMode={currentMode} onChange={onModeChange} />
@@ -167,16 +186,20 @@ export const Header = ({
               }
             >
               <Wrench size={16} />
-              <span className='hidden lg:inline'>オプション</span>
+              <SavedTabsResponsiveLabel>オプション</SavedTabsResponsiveLabel>
             </Button>
           </TooltipTrigger>
-          <TooltipContent side='top' className='block lg:hidden'>
+          <SavedTabsResponsiveTooltipContent side='top'>
             オプション
-          </TooltipContent>
+          </SavedTabsResponsiveTooltipContent>
         </Tooltip>
         <div className='space-x-4 text-muted-foreground text-sm'>
           <p>タブ:{tabCount}</p>
-          <p>ドメイン:{groupsForDisplay.length}</p>
+          {currentMode === 'custom' ? (
+            <p>プロジェクト:{customGroupsForDisplay.length}</p>
+          ) : (
+            <p>ドメイン:{groupsForDisplay.length}</p>
+          )}
         </div>
       </div>
 

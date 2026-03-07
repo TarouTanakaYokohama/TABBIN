@@ -134,6 +134,36 @@ describe('useSettingsフック', () => {
     )
   })
 
+  it('連続した updateSetting 呼び出しでも前の変更を失わない', async () => {
+    vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
+    vi.mocked(saveUserSettings).mockResolvedValue(undefined)
+
+    const { result } = renderHook(() => useSettings())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    await act(async () => {
+      await result.current.updateSetting('showSavedTime', true)
+      await result.current.updateSetting('openUrlInBackground', false)
+    })
+
+    expect(result.current.settings).toEqual(
+      expect.objectContaining({
+        openUrlInBackground: false,
+        showSavedTime: true,
+      }),
+    )
+    expect(saveUserSettings).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        openUrlInBackground: false,
+        showSavedTime: true,
+      }),
+    )
+  })
+
   it('handleExcludePatternsBlur は空でない行のみ保存する', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
     vi.mocked(saveUserSettings).mockResolvedValue(undefined)

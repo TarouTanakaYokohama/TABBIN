@@ -6,12 +6,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ViewMode } from '@/types/storage'
+import {
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from './shared/SavedTabsResponsive'
 
 interface ViewModeToggleProps {
   currentMode: ViewMode
@@ -27,7 +27,7 @@ export const ViewModeToggle = ({
       return (
         <div className='flex items-center gap-2'>
           <Globe size={16} />
-          <span className='hidden lg:inline'>ドメインモード</span>
+          <SavedTabsResponsiveLabel>ドメインモード</SavedTabsResponsiveLabel>
         </div>
       )
     }
@@ -35,7 +35,9 @@ export const ViewModeToggle = ({
       return (
         <div className='flex items-center gap-2'>
           <Folder size={16} />
-          <span className='hidden lg:inline'>(preview)カスタムモード</span>
+          <SavedTabsResponsiveLabel>
+            (preview)カスタムモード
+          </SavedTabsResponsiveLabel>
         </div>
       )
     }
@@ -69,9 +71,9 @@ export const ViewModeToggle = ({
           </Select>
         </div>
       </TooltipTrigger>
-      <TooltipContent side='top' className='block lg:hidden'>
+      <SavedTabsResponsiveTooltipContent side='top'>
         表示モード切り替え
-      </TooltipContent>
+      </SavedTabsResponsiveTooltipContent>
     </Tooltip>
   )
 }

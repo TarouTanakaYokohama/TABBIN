@@ -8,11 +8,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from '../shared/SavedTabsResponsive'
 import { CategoryDeleteConfirm } from './CategoryDeleteConfirm'
 import { useCategoryModalContext } from './CategoryModalContext'
 
@@ -45,14 +45,14 @@ export const CategorySelector = () => {
                   className='cursor-pointer'
                 >
                   <Trash2 size={16} />
-                  <span className='hidden lg:inline'>
+                  <SavedTabsResponsiveLabel>
                     選択中の親カテゴリを削除
-                  </span>
+                  </SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='block lg:hidden'>
+              <SavedTabsResponsiveTooltipContent side='top'>
                 選択中の親カテゴリを削除
-              </TooltipContent>
+              </SavedTabsResponsiveTooltipContent>
             </Tooltip>
           )}
       </div>

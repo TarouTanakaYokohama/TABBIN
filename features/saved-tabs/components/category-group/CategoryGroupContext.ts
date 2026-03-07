@@ -28,7 +28,9 @@ export interface CategoryGroupContextType {
   handlers: {
     handleOpenAllTabs: CategoryGroupProps['handleOpenAllTabs']
     handleDeleteGroup: CategoryGroupProps['handleDeleteGroup']
+    handleDeleteGroups?: CategoryGroupProps['handleDeleteGroups']
     handleDeleteUrl: CategoryGroupProps['handleDeleteUrl']
+    handleDeleteUrls?: CategoryGroupProps['handleDeleteUrls']
     handleOpenTab: CategoryGroupProps['handleOpenTab']
     handleUpdateUrls: CategoryGroupProps['handleUpdateUrls']
     handleUpdateDomainsOrder: CategoryGroupProps['handleUpdateDomainsOrder']

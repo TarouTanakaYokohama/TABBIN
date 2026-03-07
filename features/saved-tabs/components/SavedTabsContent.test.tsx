@@ -10,9 +10,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
 
-const { useSortableMock, safelyUpdateGroupUrlsMock } = vi.hoisted(() => ({
+const { useSortableMock, removeUrlFromTabGroupMock } = vi.hoisted(() => ({
   useSortableMock: vi.fn(),
-  safelyUpdateGroupUrlsMock: vi.fn(),
+  removeUrlFromTabGroupMock: vi.fn(),
 }))
 
 vi.mock('@dnd-kit/sortable', () => ({
@@ -27,8 +27,8 @@ vi.mock('@dnd-kit/utilities', () => ({
   },
 }))
 
-vi.mock('@/features/saved-tabs/lib/tab-operations', () => ({
-  safelyUpdateGroupUrls: safelyUpdateGroupUrlsMock,
+vi.mock('@/lib/storage/tabs', () => ({
+  removeUrlFromTabGroup: removeUrlFromTabGroupMock,
 }))
 
 vi.mock('./TimeRemaining', () => ({
@@ -151,7 +151,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
       transition: undefined,
       isDragging: false,
     })
-    safelyUpdateGroupUrlsMock.mockResolvedValue(undefined)
+    removeUrlFromTabGroupMock.mockResolvedValue(undefined)
 
     const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
     chromeGlobal.chrome = {
@@ -278,7 +278,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     expect(await screen.findByRole('button', { name: '削除する' })).toBeTruthy()
   })
 
-  it('カテゴリ全削除確認で storage から残存URLを作り safelyUpdateGroupUrls を呼ぶ', async () => {
+  it('カテゴリ全削除確認で removeUrlFromTabGroup を呼ぶ', async () => {
     render(
       <SavedTabsContentComponent
         {...createProps({
@@ -291,24 +291,21 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     fireEvent.click(await screen.findByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
-      expect(safelyUpdateGroupUrlsMock).toHaveBeenCalledWith(
+      expect(removeUrlFromTabGroupMock).toHaveBeenCalledWith(
         'group-1',
-        [{ url: 'https://c.com', title: 'C' }],
-        expect.any(Function),
+        'https://a.com',
+      )
+      expect(removeUrlFromTabGroupMock).toHaveBeenCalledWith(
+        'group-1',
+        'https://b.com',
       )
     })
 
-    const onUpdated = safelyUpdateGroupUrlsMock.mock.calls[0]?.[2]
-    expect(onUpdated).toEqual(expect.any(Function))
-    onUpdated?.()
     expect(console.log).toHaveBeenCalled()
   })
 
-  it('削除処理で currentGroup がない場合や例外時でも落ちずに終了する', async () => {
-    ;(
-      chrome.storage.local.get as unknown as ReturnType<typeof vi.fn>
-    ).mockResolvedValueOnce({ savedTabs: [] })
-    safelyUpdateGroupUrlsMock.mockRejectedValueOnce(new Error('boom'))
+  it('削除処理で例外時でも落ちずに終了する', async () => {
+    removeUrlFromTabGroupMock.mockRejectedValueOnce(new Error('boom'))
 
     const { rerender } = render(
       <SavedTabsContentComponent
@@ -321,7 +318,6 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     fireEvent.click(screen.getByRole('button', { name: /すべて削除/ }))
     fireEvent.click(await screen.findByRole('button', { name: '削除する' }))
 
-    expect(safelyUpdateGroupUrlsMock).not.toHaveBeenCalled()
     await screen.findByRole('button', { name: /すべて削除/ })
 
     rerender(
@@ -333,17 +329,6 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
       />,
     )
 
-    ;(
-      chrome.storage.local.get as unknown as ReturnType<typeof vi.fn>
-    ).mockResolvedValueOnce({
-      savedTabs: [
-        {
-          id: 'group-1',
-          urls: [{ url: 'https://a.com', title: 'A' }],
-        },
-      ],
-    })
-
     fireEvent.click(screen.getByRole('button', { name: /すべて削除/ }))
     fireEvent.click(await screen.findByRole('button', { name: '削除する' }))
 
@@ -352,19 +337,14 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     })
   })
 
-  it('削除確認の二重実行を防ぎ、currentGroup.urls 未定義時は空配列で更新する', async () => {
+  it('削除確認の二重実行を防ぐ', async () => {
     let resolveUpdate: (() => void) | undefined
-    safelyUpdateGroupUrlsMock.mockImplementationOnce(
+    removeUrlFromTabGroupMock.mockImplementationOnce(
       () =>
         new Promise<void>(resolve => {
           resolveUpdate = resolve
         }),
     )
-    ;(
-      chrome.storage.local.get as unknown as ReturnType<typeof vi.fn>
-    ).mockResolvedValueOnce({
-      savedTabs: [{ id: 'group-1' }],
-    })
 
     render(
       <SavedTabsContentComponent
@@ -385,12 +365,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     fireEvent.click(confirmButton)
 
     await waitFor(() => {
-      expect(safelyUpdateGroupUrlsMock).toHaveBeenCalledTimes(1)
-      expect(safelyUpdateGroupUrlsMock).toHaveBeenCalledWith(
-        'group-1',
-        [],
-        expect.any(Function),
-      )
+      expect(removeUrlFromTabGroupMock).toHaveBeenCalled()
     })
 
     resolveUpdate?.()

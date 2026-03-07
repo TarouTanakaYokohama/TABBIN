@@ -2,6 +2,9 @@
  * Background script用の型定義
  */
 
+import type { DynamicToolUIPart } from 'ai'
+import type { AiChatAttachment } from '@/features/ai-chat/types'
+
 /**
  * ドラッグされたURL情報
  */
@@ -23,6 +26,8 @@ export type MessageAction =
   | 'checkExpiredTabs'
   | 'updateTabTimestamps'
   | 'getAlarmStatus'
+  | 'listOllamaModels'
+  | 'runAiChat'
 
 /**
  * メッセージ基底型
@@ -89,6 +94,21 @@ export interface GetAlarmStatusMessage extends BaseMessage {
   action: 'getAlarmStatus'
 }
 
+export interface ListOllamaModelsMessage extends BaseMessage {
+  action: 'listOllamaModels'
+}
+
+export interface RunAiChatMessage extends BaseMessage {
+  action: 'runAiChat'
+  prompt: string
+  history: Array<{
+    role: 'user' | 'assistant'
+    content: string
+    attachments?: AiChatAttachment[]
+  }>
+  attachments?: AiChatAttachment[]
+}
+
 /**
  * 全てのメッセージ型のユニオン
  */
@@ -100,6 +120,8 @@ export type BackgroundMessage =
   | CheckExpiredTabsMessage
   | UpdateTabTimestampsMessage
   | GetAlarmStatusMessage
+  | ListOllamaModelsMessage
+  | RunAiChatMessage
 
 /**
  * レスポンス型定義
@@ -121,6 +143,75 @@ export interface AlarmStatusResponse {
   exists: boolean
   scheduledTime?: number
 }
+
+export interface OllamaModelListResponse {
+  status: 'ok' | 'error'
+  models?: Array<{
+    name: string
+    label: string
+    modifiedAt?: string
+  }>
+  error?: string
+}
+
+export interface AiChatToolTrace {
+  toolCallId: string
+  toolName: string
+  title: string
+  type: DynamicToolUIPart['type']
+  state: DynamicToolUIPart['state']
+  input: DynamicToolUIPart['input']
+  output?: DynamicToolUIPart['output']
+  errorText?: DynamicToolUIPart['errorText']
+}
+
+export interface AiChatResponse {
+  status: 'ok' | 'error'
+  answer?: string
+  recordCount?: number
+  reasoning?: string
+  toolTraces?: AiChatToolTrace[]
+  error?: string
+}
+
+export const AI_CHAT_STREAM_PORT_NAME = 'ai-chat-stream'
+
+export interface RunAiChatStreamPortMessage {
+  type: 'run'
+  prompt: string
+  history: Array<{
+    role: 'user' | 'assistant'
+    content: string
+    attachments?: AiChatAttachment[]
+  }>
+  attachments?: AiChatAttachment[]
+}
+
+export interface AiChatStreamStepMessage {
+  type: 'step'
+  reasoning: string
+  toolTraces: AiChatToolTrace[]
+}
+
+export interface AiChatStreamCompleteMessage {
+  type: 'complete'
+  answer: string
+  recordCount: number
+  reasoning: string
+  toolTraces: AiChatToolTrace[]
+}
+
+export interface AiChatStreamErrorMessage {
+  type: 'error'
+  error: string
+}
+
+export type AiChatStreamClientMessage = RunAiChatStreamPortMessage
+
+export type AiChatStreamServerMessage =
+  | AiChatStreamStepMessage
+  | AiChatStreamCompleteMessage
+  | AiChatStreamErrorMessage
 
 /**
  * コンテキストメニューID型

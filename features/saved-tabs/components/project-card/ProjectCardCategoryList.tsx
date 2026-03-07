@@ -44,6 +44,7 @@ export const ProjectCardCategoryList = () => {
             urls={categoryUrlsByName.get(categoryName) || []}
             handleOpenUrl={handlers.handleOpenUrl}
             handleDeleteUrl={handlers.handleDeleteUrl}
+            handleDeleteUrlsFromProject={handlers.handleDeleteUrlsFromProject}
             handleDeleteCategory={handlers.handleDeleteCategory}
             handleSetUrlCategory={handlers.handleSetUrlCategory}
             handleAddCategory={handlers.handleAddCategory}

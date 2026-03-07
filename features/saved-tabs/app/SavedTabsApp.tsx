@@ -30,13 +30,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Toaster } from '@/components/ui/sonner'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { CategoryReorderFooter } from '@/features/saved-tabs/components/Footer'
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
+import {
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from '@/features/saved-tabs/components/shared/SavedTabsResponsive'
 import { CustomModeContainer } from '@/features/saved-tabs/custom/CustomModeContainer'
 import { DomainModeContainer } from '@/features/saved-tabs/domain/DomainModeContainer'
 import { handleTabGroupRemoval } from '@/features/saved-tabs/lib/tab-operations'
@@ -44,12 +44,16 @@ import { shouldShowUncategorizedHeader as computeShouldShowUncategorizedHeader }
 import { useSavedTabsCore } from '@/features/saved-tabs/shared/hooks/useSavedTabsCore'
 import { syncStorageChanges } from '@/features/saved-tabs/shared/services/modeSyncService'
 import { saveParentCategories } from '@/lib/storage/categories'
-import { moveUrlBetweenCustomProjects } from '@/lib/storage/projects'
+import {
+  moveUrlBetweenCustomProjects,
+  removeUrlFromAllCustomProjects,
+} from '@/lib/storage/projects'
 import { defaultSettings } from '@/lib/storage/settings'
 import {
   addSubCategoryToGroup,
   getTabGroupUrls,
   removeUrlFromTabGroup,
+  removeUrlsFromTabGroup,
 } from '@/lib/storage/tabs'
 import type {
   CustomProject,
@@ -281,8 +285,9 @@ const removeMatchingUrlsFromGroup = async (
   const targets = groupUrls
     .filter(item => urlSet.has(item.url))
     .map(item => item.url)
-  for (const targetUrl of targets) {
-    await removeUrlFromTabGroup(group.id, targetUrl)
+
+  if (targets.length > 0) {
+    await removeUrlsFromTabGroup(group.id, targets)
   }
 }
 interface CategorySyncState {
@@ -464,7 +469,11 @@ const filterCustomProjectsByQuery = (
   )
 }
 
-const SavedTabsApp = () => {
+const SavedTabsApp = ({
+  isAiSidebarOpen = false,
+}: {
+  isAiSidebarOpen?: boolean
+}) => {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [newSubCategory, setNewSubCategory] = useState('')
   const [showSubCategoryModal, setShowSubCategoryModal] = useState(false)
@@ -512,6 +521,7 @@ const SavedTabsApp = () => {
     handleRenameProject,
     handleAddUrlToProject,
     handleDeleteUrlFromProject,
+    handleDeleteUrlsFromProject,
     handleAddCategory,
     handleDeleteProjectCategory,
     handleSetUrlCategory,
@@ -615,6 +625,80 @@ const SavedTabsApp = () => {
     ],
   )
 
+  /**
+   * 指定のタブグループ内のURLをすべてカスタムプロジェクトからも削除します。
+   */
+  const removeUrlsFromCustomProjectsForGroup = async (
+    groupToDelete: TabGroup,
+  ) => {
+    try {
+      const { getTabGroupUrls } = await import('@/lib/storage/tabs')
+      const urlsToDelete = await getTabGroupUrls(groupToDelete)
+      if (urlsToDelete && urlsToDelete.length > 0) {
+        for (const item of urlsToDelete) {
+          try {
+            await removeUrlFromAllCustomProjects(item.url)
+          } catch (err) {
+            console.error(
+              `URL ${item.url} のカスタムプロジェクト同期削除エラー:`,
+              err,
+            )
+          }
+        }
+      }
+    } catch (err) {
+      console.error('URL一覧の取得または削除エラー:', err)
+    }
+  }
+
+  /**
+   * 複数のドメイングループに属するURLをすべてカスタムプロジェクトから一括削除します。
+   */
+  const removeUrlsFromCustomProjectsForGroups = async (
+    groupsToDelete: TabGroup[],
+  ) => {
+    try {
+      const { getTabGroupUrls } = await import('@/lib/storage/tabs')
+      const allUrlsToDelete: string[] = []
+
+      for (const group of groupsToDelete) {
+        const urlsToDelete = await getTabGroupUrls(group)
+        if (urlsToDelete && urlsToDelete.length > 0) {
+          allUrlsToDelete.push(...urlsToDelete.map(item => item.url))
+        }
+      }
+
+      if (allUrlsToDelete.length > 0) {
+        try {
+          const { removeUrlsFromAllCustomProjects } = await import(
+            '@/lib/storage/projects'
+          )
+          await removeUrlsFromAllCustomProjects(allUrlsToDelete)
+        } catch (err) {
+          console.error('URL一括同期削除エラー:', err)
+        }
+      }
+    } catch (err) {
+      console.error('複数グループのURL取得エラー:', err)
+    }
+  }
+
+  /**
+   * 親カテゴリから指定されたドメインIDを削除して保存します。
+   */
+  const removeDomainFromParentCategories = async (
+    id: string,
+    categories: ParentCategory[],
+    setCategories: (cats: ParentCategory[]) => void,
+  ) => {
+    const updatedCategories = categories.map(category => ({
+      ...category,
+      domains: category.domains.filter(domainId => domainId !== id),
+    }))
+    await saveParentCategories(updatedCategories)
+    setCategories(updatedCategories)
+  }
+
   // handleDeleteGroup関数を修正
   const handleDeleteGroup = useCallback(
     async (id: string) => {
@@ -632,6 +716,9 @@ const SavedTabsApp = () => {
 
         // 専用の削除前処理関数を呼び出し（インポートした関数を使用）
         await handleTabGroupRemoval(id)
+
+        // グループに属するすべてのURLをカスタムプロジェクトからも削除
+        await removeUrlsFromCustomProjectsForGroup(groupToDelete)
 
         // 以降は従来通りの処理
         const updatedGroups = savedTabs.filter(group => group.id !== id)
@@ -651,15 +738,69 @@ const SavedTabsApp = () => {
         }
 
         // 親カテゴリからはドメインIDのみを削除（ドメイン名は保持）
-        const updatedCategories = categories.map(category => ({
-          ...category,
-          domains: category.domains.filter(domainId => domainId !== id),
-        }))
-        await saveParentCategories(updatedCategories)
-        setCategories(updatedCategories)
+        await removeDomainFromParentCategories(id, categories, setCategories)
+
         console.log('グループ削除処理が完了しました')
       } catch (error) {
         console.error('グループ削除エラー:', error)
+      }
+    },
+    [
+      isUncategorizedReorderMode,
+      categories,
+      refreshTabGroupsWithUrls,
+      setCategories,
+    ],
+  )
+
+  const handleDeleteGroups = useCallback(
+    async (ids: string[]) => {
+      if (ids.length === 0) {
+        return
+      }
+      try {
+        const storageResult = await chrome.storage.local.get('savedTabs')
+        const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
+          ? storageResult.savedTabs
+          : []
+
+        const groupsToDelete = savedTabs.filter(group => ids.includes(group.id))
+        if (groupsToDelete.length === 0) {
+          return
+        }
+
+        console.log(`${groupsToDelete.length}件のグループを一括削除します`)
+
+        for (const id of ids) {
+          await handleTabGroupRemoval(id)
+        }
+
+        await removeUrlsFromCustomProjectsForGroups(groupsToDelete)
+
+        const idSet = new Set(ids)
+        const updatedGroups = savedTabs.filter(group => !idSet.has(group.id))
+
+        await chrome.storage.local.set({
+          savedTabs: updatedGroups,
+        })
+        await refreshTabGroupsWithUrls(updatedGroups)
+
+        if (isUncategorizedReorderMode) {
+          setTempUncategorizedOrder(prev =>
+            prev.filter(group => !idSet.has(group.id)),
+          )
+        }
+
+        const updatedCategories = categories.map(category => ({
+          ...category,
+          domains: category.domains.filter(domainId => !idSet.has(domainId)),
+        }))
+        await saveParentCategories(updatedCategories)
+        setCategories(updatedCategories)
+
+        console.log('一括グループ削除処理が完了しました')
+      } catch (error) {
+        console.error('一括グループ削除エラー:', error)
       }
     },
     [
@@ -678,6 +819,23 @@ const SavedTabsApp = () => {
         console.log(`URL ${url} をグループ ${groupId} から削除しました`)
       } catch (error) {
         console.error('URL削除エラー:', error)
+      }
+    },
+    [refreshTabGroupsWithUrls],
+  )
+  const handleDeleteUrls = useCallback(
+    async (groupId: string, urls: string[]) => {
+      if (urls.length === 0) {
+        return
+      }
+      try {
+        await removeUrlsFromTabGroup(groupId, urls)
+        await refreshTabGroupsWithUrls()
+        console.log(
+          `${urls.length}件のURLをグループ ${groupId} から削除しました`,
+        )
+      } catch (error) {
+        console.error('URL一括削除エラー:', error)
       }
     },
     [refreshTabGroupsWithUrls],
@@ -1012,7 +1170,9 @@ const SavedTabsApp = () => {
           handleCategoryDragEnd={handleCategoryDragEnd}
           handleOpenAllTabs={handleOpenAllTabs}
           handleDeleteGroup={handleDeleteGroup}
+          handleDeleteGroups={handleDeleteGroups}
           handleDeleteUrl={handleDeleteUrl}
+          handleDeleteUrls={handleDeleteUrls}
           handleOpenTab={handleOpenTab}
           handleUpdateUrls={handleUpdateUrls}
           handleUpdateDomainsOrder={handleUpdateDomainsOrder}
@@ -1045,6 +1205,7 @@ const SavedTabsApp = () => {
         settings={settings}
         handleOpenUrl={handleOpenTab}
         handleDeleteUrl={handleDeleteUrlFromCustomMode}
+        handleDeleteUrlsFromProject={handleDeleteUrlsFromProject}
         handleAddUrl={handleAddUrlToProject}
         handleCreateProject={handleCreateProject}
         handleDeleteProject={handleDeleteProject}
@@ -1094,9 +1255,9 @@ const SavedTabsApp = () => {
                   キャンセル
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='block lg:hidden'>
+              <SavedTabsResponsiveTooltipContent side='top'>
                 キャンセル
-              </TooltipContent>
+              </SavedTabsResponsiveTooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -1108,12 +1269,12 @@ const SavedTabsApp = () => {
                   className='flex cursor-pointer items-center gap-1 rounded text-primary-foreground'
                 >
                   <Plus size={14} />
-                  <span className='hidden lg:inline'>追加</span>
+                  <SavedTabsResponsiveLabel>追加</SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='block lg:hidden'>
+              <SavedTabsResponsiveTooltipContent side='top'>
                 追加
-              </TooltipContent>
+              </SavedTabsResponsiveTooltipContent>
             </Tooltip>
           </DialogFooter>
         </DialogContent>
@@ -1123,11 +1284,18 @@ const SavedTabsApp = () => {
   return (
     <>
       <Toaster />
-      <div className='container mx-auto min-h-screen px-4 py-2'>
+      <div
+        className={
+          isAiSidebarOpen
+            ? 'min-h-screen w-full px-4 py-2'
+            : 'container mx-auto min-h-screen px-4 py-2'
+        }
+      >
         <Header
           tabGroups={tabGroups}
           filteredTabGroups={headerFilteredTabGroups}
           customProjects={customProjectsForHeader}
+          filteredCustomProjects={filteredCustomProjects}
           onCreateProject={handleCreateProject}
           currentMode={viewMode}
           onModeChange={handleViewModeChange}

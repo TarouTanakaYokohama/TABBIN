@@ -152,22 +152,25 @@ const ProjectUrlItemComponent = ({
     )
   }
 
-  const handleDragEnd = (e: React.DragEvent<HTMLElement>) => {
-    window.removeEventListener('blur', handleWindowBlur)
-    const shouldHandleAsExternalDrop =
-      !isGlobalInternalDrop &&
-      isDraggingRef.current &&
-      (e.dataTransfer.dropEffect === 'copy' ||
-        (windowBlurredDuringDragRef.current &&
-          e.dataTransfer.dropEffect === 'link'))
+  const handleDragEnd = useCallback(
+    (e: React.DragEvent<HTMLElement>) => {
+      window.removeEventListener('blur', handleWindowBlur)
+      const shouldHandleAsExternalDrop =
+        !isGlobalInternalDrop &&
+        isDraggingRef.current &&
+        (e.dataTransfer.dropEffect === 'copy' ||
+          (windowBlurredDuringDragRef.current &&
+            e.dataTransfer.dropEffect === 'link'))
 
-    if (shouldHandleAsExternalDrop) {
-      handleExternalDrop()
-    }
+      if (shouldHandleAsExternalDrop) {
+        handleExternalDrop()
+      }
 
-    isDraggingRef.current = false
-    windowBlurredDuringDragRef.current = false
-  }
+      isDraggingRef.current = false
+      windowBlurredDuringDragRef.current = false
+    },
+    [handleWindowBlur, handleExternalDrop],
+  )
 
   useEffect(
     () => () => {

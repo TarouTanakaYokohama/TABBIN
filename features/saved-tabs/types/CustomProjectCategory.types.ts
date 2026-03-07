@@ -7,6 +7,7 @@ export interface CustomProjectCategoryProps {
   urls: CustomProject['urls']
   handleOpenUrl: (url: string) => void
   handleDeleteUrl: (projectId: string, url: string) => void
+  handleDeleteUrlsFromProject?: (projectId: string, urls: string[]) => void
   handleDeleteCategory?: (projectId: string, category: string) => void
   handleSetUrlCategory: (
     projectId: string,

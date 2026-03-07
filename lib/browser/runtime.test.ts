@@ -1,27 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { polyfillSendMessageMock } = vi.hoisted(() => ({
+const { polyfillConnectMock, polyfillSendMessageMock } = vi.hoisted(() => ({
+  polyfillConnectMock: vi.fn(),
   polyfillSendMessageMock: vi.fn(),
 }))
 
 vi.mock('webextension-polyfill', () => ({
   default: {
     runtime: {
+      connect: polyfillConnectMock,
       sendMessage: polyfillSendMessageMock,
     },
   },
 }))
 
-import { sendRuntimeMessage } from './runtime'
+import { connectRuntimePort, sendRuntimeMessage } from './runtime'
 
 type GlobalWithBrowserApis = Omit<typeof globalThis, 'browser' | 'chrome'> & {
   browser?: {
     runtime?: {
+      connect?: (connectInfo?: { name?: string }) => unknown
       sendMessage?: (message: unknown) => Promise<unknown>
     }
   }
   chrome?: {
     runtime?: {
+      connect?: (connectInfo?: { name?: string }) => unknown
       sendMessage?: (
         message: unknown,
         callback?: (response: unknown) => void,
@@ -37,6 +41,7 @@ const originalChrome = globalWithApis.chrome
 describe('sendRuntimeMessage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    polyfillConnectMock.mockImplementation(() => undefined)
     polyfillSendMessageMock.mockRejectedValue(
       new Error('polyfill runtime unavailable'),
     )
@@ -111,5 +116,64 @@ describe('sendRuntimeMessage', () => {
     expect(polyfillSendMessageMock).toHaveBeenNthCalledWith(2, {
       action: 'second',
     })
+  })
+
+  it('browser.runtime.connect がある場合は Port API を使う', async () => {
+    const browserConnect = vi.fn().mockReturnValue({
+      disconnect: vi.fn(),
+      onDisconnect: { addListener: vi.fn() },
+      onMessage: { addListener: vi.fn() },
+      postMessage: vi.fn(),
+    })
+    globalWithApis.browser = {
+      runtime: {
+        connect: browserConnect,
+      },
+    }
+
+    const port = await connectRuntimePort('ai-chat-stream')
+
+    expect(browserConnect).toHaveBeenCalledWith({
+      name: 'ai-chat-stream',
+    })
+    expect(port).toBeTruthy()
+  })
+
+  it('browser.runtime.connect がない場合は chrome.runtime.connect にフォールバックする', async () => {
+    const chromeConnect = vi.fn().mockReturnValue({
+      disconnect: vi.fn(),
+      onDisconnect: { addListener: vi.fn() },
+      onMessage: { addListener: vi.fn() },
+      postMessage: vi.fn(),
+    })
+    globalWithApis.chrome = {
+      runtime: {
+        connect: chromeConnect,
+      },
+    }
+
+    const port = await connectRuntimePort('ai-chat-stream')
+
+    expect(chromeConnect).toHaveBeenCalledWith({
+      name: 'ai-chat-stream',
+    })
+    expect(port).toBeTruthy()
+  })
+
+  it('polyfill runtime.connect が返せる場合はその Port を使う', async () => {
+    const polyfillPort = {
+      disconnect: vi.fn(),
+      onDisconnect: { addListener: vi.fn() },
+      onMessage: { addListener: vi.fn() },
+      postMessage: vi.fn(),
+    }
+    polyfillConnectMock.mockReturnValue(polyfillPort)
+
+    const port = await connectRuntimePort('ai-chat-stream')
+
+    expect(polyfillConnectMock).toHaveBeenCalledWith({
+      name: 'ai-chat-stream',
+    })
+    expect(port).toBe(polyfillPort)
   })
 })

@@ -4,24 +4,24 @@ import { describe, expect, it } from 'vitest'
 import { Badge } from './badge'
 
 describe('Badgeコンポーネント', () => {
-  it('デフォルトはspanとして描画する', () => {
-    render(<Badge>Default Badge</Badge>)
+  it('デフォルトは div として描画する', () => {
+    render(<Badge className='badge-extra'>Default Badge</Badge>)
 
     const badge = screen.getByText('Default Badge')
-    expect(badge.tagName).toBe('SPAN')
-    expect(badge.getAttribute('data-slot')).toBe('badge')
+    expect(badge.tagName).toBe('DIV')
+    expect(badge.className).toContain('badge-extra')
+    expect(badge.className).toContain('inline-flex')
   })
 
-  it('asChild=trueなら子要素として描画する', () => {
+  it('variant と className を結合して描画する', () => {
     render(
-      <Badge asChild={true} variant='outline'>
-        <a href='/docs'>Docs Badge</a>
+      <Badge className='outline-extra' variant='outline'>
+        Outline Badge
       </Badge>,
     )
 
-    const linkBadge = screen.getByRole('link', { name: 'Docs Badge' })
-    expect(linkBadge.tagName).toBe('A')
-    expect(linkBadge.getAttribute('data-slot')).toBe('badge')
-    expect(linkBadge.getAttribute('href')).toBe('/docs')
+    const badge = screen.getByText('Outline Badge')
+    expect(badge.className).toContain('outline-extra')
+    expect(badge.className).toContain('text-foreground')
   })
 })
