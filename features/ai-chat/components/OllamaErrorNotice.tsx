@@ -19,10 +19,14 @@ const renderPlatformInstructions = ({
   if (platform === 'mac') {
     return (
       <>
-        <p>macOS では次を設定してから Ollama を再起動してください。</p>
+        <p>Spotlight 検索で「ターミナル」と入力して開きます。</p>
+        <p>次のコマンドをコピーして貼り付けます。</p>
         <p>
           <code>{`launchctl setenv OLLAMA_ORIGINS "${configuredOrigin}"`}</code>
         </p>
+        <p>Enter キーを押します。</p>
+        <p>Ollama.app を終了します。</p>
+        <p>Ollama.app を起動し直します。</p>
       </>
     )
   }
@@ -30,11 +34,12 @@ const renderPlatformInstructions = ({
   if (platform === 'win') {
     return (
       <>
-        <p>Windows では OLLAMA_ORIGINS を環境変数として設定してください。</p>
-        <p>
-          設定値: <code>{configuredOrigin}</code>
-        </p>
-        <p>設定後に Ollama を再起動してください。</p>
+        <p>Windows のスタートメニューで「環境変数」と入力します。</p>
+        <p>「アカウントの環境変数を編集」を開きます。</p>
+        <p>「新規」を押します。</p>
+        <p>変数名に OLLAMA_ORIGINS を入力します。</p>
+        <p>変数値に {configuredOrigin} を入力します。</p>
+        <p>保存してから Ollama を再起動します。</p>
       </>
     )
   }
