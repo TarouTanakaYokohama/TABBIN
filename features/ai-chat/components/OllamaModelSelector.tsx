@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   PromptInputSelect,
   PromptInputSelectContent,
@@ -7,7 +7,12 @@ import {
   PromptInputSelectValue,
 } from '@/components/ai-elements/prompt-input'
 import { Button } from '@/components/ui/button'
+import {
+  OllamaErrorNotice,
+  type OllamaErrorPlatform,
+} from '@/features/ai-chat/components/OllamaErrorNotice'
 import { cn } from '@/lib/utils'
+import type { OllamaErrorDetails } from '@/types/background'
 
 interface OllamaModelOption {
   label: string
@@ -21,10 +26,12 @@ interface OllamaModelSelectorProps {
   hideFetchButton?: boolean
   isCompactLayout?: boolean
   isLoading: boolean
+  ollamaError?: OllamaErrorDetails
   isSaving?: boolean
   models: OllamaModelOption[]
   onFetchModels: () => void
   onSelectModel: (modelName: string) => Promise<boolean> | boolean
+  platform?: OllamaErrorPlatform
   selectedModel?: string
 }
 
@@ -75,16 +82,19 @@ const OllamaModelSelector = ({
   hideFetchButton = false,
   isCompactLayout = false,
   isLoading,
+  ollamaError,
   isSaving = false,
   models,
   onFetchModels,
   onSelectModel,
+  platform = 'unknown',
   selectedModel,
 }: OllamaModelSelectorProps) => {
   const selectableModels = useMemo(
     () => getSelectableModels(models, selectedModel),
     [models, selectedModel],
   )
+  const [isOpen, setIsOpen] = useState(false)
   const isTriggerDisabled = getTriggerDisabled({
     fetchOnOpen,
     isLoading,
@@ -92,7 +102,15 @@ const OllamaModelSelector = ({
     selectableModels,
   })
 
+  useEffect(() => {
+    if (errorMessage || ollamaError) {
+      setIsOpen(false)
+    }
+  }, [errorMessage, ollamaError])
+
   const handleOpenChange = (nextOpen: boolean) => {
+    setIsOpen(nextOpen)
+
     if (nextOpen && fetchOnOpen) {
       onFetchModels()
     }
@@ -131,6 +149,7 @@ const OllamaModelSelector = ({
 
         <PromptInputSelect
           defaultValue={selectedModel}
+          open={isOpen}
           onOpenChange={handleOpenChange}
           onValueChange={handleValueChange}
           key={selectedModel || 'no-model-selected'}
@@ -167,7 +186,15 @@ const OllamaModelSelector = ({
         </p>
       ) : null}
 
-      {errorMessage ? (
+      {ollamaError ? (
+        <OllamaErrorNotice
+          className='text-destructive text-sm'
+          error={ollamaError}
+          platform={platform}
+        />
+      ) : null}
+
+      {!ollamaError && errorMessage ? (
         <p className='wrap-break-word whitespace-pre-line text-destructive text-sm'>
           {errorMessage}
         </p>
