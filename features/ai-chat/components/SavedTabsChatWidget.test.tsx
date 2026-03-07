@@ -1470,9 +1470,20 @@ describe('SavedTabsChatWidget', () => {
 
     expect(
       await screen.findAllByText(
+        'Spotlight 検索で「ターミナル」と入力して開きます。',
+      ),
+    ).toHaveLength(2)
+    expect(
+      screen.getAllByText('次のコマンドをコピーして貼り付けます。'),
+    ).toHaveLength(2)
+    expect(
+      screen.getAllByText(
         'launchctl setenv OLLAMA_ORIGINS "chrome-extension://test-extension-id"',
       ),
     ).toHaveLength(2)
+    expect(screen.getAllByText('Enter キーを押します。')).toHaveLength(2)
+    expect(screen.getAllByText('Ollama.app を終了します。')).toHaveLength(2)
+    expect(screen.getAllByText('Ollama.app を起動し直します。')).toHaveLength(2)
     expect(
       screen.getAllByText('chrome-extension://test-extension-id'),
     ).not.toHaveLength(0)
@@ -1741,11 +1752,23 @@ describe('SavedTabsChatWidget', () => {
 
     expect(
       await screen.findByText(
-        'Windows では OLLAMA_ORIGINS を環境変数として設定してください。',
+        'Windows のスタートメニューで「環境変数」と入力します。',
       ),
     ).toBeTruthy()
     expect(
-      screen.getByText('chrome-extension://test-extension-id'),
+      screen.getByText('「アカウントの環境変数を編集」を開きます。'),
+    ).toBeTruthy()
+    expect(screen.getByText('「新規」を押します。')).toBeTruthy()
+    expect(
+      screen.getByText('変数名に OLLAMA_ORIGINS を入力します。'),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        '変数値に chrome-extension://test-extension-id を入力します。',
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.getByText('保存してから Ollama を再起動します。'),
     ).toBeTruthy()
     expect(
       screen.getByRole('link', {

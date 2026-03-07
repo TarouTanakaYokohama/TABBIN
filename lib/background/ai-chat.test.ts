@@ -142,8 +142,15 @@ describe('listLocalOllamaModels', () => {
       'http://localhost:11434/api/tags',
     )
     await expect(listLocalOllamaModels(fetchMock)).rejects.toThrow(
+      'Spotlight 検索で「ターミナル」と入力して開きます。',
+    )
+    await expect(listLocalOllamaModels(fetchMock)).rejects.toThrow(
       'launchctl setenv OLLAMA_ORIGINS "chrome-extension://test-extension-id"',
     )
+    const error = (await listLocalOllamaModels(fetchMock).catch(
+      caughtError => caughtError,
+    )) as Error
+    expect(error.message).not.toContain('ollama serve')
   })
 
   it('403 なら構造化された forbidden の Ollama エラーを持つ', async () => {
@@ -268,7 +275,7 @@ describe('listLocalOllamaModels', () => {
       'curl http://localhost:11434/api/tags',
     )
     await expect(listLocalOllamaModels(fetchMock)).rejects.toThrow(
-      'OLLAMA_ORIGINS="chrome-extension://test-extension-id" ollama serve',
+      'Ollama.app を起動し直します。',
     )
   })
 
@@ -1380,9 +1387,20 @@ describe('runAiChatRequest', () => {
         history: [],
         prompt: 'test',
       }),
+    ).rejects.toThrow('Spotlight 検索で「ターミナル」と入力して開きます。')
+    await expect(
+      runAiChatRequest({
+        history: [],
+        prompt: 'test',
+      }),
     ).rejects.toThrow(
       'launchctl setenv OLLAMA_ORIGINS "chrome-extension://test-extension-id"',
     )
+    const error = (await runAiChatRequest({
+      history: [],
+      prompt: 'test',
+    }).catch(caughtError => caughtError)) as Error
+    expect(error.message).not.toContain('ollama serve')
   })
 
   it('Failed to fetch でも構造化された接続エラーに変換する', async () => {

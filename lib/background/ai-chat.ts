@@ -106,10 +106,12 @@ const createOllamaSetupInstructions = (): string =>
       `確認 URL: ${OLLAMA_TAGS_URL}`,
       `確認コマンド: curl ${OLLAMA_TAGS_URL}`,
       'macOS で Ollama.app を使う場合:',
+      'Spotlight 検索で「ターミナル」と入力して開きます。',
+      '次のコマンドをコピーして貼り付けます。',
       `launchctl setenv OLLAMA_ORIGINS "${configuredOrigin}"`,
-      'その後に Ollama を再起動してください。',
-      'ollama serve を直接使う場合:',
-      `OLLAMA_ORIGINS="${configuredOrigin}" ollama serve`,
+      'Enter キーを押します。',
+      'Ollama.app を終了します。',
+      'Ollama.app を起動し直します。',
       `FAQ: ${OLLAMA_FAQ_URL}`,
     ].join('\n')
   })()
