@@ -546,7 +546,7 @@ const AssistantMessageDiagnostics = ({
   }
 
   return (
-    <div className='space-y-2 break-words pl-1'>
+    <div className='wrap-break-word space-y-2 pl-1'>
       {reasoning ? (
         <Reasoning
           className='mb-0 rounded-md border border-border/70 bg-background/70 px-3 py-2'
