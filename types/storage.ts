@@ -61,6 +61,11 @@ export interface UserSettings {
   confirmDeleteAll: boolean // すべて削除前に確認するかどうか
   confirmDeleteEach: boolean // URL削除前に個別確認するかどうか
   colors?: Record<string, string> // ユーザー設定: カラー設定まとめ
+  aiChatEnabled?: boolean
+  aiProvider?: 'none' | 'ollama'
+  ollamaModel?: string
+  aiSystemPrompts?: AiSystemPromptPreset[]
+  activeAiSystemPromptId?: string
 }
 
 // ドメイン別のカテゴリ設定を保存するためのインターフェース
@@ -101,6 +106,14 @@ export interface CustomProject {
   > // URLのID -> メタデータのマッピング
   categories: string[] // このプロジェクトで利用可能なカテゴリリスト
   categoryOrder?: string[] // カテゴリの表示順序
+  createdAt: number
+  updatedAt: number
+}
+
+export interface AiSystemPromptPreset {
+  id: string
+  name: string
+  template: string
   createdAt: number
   updatedAt: number
 }

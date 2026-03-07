@@ -39,13 +39,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import type { CustomProjectCategoryProps } from '../types/CustomProjectCategory.types'
 import { ProjectUrlItem } from './ProjectUrlItem'
+import {
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from './shared/SavedTabsResponsive'
 
 type CategoryUrl = NonNullable<CustomProjectCategoryProps['urls']>[number]
 type SortOrder = 'default' | 'asc' | 'desc'
@@ -172,9 +172,9 @@ const CategoryHeaderMain = ({
             {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
           </Button>
         </TooltipTrigger>
-        <TooltipContent side='top' className='block lg:hidden'>
+        <SavedTabsResponsiveTooltipContent side='top'>
           {collapseLabel}
-        </TooltipContent>
+        </SavedTabsResponsiveTooltipContent>
       </Tooltip>
 
       <Tooltip>
@@ -190,9 +190,9 @@ const CategoryHeaderMain = ({
             <SortOrderIcon size={14} />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side='top' className='block lg:hidden'>
+        <SavedTabsResponsiveTooltipContent side='top'>
           {sortLabel}
-        </TooltipContent>
+        </SavedTabsResponsiveTooltipContent>
       </Tooltip>
 
       <div className='shrink-0 text-muted-foreground'>
@@ -244,12 +244,12 @@ const CategoryHeaderActions = ({
             aria-label='カテゴリ管理'
           >
             <Settings size={14} />
-            <span className='hidden lg:inline'>カテゴリ管理</span>
+            <SavedTabsResponsiveLabel>カテゴリ管理</SavedTabsResponsiveLabel>
           </Button>
         </TooltipTrigger>
-        <TooltipContent side='top' className='block lg:hidden'>
+        <SavedTabsResponsiveTooltipContent side='top'>
           カテゴリ管理
-        </TooltipContent>
+        </SavedTabsResponsiveTooltipContent>
       </Tooltip>
     )}
 
@@ -265,12 +265,12 @@ const CategoryHeaderActions = ({
               aria-label='すべて開く'
             >
               <ExternalLink size={14} />
-              <span className='hidden lg:inline'>すべて開く</span>
+              <SavedTabsResponsiveLabel>すべて開く</SavedTabsResponsiveLabel>
             </Button>
           </TooltipTrigger>
-          <TooltipContent side='top' className='block lg:hidden'>
+          <SavedTabsResponsiveTooltipContent side='top'>
             すべて開く
-          </TooltipContent>
+          </SavedTabsResponsiveTooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -283,12 +283,12 @@ const CategoryHeaderActions = ({
               aria-label='すべて削除'
             >
               <Trash2 size={14} />
-              <span className='hidden lg:inline'>すべて削除</span>
+              <SavedTabsResponsiveLabel>すべて削除</SavedTabsResponsiveLabel>
             </Button>
           </TooltipTrigger>
-          <TooltipContent side='top' className='block lg:hidden'>
+          <SavedTabsResponsiveTooltipContent side='top'>
             すべて削除
-          </TooltipContent>
+          </SavedTabsResponsiveTooltipContent>
         </Tooltip>
       </>
     )}

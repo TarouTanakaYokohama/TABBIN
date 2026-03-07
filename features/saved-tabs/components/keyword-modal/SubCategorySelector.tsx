@@ -8,11 +8,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from '../shared/SavedTabsResponsive'
 import { useKeywordModal } from './KeywordModalContext'
 import { SubCategoryDeleteConfirm } from './SubCategoryDeleteConfirm'
 import { SubCategoryRenameForm } from './SubCategoryRenameForm'
@@ -46,12 +46,14 @@ export const SubCategorySelector = () => {
                   disabled={!subcategory.activeCategory}
                 >
                   <Edit size={14} />
-                  <span className='hidden lg:inline'>子カテゴリ名を変更</span>
+                  <SavedTabsResponsiveLabel>
+                    子カテゴリ名を変更
+                  </SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='block lg:hidden'>
+              <SavedTabsResponsiveTooltipContent side='top'>
                 子カテゴリ名を変更
-              </TooltipContent>
+              </SavedTabsResponsiveTooltipContent>
             </Tooltip>
           )}
 
@@ -65,14 +67,14 @@ export const SubCategorySelector = () => {
                 disabled={!subcategory.activeCategory}
               >
                 <Trash2 size={14} />
-                <span className='hidden lg:inline'>
+                <SavedTabsResponsiveLabel>
                   選択中の子カテゴリを削除
-                </span>
+                </SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='block lg:hidden'>
+            <SavedTabsResponsiveTooltipContent side='top'>
               選択中の子カテゴリを削除
-            </TooltipContent>
+            </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         </div>
       </div>

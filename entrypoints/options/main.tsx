@@ -10,6 +10,7 @@ if (!import.meta.env.DEV) {
 // lucide-reactからアイコンをインポート - AlertTriangleを追加
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { createRoot } from 'react-dom/client'
+import { ModeToggle } from '@/components/mode-toggle'
 import { ThemeProvider } from '@/components/theme-provider'
 // UIコンポーネントのインポート
 import { Button } from '@/components/ui/button'
@@ -38,6 +39,18 @@ import { useColorSettings } from '@/features/options/hooks/useColorSettings'
 import { useSettings } from '@/features/options/hooks/useSettings'
 import { ImportExportSettings } from '@/features/options/ImportExportSettings'
 import type { UserSettings } from '@/types/storage'
+
+const createThemeColorChangeHandler =
+  (
+    key: keyof NonNullable<UserSettings['colors']>,
+    handleColorChange: (
+      key: keyof NonNullable<UserSettings['colors']>,
+      value: string,
+    ) => void,
+  ) =>
+  (event: React.ChangeEvent<HTMLInputElement>) => {
+    handleColorChange(key, event.target.value)
+  }
 
 const OptionsPage = () => {
   // カスタムhooksを使用
@@ -472,35 +485,42 @@ const OptionsPage = () => {
           </Button>
         </div>
         <div className='grid grid-cols-2 gap-4'>
-          {colorOptions.map(({ key, label }) => (
-            <div key={key} className='flex flex-col'>
-              <Label
-                htmlFor={`${key}-picker`}
-                className='mb-2 block whitespace-normal break-all text-foreground'
-              >
-                {label}
-              </Label>
-              <div className='flex items-center space-x-4'>
-                <input
-                  id={`${key}-picker`}
-                  type='color'
-                  value={settings.colors?.[key] || getDefaultColor(key)}
-                  onChange={e => handleColorChange(key, e.target.value)}
-                  className='h-8 w-8 shrink-0 cursor-pointer border-0 p-0'
-                />
-                <div className='min-w-0 flex-1'>
-                  <Input
-                    id={`${key}-hex`}
-                    type='text'
+          {colorOptions.map(({ key, label }) => {
+            const handleThemeColorChange = createThemeColorChangeHandler(
+              key,
+              handleColorChange,
+            )
+
+            return (
+              <div key={key} className='flex flex-col'>
+                <Label
+                  htmlFor={`${key}-picker`}
+                  className='mb-2 block whitespace-normal break-all text-foreground'
+                >
+                  {label}
+                </Label>
+                <div className='flex items-center space-x-4'>
+                  <input
+                    id={`${key}-picker`}
+                    type='color'
                     value={settings.colors?.[key] || getDefaultColor(key)}
-                    onChange={e => handleColorChange(key, e.target.value)}
-                    className='w-full bg-background text-foreground'
-                    placeholder='例: #FF5733, #3366CC'
+                    onChange={handleThemeColorChange}
+                    className='h-8 w-8 shrink-0 cursor-pointer border-0 p-0'
                   />
+                  <div className='min-w-0 flex-1'>
+                    <Input
+                      id={`${key}-hex`}
+                      type='text'
+                      value={settings.colors?.[key] || getDefaultColor(key)}
+                      onChange={handleThemeColorChange}
+                      className='w-full bg-background text-foreground'
+                      placeholder='例: #FF5733, #3366CC'
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
@@ -551,3 +571,5 @@ document.addEventListener('DOMContentLoaded', () => {
     </ThemeProvider>,
   )
 })
+
+export { OptionsPage }

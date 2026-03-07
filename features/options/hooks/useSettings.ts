@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   getChromeStorageOnChanged,
   warnMissingChromeStorage,
@@ -13,6 +13,11 @@ import type { UserSettings } from '@/types/storage'
 export const useSettings = () => {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [isLoading, setIsLoading] = useState(true)
+  const settingsRef = useRef(settings)
+
+  useEffect(() => {
+    settingsRef.current = settings
+  }, [settings])
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -79,10 +84,11 @@ export const useSettings = () => {
   ) => {
     try {
       const newSettings = {
-        ...settings,
+        ...settingsRef.current,
         [key]: value,
       }
 
+      settingsRef.current = newSettings
       setSettings(newSettings)
       await saveUserSettings(newSettings)
       return true

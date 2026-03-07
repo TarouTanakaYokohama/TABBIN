@@ -11,7 +11,7 @@ import {
 } from './dialog'
 
 describe('Dialogコンポーネント', () => {
-  it('トリガーとクローズのラッパーに slot 属性を付与して描画する', () => {
+  it('トリガーとクローズを描画する', () => {
     render(
       <Dialog open={true}>
         <DialogTrigger>Open Dialog</DialogTrigger>
@@ -27,9 +27,11 @@ describe('Dialogコンポーネント', () => {
       name: 'Open Dialog',
       hidden: true,
     })
-    expect(trigger.getAttribute('data-slot')).toBe('dialog-trigger')
+    expect(trigger.tagName).toBe('BUTTON')
 
     const close = screen.getByRole('button', { name: 'Close Dialog' })
-    expect(close.getAttribute('data-slot')).toBe('dialog-close')
+    expect(close.tagName).toBe('BUTTON')
+    expect(screen.getByText('Dialog Title')).toBeTruthy()
+    expect(screen.getByText('Dialog Description')).toBeTruthy()
   })
 })

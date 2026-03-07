@@ -3,11 +3,18 @@
  */
 
 import type {
+  AiChatResponse,
+  AiChatStreamClientMessage,
+  AiChatStreamErrorMessage,
   AlarmStatusResponse,
   BackgroundMessage,
+  OllamaModelListResponse,
+  RunAiChatStreamPortMessage,
   StatusResponse,
   TimeRemainingResponse,
 } from '@/types/background'
+import { AI_CHAT_STREAM_PORT_NAME } from '@/types/background'
+import { listLocalOllamaModels, runAiChatRequest } from './ai-chat'
 import {
   checkAndRemoveExpiredTabs,
   getExpirationPeriodMs,
@@ -59,6 +66,12 @@ const setupMessageListener = (): void => {
       case 'getAlarmStatus':
         handleGetAlarmStatusMessage(sendResponse)
         return true
+      case 'listOllamaModels':
+        handleListOllamaModelsMessage(sendResponse)
+        return true
+      case 'runAiChat':
+        handleRunAiChatMessage(typedMessage, sendResponse)
+        return true
       default:
         console.warn('未知のメッセージアクション:', message.action)
         sendResponse({
@@ -66,6 +79,16 @@ const setupMessageListener = (): void => {
         })
         return false
     }
+  })
+
+  chrome.runtime.onConnect?.addListener(port => {
+    if (port.name !== AI_CHAT_STREAM_PORT_NAME) {
+      return
+    }
+
+    port.onMessage.addListener((message: AiChatStreamClientMessage) => {
+      handleAiChatStreamPortMessage(port, message)
+    })
   })
 }
 /**
@@ -289,5 +312,102 @@ const handleGetAlarmStatusMessage = (
     console.log('アラーム状態:', status)
     sendResponse(status)
   })
+}
+
+const handleListOllamaModelsMessage = (
+  sendResponse: (response: OllamaModelListResponse) => void,
+): void => {
+  listLocalOllamaModels()
+    .then(models => {
+      sendResponse({
+        status: 'ok',
+        models,
+      })
+    })
+    .catch(error => {
+      sendResponse({
+        status: 'error',
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
+}
+
+const handleRunAiChatMessage = (
+  message: {
+    attachments?: import('@/features/ai-chat/types').AiChatAttachment[]
+    prompt: string
+    history: Array<{
+      role: 'user' | 'assistant'
+      content: string
+      attachments?: import('@/features/ai-chat/types').AiChatAttachment[]
+    }>
+  },
+  sendResponse: (response: AiChatResponse) => void,
+): void => {
+  runAiChatRequest({
+    attachments: message.attachments,
+    prompt: message.prompt,
+    history: message.history,
+  })
+    .then(result => {
+      sendResponse({
+        status: 'ok',
+        answer: result.answer,
+        recordCount: result.recordCount,
+        reasoning: result.reasoning,
+        toolTraces: result.toolTraces,
+      })
+    })
+    .catch(error => {
+      sendResponse({
+        status: 'error',
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
+}
+
+const handleAiChatStreamPortMessage = (
+  port: chrome.runtime.Port,
+  message: AiChatStreamClientMessage,
+): void => {
+  if (message.type !== 'run') {
+    return
+  }
+
+  const runMessage = message as RunAiChatStreamPortMessage
+
+  runAiChatRequest(
+    {
+      attachments: runMessage.attachments,
+      prompt: runMessage.prompt,
+      history: runMessage.history,
+    },
+    {
+      onStepUpdate: stepUpdate => {
+        port.postMessage({
+          type: 'step',
+          reasoning: stepUpdate.reasoning,
+          toolTraces: stepUpdate.toolTraces,
+        })
+      },
+    },
+  )
+    .then(result => {
+      port.postMessage({
+        type: 'complete',
+        answer: result.answer,
+        recordCount: result.recordCount,
+        reasoning: result.reasoning,
+        toolTraces: result.toolTraces,
+      })
+    })
+    .catch(error => {
+      const errorMessage: AiChatStreamErrorMessage = {
+        type: 'error',
+        error: error instanceof Error ? error.message : String(error),
+      }
+
+      port.postMessage(errorMessage)
+    })
 }
 export { setupMessageListener }

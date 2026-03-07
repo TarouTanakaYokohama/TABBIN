@@ -10,11 +10,11 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from '@/features/saved-tabs/components/shared/SavedTabsResponsive'
 import type { CustomProject } from '@/types/storage'
 
 // プロジェクト名のバリデーションスキーマ
@@ -109,17 +109,7 @@ export const ProjectManagementModal = ({
   }
 
   // 名前変更の保存処理
-  const handleSaveRenaming = async () => {
-    if (!validateProjectName(newProjectName.trim())) {
-      return
-    }
-
-    const trimmedName = newProjectName.trim()
-    if (trimmedName === localProjectName) {
-      handleCancelRenaming()
-      return
-    }
-
+  const handleSaveRenaming = async (trimmedName: string) => {
     setIsProcessing(true)
     setIsSaving(true)
 
@@ -200,12 +190,14 @@ export const ProjectManagementModal = ({
                         className='flex cursor-pointer items-center gap-2 rounded px-2 py-1'
                       >
                         <Edit size={14} />
-                        <span className='hidden lg:inline'>名前を変更</span>
+                        <SavedTabsResponsiveLabel>
+                          名前を変更
+                        </SavedTabsResponsiveLabel>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side='top' className='block lg:hidden'>
+                    <SavedTabsResponsiveTooltipContent side='top'>
                       名前を変更
-                    </TooltipContent>
+                    </SavedTabsResponsiveTooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild={true}>
@@ -217,14 +209,14 @@ export const ProjectManagementModal = ({
                         disabled={isProcessing}
                       >
                         <Trash2 size={14} />
-                        <span className='hidden lg:inline'>
+                        <SavedTabsResponsiveLabel>
                           プロジェクトを削除
-                        </span>
+                        </SavedTabsResponsiveLabel>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side='top' className='block lg:hidden'>
+                    <SavedTabsResponsiveTooltipContent side='top'>
                       プロジェクトを削除
-                    </TooltipContent>
+                    </SavedTabsResponsiveTooltipContent>
                   </Tooltip>
                 </div>
               )}
@@ -252,7 +244,7 @@ export const ProjectManagementModal = ({
                       trimmedName !== localProjectName &&
                       !projectNameError
                     ) {
-                      handleSaveRenaming()
+                      handleSaveRenaming(trimmedName)
                     } else if (projectNameError) {
                       inputRef.current?.focus()
                     } else {
@@ -269,7 +261,7 @@ export const ProjectManagementModal = ({
                         !projectNameError &&
                         !isProcessing
                       ) {
-                        handleSaveRenaming()
+                        handleSaveRenaming(trimmedName)
                       }
                     } else if (e.key === 'Escape') {
                       e.preventDefault()
@@ -315,9 +307,9 @@ export const ProjectManagementModal = ({
                       キャンセル
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side='top' className='block lg:hidden'>
+                  <SavedTabsResponsiveTooltipContent side='top'>
                     キャンセル
-                  </TooltipContent>
+                  </SavedTabsResponsiveTooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild={true}>
@@ -328,12 +320,12 @@ export const ProjectManagementModal = ({
                       disabled={isProcessing}
                     >
                       <Trash size={14} />
-                      <span className='hidden lg:inline'>削除</span>
+                      <SavedTabsResponsiveLabel>削除</SavedTabsResponsiveLabel>
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side='top' className='block lg:hidden'>
+                  <SavedTabsResponsiveTooltipContent side='top'>
                     プロジェクトを削除
-                  </TooltipContent>
+                  </SavedTabsResponsiveTooltipContent>
                 </Tooltip>
               </div>
             </div>

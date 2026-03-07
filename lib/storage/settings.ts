@@ -1,4 +1,9 @@
 import {
+  DEFAULT_AI_SYSTEM_PROMPT_PRESET_ID,
+  DEFAULT_AI_SYSTEM_PROMPT_TEMPLATE,
+  normalizeAiSystemPromptSettings,
+} from '@/features/ai-chat/lib/systemPromptPresets'
+import {
   getChromeStorageLocal,
   warnMissingChromeStorage,
 } from '@/lib/browser/chrome-storage'
@@ -28,6 +33,19 @@ export const defaultSettings: UserSettings = {
   confirmDeleteEach: false,
   // デフォルト: 確認しない
   colors: {}, // デフォルト: カラー設定まとめ
+  aiChatEnabled: false,
+  aiProvider: 'none',
+  ollamaModel: '',
+  activeAiSystemPromptId: DEFAULT_AI_SYSTEM_PROMPT_PRESET_ID,
+  aiSystemPrompts: [
+    {
+      createdAt: 0,
+      id: DEFAULT_AI_SYSTEM_PROMPT_PRESET_ID,
+      name: 'デフォルト',
+      template: DEFAULT_AI_SYSTEM_PROMPT_TEMPLATE,
+      updatedAt: 0,
+    },
+  ],
 }
 
 // 設定を取得する関数
@@ -47,18 +65,24 @@ export const getUserSettings = async (): Promise<UserSettings> => {
       console.log('保存された設定を使用:', data.userSettings)
       // デフォルト値とマージして返す
       return {
-        ...defaultSettings,
-        ...data.userSettings,
+        ...normalizeAiSystemPromptSettings({
+          ...defaultSettings,
+          ...data.userSettings,
+        }),
       }
     }
     console.log('設定が見つからないためデフォルト値を使用')
     return {
-      ...defaultSettings,
+      ...normalizeAiSystemPromptSettings({
+        ...defaultSettings,
+      }),
     }
   } catch (error) {
     console.error('設定取得エラー:', error)
     return {
-      ...defaultSettings,
+      ...normalizeAiSystemPromptSettings({
+        ...defaultSettings,
+      }),
     }
   }
 } // 設定を保存する関数
@@ -66,14 +90,15 @@ export const saveUserSettings = async (
   settings: UserSettings,
 ): Promise<void> => {
   try {
-    console.log('ユーザー設定を保存:', settings)
+    const normalizedSettings = normalizeAiSystemPromptSettings(settings)
+    console.log('ユーザー設定を保存:', normalizedSettings)
     const storageLocal = getChromeStorageLocal()
     if (!storageLocal) {
       warnMissingChromeStorage('設定保存')
       return
     }
     await storageLocal.set({
-      userSettings: settings,
+      userSettings: normalizedSettings,
     })
     console.log('設定を保存しました')
   } catch (error) {

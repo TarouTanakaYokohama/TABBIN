@@ -11,12 +11,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { CategoryKeywordModal } from '@/features/saved-tabs/components/CategoryKeywordModal'
+import {
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from '@/features/saved-tabs/components/shared/SavedTabsResponsive'
 import { handleSaveKeywords } from '@/features/saved-tabs/lib/category-keywords'
 import { useDomainCard } from './DomainCardContext'
 
@@ -47,12 +47,14 @@ export const DomainCardActions = () => {
               aria-label='子カテゴリを管理'
             >
               <Settings size={14} />
-              <span className='hidden lg:inline'>子カテゴリ管理</span>
+              <SavedTabsResponsiveLabel>
+                子カテゴリ管理
+              </SavedTabsResponsiveLabel>
             </Button>
           </TooltipTrigger>
-          <TooltipContent side='top' className='block lg:hidden'>
+          <SavedTabsResponsiveTooltipContent side='top'>
             子カテゴリを管理
-          </TooltipContent>
+          </SavedTabsResponsiveTooltipContent>
         </Tooltip>
 
         {/* すべて開く */}
@@ -78,12 +80,12 @@ export const DomainCardActions = () => {
               aria-label='すべてのタブを開く'
             >
               <ExternalLink size={14} />
-              <span className='hidden lg:inline'>すべて開く</span>
+              <SavedTabsResponsiveLabel>すべて開く</SavedTabsResponsiveLabel>
             </Button>
           </TooltipTrigger>
-          <TooltipContent side='top' className='block lg:hidden'>
+          <SavedTabsResponsiveTooltipContent side='top'>
             すべてのタブを開く
-          </TooltipContent>
+          </SavedTabsResponsiveTooltipContent>
         </Tooltip>
 
         {/* グループ削除 */}
@@ -110,12 +112,12 @@ export const DomainCardActions = () => {
               aria-label='すべてのタブを削除'
             >
               <Trash size={14} />
-              <span className='hidden lg:inline'>すべて削除</span>
+              <SavedTabsResponsiveLabel>すべて削除</SavedTabsResponsiveLabel>
             </Button>
           </TooltipTrigger>
-          <TooltipContent side='top' className='block lg:hidden'>
+          <SavedTabsResponsiveTooltipContent side='top'>
             すべてのタブを削除
-          </TooltipContent>
+          </SavedTabsResponsiveTooltipContent>
         </Tooltip>
 
         {/* キーワードモーダル */}

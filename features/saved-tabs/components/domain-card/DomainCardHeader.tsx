@@ -16,7 +16,7 @@ export const DomainCardHeader = ({
   const stickyTop = categoryId ? 'top-8' : 'top-6'
 
   return (
-    <div className={`sticky ${stickyTop} z-40 w-full bg-card p-2`}>
+    <div className={`sticky ${stickyTop} z-40 w-full bg-card py-2`}>
       <div className='flex w-full items-center justify-between gap-2'>
         {children}
       </div>

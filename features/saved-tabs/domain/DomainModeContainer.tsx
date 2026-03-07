@@ -7,13 +7,13 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Check, X } from 'lucide-react'
 import type { ComponentProps } from 'react'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { CategoryGroup } from '@/features/saved-tabs/components/CategoryGroup'
 import { SortableDomainCard } from '@/features/saved-tabs/components/SortableDomainCard'
+import {
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from '@/features/saved-tabs/components/shared/SavedTabsResponsive'
 import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
 
 type DndSensors = ComponentProps<typeof DndKitContext>['sensors']
@@ -182,12 +182,14 @@ export const DomainModeContainer = ({
                     aria-label='並び替えをキャンセル'
                   >
                     <X size={14} />
-                    <span className='hidden lg:inline'>キャンセル</span>
+                    <SavedTabsResponsiveLabel>
+                      キャンセル
+                    </SavedTabsResponsiveLabel>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='top' className='block lg:hidden'>
+                <SavedTabsResponsiveTooltipContent side='top'>
                   並び替えをキャンセル
-                </TooltipContent>
+                </SavedTabsResponsiveTooltipContent>
               </Tooltip>
 
               <Tooltip>
@@ -200,12 +202,12 @@ export const DomainModeContainer = ({
                     aria-label='並び替えを確定'
                   >
                     <Check size={14} />
-                    <span className='hidden lg:inline'>確定</span>
+                    <SavedTabsResponsiveLabel>確定</SavedTabsResponsiveLabel>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='top' className='block lg:hidden'>
+                <SavedTabsResponsiveTooltipContent side='top'>
                   並び替えを確定
-                </TooltipContent>
+                </SavedTabsResponsiveTooltipContent>
               </Tooltip>
             </div>
           )}

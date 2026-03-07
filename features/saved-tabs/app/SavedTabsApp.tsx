@@ -30,13 +30,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Toaster } from '@/components/ui/sonner'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { CategoryReorderFooter } from '@/features/saved-tabs/components/Footer'
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
+import {
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from '@/features/saved-tabs/components/shared/SavedTabsResponsive'
 import { CustomModeContainer } from '@/features/saved-tabs/custom/CustomModeContainer'
 import { DomainModeContainer } from '@/features/saved-tabs/domain/DomainModeContainer'
 import { handleTabGroupRemoval } from '@/features/saved-tabs/lib/tab-operations'
@@ -469,7 +469,11 @@ const filterCustomProjectsByQuery = (
   )
 }
 
-const SavedTabsApp = () => {
+const SavedTabsApp = ({
+  isAiSidebarOpen = false,
+}: {
+  isAiSidebarOpen?: boolean
+}) => {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [newSubCategory, setNewSubCategory] = useState('')
   const [showSubCategoryModal, setShowSubCategoryModal] = useState(false)
@@ -1251,9 +1255,9 @@ const SavedTabsApp = () => {
                   キャンセル
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='block lg:hidden'>
+              <SavedTabsResponsiveTooltipContent side='top'>
                 キャンセル
-              </TooltipContent>
+              </SavedTabsResponsiveTooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -1265,12 +1269,12 @@ const SavedTabsApp = () => {
                   className='flex cursor-pointer items-center gap-1 rounded text-primary-foreground'
                 >
                   <Plus size={14} />
-                  <span className='hidden lg:inline'>追加</span>
+                  <SavedTabsResponsiveLabel>追加</SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='block lg:hidden'>
+              <SavedTabsResponsiveTooltipContent side='top'>
                 追加
-              </TooltipContent>
+              </SavedTabsResponsiveTooltipContent>
             </Tooltip>
           </DialogFooter>
         </DialogContent>
@@ -1280,7 +1284,13 @@ const SavedTabsApp = () => {
   return (
     <>
       <Toaster />
-      <div className='container mx-auto min-h-screen px-4 py-2'>
+      <div
+        className={
+          isAiSidebarOpen
+            ? 'min-h-screen w-full px-4 py-2'
+            : 'container mx-auto min-h-screen px-4 py-2'
+        }
+      >
         <Header
           tabGroups={tabGroups}
           filteredTabGroups={headerFilteredTabGroups}
