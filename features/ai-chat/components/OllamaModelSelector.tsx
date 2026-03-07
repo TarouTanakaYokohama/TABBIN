@@ -162,13 +162,13 @@ const OllamaModelSelector = ({
       </div>
 
       {helperText ? (
-        <p className='whitespace-pre-line break-words text-muted-foreground text-sm'>
+        <p className='wrap-break-word whitespace-pre-line text-muted-foreground text-sm'>
           {helperText}
         </p>
       ) : null}
 
       {errorMessage ? (
-        <p className='whitespace-pre-line break-words text-destructive text-sm'>
+        <p className='wrap-break-word whitespace-pre-line text-destructive text-sm'>
           {errorMessage}
         </p>
       ) : null}
