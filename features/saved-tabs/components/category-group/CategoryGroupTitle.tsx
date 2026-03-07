@@ -1,10 +1,7 @@
 import { Badge } from '@/components/ui/badge'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { CardGroupTitle } from '../shared/CardGroupTitle'
+import { SavedTabsResponsiveTooltipContent } from '../shared/SavedTabsResponsive'
 import { useCategoryGroup } from './CategoryGroupContext'
 
 /**
@@ -21,17 +18,17 @@ export const CategoryGroupTitle = () => {
         <TooltipTrigger asChild={true}>
           <Badge variant='secondary'>{allUrls?.length ?? 0}</Badge>
         </TooltipTrigger>
-        <TooltipContent side='top' className='block lg:hidden'>
+        <SavedTabsResponsiveTooltipContent side='top'>
           タブ数
-        </TooltipContent>
+        </SavedTabsResponsiveTooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild={true}>
           <Badge variant='secondary'>{visibleDomainsCount}</Badge>
         </TooltipTrigger>
-        <TooltipContent side='top' className='block lg:hidden'>
+        <SavedTabsResponsiveTooltipContent side='top'>
           ドメイン数
-        </TooltipContent>
+        </SavedTabsResponsiveTooltipContent>
       </Tooltip>
     </>
   )

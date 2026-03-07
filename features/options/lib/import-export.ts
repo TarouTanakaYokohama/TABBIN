@@ -138,6 +138,21 @@ const backupDataSchema = z.object({
       'saveSameDomainTabs',
       'saveAllWindowsTabs',
     ]),
+    aiChatEnabled: z.boolean().optional(),
+    aiProvider: z.enum(['none', 'ollama']).optional(),
+    ollamaModel: z.string().optional(),
+    activeAiSystemPromptId: z.string().optional(),
+    aiSystemPrompts: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          template: z.string(),
+          createdAt: z.number(),
+          updatedAt: z.number(),
+        }),
+      )
+      .optional(),
   }),
   parentCategories: z.array(
     z.object({

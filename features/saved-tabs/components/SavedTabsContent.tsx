@@ -13,14 +13,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { removeUrlFromTabGroup } from '@/lib/storage/tabs'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
+import {
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from './shared/SavedTabsResponsive'
 import { CategorySection } from './TimeRemaining'
 
 // 並び替え可能なカテゴリセクションコンポーネント
@@ -149,12 +149,14 @@ export const SortableCategorySection = ({
                   style={{ position: 'relative' }}
                 >
                   <ExternalLink size={14} />
-                  <span className='hidden lg:inline'>すべて開く</span>
+                  <SavedTabsResponsiveLabel>
+                    すべて開く
+                  </SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='block lg:hidden'>
+              <SavedTabsResponsiveTooltipContent side='top'>
                 すべてのタブを開く
-              </TooltipContent>
+              </SavedTabsResponsiveTooltipContent>
             </Tooltip>
 
             {/* 削除ボタンを追加 */}
@@ -170,14 +172,14 @@ export const SortableCategorySection = ({
                     disabled={isDeleting}
                   >
                     <Trash size={14} />
-                    <span className='hidden lg:inline'>
+                    <SavedTabsResponsiveLabel>
                       {isDeleting ? '削除中...' : 'すべて削除'}
-                    </span>
+                    </SavedTabsResponsiveLabel>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='top' className='block lg:hidden'>
+                <SavedTabsResponsiveTooltipContent side='top'>
                   すべてのタブを削除
-                </TooltipContent>
+                </SavedTabsResponsiveTooltipContent>
               </Tooltip>
             )}
           </div>

@@ -29,6 +29,9 @@ vi.mock('@/lib/storage/settings', () => {
     confirmDeleteAll: false,
     confirmDeleteEach: false,
     colors: {},
+    aiChatEnabled: false,
+    aiProvider: 'none',
+    ollamaModel: '',
   }
 
   return {
@@ -140,6 +143,9 @@ const buildFullUserSettings = (
   confirmDeleteAll: false,
   confirmDeleteEach: false,
   colors: {},
+  aiChatEnabled: false,
+  aiProvider: 'none',
+  ollamaModel: '',
   ...override,
 })
 
@@ -183,6 +189,71 @@ describe('import-export ユーティリティ', () => {
       savedTabs,
       urls: [],
     })
+  })
+
+  it('importSettings は AI チャット設定を保持する', async () => {
+    createChromeMock({
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const importedSettings = buildFullUserSettings({
+      activeAiSystemPromptId: 'research-system-prompt',
+      aiChatEnabled: true,
+      aiProvider: 'ollama',
+      aiSystemPrompts: [
+        {
+          createdAt: 0,
+          id: 'default-system-prompt',
+          name: 'デフォルト',
+          template:
+            'あなたは TABBIN に保存された URL だけを根拠に答えるアシスタントです。',
+          updatedAt: 0,
+        },
+        {
+          createdAt: 1,
+          id: 'research-system-prompt',
+          name: 'リサーチ',
+          template: '保存 URL の比較観点を多めに出してください。',
+          updatedAt: 1,
+        },
+      ],
+      ollamaModel: 'llama3.2',
+    })
+
+    const result = await importSettings(
+      JSON.stringify({
+        version: '9.9.9',
+        timestamp: '2026-03-07T00:00:00.000Z',
+        userSettings: importedSettings,
+        parentCategories: [],
+        savedTabs: [],
+        urls: [],
+      }),
+      false,
+    )
+
+    expect(result.success).toBe(true)
+    expect(saveUserSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeAiSystemPromptId: 'research-system-prompt',
+        aiChatEnabled: true,
+        aiProvider: 'ollama',
+        aiSystemPrompts: [
+          expect.objectContaining({
+            id: 'default-system-prompt',
+            name: 'デフォルト',
+          }),
+          expect.objectContaining({
+            id: 'research-system-prompt',
+            name: 'リサーチ',
+          }),
+        ],
+        ollamaModel: 'llama3.2',
+      }),
+    )
   })
 
   it('移行しやすいバックアップデータ用に urlIds から urls を再構築する', async () => {

@@ -8,6 +8,10 @@ export default defineConfig({
 		description:
 			"ブラウザのタブを整理・分類する拡張機能です。散らかりがちなタブを管理できます。",
 		version: "1.2.1",
+		host_permissions: [
+			"http://localhost:11434/*",
+			"http://127.0.0.1:11434/*",
+		],
 		permissions: ["alarms", "tabs", "storage", "contextMenus", "notifications"],
 		action: {
 			default_title: "TABBIN",

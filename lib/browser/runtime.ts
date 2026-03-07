@@ -1,4 +1,5 @@
 interface BrowserRuntime {
+  connect?: (connectInfo?: { name?: string }) => RuntimePort
   sendMessage?: (message: unknown) => Promise<unknown>
 }
 
@@ -7,10 +8,22 @@ interface BrowserApi {
 }
 
 interface ChromeRuntime {
+  connect?: (connectInfo?: { name?: string }) => RuntimePort
   sendMessage?: (
     message: unknown,
     callback?: (response: unknown) => void,
   ) => void
+}
+
+interface RuntimePort {
+  disconnect: () => void
+  onDisconnect: {
+    addListener: (listener: () => void) => void
+  }
+  onMessage: {
+    addListener: (listener: (message: unknown) => void) => void
+  }
+  postMessage: (message: unknown) => void
 }
 
 interface BrowserModule {
@@ -84,4 +97,48 @@ export const sendRuntimeMessage = async (
     return undefined
   }
   return await sendWithChromeRuntime(chromeRuntime, message)
+}
+
+export const connectRuntimePort = async (
+  name: string,
+): Promise<RuntimePort | null> => {
+  const browserApi = getGlobalBrowserApi()
+  if (browserApi?.runtime?.connect) {
+    return browserApi.runtime.connect({
+      name,
+    })
+  }
+
+  let polyfillBrowserApi: BrowserApi | null = null
+  try {
+    polyfillBrowserApi = await loadWebExtensionBrowserApi()
+  } catch {
+    polyfillBrowserApi = null
+  }
+
+  if (polyfillBrowserApi?.runtime?.connect) {
+    try {
+      const port = polyfillBrowserApi.runtime.connect({
+        name,
+      })
+      if (port) {
+        return port
+      }
+    } catch {
+      // フォールバックとして chrome.runtime を試す
+    }
+  }
+
+  const chromeRuntime = getGlobalChromeRuntime()
+  if (!chromeRuntime?.connect) {
+    return null
+  }
+
+  try {
+    return chromeRuntime.connect({
+      name,
+    })
+  } catch {
+    return null
+  }
 }

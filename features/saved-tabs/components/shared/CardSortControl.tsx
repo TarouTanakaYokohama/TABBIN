@@ -1,11 +1,8 @@
 import { ArrowUpDown, ArrowUpNarrowWide, ArrowUpWideNarrow } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import type { SortOrder } from '../../hooks/useSortOrder'
+import { SavedTabsResponsiveTooltipContent } from './SavedTabsResponsive'
 
 /** CardSortControl の props */
 interface CardSortControlProps {
@@ -62,9 +59,9 @@ export const CardSortControl = ({
           {icon}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side='top' className='block lg:hidden'>
+      <SavedTabsResponsiveTooltipContent side='top'>
         {label}
-      </TooltipContent>
+      </SavedTabsResponsiveTooltipContent>
     </Tooltip>
   )
 }

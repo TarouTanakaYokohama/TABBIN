@@ -55,11 +55,20 @@ vi.mock('@/components/ui/tooltip', () => ({
   TooltipTrigger: ({ children }: { children: React.ReactNode }) => (
     <div data-testid='tooltip-trigger'>{children}</div>
   ),
-  TooltipContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid='tooltip-content'>{children}</div>
+  TooltipContent: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode
+    className?: string
+  }) => (
+    <div data-testid='tooltip-content' data-class-name={className}>
+      {children}
+    </div>
   ),
 }))
 
+import { SavedTabsResponsiveLayoutProvider } from '@/features/saved-tabs/contexts/SavedTabsResponsiveLayoutContext'
 import { ViewModeToggle } from './ViewModeToggle'
 
 describe('ViewModeToggle', () => {
@@ -100,5 +109,20 @@ describe('ViewModeToggle', () => {
     )
 
     expect(screen.getByTestId('select-value').textContent).toBe('表示モード')
+  })
+
+  it('compact layout ではラベルを隠して tooltip を表示対象にする', () => {
+    render(
+      <SavedTabsResponsiveLayoutProvider isCompactLayout={true}>
+        <ViewModeToggle currentMode='domain' onChange={vi.fn()} />
+      </SavedTabsResponsiveLayoutProvider>,
+    )
+
+    expect(
+      screen.getAllByText('ドメインモード')[0]?.getAttribute('class'),
+    ).toContain('hidden')
+    expect(
+      screen.getByTestId('tooltip-content').getAttribute('data-class-name'),
+    ).toContain('block')
   })
 })

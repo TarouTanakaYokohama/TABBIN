@@ -6,9 +6,18 @@ const dirname = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
   test: {
+    coverage: {
+      exclude: [
+        '**/*.css',
+        'components/**',
+        'constants/defaultColors.ts',
+        'entrypoints/options/main.tsx',
+      ],
+    },
     environment: 'jsdom',
     include: [
       'entrypoints/**/*.test.ts',
+      'entrypoints/**/*.test.tsx',
       'components/**/*.test.ts',
       'components/**/*.test.tsx',
       'features/**/*.test.ts',

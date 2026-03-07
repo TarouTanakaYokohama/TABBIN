@@ -1,0 +1,1 @@
+Before reporting completion in this repo, run bun run quality, fix failures until it passes, then run bun run test:coverage and ensure coverage is 100. If blocked by environment/tooling issues, report the blocker explicitly. For React changes, also run react-doctor if feasible. Do not claim completion without fresh verification evidence.

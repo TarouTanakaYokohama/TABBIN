@@ -24,13 +24,13 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
+import {
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from './shared/SavedTabsResponsive'
 import { CategorySection } from './TimeRemaining'
 
 type SortOrder = 'default' | 'asc' | 'desc'
@@ -257,9 +257,9 @@ export const SortableCategorySection = ({
                 <CollapseIcon size={14} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='block lg:hidden'>
+            <SavedTabsResponsiveTooltipContent side='top'>
               {collapseTooltipText}
-            </TooltipContent>
+            </SavedTabsResponsiveTooltipContent>
           </Tooltip>
           {/* ソート順切り替え */}
           <Tooltip>
@@ -274,9 +274,9 @@ export const SortableCategorySection = ({
                 <SortIcon size={14} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='block lg:hidden'>
+            <SavedTabsResponsiveTooltipContent side='top'>
               {sortLabel}
-            </TooltipContent>
+            </SavedTabsResponsiveTooltipContent>
           </Tooltip>
           {/* ドラッグハンドル部分 */}
           <div
@@ -295,9 +295,9 @@ export const SortableCategorySection = ({
                 <TooltipTrigger asChild={true}>
                   <Badge variant='secondary'>{urlCount}</Badge>
                 </TooltipTrigger>
-                <TooltipContent side='top' className='block lg:hidden'>
+                <SavedTabsResponsiveTooltipContent side='top'>
                   タブ数
-                </TooltipContent>
+                </SavedTabsResponsiveTooltipContent>
               </Tooltip>
             </span>
           </div>
@@ -314,12 +314,14 @@ export const SortableCategorySection = ({
                   style={{ position: 'relative' }} // ボタンを確実に上に表示
                 >
                   <ExternalLink size={14} />
-                  <span className='hidden lg:inline'>すべて開く</span>
+                  <SavedTabsResponsiveLabel>
+                    すべて開く
+                  </SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='top' className='block lg:hidden'>
+              <SavedTabsResponsiveTooltipContent side='top'>
                 すべてのタブを開く
-              </TooltipContent>
+              </SavedTabsResponsiveTooltipContent>
             </Tooltip>
 
             {/* 削除ボタンを追加 */}
@@ -335,14 +337,14 @@ export const SortableCategorySection = ({
                     disabled={isDeleting}
                   >
                     <Trash size={14} />
-                    <span className='hidden lg:inline'>
+                    <SavedTabsResponsiveLabel>
                       {isDeleting ? '削除中...' : 'すべて削除'}
-                    </span>
+                    </SavedTabsResponsiveLabel>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='top' className='block lg:hidden'>
+                <SavedTabsResponsiveTooltipContent side='top'>
                   すべてのタブを削除
-                </TooltipContent>
+                </SavedTabsResponsiveTooltipContent>
               </Tooltip>
             )}
           </div>

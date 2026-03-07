@@ -1,0 +1,1 @@
+Install deps: bun install. Dev: bun run dev, bun run dev:firefox. Build: bun run build, bun run build:firefox, bun run zip, bun run zip:firefox. Type check: bun run compile. Tests: bun run test, bun run test:coverage, bun run e2e. Quality gate: bun run quality. System utilities on Darwin include git, ls, find, grep, sed, zsh.

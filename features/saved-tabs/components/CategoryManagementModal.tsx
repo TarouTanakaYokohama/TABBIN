@@ -19,11 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from '@/features/saved-tabs/components/shared/SavedTabsResponsive'
 import type { ParentCategory, TabGroup } from '@/types/storage'
 
 // カテゴリ名のバリデーションスキーマ
@@ -484,14 +484,14 @@ const CategoryManagementModal = ({
                         className='flex cursor-pointer items-center gap-2 rounded px-2 py-1'
                       >
                         <Edit size={14} />
-                        <span className='hidden lg:inline'>
+                        <SavedTabsResponsiveLabel>
                           親カテゴリ名を変更
-                        </span>
+                        </SavedTabsResponsiveLabel>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side='top' className='block lg:hidden'>
+                    <SavedTabsResponsiveTooltipContent side='top'>
                       親カテゴリ名を変更
-                    </TooltipContent>
+                    </SavedTabsResponsiveTooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild={true}>
@@ -503,14 +503,14 @@ const CategoryManagementModal = ({
                         disabled={isProcessing}
                       >
                         <Trash2 size={14} />
-                        <span className='hidden lg:inline'>
+                        <SavedTabsResponsiveLabel>
                           親カテゴリを削除
-                        </span>
+                        </SavedTabsResponsiveLabel>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side='top' className='block lg:hidden'>
+                    <SavedTabsResponsiveTooltipContent side='top'>
                       親カテゴリを削除
-                    </TooltipContent>
+                    </SavedTabsResponsiveTooltipContent>
                   </Tooltip>
                 </div>
               )}
@@ -605,9 +605,9 @@ const CategoryManagementModal = ({
                       キャンセル
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side='top' className='block lg:hidden'>
+                  <SavedTabsResponsiveTooltipContent side='top'>
                     キャンセル
-                  </TooltipContent>
+                  </SavedTabsResponsiveTooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild={true}>
@@ -618,12 +618,12 @@ const CategoryManagementModal = ({
                       disabled={isProcessing}
                     >
                       <Trash size={14} />
-                      <span className='hidden lg:inline'>削除</span>
+                      <SavedTabsResponsiveLabel>削除</SavedTabsResponsiveLabel>
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side='top' className='block lg:hidden'>
+                  <SavedTabsResponsiveTooltipContent side='top'>
                     親カテゴリを削除
-                  </TooltipContent>
+                  </SavedTabsResponsiveTooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -658,9 +658,9 @@ const CategoryManagementModal = ({
                           <X size={14} />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side='top' className='block lg:hidden'>
+                      <SavedTabsResponsiveTooltipContent side='top'>
                         削除
-                      </TooltipContent>
+                      </SavedTabsResponsiveTooltipContent>
                     </Tooltip>
                   </Badge>
                 ))
@@ -709,9 +709,9 @@ const CategoryManagementModal = ({
                       <Plus size={18} />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side='top' className='block lg:hidden'>
+                  <SavedTabsResponsiveTooltipContent side='top'>
                     選択したドメインを親カテゴリに追加
-                  </TooltipContent>
+                  </SavedTabsResponsiveTooltipContent>
                 </Tooltip>
               </div>
             ) : (

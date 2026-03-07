@@ -11,11 +11,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  SavedTabsResponsiveLabel,
+  SavedTabsResponsiveTooltipContent,
+} from './SavedTabsResponsive'
 
 interface CardGroupActionsProps {
   onOpenAll?: () => void
@@ -62,12 +62,14 @@ export const CardGroupActions = ({
                 aria-label={manageLabel}
               >
                 <Settings size={14} />
-                <span className='hidden lg:inline'>{manageLabel}</span>
+                <SavedTabsResponsiveLabel>
+                  {manageLabel}
+                </SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='block lg:hidden'>
+            <SavedTabsResponsiveTooltipContent side='top'>
               {manageLabel}
-            </TooltipContent>
+            </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         )}
 
@@ -89,12 +91,12 @@ export const CardGroupActions = ({
                 aria-label='すべてのタブを開く'
               >
                 <ExternalLink size={14} />
-                <span className='hidden lg:inline'>すべて開く</span>
+                <SavedTabsResponsiveLabel>すべて開く</SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='block lg:hidden'>
+            <SavedTabsResponsiveTooltipContent side='top'>
               すべてのタブを開く
-            </TooltipContent>
+            </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         )}
 
@@ -118,12 +120,12 @@ export const CardGroupActions = ({
                 aria-label='すべて削除'
               >
                 <Trash size={14} />
-                <span className='hidden lg:inline'>すべて削除</span>
+                <SavedTabsResponsiveLabel>すべて削除</SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side='top' className='block lg:hidden'>
+            <SavedTabsResponsiveTooltipContent side='top'>
               すべて削除
-            </TooltipContent>
+            </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         )}
       </div>
