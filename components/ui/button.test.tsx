@@ -10,6 +10,7 @@ describe('Buttonコンポーネント', () => {
     const button = screen.getByRole('button', { name: 'Default Button' })
     expect(button.tagName).toBe('BUTTON')
     expect(button.className).toContain('inline-flex')
+    expect(button.className).toContain('cursor-pointer')
     expect(button.className).toContain('bg-primary')
   })
 

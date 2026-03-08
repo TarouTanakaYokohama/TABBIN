@@ -770,7 +770,7 @@ const SystemPromptManagerDialog = ({
                     type='button'
                     key={prompt.id}
                     className={cn(
-                      'overflow-hidden rounded-md border px-3 py-3 text-left transition-colors',
+                      'cursor-pointer overflow-hidden rounded-md border px-3 py-3 text-left transition-colors',
                       prompt.id === selectedPromptId
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-border/80 hover:bg-muted/30',
