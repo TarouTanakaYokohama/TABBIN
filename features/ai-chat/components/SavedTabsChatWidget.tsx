@@ -106,7 +106,10 @@ import {
   getActiveAiSystemPrompt,
   normalizeAiSystemPromptSettings,
 } from '@/features/ai-chat/lib/systemPromptPresets'
-import type { AiChartSpec, AiChatAttachment } from '@/features/ai-chat/types'
+import type {
+  AiChatAttachment,
+  AiChatConversationMessage,
+} from '@/features/ai-chat/types'
 import {
   getChromeStorageOnChanged,
   warnMissingChromeStorage,
@@ -128,17 +131,7 @@ import type {
 import { AI_CHAT_STREAM_PORT_NAME } from '@/types/background'
 import type { AiSystemPromptPreset, UserSettings } from '@/types/storage'
 
-interface ChatMessage {
-  attachments?: AiChatAttachment[]
-  charts?: AiChartSpec[]
-  id: string
-  ollamaError?: OllamaErrorDetails
-  role: 'user' | 'assistant'
-  content: string
-  isStreaming?: boolean
-  reasoning?: string
-  toolTraces?: AiChatToolTrace[]
-}
+type ChatMessage = AiChatConversationMessage
 
 interface ChatMessageSource {
   title: string
@@ -156,6 +149,7 @@ interface SavedTabsChatPanelProps {
   isConfigured: boolean
   isLoadingModels: boolean
   isOpen: boolean
+  mode: 'floating' | 'page'
   isResizing: boolean
   isSavingModel: boolean
   isSubmitting: boolean
@@ -178,12 +172,19 @@ interface SavedTabsChatPanelProps {
   onSubmit: PromptInputProps['onSubmit']
   platform: OllamaErrorPlatform
   sidebarWidth: number
+  title: string
   setupErrorMessage: string
   setupOllamaError?: OllamaErrorDetails
+  showCloseButton: boolean
   systemPrompts: AiSystemPromptPreset[]
 }
 
 interface SavedTabsChatWidgetProps {
+  defaultOpen?: boolean
+  initialMessages?: ChatMessage[]
+  mode?: 'floating' | 'page'
+  onCreateConversation?: () => void
+  onMessagesChange?: (messages: ChatMessage[]) => void
   onOpenChange?: (isOpen: boolean) => void
 }
 
@@ -219,6 +220,7 @@ const MAX_CHAT_SIDEBAR_WIDTH = 720
 const CHAT_SIDEBAR_VIEWPORT_GUTTER = 48
 const COPIED_CONVERSATION_ICON_TIMEOUT = 2000
 const SYSTEM_PROMPT_SELECTOR_EMPTY_VALUE = '__no-system-prompt__'
+const EMPTY_CHAT_MESSAGES: ChatMessage[] = []
 
 const createMessageId = (): string =>
   `${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -494,6 +496,11 @@ const getConversationCopyText = (messages: ChatMessage[]): string =>
         .join('\n'),
     )
     .join('\n\n')
+
+const areMessagesEquivalent = (
+  left: ChatMessage[],
+  right: ChatMessage[],
+): boolean => JSON.stringify(left) === JSON.stringify(right)
 
 const getSourceItems = (output: unknown): ChatMessageSource[] => {
   let items: unknown[] = []
@@ -923,6 +930,8 @@ const ChatSidebarHeader = ({
   onResetConversation,
   onSelectSystemPrompt,
   systemPrompts,
+  title,
+  showCloseButton,
 }: {
   activeSystemPromptId: string
   isConversationCopied: boolean
@@ -933,7 +942,9 @@ const ChatSidebarHeader = ({
   onOpenSystemPromptManager: () => void
   onResetConversation: () => void
   onSelectSystemPrompt: (promptId: string) => void
+  showCloseButton: boolean
   systemPrompts: AiSystemPromptPreset[]
+  title: string
 }) => (
   <CardHeader className='items-center border-border border-b px-4 py-4 text-center'>
     <div
@@ -971,7 +982,7 @@ const ChatSidebarHeader = ({
       </div>
 
       <CardTitle className='flex w-full items-center justify-center gap-2 text-base'>
-        (preview)Chat
+        {title}
       </CardTitle>
       <div className='absolute top-1/2 right-0 flex -translate-y-1/2 items-center gap-1'>
         <TooltipProvider delayDuration={0}>
@@ -1014,15 +1025,17 @@ const ChatSidebarHeader = ({
             <TooltipContent side='bottom'>新しい会話</TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <Button
-          type='button'
-          variant='ghost'
-          size='icon'
-          aria-label='AIチャットを閉じる'
-          onClick={onClose}
-        >
-          <X className='size-4' />
-        </Button>
+        {showCloseButton ? (
+          <Button
+            type='button'
+            variant='ghost'
+            size='icon'
+            aria-label='AIチャットを閉じる'
+            onClick={onClose}
+          >
+            <X className='size-4' />
+          </Button>
+        ) : null}
       </div>
     </div>
   </CardHeader>
@@ -1327,6 +1340,7 @@ const SavedTabsChatPanel = ({
   isConfigured,
   isLoadingModels,
   isOpen,
+  mode,
   isResizing,
   isSavingModel,
   isSubmitting,
@@ -1346,8 +1360,10 @@ const SavedTabsChatPanel = ({
   onSubmit,
   platform,
   sidebarWidth,
+  title,
   setupErrorMessage,
   setupOllamaError,
+  showCloseButton,
   systemPrompts,
 }: SavedTabsChatPanelProps) => {
   if (!isOpen) {
@@ -1372,6 +1388,99 @@ const SavedTabsChatPanel = ({
     )
   }
 
+  const cardClassName =
+    mode === 'page'
+      ? 'flex h-full min-h-0 flex-1 flex-col rounded-[1.5rem] border-border shadow-lg'
+      : 'flex h-full min-h-0 flex-col rounded-none border-border border-y-0 border-r-0 border-l shadow-2xl'
+
+  const cardStyle = mode === 'page' ? undefined : { width: `${sidebarWidth}px` }
+
+  const card = (
+    <Card
+      aria-label={mode === 'page' ? 'AIチャット画面' : 'AIチャットサイドバー'}
+      data-sidebar-layout={isCompactLayout ? 'compact' : 'default'}
+      className={cardClassName}
+      style={cardStyle}
+    >
+      <ChatSidebarHeader
+        activeSystemPromptId={activeSystemPromptId}
+        isConversationCopied={isConversationCopied}
+        isCopyDisabled={isCopyDisabled}
+        isCompactLayout={isCompactLayout}
+        onClose={onClose}
+        onCopyConversation={onCopyConversation}
+        onOpenSystemPromptManager={onOpenSystemPromptManager}
+        onResetConversation={onResetConversation}
+        onSelectSystemPrompt={onSelectSystemPrompt}
+        showCloseButton={showCloseButton}
+        systemPrompts={systemPrompts}
+        title={title}
+      />
+
+      <CardContent
+        className={cn(
+          'flex min-h-0 flex-1 flex-col overflow-hidden',
+          isCompactLayout ? 'gap-2 p-2' : 'gap-3 p-3',
+        )}
+      >
+        <Conversation className='min-h-0 flex-1'>
+          <ConversationContent
+            className={cn(isCompactLayout && 'gap-5 p-3')}
+            scrollClassName='overscroll-contain'
+          >
+            {messages.map(message => (
+              <ChatConversationMessage
+                key={message.id}
+                message={message}
+                platform={platform}
+              />
+            ))}
+          </ConversationContent>
+          <ConversationScrollButton
+            aria-label='最新メッセージへ移動'
+            className='bottom-3'
+          />
+        </Conversation>
+
+        <div
+          className='mt-auto shrink-0 space-y-3'
+          data-testid='ai-chat-bottom-dock'
+        >
+          {messages.length === 0 ? (
+            <ChatPromptIntro
+              isCompactLayout={isCompactLayout}
+              onSelectSuggestion={onSelectSuggestion}
+            />
+          ) : null}
+
+          {chatErrorContent}
+
+          <ChatPromptComposer
+            input={input}
+            isCompactLayout={isCompactLayout}
+            isConfigured={isConfigured}
+            isLoadingModels={isLoadingModels}
+            isSavingModel={isSavingModel}
+            isSubmitting={isSubmitting}
+            modelName={modelName}
+            modelOptions={modelOptions}
+            onFetchModels={onFetchModels}
+            onInputChange={onInputChange}
+            onSelectModel={onSelectModel}
+            onSubmit={onSubmit}
+            platform={platform}
+            setupErrorMessage={setupErrorMessage}
+            setupOllamaError={setupOllamaError}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  if (mode === 'page') {
+    return <div className='flex h-full min-h-0 flex-1'>{card}</div>
+  }
+
   return (
     <div className='sticky top-0 z-50 flex h-screen max-w-[calc(100vw-24px)] shrink-0 self-start overflow-hidden overscroll-none'>
       <button
@@ -1385,95 +1494,24 @@ const SavedTabsChatPanel = ({
         <div className='absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border/80' />
       </button>
 
-      <Card
-        aria-label='AIチャットサイドバー'
-        data-sidebar-layout={isCompactLayout ? 'compact' : 'default'}
-        className='flex h-full min-h-0 flex-col rounded-none border-border border-y-0 border-r-0 border-l shadow-2xl'
-        style={{ width: `${sidebarWidth}px` }}
-      >
-        <ChatSidebarHeader
-          activeSystemPromptId={activeSystemPromptId}
-          isConversationCopied={isConversationCopied}
-          isCopyDisabled={isCopyDisabled}
-          isCompactLayout={isCompactLayout}
-          onClose={onClose}
-          onCopyConversation={onCopyConversation}
-          onOpenSystemPromptManager={onOpenSystemPromptManager}
-          onResetConversation={onResetConversation}
-          onSelectSystemPrompt={onSelectSystemPrompt}
-          systemPrompts={systemPrompts}
-        />
-
-        <CardContent
-          className={cn(
-            'flex min-h-0 flex-1 flex-col overflow-hidden',
-            isCompactLayout ? 'gap-2 p-2' : 'gap-3 p-3',
-          )}
-        >
-          <Conversation className='min-h-0 flex-1'>
-            <ConversationContent
-              className={cn(isCompactLayout && 'gap-5 p-3')}
-              scrollClassName='overscroll-contain'
-            >
-              {messages.map(message => (
-                <ChatConversationMessage
-                  key={message.id}
-                  message={message}
-                  platform={platform}
-                />
-              ))}
-            </ConversationContent>
-            <ConversationScrollButton
-              aria-label='最新メッセージへ移動'
-              className='bottom-3'
-            />
-          </Conversation>
-
-          <div
-            className='mt-auto shrink-0 space-y-3'
-            data-testid='ai-chat-bottom-dock'
-          >
-            {messages.length === 0 ? (
-              <ChatPromptIntro
-                isCompactLayout={isCompactLayout}
-                onSelectSuggestion={onSelectSuggestion}
-              />
-            ) : null}
-
-            {chatErrorContent}
-
-            <ChatPromptComposer
-              input={input}
-              isCompactLayout={isCompactLayout}
-              isConfigured={isConfigured}
-              isLoadingModels={isLoadingModels}
-              isSavingModel={isSavingModel}
-              isSubmitting={isSubmitting}
-              modelName={modelName}
-              modelOptions={modelOptions}
-              onFetchModels={onFetchModels}
-              onInputChange={onInputChange}
-              onSelectModel={onSelectModel}
-              onSubmit={onSubmit}
-              platform={platform}
-              setupErrorMessage={setupErrorMessage}
-              setupOllamaError={setupOllamaError}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {card}
     </div>
   )
 }
 
 const SavedTabsChatWidget = ({
+  defaultOpen = false,
+  initialMessages = EMPTY_CHAT_MESSAGES,
+  mode = 'floating',
+  onCreateConversation,
+  onMessagesChange,
   onOpenChange,
 }: SavedTabsChatWidgetProps = {}) => {
   const [settings, setSettings] = useState<UserSettings | null>(null)
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(defaultOpen || mode === 'page')
   const [isResizing, setIsResizing] = useState(false)
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [isConversationCopied, setIsConversationCopied] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -1508,10 +1546,37 @@ const SavedTabsChatWidget = ({
   const resizeCleanupRef = useRef<(() => void) | null>(null)
   const sidebarWidthRef = useRef(DEFAULT_CHAT_SIDEBAR_WIDTH)
   const conversationCopiedTimeoutRef = useRef<number | null>(null)
+  const messagesRef = useRef<ChatMessage[]>(initialMessages)
 
   useEffect(() => {
     sidebarWidthRef.current = sidebarWidth
   }, [sidebarWidth])
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  useEffect(() => {
+    if (mode !== 'page') {
+      return
+    }
+
+    if (areMessagesEquivalent(initialMessages, messagesRef.current)) {
+      return
+    }
+
+    setMessages(initialMessages)
+  }, [initialMessages, mode])
+
+  useEffect(() => {
+    if (mode === 'page') {
+      setIsOpen(true)
+    }
+  }, [mode])
+
+  useEffect(() => {
+    onMessagesChange?.(messages)
+  }, [messages, onMessagesChange])
 
   useEffect(() => {
     let isMounted = true
@@ -1743,6 +1808,15 @@ const SavedTabsChatWidget = ({
     setErrorMessage('')
     setChatOllamaError(undefined)
     setIsSubmitting(false)
+  }
+
+  const handleConversationAction = () => {
+    if (mode === 'page' && onCreateConversation) {
+      onCreateConversation()
+      return
+    }
+
+    handleResetConversation()
   }
 
   const handleCopyConversation = async () => {
@@ -2240,7 +2314,7 @@ const SavedTabsChatWidget = ({
 
   return (
     <>
-      {!isOpen ? (
+      {mode === 'floating' && !isOpen ? (
         <Button
           type='button'
           aria-label='AIチャットを開く'
@@ -2267,6 +2341,7 @@ const SavedTabsChatWidget = ({
         isConfigured={isConfigured}
         isLoadingModels={isLoadingModels}
         isOpen={isOpen}
+        mode={mode}
         isResizing={isResizing}
         isSavingModel={isSavingModel}
         isSubmitting={isSubmitting}
@@ -2283,7 +2358,7 @@ const SavedTabsChatWidget = ({
         onFetchModels={handleFetchModels}
         onInputChange={setInput}
         onOpenSystemPromptManager={handleOpenSystemPromptManager}
-        onResetConversation={handleResetConversation}
+        onResetConversation={handleConversationAction}
         onResizeStart={handleResizeStart}
         onSelectModel={handleSelectModel}
         onSelectSuggestion={value => {
@@ -2295,8 +2370,10 @@ const SavedTabsChatWidget = ({
         onSubmit={handleSubmit}
         platform={platform}
         sidebarWidth={sidebarWidth}
+        title={mode === 'page' ? 'AIチャット' : '(preview)Chat'}
         setupErrorMessage={setupErrorMessage}
         setupOllamaError={setupOllamaError}
+        showCloseButton={mode === 'floating'}
         systemPrompts={resolvedSettings.aiSystemPrompts ?? []}
       />
 

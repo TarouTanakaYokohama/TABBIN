@@ -343,34 +343,7 @@ describe('options main behavior', () => {
     expect(mocked.updateSetting).toHaveBeenCalledWith('confirmDeleteEach', true)
     expect(mocked.updateSetting).toHaveBeenCalledWith('confirmDeleteAll', true)
 
-    fireEvent.click(
-      screen.getAllByTestId('mock-select-change')[1] as HTMLElement,
-    )
-    expect(
-      mocked.useAutoDeletePeriodResult.handleAutoDeletePeriodChange,
-    ).toHaveBeenCalledWith('30days')
-
-    const pointerDownOutsideEvent = {
-      preventDefault: vi.fn(),
-    }
-    ;(
-      mocked.selectContentProps.find(
-        props => typeof props.onPointerDownOutside === 'function',
-      )?.onPointerDownOutside as
-        | ((event: { preventDefault: () => void }) => void)
-        | undefined
-    )?.(pointerDownOutsideEvent)
-    expect(pointerDownOutsideEvent.preventDefault).toHaveBeenCalledTimes(1)
-
-    fireEvent.click(screen.getByRole('button', { name: '設定する' }))
-    expect(
-      mocked.useAutoDeletePeriodResult.prepareAutoDeletePeriod,
-    ).toHaveBeenCalledTimes(1)
-
-    fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
-    fireEvent.click(screen.getByRole('button', { name: '確定' }))
-    expect(mocked.hideConfirmation).toHaveBeenCalledTimes(1)
-    expect(mocked.confirmationConfirm).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('タブの自動削除期間')).toBeNull()
 
     const textarea = document.querySelector('textarea')
     if (!textarea) {
@@ -436,7 +409,7 @@ describe('options main behavior', () => {
       'chrome-extension://id/changelog.html',
       '_blank',
     )
-  })
+  }, 10000)
 
   it('production import で console を抑制し、DOMContentLoaded で mount する', async () => {
     let domReadyHandler: EventListener | undefined

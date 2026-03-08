@@ -7,8 +7,7 @@ if (!import.meta.env.DEV) {
   console.debug = () => {}
 }
 
-// lucide-reactからアイコンをインポート - AlertTriangleを追加
-import { AlertTriangle, RotateCcw } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
 import { createRoot } from 'react-dom/client'
 import { ModeToggle } from '@/components/mode-toggle'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -17,7 +16,6 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox' // Switchの代わりにCheckboxをインポート
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ScrollArea } from '@/components/ui/scroll-area' // ScrollAreaを追加
 import {
   Select,
   SelectContent,
@@ -27,13 +25,10 @@ import {
 } from '@/components/ui/select'
 import { Toaster } from '@/components/ui/sonner'
 import { Textarea } from '@/components/ui/textarea'
-import { autoDeleteOptions } from '@/constants/autoDeleteOptions'
 // 定数をインポート
 import { clickBehaviorOptions } from '@/constants/clickBehaviorOptions'
 import { colorOptions } from '@/constants/colorOptions'
 import { getDefaultColor } from '@/constants/defaultColors'
-// Hooksのインポート
-import { useAutoDeletePeriod } from '@/features/options/hooks/useAutoDeletePeriod'
 import { useCategories } from '@/features/options/hooks/useCategories'
 import { useColorSettings } from '@/features/options/hooks/useColorSettings'
 import { useSettings } from '@/features/options/hooks/useSettings'
@@ -71,15 +66,6 @@ const OptionsPage = () => {
 
   // カテゴリ管理hooks
   const { handleCategoryKeyDown } = useCategories()
-
-  // 自動削除期間管理hooks
-  const {
-    pendingAutoDeletePeriod,
-    confirmationState,
-    hideConfirmation,
-    handleAutoDeletePeriodChange,
-    prepareAutoDeletePeriod,
-  } = useAutoDeletePeriod(settings, setSettings)
 
   // クリック挙動設定変更ハンドラ
   const handleClickBehaviorChange = async (value: string) => {
@@ -356,92 +342,6 @@ const OptionsPage = () => {
         <p className='mt-1 ml-7 text-muted-foreground text-sm'>
           オンにすると、カテゴリごとにすべてのタブを削除する前に確認ダイアログを表示します。
         </p>
-
-        {/* 自動削除期間設定を修正 */}
-        <div className='mt-6 mb-4'>
-          <Label
-            htmlFor='auto-delete-period'
-            className='mb-2 block font-medium text-foreground'
-          >
-            タブの自動削除期間
-          </Label>
-          <div className='flex items-center gap-2'>
-            <Select
-              value={
-                pendingAutoDeletePeriod ?? settings.autoDeletePeriod ?? 'never'
-              }
-              onValueChange={handleAutoDeletePeriodChange}
-            >
-              <SelectTrigger
-                id='auto-delete-period'
-                className='w-full cursor-pointer'
-              >
-                <SelectValue placeholder='自動削除期間を選択' />
-              </SelectTrigger>
-              <SelectContent
-                onPointerDownOutside={e => {
-                  e.preventDefault()
-                }}
-                className='p-0'
-              >
-                <ScrollArea className='h-[120px]'>
-                  <div className='p-1'>
-                    {autoDeleteOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </SelectContent>
-            </Select>
-
-            {/* 確認表示を追加 */}
-            <Button
-              type='button'
-              variant='outline'
-              onClick={prepareAutoDeletePeriod}
-              className='cursor-pointer'
-            >
-              設定する
-            </Button>
-          </div>
-
-          {/* 確認表示 */}
-          {confirmationState.isVisible && (
-            <div className='mt-3 rounded-md border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/30'>
-              <div className='flex flex-col gap-3'>
-                <div className='flex items-start'>
-                  <div className='shrink-0 text-yellow-500'>
-                    <AlertTriangle size={24} />{' '}
-                    {/* lucide-reactのアイコンに置き換え */}
-                  </div>
-                  <p className='ml-3 whitespace-pre-line text-foreground text-sm'>
-                    {confirmationState.message}
-                  </p>
-                </div>
-
-                <div className='flex justify-end gap-2'>
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    onClick={hideConfirmation}
-                  >
-                    キャンセル
-                  </Button>
-                  <Button type='button' onClick={confirmationState.onConfirm}>
-                    確定
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <p className='mt-2 text-muted-foreground text-sm'>
-            保存されたタブが指定した期間を超えると自動的に削除されます。
-            設定を適用すると、その時点で期限切れのタブは削除されますのでご注意ください。
-          </p>
-        </div>
       </div>
 
       <div className='mb-8 rounded-lg border border-border bg-card p-6 shadow-md'>
