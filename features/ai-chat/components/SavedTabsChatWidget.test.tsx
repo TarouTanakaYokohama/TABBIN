@@ -1470,17 +1470,39 @@ describe('SavedTabsChatWidget', () => {
 
     expect(
       await screen.findAllByText(
+        'Spotlight 検索で「ターミナル」と入力して開きます。',
+      ),
+    ).toHaveLength(1)
+    expect(
+      screen.getAllByText('次のコマンドをコピーして貼り付けます。'),
+    ).toHaveLength(1)
+    expect(
+      screen.getAllByDisplayValue(
         'launchctl setenv OLLAMA_ORIGINS "chrome-extension://test-extension-id"',
       ),
-    ).toHaveLength(2)
+    ).toHaveLength(1)
     expect(
-      screen.getAllByText('chrome-extension://test-extension-id'),
-    ).not.toHaveLength(0)
+      screen.getAllByRole('button', { name: 'コマンドをコピー' }),
+    ).toHaveLength(1)
+    expect(screen.getAllByText('return キーを押します。')).toHaveLength(1)
+    expect(screen.getAllByText('Ollama.app を終了します。')).toHaveLength(1)
+    expect(screen.getAllByText('Ollama.app を起動し直します。')).toHaveLength(1)
+    expect(
+      screen.getAllByText(
+        '確認コマンドをコピーして貼り付けると状態を確認できます。',
+      ),
+    ).toHaveLength(1)
+    expect(
+      screen.getAllByDisplayValue('curl http://localhost:11434/api/tags'),
+    ).toHaveLength(1)
+    expect(
+      screen.getAllByRole('button', { name: '確認コマンドをコピー' }),
+    ).toHaveLength(1)
     expect(
       screen.getAllByRole('link', {
         name: 'https://docs.ollama.com/faq#how-do-i-configure-ollama-server',
       }),
-    ).toHaveLength(2)
+    ).toHaveLength(1)
   })
 
   it('設定取得に失敗しても未設定として扱い、close ボタンで閉じる', async () => {
@@ -1741,11 +1763,28 @@ describe('SavedTabsChatWidget', () => {
 
     expect(
       await screen.findByText(
-        'Windows では OLLAMA_ORIGINS を環境変数として設定してください。',
+        'Windows のスタートメニューで「環境変数」と入力します。',
       ),
     ).toBeTruthy()
     expect(
-      screen.getByText('chrome-extension://test-extension-id'),
+      screen.getByText('「システム環境変数の編集」を開きます。'),
+    ).toBeTruthy()
+    expect(
+      screen.getByText('表示された画面で「環境変数」を押します。'),
+    ).toBeTruthy()
+    expect(
+      screen.getByText('「ユーザー環境変数」の「新規」を押します。'),
+    ).toBeTruthy()
+    expect(
+      screen.getByText('変数名に OLLAMA_ORIGINS を入力します。'),
+    ).toBeTruthy()
+    expect(screen.getByText('変数値に次の値を入力します。')).toBeTruthy()
+    expect(
+      screen.getByDisplayValue('chrome-extension://test-extension-id'),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: '入力値をコピー' })).toBeTruthy()
+    expect(
+      screen.getByText('保存してから Ollama を再起動します。'),
     ).toBeTruthy()
     expect(
       screen.getByRole('link', {

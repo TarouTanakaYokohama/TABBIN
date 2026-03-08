@@ -1614,6 +1614,12 @@ const SavedTabsChatWidget = ({
     )
   }
 
+  const removeMessage = (messageId: string) => {
+    setMessages(currentMessages =>
+      currentMessages.filter(message => message.id !== messageId),
+    )
+  }
+
   const disconnectActivePort = (suppressDisconnectError = false) => {
     const activePort = activePortRef.current
     if (!activePort) {
@@ -1970,11 +1976,17 @@ const SavedTabsChatWidget = ({
   ) => {
     setErrorMessage(nextError)
     setChatOllamaError(ollamaError)
-    replaceMessage(assistantMessageId, {
-      content: nextError,
-      isStreaming: false,
-      ollamaError,
-    })
+
+    if (ollamaError?.kind === 'forbidden') {
+      removeMessage(assistantMessageId)
+    } else {
+      replaceMessage(assistantMessageId, {
+        content: nextError,
+        isStreaming: false,
+        ollamaError,
+      })
+    }
+
     setIsSubmitting(false)
   }
 
