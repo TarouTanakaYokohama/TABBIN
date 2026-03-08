@@ -12,6 +12,7 @@ import {
   createOrUpdateUrlRecordsBatch,
 } from '@/lib/storage/urls'
 import type {
+  CustomProject,
   ParentCategory,
   SubCategoryKeyword,
   TabGroup,
@@ -26,6 +27,8 @@ interface BackupData {
   userSettings: UserSettings
   parentCategories: ParentCategory[]
   savedTabs: TabGroup[]
+  customProjects?: CustomProject[]
+  customProjectOrder?: string[]
   urls?: UrlRecord[]
 }
 
@@ -57,6 +60,36 @@ interface ImportedTabData {
   categoryKeywords?: unknown[]
   savedAt?: number
 }
+interface ImportedCustomProjectData {
+  id: string
+  name: string
+  urlIds?: string[]
+  urls?: Array<{
+    url: string
+    title?: string
+    notes?: string
+    savedAt?: number
+    category?: string
+  }>
+  urlMetadata?: Record<
+    string,
+    {
+      notes?: string
+      category?: string
+    }
+  >
+  categories?: unknown[]
+  categoryOrder?: unknown[]
+  createdAt?: number
+  updatedAt?: number
+}
+interface ImportedCustomProjectUrlData {
+  url: string
+  title?: string
+  notes?: string
+  savedAt?: number
+  category?: string
+}
 
 // インポート時のカテゴリキーワード形式に対応するインターフェース
 interface ImportedKeywordData {
@@ -85,6 +118,35 @@ const importedUrlRecordSchema = z.object({
   title: z.string().optional(),
   savedAt: z.number().optional(),
   favIconUrl: z.string().optional(),
+})
+const importedCustomProjectSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  urlIds: z.array(z.string()).optional(),
+  urls: z
+    .array(
+      z.object({
+        url: z.string(),
+        title: z.string().optional(),
+        notes: z.string().optional(),
+        savedAt: z.number().optional(),
+        category: z.string().optional(),
+      }),
+    )
+    .optional(),
+  urlMetadata: z
+    .record(
+      z.string(),
+      z.object({
+        notes: z.string().optional(),
+        category: z.string().optional(),
+      }),
+    )
+    .optional(),
+  categories: z.array(z.unknown()).optional(),
+  categoryOrder: z.array(z.unknown()).optional(),
+  createdAt: z.number().optional(),
+  updatedAt: z.number().optional(),
 })
 
 const normalizeUrlKey = (url: string): string => url.trim()
@@ -179,6 +241,8 @@ const backupDataSchema = z.object({
       savedAt: z.number().optional(),
     }),
   ),
+  customProjects: z.array(importedCustomProjectSchema).optional(),
+  customProjectOrder: z.array(z.string()).optional(),
   // 新形式バックアップ用: URLレコード本体
   urls: z.array(importedUrlRecordSchema).optional(),
 })
@@ -277,6 +341,356 @@ const normalizeSubCategories = (items: unknown[] | undefined): string[] => {
     names.push(name)
   }
   return names
+}
+
+const normalizeStringArray = (items: unknown[] | undefined): string[] => {
+  if (!Array.isArray(items)) {
+    return []
+  }
+  const values: string[] = []
+  const seen = new Set<string>()
+  for (const item of items) {
+    if (typeof item !== 'string' || seen.has(item)) {
+      continue
+    }
+    seen.add(item)
+    values.push(item)
+  }
+  return values
+}
+
+const normalizeImportedCustomProject = (
+  project: ImportedCustomProjectData,
+): CustomProject => {
+  const createdAt = project.createdAt || Date.now()
+  const updatedAt = project.updatedAt || createdAt
+  const urlIds = Array.isArray(project.urlIds)
+    ? project.urlIds.filter((id): id is string => typeof id === 'string')
+    : []
+  const urls = Array.isArray(project.urls)
+    ? project.urls
+        .filter((item): item is NonNullable<CustomProject['urls']>[number] =>
+          Boolean(item?.url),
+        )
+        .map(item => ({
+          url: item.url,
+          title: item.title || '',
+          notes: item.notes,
+          savedAt: item.savedAt,
+          category: item.category,
+        }))
+    : undefined
+  const urlMetadata =
+    project.urlMetadata &&
+    typeof project.urlMetadata === 'object' &&
+    !Array.isArray(project.urlMetadata)
+      ? project.urlMetadata
+      : undefined
+  const categories = normalizeStringArray(project.categories)
+  const categoryOrder = normalizeStringArray(project.categoryOrder)
+
+  return {
+    id: project.id,
+    name: project.name,
+    urlIds,
+    ...(urls && urls.length > 0 ? { urls } : {}),
+    ...(urlMetadata ? { urlMetadata } : {}),
+    categories,
+    ...(categoryOrder.length > 0 ? { categoryOrder } : {}),
+    createdAt,
+    updatedAt,
+  }
+}
+
+const convertCustomProjectToExportUrls = (
+  project: CustomProject,
+  urlRecordMap: Map<string, UrlRecord>,
+  placeholderUrlRecordMap: Map<string, UrlRecord>,
+): NonNullable<CustomProject['urls']> => {
+  if (Array.isArray(project.urls) && project.urls.length > 0) {
+    return project.urls.filter(
+      (item): item is NonNullable<CustomProject['urls']>[number] =>
+        Boolean(item?.url),
+    )
+  }
+  if (!Array.isArray(project.urlIds) || project.urlIds.length === 0) {
+    return []
+  }
+
+  const exportedUrls: NonNullable<CustomProject['urls']> = []
+  let offset = 0
+
+  for (const urlId of project.urlIds) {
+    const urlRecord =
+      urlRecordMap.get(urlId) || placeholderUrlRecordMap.get(urlId)
+    const resolvedUrlRecord = urlRecord || {
+      id: urlId,
+      url: `https://tabbin.invalid/#tabbin-export-custom-missing-${project.id}-${urlId}`,
+      title: '復元データ（元URL欠損）',
+      savedAt:
+        typeof project.updatedAt === 'number'
+          ? project.updatedAt + offset
+          : Date.now() + offset,
+    }
+    if (!(urlRecord || placeholderUrlRecordMap.has(urlId))) {
+      placeholderUrlRecordMap.set(urlId, resolvedUrlRecord)
+    }
+    offset += 1
+    exportedUrls.push({
+      url: resolvedUrlRecord.url,
+      title: resolvedUrlRecord.title || '',
+      notes: project.urlMetadata?.[urlId]?.notes,
+      savedAt: resolvedUrlRecord.savedAt,
+      category: project.urlMetadata?.[urlId]?.category,
+    })
+  }
+
+  return exportedUrls
+}
+
+const toExportCustomProject = (
+  project: CustomProject,
+  urlRecordMap: Map<string, UrlRecord>,
+  placeholderUrlRecordMap: Map<string, UrlRecord>,
+): CustomProject => {
+  const exportUrls = convertCustomProjectToExportUrls(
+    project,
+    urlRecordMap,
+    placeholderUrlRecordMap,
+  )
+
+  return {
+    id: project.id,
+    name: project.name,
+    urls: exportUrls,
+    categories: [...project.categories],
+    ...(project.categoryOrder && project.categoryOrder.length > 0
+      ? { categoryOrder: [...project.categoryOrder] }
+      : {}),
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+  }
+}
+
+const normalizeCustomProjectOrder = (
+  order: string[] | undefined,
+  projects: CustomProject[],
+): string[] => {
+  const existingIds = new Set(projects.map(project => project.id))
+  const normalizedOrder = Array.isArray(order)
+    ? order.filter(id => typeof id === 'string' && existingIds.has(id))
+    : []
+  const missingIds = projects
+    .map(project => project.id)
+    .filter(id => !normalizedOrder.includes(id))
+  return [...normalizedOrder, ...missingIds]
+}
+
+const mergeImportedCustomProjects = (
+  currentProjects: CustomProject[],
+  currentOrder: string[],
+  importedProjects: CustomProject[],
+  importedOrder: string[] | undefined,
+): {
+  customProjects: CustomProject[]
+  customProjectOrder: string[]
+} => {
+  const normalizedCurrentProjects = currentProjects.map(project =>
+    normalizeImportedCustomProject(project),
+  )
+  const normalizedImportedProjects = importedProjects.map(project =>
+    normalizeImportedCustomProject(project),
+  )
+  const currentIds = new Set(
+    normalizedCurrentProjects.map(project => project.id),
+  )
+  const newProjects = normalizedImportedProjects.filter(
+    project => !currentIds.has(project.id),
+  )
+  const mergedProjects = [...normalizedCurrentProjects, ...newProjects]
+  const normalizedCurrentOrder = normalizeCustomProjectOrder(
+    currentOrder,
+    normalizedCurrentProjects,
+  )
+  const normalizedImportedOrder = normalizeCustomProjectOrder(
+    importedOrder,
+    normalizedImportedProjects,
+  )
+  const appendedImportedIds = normalizedImportedOrder.filter(id =>
+    newProjects.some(project => project.id === id),
+  )
+  const remainingIds = newProjects
+    .map(project => project.id)
+    .filter(id => !appendedImportedIds.includes(id))
+
+  return {
+    customProjects: mergedProjects,
+    customProjectOrder: [
+      ...normalizedCurrentOrder,
+      ...appendedImportedIds,
+      ...remainingIds,
+    ],
+  }
+}
+
+const overwriteImportedCustomProjects = (
+  importedProjects: CustomProject[],
+  importedOrder: string[] | undefined,
+): {
+  customProjects: CustomProject[]
+  customProjectOrder: string[]
+} => {
+  const customProjects = importedProjects.map(project =>
+    normalizeImportedCustomProject(project),
+  )
+  return {
+    customProjects,
+    customProjectOrder: normalizeCustomProjectOrder(
+      importedOrder,
+      customProjects,
+    ),
+  }
+}
+
+const restoreImportedCustomProjectUrlsFromIds = (
+  project: ImportedCustomProjectData,
+  importedUrlRecordMap: Map<string, ImportedUrlRecordData>,
+  currentUrlRecordMap: Map<string, UrlRecord>,
+): ImportedCustomProjectUrlData[] => {
+  if (!Array.isArray(project.urlIds) || project.urlIds.length === 0) {
+    return []
+  }
+
+  const restoredUrls: ImportedCustomProjectUrlData[] = []
+  for (const urlId of project.urlIds) {
+    const urlRecord =
+      importedUrlRecordMap.get(urlId) || currentUrlRecordMap.get(urlId)
+    if (!urlRecord) {
+      continue
+    }
+    restoredUrls.push({
+      url: urlRecord.url,
+      title: urlRecord.title || '',
+      savedAt: urlRecord.savedAt,
+      notes: project.urlMetadata?.[urlId]?.notes,
+      category: project.urlMetadata?.[urlId]?.category,
+    })
+  }
+  return restoredUrls
+}
+
+const normalizeImportedCustomProjectsForImport = (
+  projects: ImportedCustomProjectData[] | undefined,
+  importedUrlRecordMap: Map<string, ImportedUrlRecordData>,
+  currentUrlRecordMap: Map<string, UrlRecord>,
+): Array<
+  ImportedCustomProjectData & { urls: ImportedCustomProjectUrlData[] }
+> => {
+  if (!Array.isArray(projects)) {
+    return []
+  }
+
+  return projects.map(project => {
+    if (Array.isArray(project.urls)) {
+      return {
+        ...project,
+        urls: project.urls.filter(
+          (item): item is ImportedCustomProjectUrlData => Boolean(item?.url),
+        ),
+      }
+    }
+
+    return {
+      ...project,
+      urls: restoreImportedCustomProjectUrlsFromIds(
+        project,
+        importedUrlRecordMap,
+        currentUrlRecordMap,
+      ),
+    }
+  })
+}
+
+const convertImportedCustomProjectUrlsToStorage = async (
+  urls: ImportedCustomProjectUrlData[],
+  urlRecordMapByUrl?: Map<string, UrlRecord>,
+): Promise<{
+  urlIds: string[]
+  urlMetadata?: CustomProject['urlMetadata']
+}> => {
+  const urlIds: string[] = []
+  const urlMetadata: NonNullable<CustomProject['urlMetadata']> = {}
+
+  for (const urlData of urls) {
+    try {
+      const normalizedUrl = normalizeUrlKey(urlData.url)
+      const preloadedUrlRecord = urlRecordMapByUrl?.get(normalizedUrl)
+      const urlRecord =
+        preloadedUrlRecord ||
+        (await createOrUpdateUrlRecord(urlData.url, urlData.title || ''))
+      urlIds.push(urlRecord.id)
+      if (urlData.notes || urlData.category) {
+        urlMetadata[urlRecord.id] = {
+          ...(urlData.notes ? { notes: urlData.notes } : {}),
+          ...(urlData.category ? { category: urlData.category } : {}),
+        }
+      }
+    } catch (error) {
+      console.error(`カスタムプロジェクトURL変換エラー: ${urlData.url}`, error)
+    }
+  }
+
+  return {
+    urlIds,
+    urlMetadata: Object.keys(urlMetadata).length > 0 ? urlMetadata : undefined,
+  }
+}
+
+const resolveImportedCustomProject = async (
+  project: ImportedCustomProjectData & {
+    urls: ImportedCustomProjectUrlData[]
+  },
+  urlRecordMapByUrl?: Map<string, UrlRecord>,
+): Promise<CustomProject> => {
+  const categoryOrder = normalizeStringArray(project.categoryOrder)
+
+  if (project.urls.length === 0 && Array.isArray(project.urlIds)) {
+    return {
+      ...normalizeImportedCustomProject(project),
+      ...(categoryOrder.length > 0 ? { categoryOrder } : {}),
+    }
+  }
+
+  const convertedUrlData = await convertImportedCustomProjectUrlsToStorage(
+    project.urls,
+    urlRecordMapByUrl,
+  )
+
+  return {
+    id: project.id,
+    name: project.name,
+    urlIds: convertedUrlData.urlIds,
+    ...(convertedUrlData.urlMetadata
+      ? { urlMetadata: convertedUrlData.urlMetadata }
+      : {}),
+    categories: normalizeStringArray(project.categories),
+    ...(categoryOrder.length > 0 ? { categoryOrder } : {}),
+    createdAt: project.createdAt || Date.now(),
+    updatedAt: project.updatedAt || project.createdAt || Date.now(),
+  }
+}
+
+const resolveImportedCustomProjects = async (
+  projects: Array<
+    ImportedCustomProjectData & { urls: ImportedCustomProjectUrlData[] }
+  >,
+  urlRecordMapByUrl?: Map<string, UrlRecord>,
+): Promise<CustomProject[]> => {
+  return Promise.all(
+    projects.map(project =>
+      resolveImportedCustomProject(project, urlRecordMapByUrl),
+    ),
+  )
 }
 /**
  * categoryKeywordsをカテゴリ名単位でマージする
@@ -576,6 +990,8 @@ const exportSettings = async (): Promise<BackupData> => {
     const [userSettings, storageData] = await Promise.all([
       getUserSettings(),
       chrome.storage.local.get({
+        customProjectOrder: [],
+        customProjects: [],
         parentCategories: [],
         savedTabs: [],
         urls: [],
@@ -588,6 +1004,18 @@ const exportSettings = async (): Promise<BackupData> => {
       : []
     const savedTabs: TabGroup[] = Array.isArray(storageData.savedTabs)
       ? storageData.savedTabs
+      : []
+    const storedCustomProjects: CustomProject[] = Array.isArray(
+      storageData.customProjects,
+    )
+      ? storageData.customProjects.map(project =>
+          normalizeImportedCustomProject(project),
+        )
+      : []
+    const customProjectOrder = Array.isArray(storageData.customProjectOrder)
+      ? storageData.customProjectOrder.filter(
+          (id): id is string => typeof id === 'string',
+        )
       : []
     const urlRecords: UrlRecord[] = Array.isArray(storageData.urls)
       ? storageData.urls
@@ -604,6 +1032,9 @@ const exportSettings = async (): Promise<BackupData> => {
         placeholderUrlRecordMap,
       ),
     }))
+    const customProjects = storedCustomProjects.map(project =>
+      toExportCustomProject(project, urlRecordMap, placeholderUrlRecordMap),
+    )
     const mergedUrlRecordMap = new Map(urlRecordMap)
     for (const [id, urlRecord] of placeholderUrlRecordMap) {
       if (!mergedUrlRecordMap.has(id)) {
@@ -624,6 +1055,11 @@ const exportSettings = async (): Promise<BackupData> => {
       userSettings,
       parentCategories,
       savedTabs: normalizedSavedTabs,
+      customProjects,
+      customProjectOrder: normalizeCustomProjectOrder(
+        customProjectOrder,
+        customProjects,
+      ),
       urls: exportUrlRecords,
     }
     return backupData
@@ -886,15 +1322,32 @@ const countAddedDomains = (
 }
 const buildBulkUrlRecordMap = async (
   normalizedImportedTabs: NormalizedImportedTab[],
+  normalizedImportedCustomProjects: Array<
+    ImportedCustomProjectData & { urls: ImportedCustomProjectUrlData[] }
+  >,
 ): Promise<Map<string, UrlRecord> | undefined> => {
-  const importedUrlItems = normalizedImportedTabs.flatMap(tab =>
-    tab.urls.map(urlData => ({
-      url: normalizeUrlKey(urlData.url),
-      title: urlData.title || '',
-      favIconUrl: urlData.favIconUrl,
-    })),
+  const importedUrlItems = [
+    ...normalizedImportedTabs.flatMap(tab =>
+      tab.urls.map(urlData => ({
+        url: normalizeUrlKey(urlData.url),
+        title: urlData.title || '',
+        favIconUrl: urlData.favIconUrl,
+      })),
+    ),
+    ...normalizedImportedCustomProjects.flatMap(project =>
+      project.urls.map(urlData => ({
+        url: normalizeUrlKey(urlData.url),
+        title: urlData.title || '',
+      })),
+    ),
+  ]
+  const shouldBatchCustomProjectUrls = normalizedImportedCustomProjects.some(
+    project => project.urls.length > 0,
   )
-  if (importedUrlItems.length < BULK_URL_CONVERSION_THRESHOLD) {
+  if (
+    !shouldBatchCustomProjectUrls &&
+    importedUrlItems.length < BULK_URL_CONVERSION_THRESHOLD
+  ) {
     return undefined
   }
   console.log(`インポートURLを一括変換します: ${importedUrlItems.length}件`)
@@ -919,14 +1372,31 @@ const syncImportedTabsToCustomMode = async (
     }
   }
 }
-const importWithMerge = async (
-  importedData: BackupData,
-  normalizedImportedTabs: NormalizedImportedTab[],
-  unresolvedTabs: UnresolvedImportTab[],
-): Promise<ImportResult> => {
+const shouldImportCustomProjects = (importedData: BackupData): boolean => {
+  return Array.isArray(importedData.customProjects)
+}
+interface ImportExecutionParams {
+  importedData: BackupData
+  normalizedImportedTabs: NormalizedImportedTab[]
+  unresolvedTabs: UnresolvedImportTab[]
+  resolvedImportedCustomProjects: CustomProject[]
+  bulkUrlRecordMap?: Map<string, UrlRecord>
+}
+const importWithMerge = async ({
+  importedData,
+  normalizedImportedTabs,
+  unresolvedTabs,
+  resolvedImportedCustomProjects,
+  bulkUrlRecordMap,
+}: ImportExecutionParams): Promise<ImportResult> => {
   const [currentSettings, storageData] = await Promise.all([
     getUserSettings(),
-    chrome.storage.local.get(['parentCategories', 'savedTabs']),
+    chrome.storage.local.get([
+      'customProjectOrder',
+      'customProjects',
+      'parentCategories',
+      'savedTabs',
+    ]),
   ])
   const currentCategories: ParentCategory[] = Array.isArray(
     storageData.parentCategories,
@@ -936,6 +1406,20 @@ const importWithMerge = async (
   const currentTabs: TabGroup[] = Array.isArray(storageData.savedTabs)
     ? storageData.savedTabs
     : []
+  const currentCustomProjects: CustomProject[] = Array.isArray(
+    storageData.customProjects,
+  )
+    ? storageData.customProjects.map(project =>
+        normalizeImportedCustomProject(project),
+      )
+    : []
+  const currentCustomProjectOrder: string[] = Array.isArray(
+    storageData.customProjectOrder,
+  )
+    ? storageData.customProjectOrder.filter(
+        (id): id is string => typeof id === 'string',
+      )
+    : []
   const mergedSettings = mergeUserSettings(
     currentSettings,
     importedData.userSettings,
@@ -944,20 +1428,35 @@ const importWithMerge = async (
     currentCategories,
     importedData.parentCategories,
   )
-  const bulkUrlRecordMap = await buildBulkUrlRecordMap(normalizedImportedTabs)
   const mergedTabs = await mergeTabsByDomain(
     currentTabs,
     normalizedImportedTabs,
     bulkUrlRecordMap,
   )
+  const mergedCustomProjectData = shouldImportCustomProjects(importedData)
+    ? mergeImportedCustomProjects(
+        currentCustomProjects,
+        currentCustomProjectOrder,
+        resolvedImportedCustomProjects,
+        importedData.customProjectOrder,
+      )
+    : undefined
   await Promise.all([
     saveUserSettings(mergedSettings),
     saveParentCategories(mergedCategories),
     chrome.storage.local.set({
+      ...(mergedCustomProjectData
+        ? {
+            customProjectOrder: mergedCustomProjectData.customProjectOrder,
+            customProjects: mergedCustomProjectData.customProjects,
+          }
+        : {}),
       savedTabs: mergedTabs,
     }),
   ])
-  await syncImportedTabsToCustomMode(normalizedImportedTabs)
+  if (!shouldImportCustomProjects(importedData)) {
+    await syncImportedTabsToCustomMode(normalizedImportedTabs)
+  }
   const unresolvedWarning = await createUnresolvedWarning(unresolvedTabs)
   const addedCategories = countAddedCategories(
     importedData.parentCategories,
@@ -970,19 +1469,26 @@ const importWithMerge = async (
     message: `データをマージしました (${addedCategories}個のカテゴリと${addedDomains}個のドメインを追加)${unresolvedWarning}`,
   }
 }
-const importWithOverwrite = async (
-  importedData: BackupData,
-  normalizedImportedTabs: NormalizedImportedTab[],
-  unresolvedTabs: UnresolvedImportTab[],
-): Promise<ImportResult> => {
+const importWithOverwrite = async ({
+  importedData,
+  normalizedImportedTabs,
+  unresolvedTabs,
+  resolvedImportedCustomProjects,
+  bulkUrlRecordMap,
+}: ImportExecutionParams): Promise<ImportResult> => {
   const cleanParentCategories = importedData.parentCategories.map(
     normalizeImportedCategory,
   )
-  const bulkUrlRecordMap = await buildBulkUrlRecordMap(normalizedImportedTabs)
   const cleanTabGroups = await buildOverwriteTabs(
     normalizedImportedTabs,
     bulkUrlRecordMap,
   )
+  const overwriteCustomProjectData = shouldImportCustomProjects(importedData)
+    ? overwriteImportedCustomProjects(
+        resolvedImportedCustomProjects,
+        importedData.customProjectOrder,
+      )
+    : undefined
   await Promise.all([
     saveUserSettings({
       ...defaultSettings,
@@ -990,10 +1496,18 @@ const importWithOverwrite = async (
     }),
     saveParentCategories(cleanParentCategories),
     chrome.storage.local.set({
+      ...(overwriteCustomProjectData
+        ? {
+            customProjectOrder: overwriteCustomProjectData.customProjectOrder,
+            customProjects: overwriteCustomProjectData.customProjects,
+          }
+        : {}),
       savedTabs: cleanTabGroups,
     }),
   ])
-  await syncImportedTabsToCustomMode(normalizedImportedTabs)
+  if (!shouldImportCustomProjects(importedData)) {
+    await syncImportedTabsToCustomMode(normalizedImportedTabs)
+  }
   const unresolvedWarning = await createUnresolvedWarning(unresolvedTabs)
   await migrateToUrlsStorage()
   return {
@@ -1025,6 +1539,27 @@ const importSettings = async (
         importedUrlRecordMap,
         currentUrlRecordMap,
       )
+    const normalizedImportedCustomProjects = shouldImportCustomProjects(
+      importedData,
+    )
+      ? normalizeImportedCustomProjectsForImport(
+          importedData.customProjects,
+          importedUrlRecordMap,
+          currentUrlRecordMap,
+        )
+      : []
+    const bulkUrlRecordMap = await buildBulkUrlRecordMap(
+      normalizedImportedTabs,
+      normalizedImportedCustomProjects,
+    )
+    const resolvedImportedCustomProjects = shouldImportCustomProjects(
+      importedData,
+    )
+      ? await resolveImportedCustomProjects(
+          normalizedImportedCustomProjects,
+          bulkUrlRecordMap,
+        )
+      : []
     if (unresolvedTabs.length > 0) {
       console.warn(
         'URLデータ未解決ドメイン（代替URLを生成して継続）:',
@@ -1032,17 +1567,21 @@ const importSettings = async (
       )
     }
     if (mergeData) {
-      return importWithMerge(
+      return importWithMerge({
         importedData,
         normalizedImportedTabs,
         unresolvedTabs,
-      )
+        resolvedImportedCustomProjects,
+        bulkUrlRecordMap,
+      })
     }
-    return importWithOverwrite(
+    return importWithOverwrite({
       importedData,
       normalizedImportedTabs,
       unresolvedTabs,
-    )
+      resolvedImportedCustomProjects,
+      bulkUrlRecordMap,
+    })
   } catch (error) {
     console.error('インポートエラー:', error)
     return {
