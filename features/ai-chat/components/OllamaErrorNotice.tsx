@@ -1,4 +1,6 @@
-import { Copy } from 'lucide-react'
+import { Check, Copy } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -10,6 +12,7 @@ import { cn } from '@/lib/utils'
 import type { OllamaErrorDetails } from '@/types/background'
 
 type OllamaErrorPlatform = 'mac' | 'unknown' | 'win'
+const COPIED_ICON_TIMEOUT = 2000
 
 interface OllamaErrorNoticeProps {
   className?: string
@@ -24,15 +27,39 @@ const CopyableValueRow = ({
   buttonLabel: string
   value: string
 }) => {
+  const [isCopied, setIsCopied] = useState(false)
+  const copiedTimeoutRef = useRef<number | null>(null)
+  const copyTargetLabel = buttonLabel.replace(/をコピー$/, '')
+
+  useEffect(
+    () => () => {
+      if (copiedTimeoutRef.current) {
+        window.clearTimeout(copiedTimeoutRef.current)
+        copiedTimeoutRef.current = null
+      }
+    },
+    [],
+  )
+
   const copyToClipboard = async () => {
     if (typeof window === 'undefined' || !navigator?.clipboard?.writeText) {
+      toast.error(`${copyTargetLabel}をコピーできませんでした`)
       return
     }
 
     try {
       await navigator.clipboard.writeText(value)
+      if (copiedTimeoutRef.current) {
+        window.clearTimeout(copiedTimeoutRef.current)
+      }
+      setIsCopied(true)
+      toast.success(`${copyTargetLabel}をコピーしました`)
+      copiedTimeoutRef.current = window.setTimeout(() => {
+        setIsCopied(false)
+        copiedTimeoutRef.current = null
+      }, COPIED_ICON_TIMEOUT)
     } catch {
-      // Ignore clipboard failures and leave the guidance visible.
+      toast.error(`${copyTargetLabel}をコピーできませんでした`)
     }
   }
 
@@ -52,20 +79,21 @@ const CopyableValueRow = ({
           <Button
             aria-label={buttonLabel}
             className='size-8 shrink-0'
+            data-state={isCopied ? 'copied' : 'idle'}
             onClick={() => {
               void copyToClipboard()
             }}
             size='icon-sm'
-            title='コピー'
+            title={isCopied ? 'コピーしました' : 'コピー'}
             type='button'
             variant='outline'
           >
-            <Copy size={14} />
+            {isCopied ? <Check size={14} /> : <Copy size={14} />}
             <span className='sr-only'>{buttonLabel}</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent side='top'>
-          <p>コピー</p>
+          <p>{isCopied ? 'コピーしました' : 'コピー'}</p>
         </TooltipContent>
       </Tooltip>
     </div>
