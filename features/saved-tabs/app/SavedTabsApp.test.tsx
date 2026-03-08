@@ -13,6 +13,7 @@ import type {
   TabGroup,
   UrlRecord,
   UserSettings,
+  ViewMode,
 } from '@/types/storage'
 
 const mocked = vi.hoisted(() => {
@@ -108,8 +109,8 @@ const mocked = vi.hoisted(() => {
   const projectState = {
     customProjects,
     setCustomProjects: vi.fn(),
-    viewMode: 'custom' as const,
-    viewModeRef: { current: 'custom' as const },
+    viewMode: 'custom' as ViewMode,
+    viewModeRef: { current: 'custom' as ViewMode },
     syncDomainDataToCustomProjects: vi.fn(),
     handleViewModeChange: vi.fn(),
     handleCreateProject: vi.fn(),
@@ -337,5 +338,15 @@ describe('SavedTabsApp custom search', () => {
     expect(screen.getByText('project:Videos')).toBeTruthy()
     expect(screen.queryByText('project:Reading List')).toBeNull()
     expect(screen.queryByText('project:Work')).toBeNull()
+  })
+
+  it('initialViewMode が custom のときは初回描画で URL を domain に戻さない', () => {
+    mocked.projectState.viewMode = 'domain'
+    mocked.projectState.viewModeRef = { current: 'domain' }
+    window.history.replaceState({}, '', '/saved-tabs.html?mode=custom')
+
+    render(<SavedTabsApp initialViewMode='custom' />)
+
+    expect(window.location.search).toBe('?mode=custom')
   })
 })

@@ -1,3 +1,5 @@
+import type { AiChatToolTrace, OllamaErrorDetails } from '@/types/background'
+
 export interface AiSavedUrlRecord {
   id: string
   url: string
@@ -44,6 +46,26 @@ export interface AiChatAttachment {
   mediaType: string
   kind: 'text' | 'image'
   content: string
+}
+
+export interface AiChatConversationMessage {
+  attachments?: AiChatAttachment[]
+  charts?: AiChartSpec[]
+  content: string
+  id: string
+  isStreaming?: boolean
+  ollamaError?: OllamaErrorDetails
+  reasoning?: string
+  role: 'user' | 'assistant'
+  toolTraces?: AiChatToolTrace[]
+}
+
+export interface AiChatConversation {
+  createdAt: number
+  id: string
+  messages: AiChatConversationMessage[]
+  title: string
+  updatedAt: number
 }
 
 export interface InterestEvidenceEntry {

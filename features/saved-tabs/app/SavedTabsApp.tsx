@@ -30,6 +30,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Toaster } from '@/components/ui/sonner'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { getSavedTabsHrefForMode } from '@/features/navigation/lib/pageNavigation'
 import { CategoryReorderFooter } from '@/features/saved-tabs/components/Footer'
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
 import {
@@ -57,7 +58,12 @@ import {
   removeUrlFromTabGroup,
   removeUrlsFromTabGroup,
 } from '@/lib/storage/tabs'
-import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
+import type {
+  ParentCategory,
+  TabGroup,
+  UserSettings,
+  ViewMode,
+} from '@/types/storage'
 
 // プロダクションビルドではデバッグログを抑制する
 if (!import.meta.env.DEV) {
@@ -419,8 +425,10 @@ const organizeTabGroupsWithCategories = ({
   }
 }
 const SavedTabsApp = ({
+  initialViewMode,
   isAiSidebarOpen = false,
 }: {
+  initialViewMode?: ViewMode
   isAiSidebarOpen?: boolean
 }) => {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
@@ -428,6 +436,7 @@ const SavedTabsApp = ({
   const [showSubCategoryModal, setShowSubCategoryModal] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const hasResolvedInitialViewModeRef = useRef(!initialViewMode)
 
   // 未分類ドメインの並び替えモード状態管理
   const [isUncategorizedReorderMode, setIsUncategorizedReorderMode] =
@@ -442,6 +451,7 @@ const SavedTabsApp = ({
   const { categoryState, tabDataState, projectState } = useSavedTabsCore(
     settings,
     setSettings,
+    initialViewMode,
   )
   const {
     categories,
@@ -1051,6 +1061,32 @@ const SavedTabsApp = ({
     viewModeRef,
   ]) // 必要な依存関係を追加
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    if (initialViewMode && !hasResolvedInitialViewModeRef.current) {
+      if (viewMode !== initialViewMode) {
+        return
+      }
+      hasResolvedInitialViewModeRef.current = true
+    }
+
+    const nextHref = getSavedTabsHrefForMode(viewMode)
+    const currentUrl = new URL(window.location.href)
+    const nextUrl = new URL(nextHref, window.location.href)
+
+    if (
+      currentUrl.pathname === nextUrl.pathname &&
+      currentUrl.search === nextUrl.search
+    ) {
+      return
+    }
+
+    window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}`)
+  }, [viewMode])
+
   // カスタムプロジェクト間でURLを移動するハンドラ
   const handleMoveUrlBetweenProjects = useCallback(
     async (sourceProjectId: string, targetProjectId: string, url: string) => {
@@ -1268,6 +1304,7 @@ const SavedTabsApp = ({
           onModeChange={handleViewModeChange}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          showSidebarTrigger={true}
         />
         {renderMainContent()}
         {renderSubCategoryModal()}

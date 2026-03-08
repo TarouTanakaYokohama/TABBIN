@@ -4,6 +4,8 @@ import { createRoot } from 'react-dom/client'
 import { ThemeProvider } from '@/components/theme-provider'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { SavedTabsChatWidget } from '@/features/ai-chat/components/SavedTabsChatWidget'
+import { ExtensionPageShell } from '@/features/navigation/components/ExtensionPageShell'
+import { getSavedTabsModeFromLocation } from '@/features/navigation/lib/pageNavigation'
 import {
   SavedTabsApp,
   handleSavedTabsRender,
@@ -58,32 +60,41 @@ const SavedTabsPage = () => {
   }, [])
 
   const isCompactLeftPaneLayout = leftPaneWidth < LEFT_PANE_COMPACT_BREAKPOINT
+  const initialViewMode = getSavedTabsModeFromLocation(window.location.search)
 
   return (
-    <div
-      className='flex h-screen items-stretch overflow-hidden'
-      data-testid='saved-tabs-page-layout'
-    >
+    <ExtensionPageShell>
       <div
-        ref={leftPaneRef}
-        className='min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain'
-        data-saved-tabs-layout={isCompactLeftPaneLayout ? 'compact' : 'full'}
-        data-testid='saved-tabs-left-pane'
+        className='flex h-screen items-stretch overflow-hidden'
+        data-testid='saved-tabs-page-layout'
       >
-        <SavedTabsResponsiveLayoutProvider
-          isCompactLayout={isCompactLeftPaneLayout}
+        <div
+          ref={leftPaneRef}
+          className='min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain'
+          data-saved-tabs-layout={isCompactLeftPaneLayout ? 'compact' : 'full'}
+          data-testid='saved-tabs-left-pane'
         >
-          {isDevProfileEnabled ? (
-            <Profiler id='SavedTabs' onRender={handleSavedTabsRender}>
-              <SavedTabsApp isAiSidebarOpen={isAiSidebarOpen} />
-            </Profiler>
-          ) : (
-            <SavedTabsApp isAiSidebarOpen={isAiSidebarOpen} />
-          )}
-        </SavedTabsResponsiveLayoutProvider>
+          <SavedTabsResponsiveLayoutProvider
+            isCompactLayout={isCompactLeftPaneLayout}
+          >
+            {isDevProfileEnabled ? (
+              <Profiler id='SavedTabs' onRender={handleSavedTabsRender}>
+                <SavedTabsApp
+                  initialViewMode={initialViewMode}
+                  isAiSidebarOpen={isAiSidebarOpen}
+                />
+              </Profiler>
+            ) : (
+              <SavedTabsApp
+                initialViewMode={initialViewMode}
+                isAiSidebarOpen={isAiSidebarOpen}
+              />
+            )}
+          </SavedTabsResponsiveLayoutProvider>
+        </div>
+        <SavedTabsChatWidget onOpenChange={setIsAiSidebarOpen} />
       </div>
-      <SavedTabsChatWidget onOpenChange={setIsAiSidebarOpen} />
-    </div>
+    </ExtensionPageShell>
   )
 }
 

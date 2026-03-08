@@ -100,7 +100,7 @@ describe('ViewModeToggle', () => {
     render(<ViewModeToggle currentMode='custom' onChange={vi.fn()} />)
 
     const value = within(screen.getByTestId('select-value'))
-    expect(value.getByText('(preview)カスタムモード')).toBeTruthy()
+    expect(value.getByText('カスタムモード')).toBeTruthy()
   })
 
   it('未知モード値ではフォールバック文言を表示する', () => {

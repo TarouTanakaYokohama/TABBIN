@@ -91,9 +91,7 @@ describe('select ui', () => {
     expect(item?.className).toContain('item-extra')
     expect(group?.querySelector('.separator-extra')).toBeTruthy()
     expect(content.className).toContain('content-extra')
-    expect(viewport.className).toContain(
-      'min-w-[var(--radix-select-trigger-width)]',
-    )
+    expect(viewport.className).toContain('min-w-(--radix-select-trigger-width)')
   })
 
   it('popper 以外の position では popper 専用クラスを付けない', () => {
@@ -111,7 +109,7 @@ describe('select ui', () => {
     const { content, viewport } = getRenderedNodes()
     expect(content.className).not.toContain('translate-y-1')
     expect(viewport.className).not.toContain(
-      'min-w-[var(--radix-select-trigger-width)]',
+      'min-w-(--radix-select-trigger-width)',
     )
   })
 })

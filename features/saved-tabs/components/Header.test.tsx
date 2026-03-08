@@ -11,6 +11,8 @@ const { toastErrorSpy, toastSuccessSpy, categoryModalSpy, viewModeToggleSpy } =
     viewModeToggleSpy: vi.fn(),
   }))
 
+const sidebarTriggerSpy = vi.hoisted(() => vi.fn())
+
 vi.mock('sonner', () => ({
   toast: {
     error: toastErrorSpy,
@@ -64,6 +66,13 @@ vi.mock('@/components/ui/tooltip', () => ({
   ),
 }))
 
+vi.mock('@/components/ui/sidebar', () => ({
+  SidebarTrigger: (props: Record<string, unknown>) => {
+    sidebarTriggerSpy(props)
+    return <button type='button'>sidebar-trigger</button>
+  },
+}))
+
 vi.mock('@/components/ui/dialog', () => ({
   Dialog: ({
     open,
@@ -93,9 +102,6 @@ vi.mock('@/components/ui/dialog', () => ({
 }))
 
 import { Header } from './Header'
-
-const openSpy = vi.fn()
-const getUrlSpy = vi.fn((path: string) => `chrome-extension://id/${path}`)
 
 const createTabGroups = (): TabGroup[] => [
   {
@@ -141,13 +147,6 @@ const createProps = (
 describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.spyOn(window, 'open').mockImplementation(openSpy as never)
-    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
-    chromeGlobal.chrome = {
-      runtime: {
-        getURL: getUrlSpy,
-      },
-    } as unknown as typeof chrome
   })
 
   afterEach(() => {
@@ -155,7 +154,7 @@ describe('Header', () => {
     vi.restoreAllMocks()
   })
 
-  it('検索入力変更・クリア・件数表示・オプションボタン動作を処理する', () => {
+  it('検索入力変更・クリア・件数表示を処理する', () => {
     const onSearchChange = vi.fn()
 
     render(
@@ -182,15 +181,21 @@ describe('Header', () => {
     fireEvent.click(clearButton)
     expect(onSearchChange).toHaveBeenCalledWith('')
 
-    fireEvent.click(screen.getByRole('button', { name: /オプション/ }))
-    expect(getUrlSpy).toHaveBeenCalledWith('options.html')
-    expect(openSpy).toHaveBeenCalledWith(
-      'chrome-extension://id/options.html',
-      '_blank',
-    )
-
     expect(screen.getByText('タブ:2')).toBeTruthy()
     expect(screen.getByText('ドメイン:1')).toBeTruthy()
+  })
+
+  it('showSidebarTrigger が有効な場合は TABBIN の左にトリガーを表示する', () => {
+    render(
+      <Header
+        {...createProps({
+          showSidebarTrigger: true,
+        })}
+      />,
+    )
+
+    expect(screen.getByText('sidebar-trigger')).toBeTruthy()
+    expect(sidebarTriggerSpy).toHaveBeenCalledTimes(1)
   })
 
   it('urlIds のみを持つグループでもタブ件数を表示できる', () => {

@@ -35,9 +35,7 @@ export const ViewModeToggle = ({
       return (
         <div className='flex items-center gap-2'>
           <Folder size={16} />
-          <SavedTabsResponsiveLabel>
-            (preview)カスタムモード
-          </SavedTabsResponsiveLabel>
+          <SavedTabsResponsiveLabel>カスタムモード</SavedTabsResponsiveLabel>
         </div>
       )
     }
@@ -64,7 +62,7 @@ export const ViewModeToggle = ({
               <SelectItem value='custom'>
                 <div className='flex items-center gap-2'>
                   <Folder size={16} />
-                  <span>(preview)カスタムモード</span>
+                  <span>カスタムモード</span>
                 </div>
               </SelectItem>
             </SelectContent>

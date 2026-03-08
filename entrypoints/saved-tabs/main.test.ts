@@ -52,14 +52,24 @@ const resizeObserverState = vi.hoisted(() => {
 })
 
 vi.mock('@/features/saved-tabs/app/SavedTabsApp', () => ({
-  SavedTabsApp: ({ isAiSidebarOpen }: { isAiSidebarOpen?: boolean }) =>
+  SavedTabsApp: ({
+    initialViewMode,
+    isAiSidebarOpen,
+  }: {
+    initialViewMode?: string
+    isAiSidebarOpen?: boolean
+  }) =>
     createElement(
       'div',
       null,
-      `SavedTabsApp:${String(Boolean(isAiSidebarOpen))}`,
+      `SavedTabsApp:${String(Boolean(isAiSidebarOpen))}:${initialViewMode ?? 'none'}`,
     ),
   handleSavedTabsRender: vi.fn(),
   isDevProfileEnabled: false,
+}))
+
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => false,
 }))
 
 vi.mock('@/features/ai-chat/components/SavedTabsChatWidget', () => ({
@@ -95,6 +105,7 @@ import { SavedTabsPage } from './main'
 describe('saved-tabs entrypoint', () => {
   beforeEach(() => {
     resizeObserverState.reset()
+    window.history.replaceState({}, '', '/saved-tabs.html')
     vi.stubGlobal(
       'ResizeObserver',
       resizeObserverState.MockResizeObserver as unknown as typeof ResizeObserver,
@@ -110,8 +121,21 @@ describe('saved-tabs entrypoint', () => {
     render(createElement(SavedTabsPage))
 
     expect(screen.getByTestId('saved-tabs-page-layout')).toBeTruthy()
-    expect(screen.getByText('SavedTabsApp:false')).toBeTruthy()
+    expect(screen.getByText('SavedTabsApp:false:domain')).toBeTruthy()
     expect(screen.getByText('open-sidebar')).toBeTruthy()
+    expect(screen.getByText('チャット')).toBeTruthy()
+    expect(screen.getByText('定期実行')).toBeTruthy()
+    expect(screen.getAllByText('タブ一覧').length).toBeGreaterThan(0)
+    expect(screen.getByText('ドメインモード')).toBeTruthy()
+    expect(screen.getByText('カスタムモード')).toBeTruthy()
+  })
+
+  it('URL の mode クエリを SavedTabsApp の初期モードへ渡す', () => {
+    window.history.replaceState({}, '', '/saved-tabs.html?mode=custom')
+
+    render(createElement(SavedTabsPage))
+
+    expect(screen.getByText('SavedTabsApp:false:custom')).toBeTruthy()
   })
 
   it('viewport 固定の split layout にして root document はスクロールさせない', () => {
@@ -130,10 +154,10 @@ describe('saved-tabs entrypoint', () => {
     render(createElement(SavedTabsPage))
 
     fireEvent.click(screen.getByText('open-sidebar'))
-    expect(screen.getByText('SavedTabsApp:true')).toBeTruthy()
+    expect(screen.getByText('SavedTabsApp:true:domain')).toBeTruthy()
 
     fireEvent.click(screen.getByText('close-sidebar'))
-    expect(screen.getByText('SavedTabsApp:false')).toBeTruthy()
+    expect(screen.getByText('SavedTabsApp:false:domain')).toBeTruthy()
   })
 
   it('左ペインの実幅に応じて responsive layout 状態を切り替える', () => {

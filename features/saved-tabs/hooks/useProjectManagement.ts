@@ -173,11 +173,14 @@ interface UseProjectManagementReturn {
 const useProjectManagement = (
   _tabGroups: TabGroup[],
   _settings: UserSettings,
+  initialViewMode?: ViewMode,
 ): UseProjectManagementReturn => {
   const [customProjects, setCustomProjects] = useState<CustomProject[]>([])
-  const [viewMode, setViewMode] = useState<ViewMode>('domain')
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    initialViewMode ?? 'domain',
+  )
   const customProjectsRef = useRef<CustomProject[]>([])
-  const viewModeRef = useRef<ViewMode>('domain')
+  const viewModeRef = useRef<ViewMode>(initialViewMode ?? 'domain')
   const creatingProjectNamesRef = useRef<Set<string>>(new Set())
 
   // ref を最新の state に同期する
@@ -570,8 +573,11 @@ const useProjectManagement = (
           '初回ロード: ビューモードとカスタムプロジェクトを取得します',
         )
         // 最初にビューモードを取得
-        const mode = await getViewMode()
+        const mode = initialViewMode ?? (await getViewMode())
         setViewMode(mode)
+        if (initialViewMode) {
+          await saveViewMode(initialViewMode)
+        }
         console.log(`ビューモード: ${mode}`)
 
         // カスタムプロジェクトを読み込む
@@ -586,7 +592,7 @@ const useProjectManagement = (
       }
     }
     loadViewMode()
-  }, [syncDomainDataToCustomProjects])
+  }, [initialViewMode, syncDomainDataToCustomProjects])
   return {
     customProjects,
     setCustomProjects,

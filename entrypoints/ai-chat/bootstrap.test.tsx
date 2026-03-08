@@ -5,9 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocked = vi.hoisted(() => ({
   createRoot: vi.fn(),
-  handleSavedTabsRender: vi.fn(),
   renderRoot: vi.fn(),
-  savedTabsProfileEnabled: false,
 }))
 
 vi.mock('react-dom/client', () => ({
@@ -20,19 +18,6 @@ vi.mock('@/components/theme-provider', () => ({
   ),
 }))
 
-vi.mock('@/components/ui/tooltip', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-  TooltipTrigger: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-}))
-
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
 }))
@@ -41,12 +26,28 @@ vi.mock('@/features/ai-chat/components/SavedTabsChatWidget', () => ({
   SavedTabsChatWidget: () => createElement('div', null, 'SavedTabsChatWidget'),
 }))
 
-vi.mock('@/features/saved-tabs/app/SavedTabsApp', () => ({
-  SavedTabsApp: () => createElement('div', null, 'SavedTabsApp'),
-  handleSavedTabsRender: mocked.handleSavedTabsRender,
-  get isDevProfileEnabled() {
-    return mocked.savedTabsProfileEnabled
-  },
+vi.mock('@/features/ai-chat/lib/conversation-history', () => ({
+  buildConversationTitle: vi.fn(),
+  createConversationRecord: () => ({
+    createdAt: 1,
+    id: 'conversation-1',
+    messages: [],
+    title: '新しい会話',
+    updatedAt: 1,
+  }),
+  loadConversationHistory: vi.fn().mockResolvedValue({
+    activeConversationId: 'conversation-1',
+    conversations: [
+      {
+        createdAt: 1,
+        id: 'conversation-1',
+        messages: [],
+        title: '新しい会話',
+        updatedAt: 1,
+      },
+    ],
+  }),
+  saveConversationHistory: vi.fn(),
 }))
 
 const importModule = async () => {
@@ -57,7 +58,7 @@ const importModule = async () => {
   return import('./main')
 }
 
-describe('saved-tabs bootstrap', () => {
+describe('ai-chat bootstrap', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     document.body.innerHTML = ''
@@ -67,13 +68,12 @@ describe('saved-tabs bootstrap', () => {
     vi.restoreAllMocks()
   })
 
-  it('dev profile 有効時も SavedTabsPage を描画できる', async () => {
-    mocked.savedTabsProfileEnabled = true
-    const { SavedTabsPage } = await importModule()
+  it('AiChatPage を描画できる', async () => {
+    const { AiChatPage } = await importModule()
 
-    render(createElement(SavedTabsPage))
+    render(createElement(AiChatPage))
 
-    expect(screen.getByText('SavedTabsApp')).toBeTruthy()
+    expect(await screen.findByText('AIチャット')).toBeTruthy()
     expect(screen.getByText('SavedTabsChatWidget')).toBeTruthy()
   })
 
@@ -97,24 +97,5 @@ describe('saved-tabs bootstrap', () => {
       document.getElementById('app'),
     )
     expect(mocked.renderRoot).toHaveBeenCalledTimes(1)
-  })
-
-  it('app 要素が無ければ例外を投げる', async () => {
-    let domReadyHandler: EventListener | undefined
-
-    vi.spyOn(document, 'addEventListener').mockImplementation(((
-      type: string,
-      callback: EventListenerOrEventListenerObject | null,
-    ) => {
-      if (type === 'DOMContentLoaded' && typeof callback === 'function') {
-        domReadyHandler = callback
-      }
-    }) as typeof document.addEventListener)
-
-    await importModule()
-
-    expect(() => domReadyHandler?.(new Event('DOMContentLoaded'))).toThrow(
-      'Failed to find the app container',
-    )
   })
 })
