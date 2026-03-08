@@ -70,6 +70,7 @@ vi.mock('./CustomProjectCard', () => ({
     draggedItem?: { url: string; projectId: string; title: string } | null
     isDropTarget?: boolean
     isProjectReorderMode?: boolean
+    isCrossProjectUrlDragActive?: boolean
   }) => {
     customProjectCardSpy(props)
     return (
@@ -77,6 +78,9 @@ vi.mock('./CustomProjectCard', () => ({
         data-testid={`project-card-${props.project.id}`}
         data-drop-target={props.isDropTarget ? 'true' : 'false'}
         data-dragged-item={props.draggedItem ? props.draggedItem.url : ''}
+        data-cross-project-url-drag-active={
+          props.isCrossProjectUrlDragActive ? 'true' : 'false'
+        }
         data-project-reorder-mode={
           props.isProjectReorderMode ? 'true' : 'false'
         }
@@ -121,6 +125,21 @@ vi.mock('@/components/ui/dialog', () => ({
   ),
 }))
 
+vi.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+}))
+
 import { CustomProjectSection } from './CustomProjectSection'
 
 const defaultSettings: UserSettings = {
@@ -143,7 +162,6 @@ const createProjects = () => [
   {
     id: 'project-1',
     name: 'Project One',
-    description: 'Desc 1',
     categories: ['CatA'],
     createdAt: 1,
     updatedAt: 2,
@@ -152,7 +170,6 @@ const createProjects = () => [
   {
     id: 'project-2',
     name: 'Project Two',
-    description: 'Desc 2',
     categories: [],
     createdAt: 3,
     updatedAt: 4,
@@ -245,27 +262,19 @@ describe('CustomProjectSection', () => {
       ).toBeNull()
     })
 
-    fireEvent.change(screen.getByLabelText('説明（オプション）'), {
-      target: { value: 'new desc' },
-    })
     fireEvent.click(screen.getByRole('button', { name: '作成' }))
 
     await waitFor(() => {
-      expect(handleCreateProject).toHaveBeenCalledWith(
-        'New Project',
-        'new desc',
-      )
+      expect(handleCreateProject).toHaveBeenCalledWith('New Project')
     })
     await waitFor(() => {
       expect(screen.queryByTestId('dialog-content')).toBeNull()
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'dialog-open' }))
+    expect(screen.queryByLabelText('説明（オプション）')).toBeNull()
     fireEvent.change(screen.getByLabelText('プロジェクト名 *'), {
       target: { value: 'Tmp' },
-    })
-    fireEvent.change(screen.getByLabelText('説明（オプション）'), {
-      target: { value: 'Tmp desc' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
     await waitFor(() => {
@@ -288,9 +297,6 @@ describe('CustomProjectSection', () => {
     fireEvent.change(screen.getByLabelText('プロジェクト名 *'), {
       target: { value: 'Enter Created Project' },
     })
-    fireEvent.change(screen.getByLabelText('説明（オプション）'), {
-      target: { value: 'created by enter' },
-    })
 
     fireEvent.keyDown(screen.getByLabelText('プロジェクト名 *'), {
       key: 'Enter',
@@ -298,10 +304,7 @@ describe('CustomProjectSection', () => {
     })
 
     await waitFor(() => {
-      expect(handleCreateProject).toHaveBeenCalledWith(
-        'Enter Created Project',
-        'created by enter',
-      )
+      expect(handleCreateProject).toHaveBeenCalledWith('Enter Created Project')
     })
   })
 
@@ -320,9 +323,6 @@ describe('CustomProjectSection', () => {
     fireEvent.change(screen.getByLabelText('プロジェクト名 *'), {
       target: { value: 'Temporary Name' },
     })
-    fireEvent.change(screen.getByLabelText('説明（オプション）'), {
-      target: { value: 'Temporary Description' },
-    })
     fireEvent.keyDown(screen.getByLabelText('プロジェクト名 *'), {
       key: 'Escape',
       code: 'Escape',
@@ -338,10 +338,6 @@ describe('CustomProjectSection', () => {
         (screen.getByLabelText('プロジェクト名 *') as HTMLInputElement).value,
       ).toBe('')
     })
-    expect(
-      (screen.getByLabelText('説明（オプション）') as HTMLTextAreaElement)
-        .value,
-    ).toBe('')
   })
 
   it('URLドラッグ開始/オーバー/終了でプロジェクト間移動を処理し状態をリセットする', async () => {
@@ -357,6 +353,7 @@ describe('CustomProjectSection', () => {
     await act(async () => {
       dndContextPropsRef.current.onDragStart?.({
         active: {
+          id: 'https://a.com',
           data: {
             current: {
               type: 'url',
@@ -369,12 +366,17 @@ describe('CustomProjectSection', () => {
       })
     })
 
-    expect(screen.queryByText('URL A')).toBeNull()
+    expect(screen.getByText('URL A')).toBeTruthy()
     expect(
       screen
         .getByTestId('project-card-project-1')
         .getAttribute('data-dragged-item'),
-    ).toBe('')
+    ).toBe('https://a.com')
+    expect(
+      screen
+        .getByTestId('project-card-project-1')
+        .getAttribute('data-cross-project-url-drag-active'),
+    ).toBe('false')
 
     await act(async () => {
       dndContextPropsRef.current.onDragOver?.({
@@ -387,6 +389,11 @@ describe('CustomProjectSection', () => {
         .getByTestId('project-card-project-2')
         .getAttribute('data-drop-target'),
     ).toBe('false')
+    expect(
+      screen
+        .getByTestId('project-card-project-1')
+        .getAttribute('data-cross-project-url-drag-active'),
+    ).toBe('false')
 
     await act(async () => {
       dndContextPropsRef.current.onDragOver?.({
@@ -398,6 +405,28 @@ describe('CustomProjectSection', () => {
       screen
         .getByTestId('project-card-project-2')
         .getAttribute('data-drop-target'),
+    ).toBe('true')
+    expect(
+      screen
+        .getByTestId('project-card-project-1')
+        .getAttribute('data-cross-project-url-drag-active'),
+    ).toBe('true')
+    expect(
+      screen
+        .getByTestId('project-card-project-2')
+        .getAttribute('data-cross-project-url-drag-active'),
+    ).toBe('true')
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragOver?.({
+        active: { data: { current: { type: 'url', projectId: 'project-1' } } },
+        over: undefined,
+      })
+    })
+    expect(
+      screen
+        .getByTestId('project-card-project-1')
+        .getAttribute('data-cross-project-url-drag-active'),
     ).toBe('true')
 
     await act(async () => {
@@ -421,6 +450,11 @@ describe('CustomProjectSection', () => {
       screen
         .getByTestId('project-card-project-2')
         .getAttribute('data-drop-target'),
+    ).toBe('false')
+    expect(
+      screen
+        .getByTestId('project-card-project-1')
+        .getAttribute('data-cross-project-url-drag-active'),
     ).toBe('false')
   })
 
@@ -505,6 +539,154 @@ describe('CustomProjectSection', () => {
     )
   })
 
+  it('ヘッダー drop target の over.id からターゲットプロジェクトを解決する', async () => {
+    const handleMoveUrlBetweenProjects = vi.fn()
+    render(
+      <CustomProjectSection
+        {...createProps({
+          handleMoveUrlBetweenProjects,
+        })}
+      />,
+    )
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragEnd?.({
+        active: {
+          id: 'https://header-drop.example.com',
+          data: { current: { type: 'url', projectId: 'project-1' } },
+        },
+        over: {
+          id: 'project-header-project-2',
+          data: { current: {} },
+        },
+      })
+    })
+
+    expect(handleMoveUrlBetweenProjects).toHaveBeenCalledWith(
+      'project-1',
+      'project-2',
+      'https://header-drop.example.com',
+    )
+  })
+
+  it('ドラッグ中に active.data.current が消えても直前の URL ドラッグ情報で移動を継続する', async () => {
+    const handleMoveUrlBetweenProjects = vi.fn()
+    render(
+      <CustomProjectSection
+        {...createProps({
+          handleMoveUrlBetweenProjects,
+        })}
+      />,
+    )
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragStart?.({
+        active: {
+          id: 'https://latched.example.com',
+          data: {
+            current: {
+              type: 'url',
+              projectId: 'custom-uncategorized',
+              title: 'Latched URL',
+              url: 'https://latched.example.com',
+            },
+          },
+        },
+      })
+    })
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragOver?.({
+        active: {
+          id: 'https://latched.example.com',
+          data: { current: null },
+        },
+        over: {
+          id: 'project-project-2',
+          data: { current: { type: 'project', projectId: 'project-2' } },
+        },
+      })
+    })
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragEnd?.({
+        active: {
+          id: 'https://latched.example.com',
+          data: { current: null },
+        },
+        over: {
+          id: 'project-project-2',
+          data: { current: { type: 'project', projectId: 'project-2' } },
+        },
+      })
+    })
+
+    expect(handleMoveUrlBetweenProjects).toHaveBeenCalledWith(
+      'custom-uncategorized',
+      'project-2',
+      'https://latched.example.com',
+    )
+  })
+
+  it('ドラッグ中に active.data.current が空オブジェクトでも保持済み URL ドラッグ情報を使う', async () => {
+    const handleMoveUrlBetweenProjects = vi.fn()
+    render(
+      <CustomProjectSection
+        {...createProps({
+          handleMoveUrlBetweenProjects,
+        })}
+      />,
+    )
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragStart?.({
+        active: {
+          id: 'https://latched-empty.example.com',
+          data: {
+            current: {
+              type: 'url',
+              projectId: 'custom-uncategorized',
+              title: 'Latched Empty URL',
+              url: 'https://latched-empty.example.com',
+            },
+          },
+        },
+      })
+    })
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragOver?.({
+        active: {
+          id: 'https://latched-empty.example.com',
+          data: { current: {} },
+        },
+        over: {
+          id: 'project-project-2',
+          data: { current: { type: 'project', projectId: 'project-2' } },
+        },
+      })
+    })
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragEnd?.({
+        active: {
+          id: 'https://latched-empty.example.com',
+          data: { current: {} },
+        },
+        over: {
+          id: 'project-project-2',
+          data: { current: { type: 'project', projectId: 'project-2' } },
+        },
+      })
+    })
+
+    expect(handleMoveUrlBetweenProjects).toHaveBeenCalledWith(
+      'custom-uncategorized',
+      'project-2',
+      'https://latched-empty.example.com',
+    )
+  })
+
   it('over.id が文字列以外・未対応文字列なら移動しない', async () => {
     const handleMoveUrlBetweenProjects = vi.fn()
     render(
@@ -562,7 +744,6 @@ describe('CustomProjectSection', () => {
       })
     })
     expect(screen.getAllByText('Project One').length).toBe(2)
-    expect(screen.getByText('Desc 1')).toBeTruthy()
     expect(
       screen
         .getByTestId('project-card-project-1')

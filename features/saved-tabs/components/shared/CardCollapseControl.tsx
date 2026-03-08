@@ -15,6 +15,8 @@ interface CardCollapseControlProps {
   isDisabled?: boolean
   /** 無効化時のツールチップメッセージ */
   disabledMessage?: string
+  /** ポインターダウン時の追加ハンドラ */
+  onPointerDown?: (event: React.PointerEvent<HTMLButtonElement>) => void
 }
 
 /**
@@ -27,6 +29,7 @@ export const CardCollapseControl = ({
   setUserCollapsedState,
   isDisabled = false,
   disabledMessage = '並び替えモード中',
+  onPointerDown,
 }: CardCollapseControlProps) => {
   let tooltipLabel = disabledMessage
   if (!isDisabled) {
@@ -39,6 +42,7 @@ export const CardCollapseControl = ({
         <Button
           variant='secondary'
           size='sm'
+          onPointerDown={onPointerDown}
           onClick={e => {
             e.stopPropagation()
             const newState = !isCollapsed

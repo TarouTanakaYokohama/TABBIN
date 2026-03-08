@@ -148,10 +148,7 @@ const saveViewMode = async (mode: ViewMode): Promise<void> => {
     viewMode: mode,
   })
 } // 新しいカスタムプロジェクトを作成する関数
-const createCustomProject = async (
-  name: string,
-  description?: string,
-): Promise<CustomProject> => {
+const createCustomProject = async (name: string): Promise<CustomProject> => {
   const projects = await getCustomProjects()
 
   // 重複チェック
@@ -163,7 +160,6 @@ const createCustomProject = async (
   const newProject: CustomProject = {
     id: uuidv4(),
     name,
-    description,
     urlIds: [],
     // 新形式のURL IDリスト
     categories: [],
@@ -214,7 +210,6 @@ const appendUncategorizedProjectToOrder = async (): Promise<void> => {
 const buildUncategorizedProject = (): CustomProject => ({
   id: CUSTOM_UNCATEGORIZED_PROJECT_ID,
   name: CUSTOM_UNCATEGORIZED_PROJECT_NAME,
-  description: '保存されたタブの未分類置き場',
   urlIds: [],
   categories: [],
   createdAt: Date.now(),

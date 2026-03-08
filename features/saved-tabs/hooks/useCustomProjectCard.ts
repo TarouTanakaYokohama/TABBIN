@@ -324,7 +324,7 @@ export const useCustomProjectCard = ({
       }
     }
     loadProjectUrls()
-  }, [project.id, project.updatedAt])
+  }, [project.id, project.updatedAt, project.urlIds, project.urls])
 
   // --- 衝突検出ストラテジー ---
   const collisionDetectionStrategy: CollisionDetection = useCallback(
