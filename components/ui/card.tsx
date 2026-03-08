@@ -54,7 +54,10 @@ const CardAction = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn('ml-auto flex items-center gap-2', className)}
+    className={cn(
+      'col-start-2 row-span-2 row-start-1 self-start justify-self-end',
+      className,
+    )}
     {...props}
   />
 ))
@@ -83,9 +86,9 @@ CardFooter.displayName = 'CardFooter'
 export {
   Card,
   CardAction,
-  CardHeader,
-  CardFooter,
-  CardTitle,
-  CardDescription,
   CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 }

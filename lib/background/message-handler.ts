@@ -371,6 +371,7 @@ const handleRunAiChatMessage = (
       sendResponse({
         status: 'ok',
         answer: result.answer,
+        charts: result.charts,
         recordCount: result.recordCount,
         reasoning: result.reasoning,
         toolTraces: result.toolTraces,
@@ -415,6 +416,7 @@ const handleAiChatStreamPortMessage = (
       port.postMessage({
         type: 'complete',
         answer: result.answer,
+        charts: result.charts,
         recordCount: result.recordCount,
         reasoning: result.reasoning,
         toolTraces: result.toolTraces,

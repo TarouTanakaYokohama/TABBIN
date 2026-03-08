@@ -1119,6 +1119,93 @@ describe('SavedTabsChatWidget', () => {
     expect(port.disconnect).toHaveBeenCalled()
   })
 
+  it('assistant 完了メッセージに charts があると本文直下へ描画する', async () => {
+    mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
+    let handlePortMessage: ((message: unknown) => void) | undefined
+    const port = {
+      disconnect: vi.fn(),
+      onDisconnect: {
+        addListener: vi.fn(),
+      },
+      onMessage: {
+        addListener: vi.fn(listener => {
+          handlePortMessage = listener
+        }),
+      },
+      postMessage: vi.fn(),
+    }
+    mocked.connectRuntimePort.mockResolvedValue(port)
+
+    render(<SavedTabsChatWidget />)
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'AIチャットを開く',
+      }),
+    )
+
+    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+      target: {
+        value: '最近よく保存しているジャンルを教えて',
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(port.postMessage).toHaveBeenCalledWith({
+        history: [],
+        prompt: '最近よく保存しているジャンルを教えて',
+        type: 'run',
+      })
+    })
+
+    handlePortMessage?.({
+      answer: '最近は Frontend 系をよく保存しています。',
+      charts: [
+        {
+          categoryKey: 'label',
+          data: [
+            { count: 3, label: 'Frontend' },
+            { count: 1, label: 'AI' },
+          ],
+          description: '最近保存したカテゴリ比率',
+          series: [
+            {
+              colorToken: 'chart-1',
+              dataKey: 'count',
+              label: '保存数',
+            },
+          ],
+          title: 'よく保存しているジャンル',
+          type: 'pie',
+          valueFormat: 'count',
+        },
+      ],
+      reasoning: '- 使用ツール: 興味推定',
+      recordCount: 4,
+      toolTraces: [],
+      type: 'complete',
+    })
+
+    const answerText = await screen.findByText(
+      '最近は Frontend 系をよく保存しています。',
+    )
+    const chartHeading = await screen.findByRole('heading', {
+      level: 3,
+      name: 'よく保存しているジャンル',
+    })
+    const messageContent = chartHeading.closest('[class*="overflow"]')
+    const assistantMessage = chartHeading.closest('[class*="max-w"]')
+
+    expect(screen.getByText('最近保存したカテゴリ比率')).toBeTruthy()
+    expect(messageContent?.className).toContain('overflow-visible')
+    expect(assistantMessage?.className).toContain('max-w-full')
+    expect(
+      answerText.compareDocumentPosition(chartHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
   it('source URL は tool trace 間で重複しても 1 件にまとめて表示する', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     let handlePortMessage: ((message: unknown) => void) | undefined

@@ -51,6 +51,32 @@ export interface InterestEvidenceEntry {
   count: number
 }
 
+export type AiChartType = 'area' | 'bar' | 'line' | 'pie' | 'radar'
+
+export type AiChartAxisFormat = 'count' | 'date' | 'label' | 'percent'
+
+export interface AiChartSeries {
+  colorToken: string
+  dataKey: string
+  label: string
+}
+
+export type AiChartDatum = Record<string, number | string | null>
+
+export interface AiChartSpec {
+  type: AiChartType
+  title: string
+  data: AiChartDatum[]
+  series: AiChartSeries[]
+  categoryKey?: string
+  description?: string
+  emptyMessage?: string
+  showLegend?: boolean
+  stacked?: boolean
+  valueFormat?: AiChartAxisFormat
+  xKey?: string
+}
+
 export interface InterestInferenceResult {
   summary: string
   isTentative: boolean
@@ -58,4 +84,5 @@ export interface InterestInferenceResult {
     topDomains: InterestEvidenceEntry[]
     topCategories: InterestEvidenceEntry[]
   }
+  chartSpecs: AiChartSpec[]
 }

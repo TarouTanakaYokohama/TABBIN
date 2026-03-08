@@ -880,6 +880,37 @@ describe('runAiChatRequest', () => {
     expect(result.toolTraces).toEqual([])
   })
 
+  it('チャート要求の質問では tool call がなくても interest chart を補助生成する', async () => {
+    mocked.generateText.mockResolvedValue({
+      text: '最近は Frontend 系をよく保存しています。',
+      toolCalls: [],
+      toolResults: [],
+    })
+    mocked.getParentCategories.mockResolvedValue([
+      {
+        domains: ['group-1'],
+        domainNames: ['react.dev'],
+        id: 'parent-1',
+        name: 'Frontend',
+      },
+    ])
+
+    const result = await runAiChatRequest({
+      history: [],
+      prompt: '最近よく保存しているジャンルを円グラフで教えて',
+    })
+
+    expect(result.toolTraces).toEqual([])
+    expect(result.charts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: 'よく保存しているジャンル',
+          type: 'pie',
+        }),
+      ]),
+    )
+  })
+
   it('配列でない tool output は取得済みとみなし、未知の tool 名はそのまま表示する', async () => {
     mocked.generateText.mockResolvedValue({
       text: '検索結果をまとめました。',

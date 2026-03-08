@@ -1,0 +1,140 @@
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { AiChartSpec } from '@/features/ai-chat/types'
+
+const mocked = vi.hoisted(() => ({
+  barChartProps: [] as Record<string, unknown>[],
+  pieProps: [] as Record<string, unknown>[],
+  tooltipProps: [] as Record<string, unknown>[],
+}))
+
+vi.mock('recharts', () => {
+  const passthrough =
+    (testId: string) =>
+    ({ children }: { children?: React.ReactNode }) => (
+      <div data-testid={testId}>{children}</div>
+    )
+
+  return {
+    Area: passthrough('area'),
+    AreaChart: passthrough('area-chart'),
+    Bar: passthrough('bar'),
+    BarChart: (props: Record<string, unknown>) => {
+      mocked.barChartProps.push(props)
+
+      return (
+        <div data-testid='bar-chart'>{props.children as React.ReactNode}</div>
+      )
+    },
+    CartesianGrid: passthrough('cartesian-grid'),
+    Cell: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    Line: passthrough('line'),
+    LineChart: passthrough('line-chart'),
+    Pie: (props: Record<string, unknown>) => {
+      mocked.pieProps.push(props)
+
+      return <div data-testid='pie' />
+    },
+    PieChart: passthrough('pie-chart'),
+    PolarAngleAxis: passthrough('polar-angle-axis'),
+    PolarGrid: passthrough('polar-grid'),
+    Radar: passthrough('radar'),
+    RadarChart: passthrough('radar-chart'),
+    XAxis: passthrough('x-axis'),
+    YAxis: passthrough('y-axis'),
+  }
+})
+
+vi.mock('@/components/ui/chart', () => ({
+  ChartContainer: ({
+    children,
+    className,
+  }: {
+    children?: React.ReactNode
+    className?: string
+  }) => (
+    <div className={className} data-testid='chart-container'>
+      {children}
+    </div>
+  ),
+  ChartLegend: ({ content }: { content?: React.ReactNode }) => (
+    <div data-testid='chart-legend'>{content}</div>
+  ),
+  ChartLegendContent: () => <div data-testid='chart-legend-content' />,
+  ChartTooltip: (props: Record<string, unknown>) => {
+    mocked.tooltipProps.push(props)
+
+    return (
+      <div data-testid='chart-tooltip'>{props.children as React.ReactNode}</div>
+    )
+  },
+  ChartTooltipContent: () => <div data-testid='chart-tooltip-content' />,
+}))
+
+import { AiChartRenderer } from './AiChartRenderer'
+
+const PIE_SPEC: AiChartSpec = {
+  categoryKey: 'label',
+  data: [
+    { count: 3, label: 'Frontend' },
+    { count: 1, label: 'AI' },
+  ],
+  description: '最近保存したカテゴリ比率',
+  series: [
+    {
+      colorToken: 'chart-1',
+      dataKey: 'count',
+      label: '保存数',
+    },
+  ],
+  title: 'よく保存しているジャンル',
+  type: 'pie',
+  valueFormat: 'count',
+}
+
+describe('AiChartRenderer', () => {
+  afterEach(() => {
+    cleanup()
+    mocked.barChartProps.length = 0
+    mocked.pieProps.length = 0
+    mocked.tooltipProps.length = 0
+  })
+
+  it('pie chart を描画する', () => {
+    render(<AiChartRenderer charts={[PIE_SPEC]} />)
+
+    expect(screen.getByTestId('pie')).toBeTruthy()
+    expect(screen.getByTestId('chart-tooltip')).toBeTruthy()
+    expect(mocked.pieProps[0]?.data).toEqual(PIE_SPEC.data)
+    expect(mocked.pieProps[0]?.dataKey).toBe('count')
+    expect(mocked.pieProps[0]?.nameKey).toBe('label')
+    expect(mocked.tooltipProps[0]?.cursor).toBe(false)
+  })
+
+  it('bar chart を描画する', () => {
+    const barSpec: AiChartSpec = {
+      data: [
+        { count: 4, label: '動画' },
+        { count: 2, label: '記事' },
+      ],
+      series: [
+        {
+          colorToken: 'chart-1',
+          dataKey: 'count',
+          label: '保存数',
+        },
+      ],
+      title: 'ジャンル別の保存数',
+      type: 'bar',
+      valueFormat: 'count',
+      xKey: 'label',
+    }
+
+    render(<AiChartRenderer charts={[barSpec]} />)
+
+    expect(screen.getByTestId('bar-chart')).toBeTruthy()
+    expect(screen.getByTestId('chart-tooltip')).toBeTruthy()
+    expect(mocked.barChartProps[0]?.data).toEqual(barSpec.data)
+    expect(screen.getByText('ジャンル別の保存数')).toBeTruthy()
+  })
+})

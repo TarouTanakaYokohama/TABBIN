@@ -3,7 +3,7 @@
  */
 
 import type { DynamicToolUIPart } from 'ai'
-import type { AiChatAttachment } from '@/features/ai-chat/types'
+import type { AiChartSpec, AiChatAttachment } from '@/features/ai-chat/types'
 
 /**
  * ドラッグされたURL情報
@@ -178,6 +178,7 @@ export interface AiChatToolTrace {
 export interface AiChatResponse {
   status: 'ok' | 'error'
   answer?: string
+  charts?: AiChartSpec[]
   recordCount?: number
   reasoning?: string
   toolTraces?: AiChatToolTrace[]
@@ -200,6 +201,7 @@ export interface RunAiChatStreamPortMessage {
 
 export interface AiChatStreamStepMessage {
   type: 'step'
+  charts?: AiChartSpec[]
   reasoning: string
   toolTraces: AiChatToolTrace[]
 }
@@ -207,6 +209,7 @@ export interface AiChatStreamStepMessage {
 export interface AiChatStreamCompleteMessage {
   type: 'complete'
   answer: string
+  charts?: AiChartSpec[]
   recordCount: number
   reasoning: string
   toolTraces: AiChatToolTrace[]
