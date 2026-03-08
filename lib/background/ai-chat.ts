@@ -109,7 +109,7 @@ const createOllamaSetupInstructions = (): string =>
       'Spotlight 検索で「ターミナル」と入力して開きます。',
       '次のコマンドをコピーして貼り付けます。',
       `launchctl setenv OLLAMA_ORIGINS "${configuredOrigin}"`,
-      'Enter キーを押します。',
+      'return キーを押します。',
       'Ollama.app を終了します。',
       'Ollama.app を起動し直します。',
       `FAQ: ${OLLAMA_FAQ_URL}`,
