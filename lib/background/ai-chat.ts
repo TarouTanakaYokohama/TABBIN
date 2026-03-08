@@ -3,6 +3,7 @@ import { createOllama } from 'ai-sdk-ollama'
 import { AI_CHAT_TOOL_TITLES } from '@/constants/aiChatTools'
 import { buildTextAttachmentContext } from '@/features/ai-chat/lib/attachments'
 import { buildAiSavedUrlRecords } from '@/features/ai-chat/lib/buildAiContext'
+import { inferUserInterests } from '@/features/ai-chat/lib/inferInterests'
 import { listSavedUrlPage } from '@/features/ai-chat/lib/savedUrlQuery'
 import {
   buildFinalSystemPrompt,
@@ -10,6 +11,7 @@ import {
   normalizeAiSystemPromptSettings,
 } from '@/features/ai-chat/lib/systemPromptPresets'
 import type {
+  AiChartSpec,
   AiChatAttachment,
   AiSavedUrlRecord,
 } from '@/features/ai-chat/types'
@@ -40,12 +42,14 @@ interface AiChatRequest {
 
 interface AiChatResult {
   answer: string
+  charts: AiChartSpec[]
   recordCount: number
   reasoning: string
   toolTraces: AiChatToolTrace[]
 }
 
 interface AiChatStepUpdate {
+  charts?: AiChartSpec[]
   reasoning: string
   toolTraces: AiChatToolTrace[]
 }
@@ -424,6 +428,45 @@ const mergeToolTraces = (
   return mergedToolTraces
 }
 
+const isChartSpec = (value: unknown): value is AiChartSpec => {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const spec = value as Partial<AiChartSpec>
+
+  return (
+    typeof spec.title === 'string' &&
+    typeof spec.type === 'string' &&
+    Array.isArray(spec.data) &&
+    Array.isArray(spec.series)
+  )
+}
+
+const getChartSpecsFromOutput = (output: unknown): AiChartSpec[] => {
+  if (!output || typeof output !== 'object') {
+    return []
+  }
+
+  const chartSpecs = (output as { chartSpecs?: unknown }).chartSpecs
+  if (!Array.isArray(chartSpecs)) {
+    return []
+  }
+
+  return chartSpecs.filter(isChartSpec)
+}
+
+const getChartsFromToolTraces = (
+  toolTraces: AiChatToolTrace[],
+): AiChartSpec[] =>
+  toolTraces.flatMap(toolTrace => getChartSpecsFromOutput(toolTrace.output))
+
+const CHART_REQUEST_PATTERN =
+  /円グラフ|棒グラフ|線グラフ|レーダー|グラフ|チャート|割合|比率|構成|ジャンル|カテゴリ|傾向/u
+
+const shouldFallbackToInterestCharts = (prompt: string): boolean =>
+  CHART_REQUEST_PATTERN.test(prompt)
+
 const listLocalOllamaModels = async (
   fetchImpl: typeof fetch = fetch,
 ): Promise<OllamaModelOption[]> => {
@@ -583,9 +626,15 @@ const runAiChatRequest = async (
     streamedToolTraces,
     createToolTraces(result),
   )
+  const toolCharts = getChartsFromToolTraces(toolTraces)
+  const fallbackCharts =
+    toolCharts.length === 0 && shouldFallbackToInterestCharts(prompt)
+      ? inferUserInterests(records).chartSpecs
+      : []
 
   return {
     answer: result.text,
+    charts: toolCharts.length > 0 ? toolCharts : fallbackCharts,
     recordCount: records.length,
     reasoning: createReasoningSummary({
       prompt,

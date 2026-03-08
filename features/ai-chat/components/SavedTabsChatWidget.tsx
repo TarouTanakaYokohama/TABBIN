@@ -87,6 +87,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { AI_CHAT_TOOL_DEFINITIONS } from '@/constants/aiChatTools'
+import { AiChartRenderer } from '@/features/ai-chat/components/AiChartRenderer'
 import {
   OllamaErrorNotice,
   type OllamaErrorPlatform,
@@ -105,7 +106,7 @@ import {
   getActiveAiSystemPrompt,
   normalizeAiSystemPromptSettings,
 } from '@/features/ai-chat/lib/systemPromptPresets'
-import type { AiChatAttachment } from '@/features/ai-chat/types'
+import type { AiChartSpec, AiChatAttachment } from '@/features/ai-chat/types'
 import {
   getChromeStorageOnChanged,
   warnMissingChromeStorage,
@@ -129,6 +130,7 @@ import type { AiSystemPromptPreset, UserSettings } from '@/types/storage'
 
 interface ChatMessage {
   attachments?: AiChatAttachment[]
+  charts?: AiChartSpec[]
   id: string
   ollamaError?: OllamaErrorDetails
   role: 'user' | 'assistant'
@@ -278,10 +280,11 @@ const createChatMessage = (
   content: string,
   metadata?: Pick<
     ChatMessage,
-    'attachments' | 'isStreaming' | 'reasoning' | 'toolTraces'
+    'attachments' | 'charts' | 'isStreaming' | 'reasoning' | 'toolTraces'
   >,
 ): ChatMessage => ({
   attachments: metadata?.attachments,
+  charts: metadata?.charts,
   id: createMessageId(),
   role,
   content,
@@ -1114,9 +1117,12 @@ const ChatConversationMessage = ({
     message.role === 'assistant' &&
     message.isStreaming &&
     message.content.length === 0
+  const hasCharts =
+    message.role === 'assistant' &&
+    Boolean(message.charts && message.charts.length > 0)
 
   return (
-    <Message from={message.role}>
+    <Message className={cn(hasCharts && 'max-w-full')} from={message.role}>
       {messageSources.length > 0 ? (
         <Sources
           className='mb-0 rounded-md border border-border/70 bg-background/70 px-3 py-2 text-foreground'
@@ -1152,6 +1158,7 @@ const ChatConversationMessage = ({
           message.role === 'user'
             ? 'bg-primary text-primary-foreground'
             : 'bg-muted text-foreground',
+          hasCharts && 'w-full overflow-visible',
           'wrap-break-word whitespace-pre-wrap',
         )}
       >
@@ -1159,6 +1166,9 @@ const ChatConversationMessage = ({
           <ChatMessageAttachments attachments={message.attachments} />
         ) : null}
         {messageBody}
+        {message.role === 'assistant' ? (
+          <AiChartRenderer charts={message.charts} />
+        ) : null}
         {shouldShowStreamingShimmer ? (
           <Shimmer className='text-sm'>回答を組み立てています...</Shimmer>
         ) : null}
@@ -1589,7 +1599,7 @@ const SavedTabsChatWidget = ({
     content: string,
     metadata?: Pick<
       ChatMessage,
-      'attachments' | 'isStreaming' | 'reasoning' | 'toolTraces'
+      'attachments' | 'charts' | 'isStreaming' | 'reasoning' | 'toolTraces'
     >,
   ) => {
     setMessages(currentMessages => [
@@ -2015,6 +2025,7 @@ const SavedTabsChatWidget = ({
     streamMessage: Extract<AiChatStreamServerMessage, { type: 'complete' }>,
   ) => {
     replaceMessage(assistantMessageId, {
+      charts: streamMessage.charts,
       content: streamMessage.answer,
       isStreaming: false,
       ollamaError: undefined,
@@ -2124,6 +2135,7 @@ const SavedTabsChatWidget = ({
     setMessages(currentMessages => [
       ...currentMessages,
       {
+        charts: [],
         id: assistantMessageId,
         role: 'assistant',
         content: '',
@@ -2188,6 +2200,7 @@ const SavedTabsChatWidget = ({
 
     if (response?.status === 'ok' && response.answer) {
       replaceMessage(assistantMessageId, {
+        charts: response.charts,
         content: response.answer,
         isStreaming: false,
         ollamaError: undefined,

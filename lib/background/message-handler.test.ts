@@ -129,6 +129,20 @@ describe('setupMessageListener', () => {
     const { listener } = setupListener()
     mocked.runAiChatRequest.mockResolvedValue({
       answer: 'assistant answer',
+      charts: [
+        {
+          data: [{ count: 4, label: 'Frontend' }],
+          series: [
+            {
+              colorToken: 'chart-1',
+              dataKey: 'count',
+              label: '保存数',
+            },
+          ],
+          title: 'よく保存しているジャンル',
+          type: 'pie',
+        },
+      ],
       recordCount: 4,
       reasoning: '- 使用ツール: 保存済み URL 一覧',
       toolTraces: [
@@ -167,6 +181,20 @@ describe('setupMessageListener', () => {
     await vi.waitFor(() => {
       expect(sendResponse).toHaveBeenCalledWith({
         answer: 'assistant answer',
+        charts: [
+          {
+            data: [{ count: 4, label: 'Frontend' }],
+            series: [
+              {
+                colorToken: 'chart-1',
+                dataKey: 'count',
+                label: '保存数',
+              },
+            ],
+            title: 'よく保存しているジャンル',
+            type: 'pie',
+          },
+        ],
         recordCount: 4,
         reasoning: '- 使用ツール: 保存済み URL 一覧',
         status: 'ok',
