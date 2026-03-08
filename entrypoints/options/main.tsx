@@ -241,7 +241,7 @@ const OptionsPage = () => {
           </Label>
         </div>
         <p className='mt-1 ml-7 text-muted-foreground text-sm'>
-          オンにすると、保存したURLを別ブラウザへドラッグ&ドロップした際にリストから削除します。
+          オンにすると、保存したタブを別ブラウザへドラッグ&ドロップした際にリストから削除します。
         </p>
 
         {/* 固定タブを除外するオプションを追加 */}
@@ -279,7 +279,7 @@ const OptionsPage = () => {
           </Label>
         </div>
         <p className='mt-1 ml-7 text-muted-foreground text-sm'>
-          オンにすると、URLをバックグラウンドで開きます。
+          オンにすると、保存したタブをバックグラウンドで開きます。
         </p>
 
         {/* 「すべてのタブを開く」を新しいウィンドウで開く設定を追加 */}
@@ -332,11 +332,11 @@ const OptionsPage = () => {
             htmlFor='confirm-delete-each'
             className='cursor-pointer text-foreground'
           >
-            URL削除前に確認する
+            タブ削除前に確認する
           </Label>
         </div>
         <p className='mt-1 ml-7 text-muted-foreground text-sm'>
-          オンにすると、URLを削除する前に確認ダイアログを表示します。
+          オンにすると、タブを削除する前に確認ダイアログを表示します。
         </p>
 
         <div className='mt-6 mb-4 flex items-center space-x-2'>

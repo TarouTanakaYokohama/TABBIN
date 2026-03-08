@@ -261,8 +261,8 @@ const ProjectUrlItemComponent = ({
               }
             }}
             className='h-8 w-8 cursor-pointer p-0'
-            title='URLを削除'
-            aria-label='URLを削除'
+            title='タブを削除'
+            aria-label='タブを削除'
           >
             <X size={14} />
           </Button>
@@ -275,9 +275,9 @@ const ProjectUrlItemComponent = ({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>URLを削除しますか？</AlertDialogTitle>
+            <AlertDialogTitle>タブを削除しますか？</AlertDialogTitle>
             <AlertDialogDescription>
-              このURLを削除します。この操作は元に戻せません。
+              このタブを削除します。この操作は元に戻せません。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

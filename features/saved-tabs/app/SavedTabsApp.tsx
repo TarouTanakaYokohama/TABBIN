@@ -1099,11 +1099,11 @@ const SavedTabsApp = ({
           targetProjectId,
           url,
         )
-        toast.success('URLを移動しました')
+        toast.success('タブを移動しました')
         return null
       } catch (error) {
         console.error('URL移動エラー:', error)
-        toast.error('URLの移動に失敗しました')
+        toast.error('タブの移動に失敗しました')
         return null
       }
     },

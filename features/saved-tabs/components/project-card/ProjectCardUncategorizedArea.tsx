@@ -33,7 +33,7 @@ export const ProjectCardUncategorizedArea = () => {
         data-is-drop-area='true'
         data-uncategorized-area='true'
         data-uncategorized-container='true'
-        aria-label='未分類URLエリア'
+        aria-label='未分類タブエリア'
       >
         {project.categories.length > 0 && (
           <h3
@@ -41,7 +41,7 @@ export const ProjectCardUncategorizedArea = () => {
             data-type='uncategorized'
             data-uncategorized-area='true'
           >
-            未分類のURL
+            未分類のタブ
             {isUncategorizedOver && (
               <span className='text-primary' data-type='uncategorized'>
                 {' '}
@@ -103,7 +103,7 @@ export const ProjectCardUncategorizedArea = () => {
         data-uncategorized-area='true'
         data-uncategorized-container='true'
         data-empty-container='true'
-        aria-label='URLをここにドロップして未分類に移動'
+        aria-label='タブをここにドロップして未分類に移動'
         onClick={() => {
           const selectedUrl = window.getSelection()?.toString()
           if (
@@ -121,7 +121,7 @@ export const ProjectCardUncategorizedArea = () => {
               isUncategorizedOver ? 'text-primary' : 'text-muted-foreground'
             }
           >
-            URLをここにドロップして<strong>未分類</strong>に移動
+            タブをここにドロップして<strong>未分類</strong>に移動
           </span>
         </div>
       </button>

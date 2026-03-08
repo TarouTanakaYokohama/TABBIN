@@ -216,8 +216,8 @@ export const ProjectCardRoot = ({
             onConfirmOpenAll={projectUrlCount >= 10}
             onConfirmDeleteAll={settings.confirmDeleteAll}
             openAllThreshold={10}
-            itemName='すべてのURL'
-            warningMessage='プロジェクト内のすべてのURLを削除します。この操作は元に戻せません。'
+            itemName='すべてのタブ'
+            warningMessage='プロジェクト内のすべてのタブを削除します。この操作は元に戻せません。'
           />
         </CardHeader>
         <CardContent className='overflow-x-hidden'>
@@ -225,7 +225,7 @@ export const ProjectCardRoot = ({
           {isExternalItemOver && (
             <div className='mb-4 rounded border-2 border-primary border-dashed bg-primary/10 p-4 text-center font-medium'>
               <span className='text-primary'>
-                {draggedItem?.title || 'URL'}
+                {draggedItem?.title || 'タブ'}
               </span>{' '}
               をここにドロップして追加
             </div>
@@ -233,7 +233,7 @@ export const ProjectCardRoot = ({
 
           {isProjectReorderMode ? (
             <div className='py-3 text-muted-foreground text-sm'>
-              並び替え中のためカテゴリを折りたたんでいます（URL{' '}
+              並び替え中のためカテゴリを折りたたんでいます（タブ{' '}
               {projectUrlCount}
               件）
             </div>
@@ -244,7 +244,7 @@ export const ProjectCardRoot = ({
               {/* ローディング状態 */}
               {urls.isLoadingUrls && (
                 <div className='py-4 text-center text-muted-foreground'>
-                  URLを読み込み中...
+                  タブを読み込み中...
                 </div>
               )}
 
@@ -253,11 +253,11 @@ export const ProjectCardRoot = ({
                 !isExternalItemOver &&
                 !urls.isLoadingUrls && (
                   <div className='py-4 text-center text-muted-foreground'>
-                    このプロジェクトにはURLがありません。
+                    このプロジェクトにはタブがありません。
                     <br />
                     拡張機能アイコンからタブを保存するか、右クリックメニューから追加できます。
                     <br />
-                    他のプロジェクトからURLをドラッグ&ドロップして追加することもできます。
+                    他のプロジェクトからタブをドラッグ&ドロップして追加することもできます。
                   </div>
                 )}
             </>

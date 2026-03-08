@@ -434,7 +434,7 @@ describe('CustomProjectCategory', () => {
       />,
     )
 
-    expect(screen.getByText(/このカテゴリにはURLがありません/)).toBeTruthy()
+    expect(screen.getByText(/このカテゴリにはタブがありません/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'カテゴリ管理' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'すべて開く' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'すべて削除' })).toBeNull()

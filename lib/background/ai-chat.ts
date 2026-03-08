@@ -181,8 +181,8 @@ const createContextSummary = (records: AiSavedUrlRecord[]): string =>
     })
 
     return [
-      `保存済み URL の件数: ${recentSavedUrlPage.totalItems}`,
-      '最近保存した URL 一覧:',
+      `保存済みタブの件数: ${recentSavedUrlPage.totalItems}`,
+      '最近保存したタブ一覧:',
       ...recentSavedUrlPage.items.map(
         (record, index) =>
           `${index + 1}. ${record.title} | ${record.url} | domain=${record.domain}`,
@@ -349,7 +349,7 @@ const createToolTraces = (
 
 const summarizePromptIntent = (prompt: string): string => {
   if (/どんな|一覧|何が|何の/i.test(prompt)) {
-    return '保存済み URL の一覧確認'
+    return '保存済みタブの一覧確認'
   }
   if (/好き|興味|傾向/i.test(prompt)) {
     return '保存傾向の推定'
@@ -357,7 +357,7 @@ const summarizePromptIntent = (prompt: string): string => {
   if (/月|追加|いつ/i.test(prompt)) {
     return '期間や追加時期の確認'
   }
-  return '保存済み URL の検索と要約'
+  return '保存済みタブの検索と要約'
 }
 
 const summarizeToolTrace = (toolTrace: AiChatToolTrace): string => {
@@ -386,7 +386,7 @@ const createReasoningSummary = ({
 }): string =>
   [
     `- 質問の解釈: ${summarizePromptIntent(prompt)}`,
-    `- 参照対象: 保存済み URL ${recordCount} 件`,
+    `- 参照対象: 保存済みタブ ${recordCount} 件`,
     `- 使用ツール: ${
       toolTraces.length > 0
         ? toolTraces.map(toolTrace => toolTrace.title).join('、')
@@ -394,8 +394,8 @@ const createReasoningSummary = ({
     }`,
     `- 回答方針: ${
       toolTraces.length > 0
-        ? 'ツール結果を保存済み URL の根拠として使って回答しました。'
-        : '保存済み URL の要約コンテキストを直接参照して回答しました。'
+        ? 'ツール結果を保存済みタブの根拠として使って回答しました。'
+        : '保存済みタブの要約コンテキストを直接参照して回答しました。'
     }`,
     ...toolTraces.map(
       toolTrace => `- ${toolTrace.title}: ${summarizeToolTrace(toolTrace)}`,

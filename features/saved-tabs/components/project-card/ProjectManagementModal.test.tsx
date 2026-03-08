@@ -191,7 +191,7 @@ describe('ProjectManagementModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'プロジェクトを削除' }))
     expect(
       screen.getByText(
-        /このプロジェクトに含まれるすべてのURLの紐付けも解除されます/,
+        /このプロジェクトに含まれるすべてのタブとの紐付けも解除されます/,
       ),
     ).toBeTruthy()
 

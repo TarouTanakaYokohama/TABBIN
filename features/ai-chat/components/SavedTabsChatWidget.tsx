@@ -205,7 +205,7 @@ interface SystemPromptManagerDialogProps {
 }
 
 const SUGGESTIONS = [
-  '今月追加したURLを教えて',
+  '今月追加したタブを教えて',
   '最近よく保存しているジャンルは？',
   '私が好きそうなコンテンツを教えて',
 ]
@@ -470,7 +470,7 @@ const requestOllamaModels = async (): Promise<
 const createInitialStreamingReasoning = (prompt: string): string =>
   [
     `- 質問を受け付けました: ${prompt}`,
-    '- 保存済み URL を確認しています。',
+    '- 保存済みタブを確認しています。',
     '- ツールと reasoning は step 完了ごとに更新されます。',
   ].join('\n')
 
@@ -1256,7 +1256,7 @@ const ChatPromptComposer = ({
         disabled={!isConfigured || isSavingModel}
         placeholder={
           isConfigured
-            ? '保存済み URL について質問してください'
+            ? '保存済みタブについて質問してください'
             : '左下で Ollama モデルを選択してください'
         }
       />

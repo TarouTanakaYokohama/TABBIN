@@ -47,7 +47,7 @@ vi.mock('@/lib/storage/settings', () => ({
         id: 'default-system-prompt',
         name: 'デフォルト',
         template:
-          'あなたは TABBIN に保存された URL だけを根拠に答えるアシスタントです。',
+          'あなたは TABBIN に保存されたタブの情報だけを根拠に答えるアシスタントです。',
         updatedAt: 0,
       },
     ],
@@ -146,14 +146,14 @@ const buildConfiguredSettings = (): UserSettings =>
         id: 'default-system-prompt',
         name: 'デフォルト',
         template:
-          'あなたは TABBIN に保存された URL だけを根拠に答えるアシスタントです。',
+          'あなたは TABBIN に保存されたタブの情報だけを根拠に答えるアシスタントです。',
         updatedAt: 0,
       },
       {
         createdAt: 1,
         id: 'research-system-prompt',
         name: 'リサーチ',
-        template: '保存 URL の比較観点を多めに出してください。',
+        template: '保存タブの比較観点を多めに出してください。',
         updatedAt: 1,
       },
     ],
@@ -237,7 +237,7 @@ describe('SavedTabsChatWidget', () => {
     expect(screen.getByLabelText('AIチャットサイドバー')).toBeTruthy()
     expect(onOpenChange).toHaveBeenLastCalledWith(true)
     expect(screen.getByText('(preview)Chat')).toBeTruthy()
-    expect(screen.getByText('今月追加したURLを教えて')).toBeTruthy()
+    expect(screen.getByText('今月追加したタブを教えて')).toBeTruthy()
   })
 
   it('サイドバーの X ボタンで閉じられる', async () => {
@@ -338,7 +338,7 @@ describe('SavedTabsChatWidget', () => {
     const intro = screen.getByTestId('ai-chat-intro')
 
     expect(within(intro).getByText('保存済みタブを質問できます。')).toBeTruthy()
-    expect(within(intro).getByText('今月追加したURLを教えて')).toBeTruthy()
+    expect(within(intro).getByText('今月追加したタブを教えて')).toBeTruthy()
   })
 
   it('入力欄まわりは bottom dock として下端に寄せる', async () => {
@@ -603,7 +603,7 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.change(screen.getByLabelText('AIに質問する'), {
       target: {
-        value: '今月追加したURLを教えて',
+        value: '今月追加したタブを教えて',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -693,7 +693,7 @@ describe('SavedTabsChatWidget', () => {
     expect(saveButton.hasAttribute('disabled')).toBe(true)
 
     fireEvent.change(screen.getByLabelText('システムプロンプト本文'), {
-      target: { value: '保存 URL の比較観点を多めに出してください。' },
+      target: { value: '保存タブの比較観点を多めに出してください。' },
     })
     fireEvent.click(screen.getByText('リサーチ'))
     fireEvent.change(screen.getByLabelText('プロンプト名'), {
@@ -833,7 +833,7 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.change(screen.getByLabelText('AIに質問する'), {
       target: {
-        value: '今月追加したURLを教えて',
+        value: '今月追加したタブを教えて',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -841,7 +841,7 @@ describe('SavedTabsChatWidget', () => {
     await waitFor(() => {
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '今月追加したURLを教えて',
+        prompt: '今月追加したタブを教えて',
         type: 'run',
       })
     })
@@ -872,7 +872,7 @@ describe('SavedTabsChatWidget', () => {
       expect(mocked.writeClipboardText).toHaveBeenCalledWith(
         [
           'ユーザー:',
-          '今月追加したURLを教えて',
+          '今月追加したタブを教えて',
           '',
           'AI:',
           '今月追加した URL は https://react.dev/learn です。',
@@ -901,7 +901,7 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.change(screen.getByLabelText('AIに質問する'), {
       target: {
-        value: '今月追加したURLを教えて',
+        value: '今月追加したタブを教えて',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -941,7 +941,7 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.change(screen.getByLabelText('AIに質問する'), {
       target: {
-        value: '今月追加したURLを教えて',
+        value: '今月追加したタブを教えて',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -949,7 +949,7 @@ describe('SavedTabsChatWidget', () => {
     await waitFor(() => {
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '今月追加したURLを教えて',
+        prompt: '今月追加したタブを教えて',
         type: 'run',
       })
     })
@@ -987,7 +987,7 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.change(screen.getByLabelText('AIに質問する'), {
       target: {
-        value: '今月追加したURLを教えて',
+        value: '今月追加したタブを教えて',
       },
     })
     fireEvent.click(
@@ -1000,7 +1000,7 @@ describe('SavedTabsChatWidget', () => {
       expect(mocked.connectRuntimePort).toHaveBeenCalledWith('ai-chat-stream')
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '今月追加したURLを教えて',
+        prompt: '今月追加したタブを教えて',
         type: 'run',
       })
     })
@@ -1008,7 +1008,7 @@ describe('SavedTabsChatWidget', () => {
     handlePortMessage?.({
       reasoning: [
         '- 質問の解釈: 月別に追加された URL の確認',
-        '- 使用ツール: 保存済み URL 一覧',
+        '- 使用ツール: 保存済みタブ一覧',
       ].join('\n'),
       toolTraces: [
         {
@@ -1023,7 +1023,7 @@ describe('SavedTabsChatWidget', () => {
             },
           ],
           state: 'output-available',
-          title: '保存済み URL 一覧',
+          title: '保存済みタブ一覧',
           toolCallId: 'call-1',
           toolName: 'listSavedUrls',
           type: 'dynamic-tool',
@@ -1046,7 +1046,7 @@ describe('SavedTabsChatWidget', () => {
     expect(
       await screen.findAllByText(
         (_, element) =>
-          element?.textContent?.includes('保存済み URL 一覧') ?? false,
+          element?.textContent?.includes('保存済みタブ一覧') ?? false,
       ),
     ).not.toHaveLength(0)
     expect(
@@ -1059,7 +1059,7 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: /保存済み URL 一覧/,
+        name: /保存済みタブ一覧/,
       }),
     )
 
@@ -1069,7 +1069,7 @@ describe('SavedTabsChatWidget', () => {
       answer: '今月追加した URL は https://react.dev/learn です。',
       reasoning: [
         '- 質問の解釈: 月別に追加された URL の確認',
-        '- 使用ツール: 保存済み URL 一覧',
+        '- 使用ツール: 保存済みタブ一覧',
       ].join('\n'),
       recordCount: 1,
       toolTraces: [
@@ -1085,7 +1085,7 @@ describe('SavedTabsChatWidget', () => {
             },
           ],
           state: 'output-available',
-          title: '保存済み URL 一覧',
+          title: '保存済みタブ一覧',
           toolCallId: 'call-1',
           toolName: 'listSavedUrls',
           type: 'dynamic-tool',
@@ -1146,7 +1146,7 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.change(screen.getByLabelText('AIに質問する'), {
       target: {
-        value: '最近保存したURLを見せて',
+        value: '最近保存したタブを見せて',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -1154,14 +1154,14 @@ describe('SavedTabsChatWidget', () => {
     await waitFor(() => {
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '最近保存したURLを見せて',
+        prompt: '最近保存したタブを見せて',
         type: 'run',
       })
     })
 
     handlePortMessage?.({
       answer: '最近保存した URL をまとめます。',
-      reasoning: '- 使用ツール: 保存済み URL 一覧',
+      reasoning: '- 使用ツール: 保存済みタブ一覧',
       recordCount: 2,
       toolTraces: [
         {
@@ -1184,7 +1184,7 @@ describe('SavedTabsChatWidget', () => {
             totalItems: 2,
           },
           state: 'output-available',
-          title: '保存済み URL 一覧',
+          title: '保存済みタブ一覧',
           toolCallId: 'call-1',
           toolName: 'listSavedUrls',
           type: 'dynamic-tool',
@@ -1205,7 +1205,7 @@ describe('SavedTabsChatWidget', () => {
             totalItems: 2,
           },
           state: 'output-available',
-          title: '保存済み URL 一覧',
+          title: '保存済みタブ一覧',
           toolCallId: 'call-2',
           toolName: 'listSavedUrls',
           type: 'dynamic-tool',
@@ -1259,7 +1259,7 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.change(screen.getByLabelText('AIに質問する'), {
       target: {
-        value: '今月追加したURLを教えて',
+        value: '今月追加したタブを教えて',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -1267,7 +1267,7 @@ describe('SavedTabsChatWidget', () => {
     await waitFor(() => {
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '今月追加したURLを教えて',
+        prompt: '今月追加したタブを教えて',
         type: 'run',
       })
     })
@@ -1349,13 +1349,13 @@ describe('SavedTabsChatWidget', () => {
       }),
     )
 
-    fireEvent.click(screen.getByText('今月追加したURLを教えて'))
+    fireEvent.click(screen.getByText('今月追加したタブを教えて'))
 
     await waitFor(() => {
       expect(mocked.sendRuntimeMessage).toHaveBeenNthCalledWith(1, {
         action: 'runAiChat',
         history: [],
-        prompt: '今月追加したURLを教えて',
+        prompt: '今月追加したタブを教えて',
       })
     })
 
@@ -1375,7 +1375,7 @@ describe('SavedTabsChatWidget', () => {
         action: 'runAiChat',
         history: [
           {
-            content: '今月追加したURLを教えて',
+            content: '今月追加したタブを教えて',
             role: 'user',
           },
           {

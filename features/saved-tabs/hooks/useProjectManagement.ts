@@ -332,10 +332,10 @@ const useProjectManagement = (
         await addUrlToCustomProject(projectId, url, title)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        toast.success('URLを追加しました')
+        toast.success('タブを追加しました')
       } catch (error) {
         console.error('URL追加エラー:', error)
-        toast.error('URLの追加に失敗しました')
+        toast.error('タブの追加に失敗しました')
       }
     },
     [],
@@ -348,10 +348,10 @@ const useProjectManagement = (
         await removeUrlFromCustomProject(projectId, url)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        toast.success('URLを削除しました')
+        toast.success('タブを削除しました')
       } catch (error) {
         console.error('URL削除エラー:', error)
-        toast.error('URLの削除に失敗しました')
+        toast.error('タブの削除に失敗しました')
       }
     },
     [],
@@ -364,10 +364,10 @@ const useProjectManagement = (
         await removeUrlsFromCustomProject(projectId, urls)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        toast.success(`${urls.length}件のURLを削除しました`)
+        toast.success(`${urls.length}件のタブを削除しました`)
       } catch (error) {
         console.error('URL一括削除エラー:', error)
-        toast.error('URLの削除に失敗しました')
+        toast.error('タブの削除に失敗しました')
       }
     },
     [],
@@ -437,7 +437,7 @@ const useProjectManagement = (
         setCustomProjects(updatedProjects)
       } catch (error) {
         console.error('URL分類エラー:', error)
-        toast.error('URLの分類更新に失敗しました')
+        toast.error('タブの分類更新に失敗しました')
       }
     },
     [],
@@ -486,7 +486,7 @@ const useProjectManagement = (
         )
       } catch (error) {
         console.error('URL順序更新エラー:', error)
-        toast.error('URLの順序更新に失敗しました')
+        toast.error('タブの順序更新に失敗しました')
       }
     },
     [],
