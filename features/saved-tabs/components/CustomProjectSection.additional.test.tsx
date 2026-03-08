@@ -98,6 +98,21 @@ vi.mock('@/components/ui/dialog', () => ({
   ),
 }))
 
+vi.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+}))
+
 vi.mock('./CustomProjectCard', async () => {
   const React = await vi.importActual<typeof import('react')>('react')
   const contextModule = await vi.importActual<
@@ -178,7 +193,6 @@ const createProjects = () => [
   {
     id: 'project-1',
     name: 'Project One',
-    description: 'Desc 1',
     categories: [],
     createdAt: 1,
     updatedAt: 1,
@@ -187,7 +201,6 @@ const createProjects = () => [
   {
     id: 'project-2',
     name: 'Project Two',
-    description: 'Desc 2',
     categories: [],
     createdAt: 2,
     updatedAt: 2,
@@ -378,6 +391,23 @@ describe('CustomProjectSection additional', () => {
       'https://cross-project.example.com',
     )
     expect(projectHandlerSpies['project-1']?.clearDragState).toHaveBeenCalled()
+
+    await act(async () => {
+      dndContextPropsRef.current.onDragStart?.({
+        active: {
+          data: {
+            current: {
+              projectId: 'project-1',
+              type: 'project',
+            },
+          },
+          id: 'project-1',
+        },
+      })
+    })
+
+    expect(screen.getByRole('button', { name: '折りたたむ' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'デフォルト' })).toBeTruthy()
 
     dndContextPropsRef.current.onDragEnd?.({
       active: {

@@ -46,6 +46,7 @@ export const Header = ({
   const [isCustomProjectModalOpen, setIsCustomProjectModalOpen] =
     useState(false)
   const [newProjectName, setNewProjectName] = useState('')
+  const normalizedSearchQuery = searchQuery.trim()
   const groupsForDisplay = filteredTabGroups || tabGroups
   const customGroupsForDisplay = filteredCustomProjects || customProjects
   const domainTabCount = groupsForDisplay.reduce((sum, group) => {
@@ -59,6 +60,9 @@ export const Header = ({
   }, 0)
 
   const customTabCount = customGroupsForDisplay.reduce((sum, project) => {
+    if (normalizedSearchQuery.length === 0 && project.urlIds) {
+      return sum + project.urlIds.length
+    }
     if (project.urls) {
       return sum + project.urls.length
     }

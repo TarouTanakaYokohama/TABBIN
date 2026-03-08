@@ -115,7 +115,6 @@ const createProps = (overrides?: Partial<CustomProjectCardProps>) => {
   const project: CustomProjectCardProps['project'] = {
     id: 'project-1',
     name: 'Project A',
-    description: 'Project Description',
     categories: [],
     createdAt: 1,
     updatedAt: 1,
@@ -143,6 +142,7 @@ const createProps = (overrides?: Partial<CustomProjectCardProps>) => {
     draggedItem: overrides?.draggedItem,
     isDropTarget: overrides?.isDropTarget,
     isProjectReorderMode: overrides?.isProjectReorderMode,
+    isCrossProjectUrlDragActive: overrides?.isCrossProjectUrlDragActive,
   }
 }
 
@@ -217,7 +217,7 @@ describe('ProjectCardRoot', () => {
     )
 
     expect(screen.getByText('Project A')).toBeTruthy()
-    expect(screen.getByText('Project Description')).toBeTruthy()
+    expect(screen.queryByText('Project Description')).toBeNull()
 
     // 以前はbutton要素でしたが、CardGroupTitle内でdiv要素に変更され、
     // aria-labelなどは付与されていないため、親の attributes から取得した属性で検証します
@@ -235,6 +235,16 @@ describe('ProjectCardRoot', () => {
       expect.objectContaining({
         handleDragOver: hookState.dnd.handleDragOver,
         handleUrlDragEnd: hookState.dnd.handleUrlDragEnd,
+      }),
+    )
+
+    expect(useDroppableMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'project-header-project-1',
+        data: expect.objectContaining({
+          projectId: 'project-1',
+          type: 'project-header',
+        }),
       }),
     )
   })
@@ -291,11 +301,13 @@ describe('ProjectCardRoot', () => {
       </ProjectCardRoot>,
     )
 
-    expect(screen.getByText('をここにドロップして追加')).toBeTruthy()
     expect(screen.getByText('タブを読み込み中...')).toBeTruthy()
     expect(
       screen.queryByText('このプロジェクトにはタブがありません。'),
     ).toBeNull()
+    expect(
+      screen.getByTestId('card').className.includes('border-primary'),
+    ).toBe(true)
   })
 
   it('ドラッグ中スタイルと外部ドロップ誘導のタイトルfallbackを表示する', () => {
@@ -338,7 +350,9 @@ describe('ProjectCardRoot', () => {
     )
 
     expect(screen.getByTestId('card').style.opacity).toBe('0.5')
-    expect(screen.getByText('タブ')).toBeTruthy()
+    expect(
+      screen.getByTestId('card').className.includes('border-primary'),
+    ).toBe(true)
   })
 
   it('プロジェクト並び替えモードではカテゴリ表示を折りたたむ', () => {
@@ -352,9 +366,43 @@ describe('ProjectCardRoot', () => {
       </ProjectCardRoot>,
     )
 
-    expect(
-      screen.getByText(/並び替え中のためカテゴリを折りたたんでいます/),
-    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: '展開' })).toBeTruthy()
     expect(screen.queryByText('children')).toBeNull()
+  })
+
+  it('プロジェクト間URLドラッグ中はカテゴリ表示を折りたたむ', () => {
+    render(
+      <ProjectCardRoot
+        {...createProps({
+          isCrossProjectUrlDragActive: true,
+        })}
+      >
+        <div>children</div>
+      </ProjectCardRoot>,
+    )
+
+    expect(screen.getByRole('button', { name: '展開' })).toBeTruthy()
+    expect(screen.queryByText('children')).toBeNull()
+  })
+
+  it('折りたたみボタンで表示を切り替え、並び替えボタンでソート順を循環できる', () => {
+    render(
+      <ProjectCardRoot {...createProps()}>
+        <div>children</div>
+      </ProjectCardRoot>,
+    )
+
+    const collapseButton = screen.getByRole('button', { name: '折りたたむ' })
+    fireEvent.click(collapseButton)
+    expect(screen.queryByText('children')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '展開' }))
+    expect(screen.getByText('children')).toBeTruthy()
+
+    const sortButton = screen.getByRole('button', { name: 'デフォルト' })
+    fireEvent.click(sortButton)
+    expect(screen.getByRole('button', { name: '保存日時の昇順' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '保存日時の昇順' }))
+    expect(screen.getByRole('button', { name: '保存日時の降順' })).toBeTruthy()
   })
 })

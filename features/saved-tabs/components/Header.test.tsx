@@ -235,6 +235,65 @@ describe('Header', () => {
     expect(screen.getByText('プロジェクト:1')).toBeTruthy()
   })
 
+  it('custom モードでは検索なしなら urlIds を優先してタブ件数を表示する', () => {
+    const customProjects = [
+      {
+        id: 'custom-project-1',
+        name: 'Project A',
+        categories: [],
+        createdAt: 1,
+        updatedAt: 1,
+        urls: [{ url: 'https://example.com/legacy', title: 'Legacy' }],
+        urlIds: ['url-1', 'url-2', 'url-3'],
+      },
+    ] as CustomProject[]
+
+    render(
+      <Header
+        {...createProps({
+          currentMode: 'custom',
+          customProjects,
+        })}
+      />,
+    )
+
+    expect(screen.getByText('タブ:3')).toBeTruthy()
+    expect(screen.getByText('プロジェクト:1')).toBeTruthy()
+  })
+
+  it('custom モードでは検索中なら filtered urls の件数を優先する', () => {
+    const customProjects = [
+      {
+        id: 'custom-project-1',
+        name: 'Project A',
+        categories: [],
+        createdAt: 1,
+        updatedAt: 1,
+        urlIds: ['url-1', 'url-2', 'url-3'],
+      },
+    ] as CustomProject[]
+    const filteredCustomProjects = [
+      {
+        ...customProjects[0],
+        urls: [{ url: 'https://example.com/matched', title: 'Matched' }],
+      },
+    ] as CustomProject[]
+
+    render(
+      <Header
+        {...createProps({
+          currentMode: 'custom',
+          searchQuery: 'matched',
+          customProjects,
+          filteredCustomProjects,
+        })}
+      />,
+    )
+
+    expect(screen.getByText('タブ:1')).toBeTruthy()
+    expect(screen.getByText('プロジェクト:1')).toBeTruthy()
+  })
+
   it('domain モードで親カテゴリ管理モーダルを開閉し ViewModeToggle を描画する', () => {
     render(<Header {...createProps()} />)
 

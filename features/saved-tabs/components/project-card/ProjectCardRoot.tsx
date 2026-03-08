@@ -2,17 +2,42 @@ import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useEffect, useMemo, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { useDragHandlers } from '../../contexts/DragHandlersContext'
 import { useCustomProjectCard } from '../../hooks/useCustomProjectCard'
+import type { SortOrder } from '../../hooks/useSortOrder'
 import type { CustomProjectCardProps } from '../../types/CustomProjectCard.types'
+import { CardCollapseControl } from '../shared/CardCollapseControl'
 import { CardGroupActions } from '../shared/CardGroupActions'
 import { CardGroupTitle } from '../shared/CardGroupTitle'
+import { CardSortControl } from '../shared/CardSortControl'
 import {
   ProjectCardContext,
   type ProjectCardContextType,
 } from './ProjectCardContext'
 import { ProjectManagementModal } from './ProjectManagementModal'
+
+const sortProjectUrls = <
+  T extends {
+    savedAt?: number
+  },
+>(
+  urls: T[],
+  sortOrder: SortOrder,
+) => {
+  if (sortOrder === 'default') {
+    return urls
+  }
+
+  const sortedUrls = [...urls]
+  sortedUrls.sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0))
+  if (sortOrder === 'desc') {
+    sortedUrls.reverse()
+  }
+
+  return sortedUrls
+}
 
 /** ProjectCardRoot の props */
 interface ProjectCardRootProps {
@@ -26,6 +51,8 @@ interface ProjectCardRootProps {
   isDropTarget?: boolean
   /** プロジェクト並び替え中か */
   isProjectReorderMode?: boolean
+  /** URL のクロスプロジェクトドラッグ中か */
+  isCrossProjectUrlDragActive?: boolean
   /** 操作ハンドラ */
   handlers: ProjectCardContextType['handlers']
   /** useCustomProjectCard に渡すハンドラ */
@@ -47,9 +74,9 @@ interface ProjectCardRootProps {
 export const ProjectCardRoot = ({
   project,
   settings,
-  draggedItem,
   isDropTarget = false,
   isProjectReorderMode = false,
+  isCrossProjectUrlDragActive = false,
   handlers,
   hookHandlers,
   children,
@@ -63,8 +90,18 @@ export const ProjectCardRoot = ({
   })
 
   const [isManagementModalOpen, setIsManagementModalOpen] = useState(false)
+  const [sortOrder, setSortOrder] = useState<SortOrder>('default')
+  const [userCollapsedState, setUserCollapsedState] = useState(false)
 
   const { urls, dnd, categoryOrder } = hookState
+  const sortedProjectUrls = useMemo(
+    () => sortProjectUrls(urls.projectUrls, sortOrder),
+    [urls.projectUrls, sortOrder],
+  )
+  const sortedUncategorizedUrls = useMemo(
+    () => sortedProjectUrls.filter(url => !url.category),
+    [sortedProjectUrls],
+  )
 
   // プロジェクト全体をドラッグ可能にするためのsortable設定
   const {
@@ -99,6 +136,17 @@ export const ProjectCardRoot = ({
       },
     })
 
+  const {
+    setNodeRef: setProjectHeaderDroppableRef,
+    isOver: isProjectHeaderOver,
+  } = useDroppable({
+    id: `project-header-${project.id}`,
+    data: {
+      type: 'project-header',
+      projectId: project.id,
+    },
+  })
+
   // 未分類URLエリア用のドロップ領域
   const { setNodeRef: setUncategorizedDropRef, isOver: isUncategorizedOver } =
     useDroppable({
@@ -132,14 +180,24 @@ export const ProjectCardRoot = ({
 
   // 別プロジェクトからドラッグされているかを判定
   const isExternalItemOver =
-    !isProjectReorderMode && (isProjectOver || isDropTarget)
+    !isProjectReorderMode &&
+    (isProjectOver || isProjectHeaderOver || isDropTarget)
+  const isCollapsed =
+    isProjectReorderMode || isCrossProjectUrlDragActive || userCollapsedState
 
   const projectUrlCount =
-    project.urlIds?.length ?? project.urls?.length ?? urls.projectUrls.length
+    project.urlIds?.length ?? project.urls?.length ?? sortedProjectUrls.length
 
   const contextValue: ProjectCardContextType = useMemo(
     () => ({
-      hookState,
+      hookState: {
+        ...hookState,
+        urls: {
+          ...hookState.urls,
+          projectUrls: sortedProjectUrls,
+          uncategorizedUrls: sortedUncategorizedUrls,
+        },
+      },
       project,
       settings,
       isUncategorizedOver,
@@ -157,8 +215,12 @@ export const ProjectCardRoot = ({
       setUncategorizedDropRef,
       categoryOrder,
       handlers,
+      sortedProjectUrls,
+      sortedUncategorizedUrls,
     ],
   )
+
+  const titleBadges = <Badge variant='secondary'>{projectUrlCount}</Badge>
 
   return (
     <ProjectCardContext value={contextValue}>
@@ -171,11 +233,24 @@ export const ProjectCardRoot = ({
         ref={setCombinedRefs}
         style={style}
       >
-        <CardHeader className='sticky top-0 z-50 my-2 flex-row items-baseline justify-between bg-card px-0 pr-3 pl-1 text-foreground'>
+        <CardHeader
+          className='sticky top-0 z-50 my-2 flex-row items-baseline justify-between bg-card px-3 text-foreground'
+          ref={setProjectHeaderDroppableRef}
+        >
           <div className='flex grow items-center gap-2'>
+            <CardCollapseControl
+              isCollapsed={isCollapsed}
+              setIsCollapsed={setUserCollapsedState}
+              setUserCollapsedState={setUserCollapsedState}
+              isDisabled={isProjectReorderMode}
+            />
+            <CardSortControl
+              sortOrder={sortOrder}
+              setSortOrder={setSortOrder}
+            />
             <CardGroupTitle
               title={project.name}
-              description={project.description}
+              badges={titleBadges}
               sortableAttributes={attributes}
               sortableListeners={listeners}
               className='py-2'
@@ -186,7 +261,7 @@ export const ProjectCardRoot = ({
               projectUrlCount > 0
                 ? () => {
                     handlers.handleOpenAllUrls?.(
-                      urls.projectUrls.map(u => ({
+                      sortedProjectUrls.map(u => ({
                         url: u.url,
                         title: u.title || '',
                       })),
@@ -200,11 +275,11 @@ export const ProjectCardRoot = ({
                     if (handlers.handleDeleteUrlsFromProject) {
                       await handlers.handleDeleteUrlsFromProject(
                         project.id,
-                        urls.projectUrls.map(u => u.url),
+                        sortedProjectUrls.map(u => u.url),
                       )
                     } else {
                       // プロジェクト内のすべてのURLを削除
-                      for (const urlItem of urls.projectUrls) {
+                      for (const urlItem of sortedProjectUrls) {
                         hookHandlers.handleDeleteUrl(project.id, urlItem.url)
                         await new Promise(resolve => setTimeout(resolve, 10))
                       }
@@ -221,23 +296,7 @@ export const ProjectCardRoot = ({
           />
         </CardHeader>
         <CardContent className='overflow-x-hidden'>
-          {/* プロジェクト間ドラッグ中の表示 */}
-          {isExternalItemOver && (
-            <div className='mb-4 rounded border-2 border-primary border-dashed bg-primary/10 p-4 text-center font-medium'>
-              <span className='text-primary'>
-                {draggedItem?.title || 'タブ'}
-              </span>{' '}
-              をここにドロップして追加
-            </div>
-          )}
-
-          {isProjectReorderMode ? (
-            <div className='py-3 text-muted-foreground text-sm'>
-              並び替え中のためカテゴリを折りたたんでいます（タブ{' '}
-              {projectUrlCount}
-              件）
-            </div>
-          ) : (
+          {!isCollapsed && (
             <>
               {children}
 

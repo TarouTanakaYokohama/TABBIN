@@ -12,7 +12,7 @@ export interface CustomProjectSectionProps {
     title: string,
     category?: string,
   ) => void
-  handleCreateProject: (name: string, description?: string) => void
+  handleCreateProject: (name: string) => void
   handleDeleteProject: (projectId: string) => void
   handleRenameProject: (projectId: string, newName: string) => void
   handleAddCategory: (projectId: string, categoryName: string) => void

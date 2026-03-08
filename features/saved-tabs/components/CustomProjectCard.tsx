@@ -29,6 +29,7 @@ const CustomProjectCard = memo(
     draggedItem,
     isDropTarget = false,
     isProjectReorderMode = false,
+    isCrossProjectUrlDragActive = false,
   }: CustomProjectCardProps) => (
     <ProjectCardRoot
       project={project}
@@ -36,6 +37,7 @@ const CustomProjectCard = memo(
       draggedItem={draggedItem}
       isDropTarget={isDropTarget}
       isProjectReorderMode={isProjectReorderMode}
+      isCrossProjectUrlDragActive={isCrossProjectUrlDragActive}
       handlers={{
         handleOpenUrl,
         handleDeleteUrl,

@@ -12,7 +12,7 @@ interface CustomModeContainerProps {
     urls: string[],
   ) => Promise<void>
   handleAddUrl: (projectId: string, url: string, title: string) => Promise<void>
-  handleCreateProject: (name: string, description?: string) => Promise<void>
+  handleCreateProject: (name: string) => Promise<void>
   handleDeleteProject: (projectId: string) => Promise<void>
   handleRenameProject: (projectId: string, newName: string) => Promise<void>
   handleAddCategory: (projectId: string, categoryName: string) => Promise<void>

@@ -6,7 +6,6 @@ const createProjects = (): CustomProject[] => [
   {
     id: 'project-a',
     name: 'Project A',
-    description: 'A',
     categories: ['Todo'],
     urls: [
       {
@@ -28,7 +27,6 @@ const createProjects = (): CustomProject[] => [
   {
     id: 'project-b',
     name: 'Project B',
-    description: 'B',
     categories: ['Inbox'],
     urls: [],
     createdAt: 20,
@@ -151,7 +149,6 @@ describe('moveUrlBetweenProjectsState', () => {
       {
         id: 'project-c',
         name: 'Project C',
-        description: 'C',
         categories: ['Later'],
         urls: [
           {

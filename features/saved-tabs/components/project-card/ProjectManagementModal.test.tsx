@@ -135,7 +135,10 @@ describe('ProjectManagementModal', () => {
     await waitFor(() => {
       expect(onRenameProject).toHaveBeenCalledWith('project-1', 'Project Beta')
     })
-    expect(screen.getByRole('button', { name: 'Project Beta' })).toBeTruthy()
+    expect(
+      screen.getByRole('heading', { name: '「Project Beta」の設定' }),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: '名前を変更' })).toBeTruthy()
   })
 
   it('Escape でリネームをキャンセルし、未設定ハンドラではエラーを握る', async () => {

@@ -62,9 +62,8 @@ interface UseProjectManagementReturn {
   /**
    * 新しいカスタムプロジェクトを作成する。
    * @param name - プロジェクト名
-   * @param description - 説明（省略可）
    */
-  handleCreateProject: (name: string, description?: string) => Promise<void>
+  handleCreateProject: (name: string) => Promise<void>
   /**
    * カスタムプロジェクトを削除する。
    * @param projectId - 削除するプロジェクトの ID
@@ -232,7 +231,7 @@ const useProjectManagement = (
 
   /** 新しいカスタムプロジェクトを作成する */
   const handleCreateProject = useCallback(
-    async (name: string, description?: string): Promise<void> => {
+    async (name: string): Promise<void> => {
       const normalizedName = name.trim()
       const projectKey = normalizedName.toLowerCase()
       if (!normalizedName) {
@@ -244,10 +243,7 @@ const useProjectManagement = (
 
       creatingProjectNamesRef.current.add(projectKey)
       try {
-        const newProject = await createCustomProject(
-          normalizedName,
-          description,
-        )
+        const newProject = await createCustomProject(normalizedName)
         setCustomProjects(prev => {
           const withoutCreated = prev.filter(
             project => project.id !== newProject.id,

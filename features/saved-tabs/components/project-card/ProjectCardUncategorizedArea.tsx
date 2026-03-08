@@ -21,7 +21,7 @@ export const ProjectCardUncategorizedArea = () => {
   if (urls.projectUrls.length > 0 && urls.uncategorizedUrls.length > 0) {
     return (
       <section
-        className={`uncategorized-area uncategorized-drop-zone mt-4 overflow-x-hidden p-4 ${
+        className={`uncategorized-area uncategorized-drop-zone overflow-x-hidden px-4 ${
           isUncategorizedOver
             ? 'rounded border-2 border-primary bg-primary/10 shadow-sm'
             : 'rounded border border-muted border-dashed'
@@ -42,12 +42,6 @@ export const ProjectCardUncategorizedArea = () => {
             data-uncategorized-area='true'
           >
             未分類のタブ
-            {isUncategorizedOver && (
-              <span className='text-primary' data-type='uncategorized'>
-                {' '}
-                (ドロップでカテゴリ解除)
-              </span>
-            )}
           </h3>
         )}
 
@@ -115,15 +109,7 @@ export const ProjectCardUncategorizedArea = () => {
         }}
         type='button'
       >
-        <div className='text-center font-medium'>
-          <span
-            className={
-              isUncategorizedOver ? 'text-primary' : 'text-muted-foreground'
-            }
-          >
-            タブをここにドロップして<strong>未分類</strong>に移動
-          </span>
-        </div>
+        <div className='min-h-8' />
       </button>
     )
   }

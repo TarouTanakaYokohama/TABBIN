@@ -85,7 +85,6 @@ export interface DomainParentCategoryMapping {
 export interface CustomProject {
   id: string
   name: string
-  description?: string
   // 新形式: URLのIDを参照
   urlIds?: string[]
   // 旧形式: 既存データとの互換性のため残す（マイグレーション用）

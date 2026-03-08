@@ -116,7 +116,7 @@ describe('CustomProjectCard', () => {
     expect(screen.getByTestId('project-card-drag-overlay')).toBeTruthy()
   })
 
-  it('isDropTarget と draggedItem の明示値を ProjectCardRoot に渡す', () => {
+  it('isDropTarget と draggedItem と cross-project drag 状態の明示値を ProjectCardRoot に渡す', () => {
     const draggedItem = {
       url: 'https://example.com',
       projectId: 'project-1',
@@ -128,6 +128,7 @@ describe('CustomProjectCard', () => {
         {...createProps({
           draggedItem,
           isDropTarget: true,
+          isCrossProjectUrlDragActive: true,
         })}
       />,
     )
@@ -136,6 +137,7 @@ describe('CustomProjectCard', () => {
       expect.objectContaining({
         draggedItem,
         isDropTarget: true,
+        isCrossProjectUrlDragActive: true,
       }),
     )
   })
