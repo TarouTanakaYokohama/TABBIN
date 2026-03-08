@@ -678,7 +678,7 @@ const CategoryManagementModal = ({
                   onValueChange={setSelectedDomain}
                   disabled={isProcessing}
                 >
-                  <SelectTrigger className='w-full cursor-pointer rounded border p-2'>
+                  <SelectTrigger className='w-full rounded border p-2'>
                     <SelectValue placeholder='カテゴリに追加するドメインを選択' />
                   </SelectTrigger>
                   <SelectContent>

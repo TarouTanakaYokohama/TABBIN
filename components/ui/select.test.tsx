@@ -85,6 +85,7 @@ describe('select ui', () => {
 
     expect(screen.getByText('Current Value').tagName).toBe('SPAN')
     expect(screen.getByRole('button').className).toContain('trigger-extra')
+    expect(screen.getByRole('button').className).toContain('cursor-pointer')
     expect(screen.getByRole('button').className).toContain('justify-between')
     expect(screen.getByText('Group Label').className).toContain('label-extra')
     expect(item?.className).toContain('item-extra')
