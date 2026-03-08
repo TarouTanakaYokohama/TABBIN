@@ -26,10 +26,10 @@ describe('systemPromptPresets', () => {
       }),
     ])
     expect(settings.aiSystemPrompts?.[0]?.template).toContain(
-      'あなたは TABBIN に保存された URL だけを根拠に答えるアシスタントです。',
+      'あなたは TABBIN に保存されたタブの情報だけを根拠に答えるアシスタントです。',
     )
     expect(settings.aiSystemPrompts?.[0]?.template).not.toContain(
-      '保存済み URL の件数:',
+      '保存済みタブの件数:',
     )
   })
 
@@ -139,22 +139,22 @@ describe('systemPromptPresets', () => {
     )
   })
 
-  it('placeholder が無ければ保存 URL context を末尾に追加する', () => {
+  it('placeholder が無ければ保存タブ context を末尾に追加する', () => {
     const prompt = buildFinalSystemPrompt({
-      savedUrlContext: '保存済み URL の件数: 3',
+      savedUrlContext: '保存済みタブの件数: 3',
       template: '保存傾向だけを要約してください。',
     })
 
     expect(prompt).toContain('保存傾向だけを要約してください。')
-    expect(prompt).toContain('保存済み URL の件数: 3')
+    expect(prompt).toContain('保存済みタブの件数: 3')
     expect(prompt.indexOf('保存傾向だけを要約してください。')).toBeLessThan(
-      prompt.indexOf('保存済み URL の件数: 3'),
+      prompt.indexOf('保存済みタブの件数: 3'),
     )
   })
 
-  it('placeholder があればその位置に保存 URL context を差し込む', () => {
+  it('placeholder があればその位置に保存タブ context を差し込む', () => {
     const prompt = buildFinalSystemPrompt({
-      savedUrlContext: '保存済み URL の件数: 5',
+      savedUrlContext: '保存済みタブの件数: 5',
       template: [
         '最初に背景を読むこと。',
         '{{saved_url_context}}',
@@ -163,7 +163,7 @@ describe('systemPromptPresets', () => {
     })
 
     expect(prompt).toContain('最初に背景を読むこと。')
-    expect(prompt).toContain('保存済み URL の件数: 5')
+    expect(prompt).toContain('保存済みタブの件数: 5')
     expect(prompt).toContain('その後に日本語で答えること。')
     expect(prompt).not.toContain('{{saved_url_context}}')
   })

@@ -209,14 +209,14 @@ describe('import-export ユーティリティ', () => {
           id: 'default-system-prompt',
           name: 'デフォルト',
           template:
-            'あなたは TABBIN に保存された URL だけを根拠に答えるアシスタントです。',
+            'あなたは TABBIN に保存されたタブの情報だけを根拠に答えるアシスタントです。',
           updatedAt: 0,
         },
         {
           createdAt: 1,
           id: 'research-system-prompt',
           name: 'リサーチ',
-          template: '保存 URL の比較観点を多めに出してください。',
+          template: '保存タブの比較観点を多めに出してください。',
           updatedAt: 1,
         },
       ],

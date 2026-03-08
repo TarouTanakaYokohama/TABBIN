@@ -404,7 +404,7 @@ describe('runAiChatRequest', () => {
     } as unknown as typeof chrome
   })
 
-  it('保存済み URL 文脈を組み立てて generateText を呼ぶ', async () => {
+  it('保存済みタブ文脈を組み立てて generateText を呼ぶ', async () => {
     const result = await runAiChatRequest({
       history: [
         {
@@ -412,7 +412,7 @@ describe('runAiChatRequest', () => {
           role: 'user',
         },
       ],
-      prompt: '今月追加したURLを教えて',
+      prompt: '今月追加したタブを教えて',
     })
 
     expect(mocked.createOllama).toHaveBeenCalledWith({
@@ -426,7 +426,7 @@ describe('runAiChatRequest', () => {
             role: 'user',
           }),
           expect.objectContaining({
-            content: '今月追加したURLを教えて',
+            content: '今月追加したタブを教えて',
             role: 'user',
           }),
         ]),
@@ -434,7 +434,7 @@ describe('runAiChatRequest', () => {
           modelId: 'llama3.2',
           provider: 'ollama',
         },
-        system: expect.stringContaining('保存済み URL の件数: 1'),
+        system: expect.stringContaining('保存済みタブの件数: 1'),
         tools: expect.objectContaining({
           findUrlsByMonth: expect.any(Object),
           getCurrentDateTime: expect.any(Object),
@@ -457,7 +457,7 @@ describe('runAiChatRequest', () => {
       '今月追加した URL は https://react.dev/learn です。',
     )
     expect(result.recordCount).toBe(1)
-    expect(result.reasoning).toContain('使用ツール: 保存済み URL 一覧')
+    expect(result.reasoning).toContain('使用ツール: 保存済みタブ一覧')
     expect(result.toolTraces).toEqual([
       expect.objectContaining({
         input: {
@@ -471,7 +471,7 @@ describe('runAiChatRequest', () => {
           }),
         ],
         state: 'output-available',
-        title: '保存済み URL 一覧',
+        title: '保存済みタブ一覧',
         toolCallId: 'call-1',
         toolName: 'listSavedUrls',
         type: 'dynamic-tool',
@@ -509,7 +509,7 @@ describe('runAiChatRequest', () => {
 
     await runAiChatRequest({
       history: [],
-      prompt: '今どんな URL がある？',
+      prompt: '今どんなタブがある？',
     })
 
     expect(mocked.generateText).toHaveBeenCalledWith(
@@ -519,7 +519,7 @@ describe('runAiChatRequest', () => {
     )
     expect(mocked.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
-        system: expect.stringContaining('保存済み URL の件数: 1'),
+        system: expect.stringContaining('保存済みタブの件数: 1'),
       }),
     )
     expect(mocked.generateText).toHaveBeenCalledWith(
@@ -782,10 +782,10 @@ describe('runAiChatRequest', () => {
 
     expect(onStepUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        reasoning: expect.stringContaining('使用ツール: 保存済み URL 一覧'),
+        reasoning: expect.stringContaining('使用ツール: 保存済みタブ一覧'),
         toolTraces: [
           expect.objectContaining({
-            title: '保存済み URL 一覧',
+            title: '保存済みタブ一覧',
             toolCallId: 'call-1',
           }),
         ],
@@ -802,7 +802,7 @@ describe('runAiChatRequest', () => {
         options.onStepFinish?.({})
 
         return {
-          text: '保存済み URL を要約しました。',
+          text: '保存済みタブを要約しました。',
           toolCalls: [],
           toolResults: [],
         }
@@ -862,7 +862,7 @@ describe('runAiChatRequest', () => {
 
   it('tool を使わない回答では context 参照の reasoning を返す', async () => {
     mocked.generateText.mockResolvedValue({
-      text: '保存済み URL の傾向をまとめました。',
+      text: '保存済みタブの傾向をまとめました。',
       toolCalls: [],
       toolResults: [],
     })
@@ -874,7 +874,7 @@ describe('runAiChatRequest', () => {
 
     expect(result.reasoning).toContain('質問の解釈: 保存傾向の推定')
     expect(result.reasoning).toContain(
-      '回答方針: 保存済み URL の要約コンテキストを直接参照して回答しました。',
+      '回答方針: 保存済みタブの要約コンテキストを直接参照して回答しました。',
     )
     expect(result.reasoning).toContain('使用ツール: なし')
     expect(result.toolTraces).toEqual([])
@@ -911,7 +911,7 @@ describe('runAiChatRequest', () => {
       prompt: 'React っぽい URL を検索して',
     })
 
-    expect(result.reasoning).toContain('質問の解釈: 保存済み URL の検索と要約')
+    expect(result.reasoning).toContain('質問の解釈: 保存済みタブの検索と要約')
     expect(result.reasoning).toContain('customLookup')
     expect(result.reasoning).toContain('customLookup: 結果を取得しました。')
     expect(result.toolTraces).toEqual([
@@ -927,7 +927,7 @@ describe('runAiChatRequest', () => {
 
   it('paginated tool output では items 件数と totalItems を reasoning に反映する', async () => {
     mocked.generateText.mockResolvedValue({
-      text: '保存済み URL を確認しました。',
+      text: '保存済みタブを確認しました。',
       toolCalls: [
         {
           input: {
@@ -968,12 +968,10 @@ describe('runAiChatRequest', () => {
 
     const result = await runAiChatRequest({
       history: [],
-      prompt: '保存済み URL を1件ずつ見せて',
+      prompt: '保存済みタブを1件ずつ見せて',
     })
 
-    expect(result.reasoning).toContain(
-      '保存済み URL 一覧: 1 件を取得しました。',
-    )
+    expect(result.reasoning).toContain('保存済みタブ一覧: 1 件を取得しました。')
     expect(result.reasoning).toContain('総件数は 3 件です。')
     expect(result.toolTraces).toEqual([
       expect.objectContaining({
@@ -992,7 +990,7 @@ describe('runAiChatRequest', () => {
           totalPages: 3,
         },
         state: 'output-available',
-        title: '保存済み URL 一覧',
+        title: '保存済みタブ一覧',
       }),
     ])
   })
@@ -1019,15 +1017,15 @@ describe('runAiChatRequest', () => {
       prompt: 'どんな URL がある？',
     })
 
-    expect(result.reasoning).toContain('質問の解釈: 保存済み URL の一覧確認')
+    expect(result.reasoning).toContain('質問の解釈: 保存済みタブの一覧確認')
     expect(result.reasoning).toContain(
-      '保存済み URL 一覧: 呼び出し内容を確認しました。',
+      '保存済みタブ一覧: 呼び出し内容を確認しました。',
     )
     expect(result.toolTraces).toEqual([
       expect.objectContaining({
         output: undefined,
         state: 'input-available',
-        title: '保存済み URL 一覧',
+        title: '保存済みタブ一覧',
       }),
     ])
   })
@@ -1065,7 +1063,7 @@ describe('runAiChatRequest', () => {
           ],
         },
       ],
-      text: '保存済み URL を確認しました。',
+      text: '保存済みタブを確認しました。',
       toolCalls: [],
       toolResults: [],
     })
@@ -1075,7 +1073,7 @@ describe('runAiChatRequest', () => {
       prompt: 'どんな URL がある？',
     })
 
-    expect(result.reasoning).toContain('使用ツール: 保存済み URL 一覧')
+    expect(result.reasoning).toContain('使用ツール: 保存済みタブ一覧')
     expect(result.toolTraces).toEqual([
       expect.objectContaining({
         output: [
@@ -1084,7 +1082,7 @@ describe('runAiChatRequest', () => {
           },
         ],
         state: 'output-available',
-        title: '保存済み URL 一覧',
+        title: '保存済みタブ一覧',
         toolCallId: 'call-step-1',
         toolName: 'listSavedUrls',
       }),
@@ -1124,7 +1122,7 @@ describe('runAiChatRequest', () => {
           ],
         },
       ],
-      text: '保存済み URL を確認しました。',
+      text: '保存済みタブを確認しました。',
       toolCalls: [
         {
           input: {
@@ -1177,7 +1175,7 @@ describe('runAiChatRequest', () => {
       prompt: 'どんな URL がある？',
     })
 
-    expect(result.reasoning).toContain('質問の解釈: 保存済み URL の一覧確認')
+    expect(result.reasoning).toContain('質問の解釈: 保存済みタブの一覧確認')
     expect(result.reasoning).toContain('使用ツール: なし')
     expect(result.toolTraces).toEqual([])
   })

@@ -292,7 +292,7 @@ export const ProjectManagementModal = ({
                 プロジェクト「{localProjectName}
                 」を削除しますか？この操作は取り消せません。
                 <span className='mt-1 block max-w-full truncate text-xs'>
-                  このプロジェクトに含まれるすべてのURLの紐付けも解除されます。
+                  このプロジェクトに含まれるすべてのタブとの紐付けも解除されます。
                 </span>
               </p>
               <div className='flex justify-end gap-2'>

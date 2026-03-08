@@ -292,9 +292,9 @@ describe('ProjectCardRoot', () => {
     )
 
     expect(screen.getByText('をここにドロップして追加')).toBeTruthy()
-    expect(screen.getByText('URLを読み込み中...')).toBeTruthy()
+    expect(screen.getByText('タブを読み込み中...')).toBeTruthy()
     expect(
-      screen.queryByText('このプロジェクトにはURLがありません。'),
+      screen.queryByText('このプロジェクトにはタブがありません。'),
     ).toBeNull()
   })
 
@@ -338,7 +338,7 @@ describe('ProjectCardRoot', () => {
     )
 
     expect(screen.getByTestId('card').style.opacity).toBe('0.5')
-    expect(screen.getByText('URL')).toBeTruthy()
+    expect(screen.getByText('タブ')).toBeTruthy()
   })
 
   it('プロジェクト並び替えモードではカテゴリ表示を折りたたむ', () => {

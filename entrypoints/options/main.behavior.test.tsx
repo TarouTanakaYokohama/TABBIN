@@ -319,7 +319,7 @@ describe('options main behavior', () => {
       screen.getByLabelText('すべてのタブを新しいウィンドウで開く'),
     )
     fireEvent.click(screen.getByLabelText('保存日時を表示する'))
-    fireEvent.click(screen.getByLabelText('URL削除前に確認する'))
+    fireEvent.click(screen.getByLabelText('タブ削除前に確認する'))
     fireEvent.click(screen.getByLabelText('すべて削除前に確認する'))
 
     expect(mocked.updateSetting).toHaveBeenCalledWith(

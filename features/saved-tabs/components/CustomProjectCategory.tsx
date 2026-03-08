@@ -107,7 +107,7 @@ const getEmptyCategoryMessage = ({
   if (isDropTarget) {
     return 'ここにドロップしてカテゴリに追加'
   }
-  return 'このカテゴリにはURLがありません。URLをドラッグ＆ドロップで追加できます。'
+  return 'このカテゴリにはタブがありません。タブをドラッグ＆ドロップで追加できます。'
 }
 
 const getReorderStyle = (isReorderTarget: boolean): React.CSSProperties => {
@@ -453,7 +453,7 @@ const CategoryManageDialog = ({
 
           <div className='border-t pt-4'>
             <p className='text-gray-600 text-sm'>
-              カテゴリを削除すると、このカテゴリに属するすべてのURLは未分類になります。
+              カテゴリを削除すると、このカテゴリに属するすべてのタブは未分類になります。
             </p>
             {showDeleteConfirm ? (
               <div className='mt-2 flex justify-end gap-2'>

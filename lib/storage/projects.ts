@@ -214,7 +214,7 @@ const appendUncategorizedProjectToOrder = async (): Promise<void> => {
 const buildUncategorizedProject = (): CustomProject => ({
   id: CUSTOM_UNCATEGORIZED_PROJECT_ID,
   name: CUSTOM_UNCATEGORIZED_PROJECT_NAME,
-  description: '保存されたURLの未分類置き場',
+  description: '保存されたタブの未分類置き場',
   urlIds: [],
   categories: [],
   createdAt: Date.now(),
