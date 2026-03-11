@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const sidebarContextValue = {
   open: true,
@@ -52,11 +58,13 @@ vi.mock('@/components/ui/sidebar', () => ({
   ),
   SidebarMenuSubButton: ({
     children,
+    asChild,
     href,
   }: {
     children: React.ReactNode
+    asChild?: boolean
     href?: string
-  }) => <a href={href}>{children}</a>,
+  }) => (asChild ? children : <a href={href}>{children}</a>),
   SidebarMenuSubItem: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
   ),
@@ -76,6 +84,13 @@ vi.mock('@/components/ui/tooltip', () => ({
 import { ExtensionSidebar } from './ExtensionSidebar'
 
 describe('ExtensionSidebar', () => {
+  afterEach(() => {
+    cleanup()
+    vi.clearAllMocks()
+    sidebarContextValue.open = true
+    sidebarContextValue.sidebarWidth = 256
+  })
+
   it('タブ一覧を先頭に表示し、オプションをフッター最下部に表示する', () => {
     render(
       <ExtensionSidebar
@@ -109,12 +124,10 @@ describe('ExtensionSidebar', () => {
       />,
     )
 
-    const tabListLinks = container.querySelectorAll(
-      'a[href^="saved-tabs.html"]',
-    )
+    const tabListLinks = container.querySelectorAll('a[href^="app.html#"]')
 
     expect(tabListLinks[0]?.getAttribute('href')).toBe(
-      'saved-tabs.html?mode=custom',
+      'app.html#/saved-tabs?mode=custom',
     )
   })
 
@@ -131,6 +144,9 @@ describe('ExtensionSidebar', () => {
     )
 
     const sidebar = within(container)
+    const iconHeaderTrigger = screen.getByRole('button', {
+      name: 'サイドバーを開く',
+    })
     const tabListLink = sidebar
       .getAllByRole('link', { name: 'タブ一覧' })
       .at(-1)
@@ -142,6 +158,11 @@ describe('ExtensionSidebar', () => {
       .getAllByRole('link', { name: 'オプション' })
       .at(-1)
 
+    expect(iconHeaderTrigger.className).toContain('size-11')
+    expect(iconHeaderTrigger.compareDocumentPosition(tabListLink as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+
     for (const link of [tabListLink, chatLink, periodicLink, optionLink]) {
       expect(link?.className).toContain('size-11')
       expect(link?.className).toContain('items-center')
@@ -149,13 +170,80 @@ describe('ExtensionSidebar', () => {
     }
 
     expect(tabListLink?.getAttribute('href')).toBe(
-      'saved-tabs.html?mode=domain',
+      'app.html#/saved-tabs?mode=domain',
     )
     expect(tabListLink?.getAttribute('aria-current')).toBe('page')
     expect(chatLink?.getAttribute('aria-current')).toBeNull()
     expect(periodicLink?.getAttribute('aria-current')).toBeNull()
 
     sidebarContextValue.sidebarWidth = 256
+  })
+
+  it('縮小ヘッダーの開くボタンは固定でサイドバーを開いて幅を通常幅へ戻す', () => {
+    sidebarContextValue.sidebarWidth = 48
+    sidebarContextValue.open = true
+
+    render(
+      <ExtensionSidebar
+        state={{
+          expandedGroup: 'tab-list',
+          item: 'saved-tabs-domain',
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'サイドバーを開く' }))
+
+    expect(sidebarContextValue.setSidebarWidth).toHaveBeenCalledWith(256)
+    expect(sidebarContextValue.setOpen).toHaveBeenCalledWith(true)
+    expect(sidebarContextValue.toggleSidebar).not.toHaveBeenCalled()
+
+    sidebarContextValue.sidebarWidth = 256
+    sidebarContextValue.open = true
+  })
+
+  it('通常幅ではヘッダーに開くボタンを表示しない', () => {
+    sidebarContextValue.sidebarWidth = 256
+
+    const { container } = render(
+      <ExtensionSidebar
+        state={{
+          expandedGroup: 'tab-list',
+          item: 'saved-tabs-domain',
+        }}
+      />,
+    )
+
+    expect(
+      screen.queryByRole('button', { name: 'サイドバーを開く' }),
+    ).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'サイドバーを小さくする' }),
+    ).not.toBeNull()
+    expect(container.querySelector('header > div')?.className).toContain(
+      'justify-between',
+    )
+  })
+
+  it('通常幅ヘッダーの縮小ボタンは icon rail 幅まで戻す', () => {
+    sidebarContextValue.sidebarWidth = 256
+
+    render(
+      <ExtensionSidebar
+        state={{
+          expandedGroup: 'tab-list',
+          item: 'saved-tabs-domain',
+        }}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'サイドバーを小さくする' }),
+    )
+
+    expect(sidebarContextValue.setSidebarWidth).toHaveBeenCalledWith(48)
+    expect(sidebarContextValue.setOpen).toHaveBeenCalledWith(true)
+    expect(sidebarContextValue.toggleSidebar).not.toHaveBeenCalled()
   })
 
   it('縮小時は active 項目をページごとに 1 つだけ切り替える', () => {

@@ -169,14 +169,20 @@ vi.mock('@/features/saved-tabs/components/Footer', () => ({
 vi.mock('@/features/saved-tabs/components/Header', () => ({
   Header: ({
     filteredCustomProjects,
+    showSidebarTrigger,
     onSearchChange,
     searchQuery,
   }: {
     filteredCustomProjects?: CustomProject[]
+    showSidebarTrigger?: boolean
     onSearchChange: (value: string) => void
     searchQuery: string
   }) => {
-    mocked.headerSpy({ filteredCustomProjects, searchQuery })
+    mocked.headerSpy({
+      filteredCustomProjects,
+      searchQuery,
+      showSidebarTrigger,
+    })
     return (
       <label>
         search
@@ -348,5 +354,15 @@ describe('SavedTabsApp custom search', () => {
     render(<SavedTabsApp initialViewMode='custom' />)
 
     expect(window.location.search).toBe('?mode=custom')
+  })
+
+  it('メインコンテンツ側のヘッダートリガーは表示しない', () => {
+    render(<SavedTabsApp />)
+
+    expect(mocked.headerSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showSidebarTrigger: undefined,
+      }),
+    )
   })
 })

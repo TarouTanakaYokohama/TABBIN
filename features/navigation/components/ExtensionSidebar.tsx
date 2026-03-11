@@ -4,8 +4,10 @@ import {
   FolderTree,
   Globe,
   MessageCircleMore,
+  PanelLeft,
   Wrench,
 } from 'lucide-react'
+import { Link, useInRouterContext } from 'react-router-dom'
 import {
   Sidebar,
   SidebarContent,
@@ -29,7 +31,8 @@ import {
 import {
   type SidebarItemId,
   type SidebarState,
-  getPageHref,
+  getAppEntryHref,
+  getAppRoute,
   getSavedTabsHrefForMode,
 } from '@/features/navigation/lib/pageNavigation'
 import { cn } from '@/lib/utils'
@@ -39,25 +42,48 @@ interface ExtensionSidebarProps {
 }
 
 const LinkLabel = ({
-  href,
+  to,
   isActive,
   label,
   children,
 }: {
-  href: string
+  to: string
   isActive: boolean
   label: string
   children: React.ReactNode
-}) => (
-  <a
-    aria-current={isActive ? 'page' : undefined}
-    aria-label={label}
-    className={cn(expandedNavLinkClass, isActive && expandedNavLinkActiveClass)}
-    href={href}
-  >
-    {children}
-  </a>
-)
+}) => {
+  const isInRouterContext = useInRouterContext()
+
+  if (isInRouterContext) {
+    return (
+      <Link
+        aria-current={isActive ? 'page' : undefined}
+        aria-label={label}
+        className={cn(
+          expandedNavLinkClass,
+          isActive && expandedNavLinkActiveClass,
+        )}
+        to={to}
+      >
+        {children}
+      </Link>
+    )
+  }
+
+  return (
+    <a
+      aria-current={isActive ? 'page' : undefined}
+      aria-label={label}
+      className={cn(
+        expandedNavLinkClass,
+        isActive && expandedNavLinkActiveClass,
+      )}
+      href={getAppEntryHref(to)}
+    >
+      {children}
+    </a>
+  )
+}
 
 const topLevelItems: Array<{
   icon: React.ComponentType<{ className?: string }>
@@ -103,67 +129,114 @@ const expandedSubmenuClass =
 const iconRailLinkClass =
   'flex size-11 items-center justify-center rounded-2xl text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
 const ICON_RAIL_WIDTH_PX = 48
+const EXPANDED_SIDEBAR_WIDTH_PX = 256
+const SIDEBAR_WIDTH_STORAGE_KEY = 'tabbin-extension-sidebar-width'
 
 interface RailItem {
-  href: string
   icon: React.ComponentType<{ className?: string }>
   isActive: boolean
   label: string
+  to?: string
+  href?: string
   rel?: string
   target?: string
 }
 
 const IconRailLink = ({
-  href,
   icon: Icon,
   isActive,
   label,
+  to,
+  href,
   rel,
   target,
-}: RailItem) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <a
-        aria-current={isActive ? 'page' : undefined}
-        aria-label={label}
-        className={cn(
-          iconRailLinkClass,
-          isActive
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-            : 'bg-transparent',
+}: RailItem) => {
+  const isInRouterContext = useInRouterContext()
+  const className = cn(
+    iconRailLinkClass,
+    isActive
+      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+      : 'bg-transparent',
+  )
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {to && isInRouterContext ? (
+          <Link
+            aria-current={isActive ? 'page' : undefined}
+            aria-label={label}
+            className={className}
+            data-active={isActive}
+            to={to}
+          >
+            <Icon className='size-5 shrink-0' />
+          </Link>
+        ) : (
+          <a
+            aria-current={isActive ? 'page' : undefined}
+            aria-label={label}
+            className={className}
+            data-active={isActive}
+            href={to ? getAppEntryHref(to) : href}
+            rel={rel}
+            target={target}
+          >
+            <Icon className='size-5 shrink-0' />
+          </a>
         )}
-        data-active={isActive}
-        href={href}
-        rel={rel}
-        target={target}
-      >
-        <Icon className='size-5 shrink-0' />
-      </a>
-    </TooltipTrigger>
-    <TooltipContent side='right' align='center'>
-      {label}
-    </TooltipContent>
-  </Tooltip>
-)
+      </TooltipTrigger>
+      <TooltipContent side='right' align='center'>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
 
 export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
-  const { open, sidebarWidth } = useSidebar()
+  const { open, setOpen, setSidebarWidth, sidebarWidth } = useSidebar()
   const isIconCollapsed = open && sidebarWidth <= ICON_RAIL_WIDTH_PX
+  const handleCollapseSidebar = () => {
+    setOpen(true)
+    setSidebarWidth(ICON_RAIL_WIDTH_PX)
+
+    try {
+      window.localStorage.setItem(
+        SIDEBAR_WIDTH_STORAGE_KEY,
+        String(ICON_RAIL_WIDTH_PX),
+      )
+    } catch {
+      // localStorage が使えない環境では保持をスキップする
+    }
+  }
+  const handleExpandSidebar = () => {
+    setOpen(true)
+    setSidebarWidth(EXPANDED_SIDEBAR_WIDTH_PX)
+
+    try {
+      window.localStorage.setItem(
+        SIDEBAR_WIDTH_STORAGE_KEY,
+        String(EXPANDED_SIDEBAR_WIDTH_PX),
+      )
+    } catch {
+      // localStorage が使えない環境では保持をスキップする
+    }
+  }
   const savedTabsHref = getSavedTabsHrefForMode(
     state.item === 'saved-tabs-custom' ? 'custom' : 'domain',
   )
   const railItems: RailItem[] = [
     {
-      href: savedTabsHref,
       icon: FolderTree,
       isActive: state.item.startsWith('saved-tabs-'),
       label: 'タブ一覧',
+      to: savedTabsHref,
     },
     ...topLevelItems.map(item => ({
-      href: getPageHref(item.id),
       icon: item.icon,
       isActive: state.item === item.id,
       label: item.label,
+      to: getAppRoute(item.id),
     })),
   ]
   const optionItem: RailItem = {
@@ -180,10 +253,48 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
       <SidebarHeader
         className={cn('gap-1 px-3 py-3', isIconCollapsed && 'px-0 py-2')}
       >
-        <div className='flex items-center justify-center gap-2 rounded-lg py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0'>
-          <div className='min-w-0 group-data-[collapsible=icon]:hidden'>
-            <p className='font-semibold text-3xl leading-none'>TABBIN</p>
-          </div>
+        <div className='flex items-center justify-between gap-2 rounded-lg py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0'>
+          {isIconCollapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  aria-label='サイドバーを開く'
+                  className={iconRailLinkClass}
+                  onClick={handleExpandSidebar}
+                  type='button'
+                >
+                  <PanelLeft className='size-5 shrink-0' />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side='right' align='center'>
+                サイドバーを開く
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <div className='flex items-center gap-2'>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    aria-label='サイドバーを小さくする'
+                    className={iconRailLinkClass}
+                    onClick={handleCollapseSidebar}
+                    type='button'
+                  >
+                    <PanelLeft className='size-5 shrink-0' />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side='right' align='center'>
+                  サイドバーを小さくする
+                </TooltipContent>
+              </Tooltip>
+              <div className='min-w-0 group-data-[collapsible=icon]:hidden'>
+                <p className='font-semibold text-3xl leading-none'>TABBIN</p>
+              </div>
+            </div>
+          )}
+          {!isIconCollapsed ? (
+            <div aria-hidden='true' className='size-11 shrink-0' />
+          ) : null}
         </div>
       </SidebarHeader>
 
@@ -208,36 +319,33 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
                     tooltip='タブ一覧'
                     asChild
                   >
-                    <a
-                      aria-current={
-                        state.item.startsWith('saved-tabs-')
-                          ? 'page'
-                          : undefined
-                      }
-                      aria-label='タブ一覧'
-                      className={cn(
-                        expandedNavLinkClass,
-                        state.item.startsWith('saved-tabs-') &&
-                          expandedNavLinkActiveClass,
-                      )}
-                      href={savedTabsHref}
+                    <LinkLabel
+                      to={savedTabsHref}
+                      isActive={state.item.startsWith('saved-tabs-')}
+                      label='タブ一覧'
                     >
                       <FolderTree className='size-5 shrink-0' />
                       <span className='group-data-[collapsible=icon]:hidden'>
                         タブ一覧
                       </span>
-                    </a>
+                    </LinkLabel>
                   </SidebarMenuButton>
                   <SidebarMenuSub className={expandedSubmenuClass}>
                     {tabListItems.map(item => (
                       <SidebarMenuSubItem key={item.id}>
                         <SidebarMenuSubButton
+                          asChild
                           className='h-11 gap-3 rounded-xl px-4 text-base'
-                          href={getPageHref(item.id)}
                           isActive={state.item === item.id}
                         >
-                          <item.icon className='size-4' />
-                          <span>{item.label}</span>
+                          <LinkLabel
+                            to={getAppRoute(item.id)}
+                            isActive={state.item === item.id}
+                            label={item.label}
+                          >
+                            <item.icon className='size-4' />
+                            <span>{item.label}</span>
+                          </LinkLabel>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     ))}
@@ -253,7 +361,7 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
                       asChild
                     >
                       <LinkLabel
-                        href={getPageHref(item.id)}
+                        to={getAppRoute(item.id)}
                         isActive={state.item === item.id}
                         label={item.label}
                       >

@@ -11,6 +11,8 @@ interface SidebarState {
   item: SidebarItemId
 }
 
+const APP_ENTRY_PATH = 'app.html'
+
 const getNormalizedPathname = (pathname: string): string => {
   const parts = pathname.split('/')
   return parts.at(-1) || 'saved-tabs.html'
@@ -29,14 +31,20 @@ const getSidebarStateFromLocation = (
 ): SidebarState => {
   const normalizedPathname = getNormalizedPathname(pathname)
 
-  if (normalizedPathname === 'ai-chat.html') {
+  if (
+    normalizedPathname === 'ai-chat.html' ||
+    normalizedPathname === 'ai-chat'
+  ) {
     return {
       expandedGroup: 'tab-list',
       item: 'ai-chat',
     }
   }
 
-  if (normalizedPathname === 'periodic-execution.html') {
+  if (
+    normalizedPathname === 'periodic-execution.html' ||
+    normalizedPathname === 'periodic-execution'
+  ) {
     return {
       expandedGroup: 'tab-list',
       item: 'periodic-execution',
@@ -52,6 +60,21 @@ const getSidebarStateFromLocation = (
   }
 }
 
+const getAppRoute = (item: SidebarItemId): string => {
+  switch (item) {
+    case 'ai-chat':
+      return '/ai-chat'
+    case 'periodic-execution':
+      return '/periodic-execution'
+    case 'saved-tabs-custom':
+      return '/saved-tabs?mode=custom'
+    case 'saved-tabs-domain':
+      return '/saved-tabs?mode=domain'
+  }
+}
+
+const getAppEntryHref = (route: string): string => `${APP_ENTRY_PATH}#${route}`
+
 const getPageHref = (item: SidebarItemId): string => {
   switch (item) {
     case 'ai-chat':
@@ -66,10 +89,31 @@ const getPageHref = (item: SidebarItemId): string => {
 }
 
 const getSavedTabsHrefForMode = (mode: ViewMode): string =>
-  getPageHref(mode === 'custom' ? 'saved-tabs-custom' : 'saved-tabs-domain')
+  getAppRoute(mode === 'custom' ? 'saved-tabs-custom' : 'saved-tabs-domain')
+
+const getLegacyRedirectHref = (pathname: string, search: string): string => {
+  const normalizedPathname = getNormalizedPathname(pathname)
+
+  if (normalizedPathname === 'ai-chat.html') {
+    return getAppEntryHref(getAppRoute('ai-chat'))
+  }
+
+  if (normalizedPathname === 'periodic-execution.html') {
+    return getAppEntryHref(getAppRoute('periodic-execution'))
+  }
+
+  const mode = getSavedTabsModeFromLocation(search)
+  return getAppEntryHref(
+    getAppRoute(mode === 'custom' ? 'saved-tabs-custom' : 'saved-tabs-domain'),
+  )
+}
 
 export type { SidebarItemId, SidebarState }
 export {
+  APP_ENTRY_PATH,
+  getAppEntryHref,
+  getAppRoute,
+  getLegacyRedirectHref,
   getPageHref,
   getSavedTabsHrefForMode,
   getSavedTabsModeFromLocation,
