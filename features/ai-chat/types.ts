@@ -68,6 +68,13 @@ export interface AiChatConversation {
   updatedAt: number
 }
 
+export interface AiChatHistoryItem {
+  id: string
+  isActive: boolean
+  preview: string
+  title: string
+}
+
 export interface InterestEvidenceEntry {
   value: string
   count: number

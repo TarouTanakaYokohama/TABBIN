@@ -2,6 +2,7 @@ import {
   Check,
   ChevronDown,
   Copy,
+  History,
   MessageCircleMore,
   Paperclip,
   Plus,
@@ -73,12 +74,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
@@ -109,6 +116,7 @@ import {
 import type {
   AiChatAttachment,
   AiChatConversationMessage,
+  AiChatHistoryItem,
 } from '@/features/ai-chat/types'
 import {
   getChromeStorageOnChanged,
@@ -142,6 +150,8 @@ interface SavedTabsChatPanelProps {
   activeSystemPromptId: string
   chatErrorMessage: string
   chatOllamaError?: OllamaErrorDetails
+  historyItems: AiChatHistoryItem[]
+  historyVariant: 'dropdown' | 'none' | 'sidebar-toggle'
   input: string
   isConversationCopied: boolean
   isCopyDisabled: boolean
@@ -161,15 +171,18 @@ interface SavedTabsChatPanelProps {
   }[]
   onClose: () => void
   onCopyConversation: () => void
+  onDeleteHistoryItem?: (conversationId: string) => void
   onFetchModels: () => void
   onInputChange: (value: string) => void
   onOpenSystemPromptManager: () => void
   onResetConversation: () => void
   onResizeStart: (event: React.PointerEvent<HTMLButtonElement>) => void
+  onSelectHistoryItem?: (conversationId: string) => void
   onSelectModel: (modelName: string) => Promise<boolean>
   onSelectSuggestion: (value: string) => void
   onSelectSystemPrompt: (promptId: string) => void
   onSubmit: PromptInputProps['onSubmit']
+  onToggleHistory?: () => void
   platform: OllamaErrorPlatform
   sidebarWidth: number
   title: string
@@ -180,12 +193,19 @@ interface SavedTabsChatPanelProps {
 }
 
 interface SavedTabsChatWidgetProps {
+  conversationId?: string
   defaultOpen?: boolean
+  historyItems?: AiChatHistoryItem[]
+  historyVariant?: 'dropdown' | 'none' | 'sidebar-toggle'
   initialMessages?: ChatMessage[]
   mode?: 'floating' | 'page'
+  title?: string
   onCreateConversation?: () => void
+  onDeleteHistoryItem?: (conversationId: string) => void
   onMessagesChange?: (messages: ChatMessage[]) => void
   onOpenChange?: (isOpen: boolean) => void
+  onSelectHistoryItem?: (conversationId: string) => void
+  onToggleHistory?: () => void
 }
 
 interface SystemPromptManagerDialogProps {
@@ -221,6 +241,7 @@ const CHAT_SIDEBAR_VIEWPORT_GUTTER = 48
 const COPIED_CONVERSATION_ICON_TIMEOUT = 2000
 const SYSTEM_PROMPT_SELECTOR_EMPTY_VALUE = '__no-system-prompt__'
 const EMPTY_CHAT_MESSAGES: ChatMessage[] = []
+const EMPTY_HISTORY_ITEMS: AiChatHistoryItem[] = []
 
 const createMessageId = (): string =>
   `${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -919,29 +940,196 @@ const SystemPromptManagerDialog = ({
   )
 }
 
+const ChatHistoryButton = ({ onClick }: { onClick?: () => void }) => (
+  <TooltipProvider delayDuration={0}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type='button'
+          variant='ghost'
+          size='icon'
+          aria-label='会話履歴'
+          onClick={onClick}
+        >
+          <History className='size-4' />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side='bottom'>会話履歴</TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+)
+
+const ChatHistoryDropdown = ({
+  historyItems,
+  onDeleteHistoryItem,
+  onSelectHistoryItem,
+}: {
+  historyItems: AiChatHistoryItem[]
+  onDeleteHistoryItem?: (conversationId: string) => void
+  onSelectHistoryItem?: (conversationId: string) => void
+}) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [pendingDeleteHistoryItem, setPendingDeleteHistoryItem] =
+    useState<AiChatHistoryItem | null>(null)
+
+  return (
+    <>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type='button'
+            variant='ghost'
+            size='icon'
+            aria-label='会話履歴'
+          >
+            <History className='size-4' />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align='start'
+          className='w-72 space-y-2 p-2'
+          side='bottom'
+        >
+          <div className='px-2 py-1'>
+            <p className='font-medium text-sm'>会話履歴</p>
+            <p className='text-muted-foreground text-xs'>
+              保存済みの会話から再開できます
+            </p>
+          </div>
+
+          <div className='max-h-80 space-y-1 overflow-y-auto'>
+            {historyItems.length > 0 ? (
+              historyItems.map(historyItem => (
+                <div
+                  key={historyItem.id}
+                  className={cn(
+                    'rounded-xl border px-3 py-2.5 transition',
+                    historyItem.isActive
+                      ? 'border-border bg-muted/50'
+                      : 'border-transparent hover:bg-muted/40',
+                  )}
+                >
+                  <div className='flex items-start gap-2'>
+                    <button
+                      type='button'
+                      className='min-w-0 flex-1 text-left'
+                      onClick={() => {
+                        onSelectHistoryItem?.(historyItem.id)
+                        setIsOpen(false)
+                      }}
+                    >
+                      <p className='truncate font-medium text-sm'>
+                        {historyItem.title}
+                      </p>
+                      <p className='mt-1 line-clamp-2 text-muted-foreground text-xs leading-5'>
+                        {historyItem.preview}
+                      </p>
+                    </button>
+                    {onDeleteHistoryItem ? (
+                      <Button
+                        type='button'
+                        variant='ghost'
+                        size='icon-sm'
+                        aria-label={`${historyItem.title}を削除`}
+                        className='shrink-0 text-muted-foreground hover:text-destructive'
+                        onClick={event => {
+                          event.stopPropagation()
+                          setIsOpen(false)
+                          setPendingDeleteHistoryItem(historyItem)
+                        }}
+                      >
+                        <Trash2 className='size-4' />
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className='rounded-xl px-3 py-4 text-muted-foreground text-sm'>
+                保存済みの会話はまだありません
+              </div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <Dialog
+        open={pendingDeleteHistoryItem !== null}
+        onOpenChange={open => {
+          if (!open) {
+            setPendingDeleteHistoryItem(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>この会話を削除しますか？</DialogTitle>
+            <DialogDescription>削除すると元に戻せません。</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => {
+                setPendingDeleteHistoryItem(null)
+              }}
+            >
+              キャンセル
+            </Button>
+            <Button
+              type='button'
+              variant='destructive'
+              onClick={() => {
+                if (!pendingDeleteHistoryItem) {
+                  return
+                }
+
+                onDeleteHistoryItem?.(pendingDeleteHistoryItem.id)
+                setPendingDeleteHistoryItem(null)
+              }}
+            >
+              削除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
 const ChatSidebarHeader = ({
   activeSystemPromptId,
+  historyItems,
+  historyVariant,
   isConversationCopied,
   isCopyDisabled,
   isCompactLayout,
   onClose,
   onCopyConversation,
+  onDeleteHistoryItem,
   onOpenSystemPromptManager,
   onResetConversation,
+  onSelectHistoryItem,
   onSelectSystemPrompt,
+  onToggleHistory,
   systemPrompts,
   title,
   showCloseButton,
 }: {
   activeSystemPromptId: string
+  historyItems: AiChatHistoryItem[]
+  historyVariant: 'dropdown' | 'none' | 'sidebar-toggle'
   isConversationCopied: boolean
   isCopyDisabled: boolean
   isCompactLayout: boolean
   onClose: () => void
   onCopyConversation: () => void
+  onDeleteHistoryItem?: (conversationId: string) => void
   onOpenSystemPromptManager: () => void
   onResetConversation: () => void
+  onSelectHistoryItem?: (conversationId: string) => void
   onSelectSystemPrompt: (promptId: string) => void
+  onToggleHistory?: () => void
   showCloseButton: boolean
   systemPrompts: AiSystemPromptPreset[]
   title: string
@@ -949,11 +1137,24 @@ const ChatSidebarHeader = ({
   <CardHeader className='items-center border-border border-b px-4 py-4 text-center'>
     <div
       className={cn(
-        'relative flex w-full items-center justify-center',
+        'relative flex w-full items-center justify-between gap-2',
         isCompactLayout && 'min-h-10',
       )}
     >
-      <div className='absolute top-1/2 left-0 flex max-w-[calc(50%-84px)] -translate-y-1/2 items-center gap-2'>
+      <div
+        className='z-10 flex min-w-0 items-center gap-1'
+        data-testid='ai-chat-header-left-controls'
+      >
+        {historyVariant === 'sidebar-toggle' ? (
+          <ChatHistoryButton onClick={onToggleHistory} />
+        ) : null}
+        {historyVariant === 'dropdown' ? (
+          <ChatHistoryDropdown
+            historyItems={historyItems}
+            onDeleteHistoryItem={onDeleteHistoryItem}
+            onSelectHistoryItem={onSelectHistoryItem}
+          />
+        ) : null}
         <TooltipProvider delayDuration={0}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -981,10 +1182,11 @@ const ChatSidebarHeader = ({
         />
       </div>
 
-      <CardTitle className='flex w-full items-center justify-center gap-2 text-base'>
-        {title}
+      <CardTitle className='pointer-events-none absolute inset-x-0 flex items-center justify-center px-20 text-base'>
+        <span className='truncate'>{title}</span>
       </CardTitle>
-      <div className='absolute top-1/2 right-0 flex -translate-y-1/2 items-center gap-1'>
+
+      <div className='z-10 flex items-center justify-end gap-1'>
         <TooltipProvider delayDuration={0}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -1333,6 +1535,8 @@ const SavedTabsChatPanel = ({
   activeSystemPromptId,
   chatErrorMessage,
   chatOllamaError,
+  historyItems,
+  historyVariant,
   input,
   isConversationCopied,
   isCopyDisabled,
@@ -1349,15 +1553,18 @@ const SavedTabsChatPanel = ({
   modelOptions,
   onClose,
   onCopyConversation,
+  onDeleteHistoryItem,
   onFetchModels,
   onInputChange,
   onOpenSystemPromptManager,
   onResetConversation,
   onResizeStart,
+  onSelectHistoryItem,
   onSelectModel,
   onSelectSuggestion,
   onSelectSystemPrompt,
   onSubmit,
+  onToggleHistory,
   platform,
   sidebarWidth,
   title,
@@ -1404,14 +1611,19 @@ const SavedTabsChatPanel = ({
     >
       <ChatSidebarHeader
         activeSystemPromptId={activeSystemPromptId}
+        historyItems={historyItems}
+        historyVariant={historyVariant}
         isConversationCopied={isConversationCopied}
         isCopyDisabled={isCopyDisabled}
         isCompactLayout={isCompactLayout}
         onClose={onClose}
         onCopyConversation={onCopyConversation}
+        onDeleteHistoryItem={onDeleteHistoryItem}
         onOpenSystemPromptManager={onOpenSystemPromptManager}
         onResetConversation={onResetConversation}
+        onSelectHistoryItem={onSelectHistoryItem}
         onSelectSystemPrompt={onSelectSystemPrompt}
+        onToggleHistory={onToggleHistory}
         showCloseButton={showCloseButton}
         systemPrompts={systemPrompts}
         title={title}
@@ -1500,12 +1712,19 @@ const SavedTabsChatPanel = ({
 }
 
 const SavedTabsChatWidget = ({
+  conversationId,
   defaultOpen = false,
+  historyItems = EMPTY_HISTORY_ITEMS,
+  historyVariant = 'none',
   initialMessages = EMPTY_CHAT_MESSAGES,
   mode = 'floating',
+  title = 'チャット',
   onCreateConversation,
+  onDeleteHistoryItem,
   onMessagesChange,
   onOpenChange,
+  onSelectHistoryItem,
+  onToggleHistory,
 }: SavedTabsChatWidgetProps = {}) => {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [isOpen, setIsOpen] = useState(defaultOpen || mode === 'page')
@@ -1538,6 +1757,7 @@ const SavedTabsChatWidget = ({
   const [draftActivePromptId, setDraftActivePromptId] = useState('')
   const [promptManagerError, setPromptManagerError] = useState('')
   const [isSavingPrompts, setIsSavingPrompts] = useState(false)
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
   const activePortRef = useRef<{
     disconnect: () => void
   } | null>(null)
@@ -1547,36 +1767,44 @@ const SavedTabsChatWidget = ({
   const sidebarWidthRef = useRef(DEFAULT_CHAT_SIDEBAR_WIDTH)
   const conversationCopiedTimeoutRef = useRef<number | null>(null)
   const messagesRef = useRef<ChatMessage[]>(initialMessages)
+  const syncedConversationIdRef = useRef<string | undefined>(conversationId)
 
   useEffect(() => {
     sidebarWidthRef.current = sidebarWidth
   }, [sidebarWidth])
 
   useEffect(() => {
-    messagesRef.current = messages
-  }, [messages])
+    const shouldSyncExternalConversation =
+      typeof conversationId === 'string' || mode === 'page'
 
-  useEffect(() => {
-    if (mode !== 'page') {
+    if (!shouldSyncExternalConversation) {
       return
     }
 
-    if (areMessagesEquivalent(initialMessages, messagesRef.current)) {
+    const isSameConversationId =
+      syncedConversationIdRef.current === conversationId
+
+    if (
+      isSameConversationId &&
+      areMessagesEquivalent(initialMessages, messagesRef.current)
+    ) {
       return
     }
 
+    syncedConversationIdRef.current = conversationId
+    messagesRef.current = initialMessages
     setMessages(initialMessages)
-  }, [initialMessages, mode])
+    setInput('')
+    setErrorMessage('')
+    setChatOllamaError(undefined)
+    setIsSubmitting(false)
+  }, [conversationId, initialMessages, mode])
 
   useEffect(() => {
     if (mode === 'page') {
       setIsOpen(true)
     }
   }, [mode])
-
-  useEffect(() => {
-    onMessagesChange?.(messages)
-  }, [messages, onMessagesChange])
 
   useEffect(() => {
     let isMounted = true
@@ -1644,6 +1872,7 @@ const SavedTabsChatWidget = ({
 
   useEffect(() => {
     const handleWindowResize = () => {
+      setViewportWidth(window.innerWidth)
       setSidebarWidth(currentWidth => clampSidebarWidth(currentWidth))
     }
 
@@ -1657,41 +1886,61 @@ const SavedTabsChatWidget = ({
   const resolvedSettings = getResolvedSettings(settings)
   const activeSystemPrompt = getActiveAiSystemPrompt(resolvedSettings)
   const isConfigured = isAiChatConfigured(resolvedSettings)
-  const isCompactLayout = sidebarWidth <= 360
+  const isCompactLayout =
+    mode === 'page' ? viewportWidth < 768 : sidebarWidth <= 360
 
-  const appendMessage = (
-    role: ChatMessage['role'],
-    content: string,
-    metadata?: Pick<
-      ChatMessage,
-      'attachments' | 'charts' | 'isStreaming' | 'reasoning' | 'toolTraces'
-    >,
-  ) => {
-    setMessages(currentMessages => [
-      ...currentMessages,
-      createChatMessage(role, content, metadata),
-    ])
+  const setMessagesState = (nextMessages: ChatMessage[]) => {
+    messagesRef.current = nextMessages
+    setMessages(nextMessages)
+  }
+
+  const updateMessageList = (
+    update: (currentMessages: ChatMessage[]) => ChatMessage[],
+    options?: {
+      commit?: boolean
+    },
+  ): ChatMessage[] => {
+    const nextMessages = update(messagesRef.current)
+    setMessagesState(nextMessages)
+
+    if (options?.commit) {
+      onMessagesChange?.(nextMessages)
+    }
+
+    return nextMessages
   }
 
   const replaceMessage = (
     messageId: string,
     nextMessage: Partial<ChatMessage>,
+    options?: {
+      commit?: boolean
+    },
   ) => {
-    setMessages(currentMessages =>
-      currentMessages.map(message =>
-        message.id === messageId
-          ? {
-              ...message,
-              ...nextMessage,
-            }
-          : message,
-      ),
+    return updateMessageList(
+      currentMessages =>
+        currentMessages.map(message =>
+          message.id === messageId
+            ? {
+                ...message,
+                ...nextMessage,
+              }
+            : message,
+        ),
+      options,
     )
   }
 
-  const removeMessage = (messageId: string) => {
-    setMessages(currentMessages =>
-      currentMessages.filter(message => message.id !== messageId),
+  const removeMessage = (
+    messageId: string,
+    options?: {
+      commit?: boolean
+    },
+  ) => {
+    return updateMessageList(
+      currentMessages =>
+        currentMessages.filter(message => message.id !== messageId),
+      options,
     )
   }
 
@@ -1802,7 +2051,7 @@ const SavedTabsChatWidget = ({
     }
     conversationGenerationRef.current += 1
     disconnectActivePort(true)
-    setMessages([])
+    setMessagesState([])
     setIsConversationCopied(false)
     setInput('')
     setErrorMessage('')
@@ -1811,7 +2060,7 @@ const SavedTabsChatWidget = ({
   }
 
   const handleConversationAction = () => {
-    if (mode === 'page' && onCreateConversation) {
+    if (onCreateConversation) {
       onCreateConversation()
       return
     }
@@ -2062,13 +2311,17 @@ const SavedTabsChatWidget = ({
     setChatOllamaError(ollamaError)
 
     if (ollamaError?.kind === 'forbidden') {
-      removeMessage(assistantMessageId)
+      removeMessage(assistantMessageId, { commit: true })
     } else {
-      replaceMessage(assistantMessageId, {
-        content: nextError,
-        isStreaming: false,
-        ollamaError,
-      })
+      replaceMessage(
+        assistantMessageId,
+        {
+          content: nextError,
+          isStreaming: false,
+          ollamaError,
+        },
+        { commit: true },
+      )
     }
 
     setIsSubmitting(false)
@@ -2098,14 +2351,18 @@ const SavedTabsChatWidget = ({
     streamPort: { disconnect: () => void },
     streamMessage: Extract<AiChatStreamServerMessage, { type: 'complete' }>,
   ) => {
-    replaceMessage(assistantMessageId, {
-      charts: streamMessage.charts,
-      content: streamMessage.answer,
-      isStreaming: false,
-      ollamaError: undefined,
-      reasoning: streamMessage.reasoning,
-      toolTraces: streamMessage.toolTraces,
-    })
+    replaceMessage(
+      assistantMessageId,
+      {
+        charts: streamMessage.charts,
+        content: streamMessage.answer,
+        isStreaming: false,
+        ollamaError: undefined,
+        reasoning: streamMessage.reasoning,
+        toolTraces: streamMessage.toolTraces,
+      },
+      { commit: true },
+    )
     setChatOllamaError(undefined)
     setIsSubmitting(false)
     disconnectStreamPort(streamPort)
@@ -2201,23 +2458,26 @@ const SavedTabsChatWidget = ({
       content: message.content,
     }))
 
-    appendMessage('user', nextPrompt, {
-      attachments,
-    })
     const assistantMessageId = createMessageId()
     const requestGeneration = conversationGenerationRef.current
-    setMessages(currentMessages => [
-      ...currentMessages,
-      {
-        charts: [],
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        isStreaming: true,
-        reasoning: createInitialStreamingReasoning(nextPrompt),
-        toolTraces: [],
-      },
-    ])
+    updateMessageList(
+      currentMessages => [
+        ...currentMessages,
+        createChatMessage('user', nextPrompt, {
+          attachments,
+        }),
+        {
+          charts: [],
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          isStreaming: true,
+          reasoning: createInitialStreamingReasoning(nextPrompt),
+          toolTraces: [],
+        },
+      ],
+      { commit: true },
+    )
     setInput('')
     setErrorMessage('')
     setChatOllamaError(undefined)
@@ -2273,14 +2533,18 @@ const SavedTabsChatWidget = ({
     }
 
     if (response?.status === 'ok' && response.answer) {
-      replaceMessage(assistantMessageId, {
-        charts: response.charts,
-        content: response.answer,
-        isStreaming: false,
-        ollamaError: undefined,
-        reasoning: response.reasoning,
-        toolTraces: response.toolTraces,
-      })
+      replaceMessage(
+        assistantMessageId,
+        {
+          charts: response.charts,
+          content: response.answer,
+          isStreaming: false,
+          ollamaError: undefined,
+          reasoning: response.reasoning,
+          toolTraces: response.toolTraces,
+        },
+        { commit: true },
+      )
       setChatOllamaError(undefined)
       setIsSubmitting(false)
       return
@@ -2332,6 +2596,8 @@ const SavedTabsChatWidget = ({
         activeSystemPromptId={resolvedSettings.activeAiSystemPromptId ?? ''}
         chatErrorMessage={errorMessage}
         chatOllamaError={chatOllamaError}
+        historyItems={historyItems}
+        historyVariant={historyVariant}
         input={input}
         isConversationCopied={isConversationCopied}
         isCopyDisabled={messages.every(
@@ -2355,11 +2621,13 @@ const SavedTabsChatWidget = ({
         onCopyConversation={() => {
           void handleCopyConversation()
         }}
+        onDeleteHistoryItem={onDeleteHistoryItem}
         onFetchModels={handleFetchModels}
         onInputChange={setInput}
         onOpenSystemPromptManager={handleOpenSystemPromptManager}
         onResetConversation={handleConversationAction}
         onResizeStart={handleResizeStart}
+        onSelectHistoryItem={onSelectHistoryItem}
         onSelectModel={handleSelectModel}
         onSelectSuggestion={value => {
           void submitPrompt(value)
@@ -2368,9 +2636,10 @@ const SavedTabsChatWidget = ({
           void handleSelectSystemPrompt(promptId)
         }}
         onSubmit={handleSubmit}
+        onToggleHistory={onToggleHistory}
         platform={platform}
         sidebarWidth={sidebarWidth}
-        title={mode === 'page' ? 'AIチャット' : '(preview)Chat'}
+        title={title}
         setupErrorMessage={setupErrorMessage}
         setupOllamaError={setupOllamaError}
         showCloseButton={mode === 'floating'}

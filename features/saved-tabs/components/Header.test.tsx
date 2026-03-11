@@ -11,8 +11,6 @@ const { toastErrorSpy, toastSuccessSpy, categoryModalSpy, viewModeToggleSpy } =
     viewModeToggleSpy: vi.fn(),
   }))
 
-const sidebarTriggerSpy = vi.hoisted(() => vi.fn())
-
 vi.mock('sonner', () => ({
   toast: {
     error: toastErrorSpy,
@@ -64,13 +62,6 @@ vi.mock('@/components/ui/tooltip', () => ({
   TooltipContent: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
   ),
-}))
-
-vi.mock('@/components/ui/sidebar', () => ({
-  SidebarTrigger: (props: Record<string, unknown>) => {
-    sidebarTriggerSpy(props)
-    return <button type='button'>sidebar-trigger</button>
-  },
 }))
 
 vi.mock('@/components/ui/dialog', () => ({
@@ -183,19 +174,6 @@ describe('Header', () => {
 
     expect(screen.getByText('タブ:2')).toBeTruthy()
     expect(screen.getByText('ドメイン:1')).toBeTruthy()
-  })
-
-  it('showSidebarTrigger が有効な場合は TABBIN の左にトリガーを表示する', () => {
-    render(
-      <Header
-        {...createProps({
-          showSidebarTrigger: true,
-        })}
-      />,
-    )
-
-    expect(screen.getByText('sidebar-trigger')).toBeTruthy()
-    expect(sidebarTriggerSpy).toHaveBeenCalledTimes(1)
   })
 
   it('urlIds のみを持つグループでもタブ件数を表示できる', () => {

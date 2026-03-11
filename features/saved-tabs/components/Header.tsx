@@ -9,7 +9,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import type { CustomProject, TabGroup, ViewMode } from '@/types/storage'
 import { CategoryModal } from './CategoryModal'
@@ -30,7 +29,6 @@ interface HeaderProps {
   customProjects: CustomProject[]
   filteredCustomProjects?: CustomProject[]
   onCreateProject: (name: string) => void
-  showSidebarTrigger?: boolean
 }
 
 export const Header = ({
@@ -43,7 +41,6 @@ export const Header = ({
   customProjects = [],
   filteredCustomProjects,
   onCreateProject = () => {},
-  showSidebarTrigger = false,
 }: HeaderProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCustomProjectModalOpen, setIsCustomProjectModalOpen] =
@@ -117,9 +114,6 @@ export const Header = ({
   return (
     <div className='mb-4 flex items-center gap-4'>
       <div className='flex flex-1 items-center gap-1'>
-        {showSidebarTrigger ? (
-          <SidebarTrigger className='mr-1 size-9 cursor-pointer' />
-        ) : null}
         <div className='relative w-full min-w-24'>
           <Input
             type='text'

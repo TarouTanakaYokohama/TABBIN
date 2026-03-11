@@ -30,7 +30,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Toaster } from '@/components/ui/sonner'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
-import { getSavedTabsHrefForMode } from '@/features/navigation/lib/pageNavigation'
+import { getPageHref } from '@/features/navigation/lib/pageNavigation'
 import { CategoryReorderFooter } from '@/features/saved-tabs/components/Footer'
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
 import {
@@ -424,12 +424,64 @@ const organizeTabGroupsWithCategories = ({
     uncategorized: uncategorizedGroups,
   }
 }
+
+const resolveSavedTabsViewModeHref = (viewMode: ViewMode): string =>
+  getPageHref(viewMode === 'custom' ? 'saved-tabs-custom' : 'saved-tabs-domain')
+
+const shouldWaitForInitialViewMode = ({
+  hasResolvedInitialViewMode,
+  initialViewMode,
+  viewMode,
+}: {
+  hasResolvedInitialViewMode: boolean
+  initialViewMode?: ViewMode
+  viewMode: ViewMode
+}): boolean => {
+  if (!initialViewMode || hasResolvedInitialViewMode) {
+    return false
+  }
+
+  return viewMode !== initialViewMode
+}
+
+const syncSavedTabsViewModeLocation = ({
+  onViewModeNavigate,
+  viewMode,
+}: {
+  onViewModeNavigate?: (mode: ViewMode) => void
+  viewMode: ViewMode
+}): void => {
+  if (onViewModeNavigate) {
+    onViewModeNavigate(viewMode)
+    return
+  }
+
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const nextHref = resolveSavedTabsViewModeHref(viewMode)
+  const currentUrl = new URL(window.location.href)
+  const nextUrl = new URL(nextHref, window.location.href)
+
+  if (
+    currentUrl.pathname === nextUrl.pathname &&
+    currentUrl.search === nextUrl.search
+  ) {
+    return
+  }
+
+  window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}`)
+}
+
 const SavedTabsApp = ({
   initialViewMode,
   isAiSidebarOpen = false,
+  onViewModeNavigate,
 }: {
   initialViewMode?: ViewMode
   isAiSidebarOpen?: boolean
+  onViewModeNavigate?: (mode: ViewMode) => void
 }) => {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [newSubCategory, setNewSubCategory] = useState('')
@@ -437,6 +489,10 @@ const SavedTabsApp = ({
   const inputRef = useRef<HTMLInputElement>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const hasResolvedInitialViewModeRef = useRef(!initialViewMode)
+
+  useEffect(() => {
+    hasResolvedInitialViewModeRef.current = !initialViewMode
+  }, [initialViewMode])
 
   // 未分類ドメインの並び替えモード状態管理
   const [isUncategorizedReorderMode, setIsUncategorizedReorderMode] =
@@ -1062,30 +1118,22 @@ const SavedTabsApp = ({
   ]) // 必要な依存関係を追加
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    if (initialViewMode && !hasResolvedInitialViewModeRef.current) {
-      if (viewMode !== initialViewMode) {
-        return
-      }
-      hasResolvedInitialViewModeRef.current = true
-    }
-
-    const nextHref = getSavedTabsHrefForMode(viewMode)
-    const currentUrl = new URL(window.location.href)
-    const nextUrl = new URL(nextHref, window.location.href)
-
     if (
-      currentUrl.pathname === nextUrl.pathname &&
-      currentUrl.search === nextUrl.search
+      shouldWaitForInitialViewMode({
+        hasResolvedInitialViewMode: hasResolvedInitialViewModeRef.current,
+        initialViewMode,
+        viewMode,
+      })
     ) {
       return
     }
 
-    window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}`)
-  }, [viewMode])
+    if (initialViewMode && !hasResolvedInitialViewModeRef.current) {
+      hasResolvedInitialViewModeRef.current = true
+    }
+
+    syncSavedTabsViewModeLocation({ onViewModeNavigate, viewMode })
+  }, [initialViewMode, onViewModeNavigate, viewMode])
 
   // カスタムプロジェクト間でURLを移動するハンドラ
   const handleMoveUrlBetweenProjects = useCallback(
@@ -1304,7 +1352,6 @@ const SavedTabsApp = ({
           onModeChange={handleViewModeChange}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          showSidebarTrigger={true}
         />
         {renderMainContent()}
         {renderSubCategoryModal()}

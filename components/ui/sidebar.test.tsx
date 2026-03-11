@@ -77,6 +77,21 @@ describe('Sidebar', () => {
     expect(container.textContent).toContain('main-content')
   })
 
+  it('SidebarInset は内部スクロール用に高さを閉じる', () => {
+    render(
+      <SidebarProvider defaultOpen>
+        <Sidebar>
+          <div>sidebar-content</div>
+        </Sidebar>
+        <SidebarInset>main-content</SidebarInset>
+      </SidebarProvider>,
+    )
+
+    const inset = screen.getByText('main-content').closest('main')
+    expect(inset?.className.includes('min-h-0')).toBe(true)
+    expect(inset?.className.includes('overflow-hidden')).toBe(true)
+  })
+
   it('保存済みのサイドバー幅を初期値として使う', () => {
     window.localStorage.setItem('tabbin-extension-sidebar-width', '320')
 
@@ -91,6 +106,21 @@ describe('Sidebar', () => {
 
     const wrapper = container.firstElementChild as HTMLElement | null
     expect(wrapper?.style.getPropertyValue('--sidebar-width')).toBe('320px')
+  })
+
+  it('SidebarProvider は viewport 高に固定して子の内部スクロールを許可する', () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen>
+        <Sidebar>
+          <div>sidebar-content</div>
+        </Sidebar>
+        <SidebarInset>main-content</SidebarInset>
+      </SidebarProvider>,
+    )
+
+    const wrapper = container.firstElementChild as HTMLElement | null
+    expect(wrapper?.className.includes('h-svh')).toBe(true)
+    expect(wrapper?.className.includes('overflow-hidden')).toBe(true)
   })
 
   it('ドラッグ最小値ではアイコン幅まで縮み、icon 状態になる', () => {
