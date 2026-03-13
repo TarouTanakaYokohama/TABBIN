@@ -1854,6 +1854,28 @@ describe('SavedTabsChatWidget', () => {
     expect(screen.queryByText('チャット')).toBeNull()
   })
 
+  it('モデル未選択時は会話領域の中央に案内を表示し、候補質問は出さない', async () => {
+    mocked.getUserSettings.mockResolvedValue({
+      ...buildConfiguredSettings(),
+      ollamaModel: '',
+    })
+
+    render(<SavedTabsChatWidget />)
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'AIチャットを開く',
+      }),
+    )
+
+    const emptyStateMessage = screen.getByText('モデルを選択してください')
+    const emptyStateRoot = emptyStateMessage.closest('div')?.parentElement
+
+    expect(emptyStateMessage).toBeTruthy()
+    expect(screen.queryByTestId('ai-chat-intro')).toBeNull()
+    expect(emptyStateRoot?.className.includes('justify-center')).toBe(true)
+  })
+
   it('空入力では送信しない', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 

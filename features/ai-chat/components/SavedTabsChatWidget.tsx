@@ -28,6 +28,7 @@ import {
 import {
   Conversation,
   ConversationContent,
+  ConversationEmptyState,
   ConversationScrollButton,
 } from '@/components/ai-elements/conversation'
 import {
@@ -1636,29 +1637,38 @@ const SavedTabsChatPanel = ({
         )}
       >
         <Conversation className='min-h-0 flex-1'>
-          <ConversationContent
-            className={cn(isCompactLayout && 'gap-5 p-3')}
-            scrollClassName='overscroll-contain'
-          >
-            {messages.map(message => (
-              <ChatConversationMessage
-                key={message.id}
-                message={message}
-                platform={platform}
+          {messages.length === 0 && !isConfigured ? (
+            <ConversationEmptyState
+              description=''
+              title='モデルを選択してください'
+            />
+          ) : (
+            <>
+              <ConversationContent
+                className={cn(isCompactLayout && 'gap-5 p-3')}
+                scrollClassName='overscroll-contain'
+              >
+                {messages.map(message => (
+                  <ChatConversationMessage
+                    key={message.id}
+                    message={message}
+                    platform={platform}
+                  />
+                ))}
+              </ConversationContent>
+              <ConversationScrollButton
+                aria-label='最新メッセージへ移動'
+                className='bottom-3'
               />
-            ))}
-          </ConversationContent>
-          <ConversationScrollButton
-            aria-label='最新メッセージへ移動'
-            className='bottom-3'
-          />
+            </>
+          )}
         </Conversation>
 
         <div
           className='mt-auto shrink-0 space-y-3'
           data-testid='ai-chat-bottom-dock'
         >
-          {messages.length === 0 ? (
+          {messages.length === 0 && isConfigured ? (
             <ChatPromptIntro
               isCompactLayout={isCompactLayout}
               onSelectSuggestion={onSelectSuggestion}
