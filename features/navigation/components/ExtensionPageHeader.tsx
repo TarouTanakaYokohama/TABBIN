@@ -12,7 +12,7 @@ export const ExtensionPageHeader = ({
       <div>
         <h1 className='font-bold text-3xl text-foreground'>{title}</h1>
         {description ? (
-          <p className='mt-2 max-w-3xl text-muted-foreground text-sm leading-6'>
+          <p className='mt-2 text-muted-foreground text-sm leading-6'>
             {description}
           </p>
         ) : null}

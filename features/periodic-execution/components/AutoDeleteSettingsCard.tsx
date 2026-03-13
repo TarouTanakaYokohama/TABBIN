@@ -39,8 +39,7 @@ export const AutoDeleteSettingsCard = ({
       <div className='mb-5'>
         <h2 className='font-semibold text-xl'>自動削除</h2>
         <p className='mt-2 text-muted-foreground text-sm leading-6'>
-          古い保存タブを自動整理する設定です。従来どおりの自動削除ロジックを
-          この画面から操作します。
+          古い保存タブを自動整理する設定です。
         </p>
       </div>
 
