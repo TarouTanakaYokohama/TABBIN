@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type {
+  AiChatConversation,
+  AiChatConversationMessage,
+} from '@/features/ai-chat/types'
+import type { AnalyticsQuery } from '@/features/analytics/lib/analytics'
+import type { SavedAnalyticsView } from '@/lib/storage/analytics'
+import type { AiChatToolTrace } from '@/types/background'
 import type { CustomProject, UserSettings } from '@/types/storage'
 
 vi.mock('@/lib/storage/categories', () => ({
@@ -171,6 +178,117 @@ const buildCustomProject = (
   ...override,
 })
 
+const buildAnalyticsQuery = (
+  override: Partial<AnalyticsQuery> = {},
+): AnalyticsQuery => ({
+  chartType: 'bar',
+  compareBy: 'none',
+  filters: {
+    excludedDomains: [],
+    excludedParentCategories: [],
+    excludedProjectCategories: [],
+    excludedProjects: [],
+    excludedSubCategories: [],
+    includedDomains: [],
+    includedParentCategories: [],
+    includedProjectCategories: [],
+    includedProjects: [],
+    includedSubCategories: [],
+  },
+  groupBy: 'domain',
+  limit: 8,
+  mode: 'both',
+  normalize: false,
+  sort: 'value-desc',
+  stacked: false,
+  timeBucket: 'day',
+  timeRange: '30d',
+  ...override,
+})
+
+const buildAnalyticsView = (
+  override: Partial<SavedAnalyticsView> = {},
+): SavedAnalyticsView => ({
+  createdAt: 1,
+  id: 'analytics-view-1',
+  name: 'Top Domains',
+  query: buildAnalyticsQuery(),
+  updatedAt: 2,
+  ...override,
+})
+
+const buildAiChatToolTrace = (
+  override: Partial<AiChatToolTrace> = {},
+): AiChatToolTrace => ({
+  input: { groupBy: 'domain' },
+  output: { count: 1 },
+  state: 'output-available',
+  title: '保存分析',
+  toolCallId: 'tool-call-1',
+  toolName: 'generateSavedTabsAnalytics',
+  type: 'dynamic-tool',
+  ...override,
+})
+
+const buildAiChatMessage = (
+  override: Partial<AiChatConversationMessage> = {},
+): AiChatConversationMessage => ({
+  content: '最近の保存タブを分析して',
+  id: 'message-1',
+  role: 'user',
+  ...override,
+})
+
+const buildAiChatConversation = (
+  override: Partial<AiChatConversation> = {},
+): AiChatConversation => ({
+  createdAt: 1,
+  id: 'conversation-1',
+  messages: [
+    buildAiChatMessage(),
+    buildAiChatMessage({
+      attachments: [
+        {
+          content: 'attachment body',
+          filename: 'context.txt',
+          kind: 'text',
+          mediaType: 'text/plain',
+        },
+      ],
+      charts: [
+        {
+          data: [{ count: 1, label: 'docs.example.com' }],
+          series: [
+            {
+              colorToken: 'chart-1',
+              dataKey: 'count',
+              label: '保存数',
+            },
+          ],
+          title: 'ドメイン別保存数',
+          type: 'bar',
+          xKey: 'label',
+        },
+      ],
+      content: 'docs.example.com が最も多いです',
+      id: 'message-2',
+      ollamaError: {
+        baseUrl: 'http://localhost:11434',
+        downloadUrl: 'https://ollama.com/download',
+        faqUrl: 'https://example.com/faq',
+        kind: 'notInstalledOrNotRunning',
+        tagsUrl: 'http://localhost:11434/api/tags',
+      },
+      reasoning: '保存数が最も多いドメインを集計しました。',
+      role: 'assistant',
+      toolTraces: [buildAiChatToolTrace()],
+    }),
+  ],
+  title: '保存タブを分析して',
+  updatedAt: 2,
+  ...override,
+})
+
 describe('import-export ユーティリティ', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -208,15 +326,53 @@ describe('import-export ユーティリティ', () => {
     const result = await exportSettings()
 
     expect(result).toEqual({
+      activeAiChatConversationId: '',
+      aiChatConversations: [],
       version: '9.9.9',
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings,
       parentCategories,
+      savedAnalyticsViews: [],
       savedTabs,
       customProjects: [],
       customProjectOrder: [],
       urls: [],
     })
+  })
+
+  it('exportSettings は AI チャット履歴を含める', async () => {
+    const aiChatConversations = [
+      buildAiChatConversation(),
+      buildAiChatConversation({
+        createdAt: 3,
+        id: 'conversation-2',
+        messages: [
+          buildAiChatMessage({
+            content: 'プロジェクト別に見せて',
+            id: 'message-3',
+            role: 'user',
+          }),
+        ],
+        title: 'プロジェクト別に見せて',
+        updatedAt: 4,
+      }),
+    ]
+
+    createChromeMock({
+      activeAiChatConversationId: 'conversation-2',
+      aiChatConversations,
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await exportSettings()
+
+    expect(result.aiChatConversations).toEqual(aiChatConversations)
+    expect(result.activeAiChatConversationId).toBe('conversation-2')
   })
 
   it('exportSettings は customProjects と customProjectOrder を含める', async () => {
@@ -319,6 +475,36 @@ describe('import-export ユーティリティ', () => {
       },
     ])
     expect(result.customProjectOrder).toEqual(['project-2', 'project-1'])
+  })
+
+  it('exportSettings は savedAnalyticsViews を含める', async () => {
+    const savedAnalyticsViews = [
+      buildAnalyticsView(),
+      buildAnalyticsView({
+        createdAt: 3,
+        id: 'analytics-view-2',
+        name: 'Recent Projects',
+        query: buildAnalyticsQuery({
+          groupBy: 'project',
+          timeRange: '7d',
+        }),
+        updatedAt: 4,
+      }),
+    ]
+
+    createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedAnalyticsViews,
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await exportSettings()
+
+    expect(result.savedAnalyticsViews).toEqual(savedAnalyticsViews)
   })
 
   it('exportSettings の customProjects は importSettings で round-trip 復元できる', async () => {
@@ -542,6 +728,279 @@ describe('import-export ユーティリティ', () => {
         ollamaModel: 'llama3.2',
       }),
     )
+  })
+
+  it('importSettings は savedAnalyticsViews を id でマージする', async () => {
+    const currentAnalyticsView = buildAnalyticsView({
+      createdAt: 10,
+      id: 'analytics-view-shared',
+      name: 'Current View',
+      updatedAt: 11,
+    })
+    const importedAnalyticsView = buildAnalyticsView({
+      createdAt: 20,
+      id: 'analytics-view-shared',
+      name: 'Imported View',
+      query: buildAnalyticsQuery({
+        chartType: 'line',
+        groupBy: 'project',
+      }),
+      updatedAt: 21,
+    })
+    const addedAnalyticsView = buildAnalyticsView({
+      createdAt: 30,
+      id: 'analytics-view-added',
+      name: 'Added View',
+      query: buildAnalyticsQuery({
+        groupBy: 'time',
+        timeBucket: 'week',
+      }),
+      updatedAt: 31,
+    })
+    const { store } = createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedAnalyticsViews: [currentAnalyticsView],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedAnalyticsViews: [importedAnalyticsView, addedAnalyticsView],
+        savedTabs: [],
+        urls: [],
+      }),
+      true,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.savedAnalyticsViews).toEqual([
+      importedAnalyticsView,
+      addedAnalyticsView,
+    ])
+  })
+
+  it('importSettings は savedAnalyticsViews を全置換できる', async () => {
+    const importedAnalyticsView = buildAnalyticsView({
+      createdAt: 20,
+      id: 'analytics-view-imported',
+      name: 'Imported View',
+      updatedAt: 21,
+    })
+    const { store } = createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedAnalyticsViews: [buildAnalyticsView()],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedAnalyticsViews: [importedAnalyticsView],
+        savedTabs: [],
+        urls: [],
+      }),
+      false,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.savedAnalyticsViews).toEqual([importedAnalyticsView])
+  })
+
+  it('importSettings は AI チャット履歴を id でマージする', async () => {
+    const currentConversation = buildAiChatConversation({
+      createdAt: 10,
+      id: 'conversation-shared',
+      title: 'Current Conversation',
+      updatedAt: 11,
+    })
+    const importedConversation = buildAiChatConversation({
+      createdAt: 20,
+      id: 'conversation-shared',
+      messages: [
+        buildAiChatMessage({
+          content: '更新された会話です',
+          id: 'message-imported',
+          role: 'user',
+        }),
+      ],
+      title: 'Imported Conversation',
+      updatedAt: 21,
+    })
+    const addedConversation = buildAiChatConversation({
+      createdAt: 30,
+      id: 'conversation-added',
+      messages: [
+        buildAiChatMessage({
+          content: '新しい会話です',
+          id: 'message-added',
+          role: 'user',
+        }),
+      ],
+      title: 'Added Conversation',
+      updatedAt: 31,
+    })
+
+    const { store } = createChromeMock({
+      activeAiChatConversationId: 'conversation-shared',
+      aiChatConversations: [currentConversation],
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        activeAiChatConversationId: 'conversation-added',
+        aiChatConversations: [importedConversation, addedConversation],
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedTabs: [],
+        urls: [],
+      }),
+      true,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.aiChatConversations).toEqual([
+      importedConversation,
+      addedConversation,
+    ])
+    expect(store.activeAiChatConversationId).toBe('conversation-added')
+  })
+
+  it('importSettings は無効な active id の AI チャット履歴をマージ時に維持する', async () => {
+    const currentConversation = buildAiChatConversation({
+      id: 'conversation-current',
+    })
+    const addedConversation = buildAiChatConversation({
+      id: 'conversation-added',
+      title: 'Added Conversation',
+    })
+
+    const { store } = createChromeMock({
+      activeAiChatConversationId: 'conversation-current',
+      aiChatConversations: [currentConversation],
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        activeAiChatConversationId: 'conversation-missing',
+        aiChatConversations: [addedConversation],
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedTabs: [],
+        urls: [],
+      }),
+      true,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.activeAiChatConversationId).toBe('conversation-current')
+  })
+
+  it('importSettings は AI チャット履歴を全置換し active id を復元する', async () => {
+    const importedConversation = buildAiChatConversation({
+      createdAt: 20,
+      id: 'conversation-imported',
+      title: 'Imported Conversation',
+      updatedAt: 21,
+    })
+
+    const { store } = createChromeMock({
+      activeAiChatConversationId: 'conversation-old',
+      aiChatConversations: [
+        buildAiChatConversation({ id: 'conversation-old' }),
+      ],
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        activeAiChatConversationId: 'conversation-imported',
+        aiChatConversations: [importedConversation],
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedTabs: [],
+        urls: [],
+      }),
+      false,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.aiChatConversations).toEqual([importedConversation])
+    expect(store.activeAiChatConversationId).toBe('conversation-imported')
+  })
+
+  it('importSettings は全置換時に無効な active id を先頭会話へフォールバックする', async () => {
+    const importedConversation = buildAiChatConversation({
+      id: 'conversation-first',
+      title: 'First Imported Conversation',
+    })
+
+    const { store } = createChromeMock({
+      activeAiChatConversationId: 'conversation-old',
+      aiChatConversations: [
+        buildAiChatConversation({ id: 'conversation-old' }),
+      ],
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        activeAiChatConversationId: 'conversation-missing',
+        aiChatConversations: [importedConversation],
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedTabs: [],
+        urls: [],
+      }),
+      false,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.activeAiChatConversationId).toBe('conversation-first')
   })
 
   it('移行しやすいバックアップデータ用に urlIds から urls を再構築する', async () => {

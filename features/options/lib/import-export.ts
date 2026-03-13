@@ -1,4 +1,10 @@
 import { z } from 'zod'
+import {
+  ACTIVE_AI_CHAT_CONVERSATION_ID_KEY,
+  AI_CHAT_CONVERSATIONS_KEY,
+} from '@/features/ai-chat/lib/conversation-history'
+import type { AiChatConversation } from '@/features/ai-chat/types'
+import type { SavedAnalyticsView } from '@/lib/storage/analytics'
 import { saveParentCategories } from '@/lib/storage/categories'
 import { migrateToUrlsStorage } from '@/lib/storage/migration'
 import { addUrlsToUncategorizedProject } from '@/lib/storage/projects'
@@ -28,8 +34,11 @@ interface BackupData {
   userSettings: UserSettings
   parentCategories: ParentCategory[]
   savedTabs: TabGroup[]
+  aiChatConversations?: AiChatConversation[]
+  activeAiChatConversationId?: string
   customProjects?: CustomProject[]
   customProjectOrder?: string[]
+  savedAnalyticsViews?: SavedAnalyticsView[]
   urls?: UrlRecord[]
 }
 
@@ -161,6 +170,113 @@ const importedCustomProjectSchema = z.object({
   createdAt: z.number().optional(),
   updatedAt: z.number().optional(),
 })
+const analyticsQuerySchema = z.object({
+  chartType: z.enum(['area', 'bar', 'line', 'pie', 'radar']),
+  compareBy: z.enum(['mode', 'none']),
+  customDateRange: z
+    .object({
+      from: z.string().optional(),
+      to: z.string().optional(),
+    })
+    .optional(),
+  filters: z.object({
+    excludedDomains: z.array(z.string()),
+    excludedParentCategories: z.array(z.string()),
+    excludedProjectCategories: z.array(z.string()),
+    excludedProjects: z.array(z.string()),
+    excludedSubCategories: z.array(z.string()),
+    includedDomains: z.array(z.string()),
+    includedParentCategories: z.array(z.string()),
+    includedProjectCategories: z.array(z.string()),
+    includedProjects: z.array(z.string()),
+    includedSubCategories: z.array(z.string()),
+  }),
+  groupBy: z.enum([
+    'domain',
+    'parentCategory',
+    'project',
+    'projectCategory',
+    'subCategory',
+    'time',
+  ]),
+  limit: z.number(),
+  mode: z.enum(['both', 'custom', 'domain']),
+  normalize: z.boolean(),
+  sort: z.enum(['label-asc', 'label-desc', 'value-asc', 'value-desc']),
+  stacked: z.boolean(),
+  timeBucket: z.enum(['day', 'month', 'week']),
+  timeRange: z.enum(['30d', '365d', '7d', '90d', 'all', 'custom']),
+  title: z.string().optional(),
+})
+const savedAnalyticsViewSchema = z.object({
+  createdAt: z.number(),
+  id: z.string(),
+  name: z.string(),
+  query: analyticsQuerySchema,
+  updatedAt: z.number(),
+})
+const aiChartSeriesSchema = z.object({
+  colorToken: z.string(),
+  dataKey: z.string(),
+  label: z.string(),
+})
+const aiChartSpecSchema = z.object({
+  type: z.enum(['area', 'bar', 'line', 'pie', 'radar']),
+  title: z.string(),
+  data: z.array(
+    z.record(z.string(), z.union([z.number(), z.string(), z.null()])),
+  ),
+  series: z.array(aiChartSeriesSchema),
+  categoryKey: z.string().optional(),
+  description: z.string().optional(),
+  emptyMessage: z.string().optional(),
+  showLegend: z.boolean().optional(),
+  stacked: z.boolean().optional(),
+  valueFormat: z.enum(['count', 'date', 'label', 'percent']).optional(),
+  xKey: z.string().optional(),
+})
+const aiChatAttachmentSchema = z.object({
+  filename: z.string(),
+  mediaType: z.string(),
+  kind: z.enum(['text', 'image']),
+  content: z.string(),
+})
+const aiChatToolTraceSchema = z.object({
+  toolCallId: z.string(),
+  toolName: z.string(),
+  title: z.string(),
+  type: z.string(),
+  state: z.string(),
+  input: z.unknown(),
+  output: z.unknown().optional(),
+  errorText: z.string().optional(),
+})
+const ollamaErrorDetailsSchema = z.object({
+  kind: z.enum(['forbidden', 'notInstalledOrNotRunning']),
+  faqUrl: z.string(),
+  downloadUrl: z.string(),
+  baseUrl: z.string(),
+  tagsUrl: z.string(),
+  allowedOrigins: z.string().optional(),
+})
+const aiChatConversationMessageSchema = z.object({
+  attachments: z.array(aiChatAttachmentSchema).optional(),
+  charts: z.array(aiChartSpecSchema).optional(),
+  content: z.string(),
+  id: z.string(),
+  isStreaming: z.boolean().optional(),
+  ollamaError: ollamaErrorDetailsSchema.optional(),
+  reasoning: z.string().optional(),
+  role: z.enum(['user', 'assistant']),
+  toolTraces: z.array(aiChatToolTraceSchema).optional(),
+})
+const aiChatConversationSchema = z.object({
+  createdAt: z.number(),
+  id: z.string(),
+  messages: z.array(aiChatConversationMessageSchema),
+  title: z.string(),
+  updatedAt: z.number(),
+})
 
 const normalizeUrlKey = (url: string): string => url.trim()
 
@@ -254,8 +370,11 @@ const backupDataSchema = z.object({
       savedAt: z.number().optional(),
     }),
   ),
+  aiChatConversations: z.array(aiChatConversationSchema).optional(),
+  activeAiChatConversationId: z.string().optional(),
   customProjects: z.array(importedCustomProjectSchema).optional(),
   customProjectOrder: z.array(z.string()).optional(),
+  savedAnalyticsViews: z.array(savedAnalyticsViewSchema).optional(),
   // 新形式バックアップ用: URLレコード本体
   urls: z.array(importedUrlRecordSchema).optional(),
 })
@@ -1014,9 +1133,12 @@ const exportSettings = async (): Promise<BackupData> => {
     const [userSettings, storageData] = await Promise.all([
       getUserSettings(),
       chrome.storage.local.get({
+        [ACTIVE_AI_CHAT_CONVERSATION_ID_KEY]: '',
+        [AI_CHAT_CONVERSATIONS_KEY]: [],
         customProjectOrder: [],
         customProjects: [],
         parentCategories: [],
+        savedAnalyticsViews: [],
         savedTabs: [],
         urls: [],
       }),
@@ -1040,6 +1162,20 @@ const exportSettings = async (): Promise<BackupData> => {
       ? storageData.customProjectOrder.filter(
           (id): id is string => typeof id === 'string',
         )
+      : []
+    const aiChatConversations: AiChatConversation[] = Array.isArray(
+      storageData[AI_CHAT_CONVERSATIONS_KEY],
+    )
+      ? storageData[AI_CHAT_CONVERSATIONS_KEY]
+      : []
+    const activeAiChatConversationId =
+      typeof storageData[ACTIVE_AI_CHAT_CONVERSATION_ID_KEY] === 'string'
+        ? storageData[ACTIVE_AI_CHAT_CONVERSATION_ID_KEY]
+        : ''
+    const savedAnalyticsViews: SavedAnalyticsView[] = Array.isArray(
+      storageData.savedAnalyticsViews,
+    )
+      ? storageData.savedAnalyticsViews
       : []
     const urlRecords: UrlRecord[] = Array.isArray(storageData.urls)
       ? storageData.urls
@@ -1079,11 +1215,14 @@ const exportSettings = async (): Promise<BackupData> => {
       userSettings,
       parentCategories,
       savedTabs: normalizedSavedTabs,
+      aiChatConversations,
+      activeAiChatConversationId,
       customProjects,
       customProjectOrder: normalizeCustomProjectOrder(
         customProjectOrder,
         customProjects,
       ),
+      savedAnalyticsViews,
       urls: exportUrlRecords,
     }
     return backupData
@@ -1399,6 +1538,122 @@ const syncImportedTabsToCustomMode = async (
 const shouldImportCustomProjects = (importedData: BackupData): boolean => {
   return Array.isArray(importedData.customProjects)
 }
+const shouldImportAiChatHistory = (importedData: BackupData): boolean => {
+  return (
+    Array.isArray(importedData.aiChatConversations) ||
+    typeof importedData.activeAiChatConversationId === 'string'
+  )
+}
+const shouldImportSavedAnalyticsViews = (importedData: BackupData): boolean => {
+  return Array.isArray(importedData.savedAnalyticsViews)
+}
+const mergeAiChatConversations = (
+  currentConversations: AiChatConversation[],
+  importedConversations: AiChatConversation[],
+): AiChatConversation[] => {
+  const conversationMap = new Map(
+    currentConversations.map(conversation => [conversation.id, conversation]),
+  )
+
+  for (const importedConversation of importedConversations) {
+    conversationMap.set(importedConversation.id, importedConversation)
+  }
+
+  return Array.from(conversationMap.values())
+}
+const resolveAiChatActiveConversationId = ({
+  conversations,
+  fallbackId,
+  importedActiveConversationId,
+}: {
+  conversations: AiChatConversation[]
+  fallbackId?: string
+  importedActiveConversationId?: string
+}): string => {
+  if (
+    typeof importedActiveConversationId === 'string' &&
+    conversations.some(
+      conversation => conversation.id === importedActiveConversationId,
+    )
+  ) {
+    return importedActiveConversationId
+  }
+
+  if (
+    typeof fallbackId === 'string' &&
+    conversations.some(conversation => conversation.id === fallbackId)
+  ) {
+    return fallbackId
+  }
+
+  return conversations[0]?.id || ''
+}
+const resolveMergedAiChatHistory = ({
+  currentActiveConversationId,
+  currentConversations,
+  importedData,
+}: {
+  currentActiveConversationId: string
+  currentConversations: AiChatConversation[]
+  importedData: BackupData
+}):
+  | {
+      activeConversationId: string
+      conversations: AiChatConversation[]
+    }
+  | undefined => {
+  if (!shouldImportAiChatHistory(importedData)) {
+    return undefined
+  }
+
+  const conversations = mergeAiChatConversations(
+    currentConversations,
+    importedData.aiChatConversations || [],
+  )
+
+  return {
+    activeConversationId: resolveAiChatActiveConversationId({
+      conversations,
+      fallbackId: currentActiveConversationId,
+      importedActiveConversationId: importedData.activeAiChatConversationId,
+    }),
+    conversations,
+  }
+}
+const resolveOverwriteAiChatHistory = (
+  importedData: BackupData,
+):
+  | {
+      activeConversationId: string
+      conversations: AiChatConversation[]
+    }
+  | undefined => {
+  if (!shouldImportAiChatHistory(importedData)) {
+    return undefined
+  }
+
+  const conversations = importedData.aiChatConversations || []
+
+  return {
+    activeConversationId: resolveAiChatActiveConversationId({
+      conversations,
+      importedActiveConversationId: importedData.activeAiChatConversationId,
+    }),
+    conversations,
+  }
+}
+const mergeSavedAnalyticsViews = (
+  currentViews: SavedAnalyticsView[],
+  importedViews: SavedAnalyticsView[],
+): SavedAnalyticsView[] => {
+  const viewMap = new Map(currentViews.map(view => [view.id, view]))
+
+  for (const importedView of importedViews) {
+    viewMap.set(importedView.id, importedView)
+  }
+
+  return Array.from(viewMap.values())
+}
 interface ImportExecutionParams {
   importedData: BackupData
   normalizedImportedTabs: NormalizedImportedTab[]
@@ -1416,9 +1671,12 @@ const importWithMerge = async ({
   const [currentSettings, storageData] = await Promise.all([
     getUserSettings(),
     chrome.storage.local.get([
+      ACTIVE_AI_CHAT_CONVERSATION_ID_KEY,
+      AI_CHAT_CONVERSATIONS_KEY,
       'customProjectOrder',
       'customProjects',
       'parentCategories',
+      'savedAnalyticsViews',
       'savedTabs',
     ]),
   ])
@@ -1444,6 +1702,20 @@ const importWithMerge = async ({
         (id): id is string => typeof id === 'string',
       )
     : []
+  const currentAiChatConversations: AiChatConversation[] = Array.isArray(
+    storageData[AI_CHAT_CONVERSATIONS_KEY],
+  )
+    ? storageData[AI_CHAT_CONVERSATIONS_KEY]
+    : []
+  const currentActiveAiChatConversationId =
+    typeof storageData[ACTIVE_AI_CHAT_CONVERSATION_ID_KEY] === 'string'
+      ? storageData[ACTIVE_AI_CHAT_CONVERSATION_ID_KEY]
+      : ''
+  const currentSavedAnalyticsViews: SavedAnalyticsView[] = Array.isArray(
+    storageData.savedAnalyticsViews,
+  )
+    ? storageData.savedAnalyticsViews
+    : []
   const mergedSettings = mergeUserSettings(
     currentSettings,
     importedData.userSettings,
@@ -1465,6 +1737,19 @@ const importWithMerge = async ({
         importedData.customProjectOrder,
       )
     : undefined
+  const mergedAiChatHistory = resolveMergedAiChatHistory({
+    currentActiveConversationId: currentActiveAiChatConversationId,
+    currentConversations: currentAiChatConversations,
+    importedData,
+  })
+  const mergedSavedAnalyticsViews = shouldImportSavedAnalyticsViews(
+    importedData,
+  )
+    ? mergeSavedAnalyticsViews(
+        currentSavedAnalyticsViews,
+        importedData.savedAnalyticsViews || [],
+      )
+    : undefined
   await Promise.all([
     saveUserSettings(mergedSettings),
     saveParentCategories(mergedCategories),
@@ -1473,6 +1758,18 @@ const importWithMerge = async ({
         ? {
             customProjectOrder: mergedCustomProjectData.customProjectOrder,
             customProjects: mergedCustomProjectData.customProjects,
+          }
+        : {}),
+      ...(mergedAiChatHistory
+        ? {
+            [ACTIVE_AI_CHAT_CONVERSATION_ID_KEY]:
+              mergedAiChatHistory.activeConversationId,
+            [AI_CHAT_CONVERSATIONS_KEY]: mergedAiChatHistory.conversations,
+          }
+        : {}),
+      ...(mergedSavedAnalyticsViews
+        ? {
+            savedAnalyticsViews: mergedSavedAnalyticsViews,
           }
         : {}),
       savedTabs: mergedTabs,
@@ -1513,6 +1810,12 @@ const importWithOverwrite = async ({
         importedData.customProjectOrder,
       )
     : undefined
+  const overwriteAiChatHistory = resolveOverwriteAiChatHistory(importedData)
+  const overwriteSavedAnalyticsViews = shouldImportSavedAnalyticsViews(
+    importedData,
+  )
+    ? importedData.savedAnalyticsViews || []
+    : undefined
   await Promise.all([
     saveUserSettings({
       ...defaultSettings,
@@ -1524,6 +1827,18 @@ const importWithOverwrite = async ({
         ? {
             customProjectOrder: overwriteCustomProjectData.customProjectOrder,
             customProjects: overwriteCustomProjectData.customProjects,
+          }
+        : {}),
+      ...(overwriteAiChatHistory
+        ? {
+            [ACTIVE_AI_CHAT_CONVERSATION_ID_KEY]:
+              overwriteAiChatHistory.activeConversationId,
+            [AI_CHAT_CONVERSATIONS_KEY]: overwriteAiChatHistory.conversations,
+          }
+        : {}),
+      ...(overwriteSavedAnalyticsViews
+        ? {
+            savedAnalyticsViews: overwriteSavedAnalyticsViews,
           }
         : {}),
       savedTabs: cleanTabGroups,
