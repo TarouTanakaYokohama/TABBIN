@@ -298,7 +298,7 @@ describe('AnalyticsRoute', () => {
     expect(canvasPane.className.includes('overflow-y-auto')).toBe(true)
     expect(canvasPane.className.includes('overscroll-contain')).toBe(true)
     expect(stickyChartPanel.className.includes('sticky')).toBe(true)
-    expect(stickyChartPanel.className.includes('top-[-1.25rem]')).toBe(true)
+    expect(stickyChartPanel.className.includes('-top-5')).toBe(true)
     expect(stickyChartPanel.className.includes('-mx-5')).toBe(true)
   })
 
