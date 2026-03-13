@@ -458,7 +458,7 @@ const AnalyticsRoute = () => {
                 </div>
               </div>
               <div
-                className='sticky top-[-1.25rem] z-10 -mx-5 bg-card/95 px-5 pt-5 pb-4 backdrop-blur supports-[backdrop-filter]:bg-card/80'
+                className='sticky -top-5 z-10 -mx-5 bg-card/95 px-5 pt-5 pb-4 backdrop-blur supports-backdrop-filter:bg-card/80'
                 data-testid='analytics-sticky-chart-panel'
               >
                 <div className='rounded-3xl border border-border border-dashed bg-background/70 p-4'>
