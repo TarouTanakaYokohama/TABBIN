@@ -328,6 +328,7 @@ export const ProjectCardRoot = ({
         onClose={() => setIsManagementModalOpen(false)}
         project={project}
         onRenameProject={handlers.handleRenameProject}
+        onUpdateProjectKeywords={handlers.handleUpdateProjectKeywords}
         onDeleteProject={handlers.handleDeleteProject}
       />
     </ProjectCardContext>

@@ -29,10 +29,12 @@ import {
   setUrlCategory,
   updateCategoryOrder,
   updateCustomProjectName,
+  updateProjectKeywords,
   updateProjectOrder,
 } from '@/lib/storage/projects'
 import type {
   CustomProject,
+  ProjectKeywordSettings,
   TabGroup,
   UserSettings,
   ViewMode,
@@ -75,6 +77,15 @@ interface UseProjectManagementReturn {
    * @param newName - 新しいプロジェクト名
    */
   handleRenameProject: (projectId: string, newName: string) => Promise<void>
+  /**
+   * プロジェクトの自動振り分けキーワードを更新する。
+   * @param projectId - 対象プロジェクトの ID
+   * @param projectKeywords - タイトル/URL/ドメインのキーワード設定
+   */
+  handleUpdateProjectKeywords: (
+    projectId: string,
+    projectKeywords: ProjectKeywordSettings,
+  ) => Promise<void>
   /**
    * プロジェクトに URL を追加する。
    * @param projectId - 対象プロジェクトの ID
@@ -319,6 +330,34 @@ const useProjectManagement = (
         } else {
           toast.error('プロジェクト名の変更に失敗しました')
         }
+      }
+    },
+    [],
+  )
+
+  /** プロジェクトの自動振り分けキーワードを更新する */
+  const handleUpdateProjectKeywords = useCallback(
+    async (
+      projectId: string,
+      projectKeywords: ProjectKeywordSettings,
+    ): Promise<void> => {
+      try {
+        await updateProjectKeywords(projectId, projectKeywords)
+        setCustomProjects(prev =>
+          prev.map(project =>
+            project.id === projectId
+              ? {
+                  ...project,
+                  projectKeywords,
+                  updatedAt: Date.now(),
+                }
+              : project,
+          ),
+        )
+        toast.success('キーワード設定を更新しました')
+      } catch (error) {
+        console.error('キーワード設定更新エラー:', error)
+        toast.error('キーワード設定の更新に失敗しました')
       }
     },
     [],
@@ -605,6 +644,7 @@ const useProjectManagement = (
     handleCreateProject,
     handleDeleteProject,
     handleRenameProject,
+    handleUpdateProjectKeywords,
     handleAddUrlToProject,
     handleDeleteUrlFromProject,
     handleDeleteUrlsFromProject,

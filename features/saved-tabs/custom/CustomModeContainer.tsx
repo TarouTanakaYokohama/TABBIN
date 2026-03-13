@@ -1,5 +1,9 @@
 import { CustomProjectSection } from '@/features/saved-tabs/components/CustomProjectSection'
-import type { CustomProject, UserSettings } from '@/types/storage'
+import type {
+  CustomProject,
+  ProjectKeywordSettings,
+  UserSettings,
+} from '@/types/storage'
 
 interface CustomModeContainerProps {
   isLoading: boolean
@@ -15,6 +19,10 @@ interface CustomModeContainerProps {
   handleCreateProject: (name: string) => Promise<void>
   handleDeleteProject: (projectId: string) => Promise<void>
   handleRenameProject: (projectId: string, newName: string) => Promise<void>
+  handleUpdateProjectKeywords: (
+    projectId: string,
+    projectKeywords: ProjectKeywordSettings,
+  ) => Promise<void>
   handleAddCategory: (projectId: string, categoryName: string) => Promise<void>
   handleDeleteCategory: (
     projectId: string,
@@ -63,6 +71,7 @@ export const CustomModeContainer = ({
   handleCreateProject,
   handleDeleteProject,
   handleRenameProject,
+  handleUpdateProjectKeywords,
   handleAddCategory,
   handleDeleteCategory,
   handleSetUrlCategory,
@@ -92,6 +101,7 @@ export const CustomModeContainer = ({
       handleCreateProject={handleCreateProject}
       handleDeleteProject={handleDeleteProject}
       handleRenameProject={handleRenameProject}
+      handleUpdateProjectKeywords={handleUpdateProjectKeywords}
       handleAddCategory={handleAddCategory}
       handleDeleteCategory={handleDeleteCategory}
       handleSetUrlCategory={handleSetUrlCategory}

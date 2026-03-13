@@ -1,11 +1,16 @@
 import { v4 as uuidv4 } from 'uuid'
 import type {
   CustomProject,
+  ProjectKeywordSettings,
   TabGroup,
   UrlRecord,
   ViewMode,
 } from '@/types/storage'
 import { migrateToUrlsStorage } from './migration'
+import {
+  findMatchingProjectIdForSavedTab,
+  normalizeProjectKeywords,
+} from './project-keywords'
 import {
   createOrUpdateUrlRecord,
   getUrlRecords,
@@ -79,6 +84,9 @@ const getCustomProjects = async (): Promise<CustomProject[]> => {
         if (!(project.urlIds && Array.isArray(project.urlIds))) {
           project.urlIds = []
         }
+        project.projectKeywords = normalizeProjectKeywords(
+          project.projectKeywords,
+        )
 
         // 必須フィールドの確認と修正
         if (!(project.categories && Array.isArray(project.categories))) {
@@ -160,6 +168,7 @@ const createCustomProject = async (name: string): Promise<CustomProject> => {
   const newProject: CustomProject = {
     id: uuidv4(),
     name,
+    projectKeywords: normalizeProjectKeywords(undefined),
     urlIds: [],
     // 新形式のURL IDリスト
     categories: [],
@@ -210,6 +219,7 @@ const appendUncategorizedProjectToOrder = async (): Promise<void> => {
 const buildUncategorizedProject = (): CustomProject => ({
   id: CUSTOM_UNCATEGORIZED_PROJECT_ID,
   name: CUSTOM_UNCATEGORIZED_PROJECT_NAME,
+  projectKeywords: normalizeProjectKeywords(undefined),
   urlIds: [],
   categories: [],
   createdAt: Date.now(),
@@ -323,6 +333,17 @@ const addUrlsToUncategorizedProject = async (
   targetProject.updatedAt = Date.now()
   projects[targetIndex] = targetProject
   await saveCustomProjects(projects)
+}
+
+const getCustomProjectOrder = async (): Promise<string[]> => {
+  const { customProjectOrder = [] } =
+    await chrome.storage.local.get('customProjectOrder')
+  if (!Array.isArray(customProjectOrder)) {
+    return []
+  }
+  return customProjectOrder.filter(
+    (projectId): projectId is string => typeof projectId === 'string',
+  )
 }
 const ensureProjectUrlIds = (project: CustomProject): void => {
   if (!project.urlIds) {
@@ -438,6 +459,41 @@ const addUrlToCustomProject = async (
     throw error
   }
 } // URLをカスタムプロジェクトから削除する関数（新形式対応）
+
+const saveUrlsToCustomProjects = async (
+  urls: SavedTabItem[],
+): Promise<void> => {
+  const normalizedItems = uniqueSavedTabItems(urls)
+  if (normalizedItems.length === 0) {
+    return
+  }
+
+  const [projects, projectOrder] = await Promise.all([
+    getCustomProjects(),
+    getCustomProjectOrder(),
+  ])
+  const matchingProjects = projects.filter(
+    project => project.id !== CUSTOM_UNCATEGORIZED_PROJECT_ID,
+  )
+  const uncategorizedItems: SavedTabItem[] = []
+
+  for (const item of normalizedItems) {
+    const matchedProjectId = findMatchingProjectIdForSavedTab({
+      projects: matchingProjects,
+      savedTab: item,
+      projectOrder,
+    })
+
+    if (!matchedProjectId) {
+      uncategorizedItems.push(item)
+      continue
+    }
+
+    await addUrlToCustomProject(matchedProjectId, item.url, item.title)
+  }
+
+  await addUrlsToUncategorizedProject(uncategorizedItems)
+}
 const removeUrlFromCustomProject = async (
   projectId: string,
   url: string,
@@ -1098,6 +1154,23 @@ const renameCategoryInProject = async (
   projects[projectIndex] = project
   await saveCustomProjects(projects)
 }
+
+const updateProjectKeywords = async (
+  projectId: string,
+  projectKeywords: ProjectKeywordSettings,
+): Promise<void> => {
+  const projects = await getCustomProjects()
+  const projectIndex = projects.findIndex(p => p.id === projectId)
+  if (projectIndex === -1) {
+    throw new Error(`Project with ID ${projectId} not found`)
+  }
+
+  const project = projects[projectIndex]
+  project.projectKeywords = normalizeProjectKeywords(projectKeywords)
+  project.updatedAt = Date.now()
+  projects[projectIndex] = project
+  await saveCustomProjects(projects)
+}
 export {
   CUSTOM_UNCATEGORIZED_PROJECT_ID,
   CUSTOM_UNCATEGORIZED_PROJECT_NAME,
@@ -1119,9 +1192,11 @@ export {
   renameCategoryInProject,
   reorderProjectUrls,
   saveCustomProjects,
+  saveUrlsToCustomProjects,
   saveViewMode,
   setUrlCategory,
   updateCategoryOrder,
   updateCustomProjectName,
+  updateProjectKeywords,
   updateProjectOrder,
 }

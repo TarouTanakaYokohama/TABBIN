@@ -3,7 +3,7 @@
  */
 
 import { saveTabsWithAutoCategory } from '@/lib/storage/migration'
-import { addUrlsToUncategorizedProject } from '@/lib/storage/projects'
+import { saveUrlsToCustomProjects } from '@/lib/storage/projects'
 import { getUserSettings } from '@/lib/storage/settings'
 import { openSavedTabsPage } from './saved-tabs-page'
 import { filterTabsByUserSettings, showNotification } from './utils'
@@ -59,12 +59,9 @@ const syncSavedTabsToCustomMode = async (
     return
   }
   try {
-    await addUrlsToUncategorizedProject(savedTabItems)
+    await saveUrlsToCustomProjects(savedTabItems)
   } catch (error) {
-    console.error(
-      'カスタムモード未分類プロジェクトへの同期に失敗しました:',
-      error,
-    )
+    console.error('カスタムモードへの同期に失敗しました:', error)
   }
 }
 

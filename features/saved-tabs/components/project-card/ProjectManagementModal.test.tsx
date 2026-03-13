@@ -52,6 +52,24 @@ import { ProjectManagementModal } from './ProjectManagementModal'
 const project: CustomProject = {
   id: 'project-1',
   name: 'Project Alpha',
+  projectKeywords: {
+    titleKeywords: ['urgent'],
+    urlKeywords: ['docs'],
+    domainKeywords: ['example.com'],
+  },
+  categories: [],
+  createdAt: 1,
+  updatedAt: 1,
+}
+
+const uncategorizedProject: CustomProject = {
+  id: 'custom-uncategorized',
+  name: '未分類',
+  projectKeywords: {
+    titleKeywords: [],
+    urlKeywords: [],
+    domainKeywords: [],
+  },
   categories: [],
   createdAt: 1,
   updatedAt: 1,
@@ -99,6 +117,24 @@ describe('ProjectManagementModal', () => {
     )
 
     expect(container.textContent).toBe('')
+  })
+
+  it('未分類プロジェクトでは名前変更と削除操作を表示しない', () => {
+    render(
+      <ProjectManagementModal
+        isOpen={true}
+        onClose={vi.fn()}
+        project={uncategorizedProject}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: '名前を変更' })).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: 'プロジェクトを削除' }),
+    ).toBeNull()
+    expect(
+      screen.getByRole('button', { name: '未分類' }).getAttribute('disabled'),
+    ).not.toBeNull()
   })
 
   it('リネーム入力のバリデーションと blur 保存を処理する', async () => {
@@ -254,6 +290,51 @@ describe('ProjectManagementModal', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'dialog-close' }))
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('プロジェクトキーワードを blur で保存する', async () => {
+    const onUpdateProjectKeywords = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <ProjectManagementModal
+        isOpen={true}
+        onClose={vi.fn()}
+        project={project}
+        onUpdateProjectKeywords={onUpdateProjectKeywords}
+      />,
+    )
+
+    const titleInput = screen.getByLabelText('タイトルキーワード入力')
+    const urlInput = screen.getByLabelText('URLキーワード入力')
+    const domainInput = screen.getByLabelText('ドメインキーワード入力')
+
+    fireEvent.change(titleInput, {
+      target: { value: 'release' },
+    })
+    fireEvent.keyDown(titleInput, { key: 'Enter' })
+    fireEvent.change(urlInput, {
+      target: { value: 'spec' },
+    })
+    fireEvent.blur(urlInput)
+    fireEvent.change(domainInput, {
+      target: { value: 'github.com' },
+    })
+    fireEvent.keyDown(domainInput, { key: 'Enter' })
+
+    const deleteButtons = screen.getAllByRole('button', {
+      name: 'キーワードを削除',
+    })
+    fireEvent.click(deleteButtons[0])
+
+    fireEvent.blur(domainInput)
+
+    await waitFor(() => {
+      expect(onUpdateProjectKeywords).toHaveBeenCalledWith('project-1', {
+        titleKeywords: ['release'],
+        urlKeywords: ['docs', 'spec'],
+        domainKeywords: ['example.com', 'github.com'],
+      })
+    })
   })
 
   it('削除ハンドラ未設定でも例外で落とさない', async () => {

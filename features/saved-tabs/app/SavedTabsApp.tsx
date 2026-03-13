@@ -534,6 +534,7 @@ const SavedTabsApp = ({
     handleCreateProject,
     handleDeleteProject,
     handleRenameProject,
+    handleUpdateProjectKeywords,
     handleAddUrlToProject,
     handleDeleteUrlFromProject,
     handleDeleteUrlsFromProject,
@@ -1261,6 +1262,7 @@ const SavedTabsApp = ({
         handleCreateProject={handleCreateProject}
         handleDeleteProject={handleDeleteProject}
         handleRenameProject={handleRenameProject}
+        handleUpdateProjectKeywords={handleUpdateProjectKeywords}
         handleAddCategory={handleAddCategory}
         handleDeleteCategory={handleDeleteProjectCategory}
         handleSetUrlCategory={handleSetUrlCategory}

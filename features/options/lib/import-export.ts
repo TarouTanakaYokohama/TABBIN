@@ -14,6 +14,7 @@ import {
 import type {
   CustomProject,
   ParentCategory,
+  ProjectKeywordSettings,
   SubCategoryKeyword,
   TabGroup,
   UrlRecord,
@@ -63,6 +64,11 @@ interface ImportedTabData {
 interface ImportedCustomProjectData {
   id: string
   name: string
+  projectKeywords?: {
+    titleKeywords?: unknown[]
+    urlKeywords?: unknown[]
+    domainKeywords?: unknown[]
+  }
   urlIds?: string[]
   urls?: Array<{
     url: string
@@ -122,6 +128,13 @@ const importedUrlRecordSchema = z.object({
 const importedCustomProjectSchema = z.object({
   id: z.string(),
   name: z.string(),
+  projectKeywords: z
+    .object({
+      titleKeywords: z.array(z.unknown()).optional(),
+      urlKeywords: z.array(z.unknown()).optional(),
+      domainKeywords: z.array(z.unknown()).optional(),
+    })
+    .optional(),
   urlIds: z.array(z.string()).optional(),
   urls: z
     .array(
@@ -359,6 +372,14 @@ const normalizeStringArray = (items: unknown[] | undefined): string[] => {
   return values
 }
 
+const normalizeProjectKeywords = (
+  projectKeywords: ImportedCustomProjectData['projectKeywords'],
+): ProjectKeywordSettings => ({
+  titleKeywords: normalizeStringArray(projectKeywords?.titleKeywords),
+  urlKeywords: normalizeStringArray(projectKeywords?.urlKeywords),
+  domainKeywords: normalizeStringArray(projectKeywords?.domainKeywords),
+})
+
 const normalizeImportedCustomProject = (
   project: ImportedCustomProjectData,
 ): CustomProject => {
@@ -392,6 +413,7 @@ const normalizeImportedCustomProject = (
   return {
     id: project.id,
     name: project.name,
+    projectKeywords: normalizeProjectKeywords(project.projectKeywords),
     urlIds,
     ...(urls && urls.length > 0 ? { urls } : {}),
     ...(urlMetadata ? { urlMetadata } : {}),
@@ -462,6 +484,7 @@ const toExportCustomProject = (
   return {
     id: project.id,
     name: project.name,
+    projectKeywords: normalizeProjectKeywords(project.projectKeywords),
     urls: exportUrls,
     categories: [...project.categories],
     ...(project.categoryOrder && project.categoryOrder.length > 0
@@ -669,6 +692,7 @@ const resolveImportedCustomProject = async (
   return {
     id: project.id,
     name: project.name,
+    projectKeywords: normalizeProjectKeywords(project.projectKeywords),
     urlIds: convertedUrlData.urlIds,
     ...(convertedUrlData.urlMetadata
       ? { urlMetadata: convertedUrlData.urlMetadata }
