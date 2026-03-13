@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   Line,
   LineChart,
   Pie,
@@ -101,6 +100,14 @@ const ChartLegendBlock = ({
     <ChartLegend content={<ChartLegendContent nameKey={nameKey} />} />
   ) : null
 
+const getPieChartData = (spec: AiChartSpec) =>
+  spec.data.map((datum, index) => ({
+    ...datum,
+    fill: getChartColor(
+      PIE_CHART_COLOR_TOKENS[index % PIE_CHART_COLOR_TOKENS.length],
+    ),
+  }))
+
 const renderPieChart = ({
   categoryKey,
   primarySeries,
@@ -122,20 +129,11 @@ const renderPieChart = ({
       cursor={false}
     />
     <Pie
-      data={spec.data}
+      data={getPieChartData(spec)}
       dataKey={primarySeries.dataKey}
       nameKey={categoryKey}
       outerRadius={80}
-    >
-      {spec.data.map((datum, index) => (
-        <Cell
-          fill={getChartColor(
-            PIE_CHART_COLOR_TOKENS[index % PIE_CHART_COLOR_TOKENS.length],
-          )}
-          key={`${String(datum[categoryKey] ?? index)}-${index}`}
-        />
-      ))}
-    </Pie>
+    />
     <ChartLegendBlock
       nameKey={categoryKey}
       shouldShowLegend={shouldShowLegend}

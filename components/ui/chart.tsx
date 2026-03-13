@@ -98,9 +98,46 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
-type ChartTooltipPayload = NonNullable<
-  React.ComponentProps<typeof RechartsPrimitive.Tooltip>['payload']
->
+type ChartTooltipContentProps = React.ComponentProps<'div'> &
+  Partial<RechartsPrimitive.TooltipContentProps> & {
+    hideLabel?: boolean
+    hideIndicator?: boolean
+    indicator?: 'line' | 'dot' | 'dashed'
+    nameKey?: string
+    labelKey?: string
+  }
+
+const renderTooltipIndicator = ({
+  hideIndicator,
+  indicator,
+  indicatorColor,
+  nestLabel,
+}: {
+  hideIndicator: boolean
+  indicator: 'line' | 'dot' | 'dashed'
+  indicatorColor?: string
+  nestLabel: boolean
+}) =>
+  hideIndicator ? null : (
+    <div
+      className={cn(
+        'shrink-0 rounded-[2px] border-[--color-border] bg-[--color-bg]',
+        {
+          'h-2.5 w-2.5': indicator === 'dot',
+          'w-1': indicator === 'line',
+          'w-0 border-[1.5px] border-dashed bg-transparent':
+            indicator === 'dashed',
+          'my-0.5': nestLabel && indicator === 'dashed',
+        },
+      )}
+      style={
+        {
+          '--color-bg': indicatorColor,
+          '--color-border': indicatorColor,
+        } as React.CSSProperties
+      }
+    />
+  )
 
 const renderTooltipRow = ({
   color,
@@ -116,12 +153,10 @@ const renderTooltipRow = ({
 }: {
   color?: string
   config: ChartConfig
-  formatter?: React.ComponentProps<
-    typeof RechartsPrimitive.Tooltip
-  >['formatter']
+  formatter?: ChartTooltipContentProps['formatter']
   hideIndicator: boolean
   indicator: 'line' | 'dot' | 'dashed'
-  item: ChartTooltipPayload[number]
+  item: RechartsPrimitive.TooltipPayloadEntry
   index: number
   nameKey?: string
   nestLabel: boolean
@@ -133,7 +168,7 @@ const renderTooltipRow = ({
 
   return (
     <div
-      key={item.dataKey}
+      key={String(item.dataKey ?? item.graphicalItemId ?? key)}
       className={cn(
         'flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground',
         indicator === 'dot' && 'items-center',
@@ -146,26 +181,12 @@ const renderTooltipRow = ({
           {itemConfig?.icon ? (
             <itemConfig.icon />
           ) : (
-            !hideIndicator && (
-              <div
-                className={cn(
-                  'shrink-0 rounded-[2px] border-[--color-border] bg-[--color-bg]',
-                  {
-                    'h-2.5 w-2.5': indicator === 'dot',
-                    'w-1': indicator === 'line',
-                    'w-0 border-[1.5px] border-dashed bg-transparent':
-                      indicator === 'dashed',
-                    'my-0.5': nestLabel && indicator === 'dashed',
-                  },
-                )}
-                style={
-                  {
-                    '--color-bg': indicatorColor,
-                    '--color-border': indicatorColor,
-                  } as React.CSSProperties
-                }
-              />
-            )
+            renderTooltipIndicator({
+              hideIndicator,
+              indicator,
+              indicatorColor,
+              nestLabel,
+            })
           )}
           <div
             className={cn(
@@ -179,7 +200,7 @@ const renderTooltipRow = ({
                 {itemConfig?.label || item.name}
               </span>
             </div>
-            {item.value && (
+            {item.value !== undefined && item.value !== null && (
               <span className='font-mono font-medium tabular-nums text-foreground'>
                 {item.value.toLocaleString()}
               </span>
@@ -193,14 +214,7 @@ const renderTooltipRow = ({
 
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-    React.ComponentProps<'div'> & {
-      hideLabel?: boolean
-      hideIndicator?: boolean
-      indicator?: 'line' | 'dot' | 'dashed'
-      nameKey?: string
-      labelKey?: string
-    }
+  ChartTooltipContentProps
 >(
   (
     {
@@ -302,7 +316,7 @@ const ChartLegend = RechartsPrimitive.Legend
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<'div'> &
-    Pick<RechartsPrimitive.LegendProps, 'payload' | 'verticalAlign'> & {
+    Partial<RechartsPrimitive.DefaultLegendContentProps> & {
       hideIcon?: boolean
       nameKey?: string
     }
@@ -331,10 +345,11 @@ const ChartLegendContent = React.forwardRef<
           .map(item => {
             const key = `${nameKey || item.dataKey || 'value'}`
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
+            const itemKey = String(item.dataKey ?? item.value ?? item.color)
 
             return (
               <div
-                key={item.value}
+                key={itemKey}
                 className={cn(
                   'flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground',
                 )}

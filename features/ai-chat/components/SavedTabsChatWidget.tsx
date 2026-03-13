@@ -1291,25 +1291,36 @@ const ChatMessageAttachments = ({
   attachments,
 }: {
   attachments: AiChatAttachment[]
-}) => (
-  <Attachments className='mb-2 w-full' variant='inline'>
-    {attachments.map((attachment, index) => (
-      <Attachment
-        data={{
-          id: `${attachment.filename}-${attachment.mediaType}-${index}`,
-          filename: attachment.filename,
-          mediaType: attachment.mediaType,
-          type: 'file',
-          url: attachment.kind === 'image' ? attachment.content : '',
-        }}
-        key={`${attachment.filename}-${attachment.mediaType}-${index}`}
-      >
-        <AttachmentPreview />
-        <AttachmentInfo />
-      </Attachment>
-    ))}
-  </Attachments>
-)
+}) => {
+  const getAttachmentId = (attachment: AiChatAttachment) =>
+    [
+      attachment.filename,
+      attachment.mediaType,
+      attachment.kind,
+      attachment.content.length,
+      attachment.content.slice(0, 32),
+    ].join('-')
+
+  return (
+    <Attachments className='mb-2 w-full' variant='inline'>
+      {attachments.map(attachment => (
+        <Attachment
+          data={{
+            id: getAttachmentId(attachment),
+            filename: attachment.filename,
+            mediaType: attachment.mediaType,
+            type: 'file',
+            url: attachment.kind === 'image' ? attachment.content : '',
+          }}
+          key={getAttachmentId(attachment)}
+        >
+          <AttachmentPreview />
+          <AttachmentInfo />
+        </Attachment>
+      ))}
+    </Attachments>
+  )
+}
 
 const ChatConversationMessage = ({
   message,

@@ -217,6 +217,12 @@ export type WebPreviewConsoleProps = ComponentProps<'div'> & {
   }[]
 }
 
+const getWebPreviewLogKey = (log: {
+  level: 'log' | 'warn' | 'error'
+  message: string
+  timestamp: Date
+}) => `${log.timestamp.toISOString()}-${log.level}-${log.message}`
+
 export const WebPreviewConsole = ({
   className,
   logs = [],
@@ -256,7 +262,7 @@ export const WebPreviewConsole = ({
           {logs.length === 0 ? (
             <p className='text-muted-foreground'>No console output</p>
           ) : (
-            logs.map((log, index) => (
+            logs.map(log => (
               <div
                 className={cn(
                   'text-xs',
@@ -264,7 +270,7 @@ export const WebPreviewConsole = ({
                   log.level === 'warn' && 'text-yellow-600',
                   log.level === 'log' && 'text-foreground',
                 )}
-                key={`${log.timestamp.getTime()}-${index}`}
+                key={getWebPreviewLogKey(log)}
               >
                 <span className='text-muted-foreground'>
                   {log.timestamp.toLocaleTimeString()}

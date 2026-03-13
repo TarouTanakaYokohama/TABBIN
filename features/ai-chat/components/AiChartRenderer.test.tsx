@@ -105,7 +105,18 @@ describe('AiChartRenderer', () => {
 
     expect(screen.getByTestId('pie')).toBeTruthy()
     expect(screen.getByTestId('chart-tooltip')).toBeTruthy()
-    expect(mocked.pieProps[0]?.data).toEqual(PIE_SPEC.data)
+    expect(mocked.pieProps[0]?.data).toEqual([
+      {
+        count: 3,
+        fill: 'var(--chart-1)',
+        label: 'Frontend',
+      },
+      {
+        count: 1,
+        fill: 'var(--chart-2)',
+        label: 'AI',
+      },
+    ])
     expect(mocked.pieProps[0]?.dataKey).toBe('count')
     expect(mocked.pieProps[0]?.nameKey).toBe('label')
     expect(mocked.tooltipProps[0]?.cursor).toBe(false)
