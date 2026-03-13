@@ -33,7 +33,7 @@ import {
   type SidebarState,
   getAppEntryHref,
   getAppRoute,
-  getSavedTabsHrefForMode,
+  getSavedTabsEntryRoute,
 } from '@/features/navigation/lib/pageNavigation'
 import { cn } from '@/lib/utils'
 
@@ -222,9 +222,7 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
       // localStorage が使えない環境では保持をスキップする
     }
   }
-  const savedTabsHref = getSavedTabsHrefForMode(
-    state.item === 'saved-tabs-custom' ? 'custom' : 'domain',
-  )
+  const savedTabsHref = getSavedTabsEntryRoute()
   const railItems: RailItem[] = [
     {
       icon: FolderTree,

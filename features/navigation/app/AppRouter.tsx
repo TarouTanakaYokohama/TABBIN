@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import {
   HashRouter,
   MemoryRouter,
@@ -8,9 +9,14 @@ import {
   useNavigate,
 } from 'react-router-dom'
 import { AiChatRoute } from '@/features/ai-chat/routes/AiChatRoute'
-import { getSavedTabsHrefForMode } from '@/features/navigation/lib/pageNavigation'
+import {
+  getSavedTabsEntryRoute,
+  getSavedTabsHrefForMode,
+} from '@/features/navigation/lib/pageNavigation'
 import { PeriodicExecutionRoute } from '@/features/periodic-execution/routes/PeriodicExecutionRoute'
 import { SavedTabsRoute } from '@/features/saved-tabs/routes/SavedTabsRoute'
+import { getViewMode } from '@/lib/storage/projects'
+import type { ViewMode } from '@/types/storage'
 import { AppLayout } from './AppLayout'
 
 interface AppRouterProps {
@@ -20,6 +26,7 @@ interface AppRouterProps {
 const SavedTabsRoutePage = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const hasModeQuery = new URLSearchParams(location.search).has('mode')
 
   const handleViewModeNavigate = (mode: 'custom' | 'domain') => {
     const nextRoute = getSavedTabsHrefForMode(mode)
@@ -30,6 +37,36 @@ const SavedTabsRoutePage = () => {
     }
 
     navigate(nextRoute, { replace: true })
+  }
+
+  useEffect(() => {
+    if (hasModeQuery) {
+      return
+    }
+
+    let isCancelled = false
+
+    const resolveViewMode = async () => {
+      const mode = await getViewMode().catch((): ViewMode => 'domain')
+      const nextRoute = getSavedTabsHrefForMode(mode)
+      const currentRoute = `${location.pathname}${location.search}`
+
+      if (isCancelled || currentRoute === nextRoute) {
+        return
+      }
+
+      navigate(nextRoute, { replace: true })
+    }
+
+    void resolveViewMode()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [hasModeQuery, location.pathname, location.search, navigate])
+
+  if (!hasModeQuery) {
+    return null
   }
 
   return (
@@ -45,14 +82,14 @@ const AppRoutes = () => (
     <Route element={<AppLayout />}>
       <Route
         index
-        element={<Navigate to='/saved-tabs?mode=domain' replace={true} />}
+        element={<Navigate to={getSavedTabsEntryRoute()} replace={true} />}
       />
       <Route path='/saved-tabs' element={<SavedTabsRoutePage />} />
       <Route path='/ai-chat' element={<AiChatRoute />} />
       <Route path='/periodic-execution' element={<PeriodicExecutionRoute />} />
       <Route
         path='*'
-        element={<Navigate to='/saved-tabs?mode=domain' replace={true} />}
+        element={<Navigate to={getSavedTabsEntryRoute()} replace={true} />}
       />
     </Route>
   </Routes>

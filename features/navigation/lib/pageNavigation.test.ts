@@ -4,6 +4,7 @@ import {
   getAppRoute,
   getLegacyRedirectHref,
   getPageHref,
+  getSavedTabsEntryRoute,
   getSavedTabsHrefForMode,
   getSavedTabsModeFromLocation,
   getSidebarStateFromLocation,
@@ -68,9 +69,19 @@ describe('pageNavigation', () => {
     expect(getSavedTabsHrefForMode('custom')).toBe('/saved-tabs?mode=custom')
   })
 
+  it('saved-tabs の共通入口ルートを返す', () => {
+    expect(getSavedTabsEntryRoute()).toBe('/saved-tabs')
+    expect(getAppEntryHref(getSavedTabsEntryRoute())).toBe(
+      'app.html#/saved-tabs',
+    )
+  })
+
   it('legacy entrypoint から SPA への redirect href を組み立てる', () => {
     expect(getLegacyRedirectHref('/saved-tabs.html', '?mode=custom')).toBe(
       'app.html#/saved-tabs?mode=custom',
+    )
+    expect(getLegacyRedirectHref('/saved-tabs.html', '')).toBe(
+      'app.html#/saved-tabs',
     )
     expect(getLegacyRedirectHref('/ai-chat.html', '')).toBe('app.html#/ai-chat')
     expect(getLegacyRedirectHref('/periodic-execution.html', '')).toBe(

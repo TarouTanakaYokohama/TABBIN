@@ -11,4 +11,13 @@ describe('saved-tabs bootstrap', () => {
     )
     expect(replace).toHaveBeenCalledWith('app.html#/saved-tabs?mode=custom')
   })
+
+  it('mode 未指定なら共通入口の app route を返す', () => {
+    const replace = vi.fn()
+
+    expect(redirectToApp('/saved-tabs.html', '', replace)).toBe(
+      'app.html#/saved-tabs',
+    )
+    expect(replace).toHaveBeenCalledWith('app.html#/saved-tabs')
+  })
 })

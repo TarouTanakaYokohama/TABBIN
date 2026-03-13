@@ -114,7 +114,7 @@ describe('ExtensionSidebar', () => {
     ).toBe('options.html')
   })
 
-  it('タブ一覧の親アイコンは現在モードの一覧ページへ飛ぶ', () => {
+  it('タブ一覧の親アイコンは共通入口へ飛ぶ', () => {
     const { container } = render(
       <ExtensionSidebar
         state={{
@@ -126,9 +126,7 @@ describe('ExtensionSidebar', () => {
 
     const tabListLinks = container.querySelectorAll('a[href^="app.html#"]')
 
-    expect(tabListLinks[0]?.getAttribute('href')).toBe(
-      'app.html#/saved-tabs?mode=custom',
-    )
+    expect(tabListLinks[0]?.getAttribute('href')).toBe('app.html#/saved-tabs')
   })
 
   it('縮小時は専用 icon rail として同一サイズのボタンを表示する', () => {
@@ -169,9 +167,7 @@ describe('ExtensionSidebar', () => {
       expect(link?.className).toContain('justify-center')
     }
 
-    expect(tabListLink?.getAttribute('href')).toBe(
-      'app.html#/saved-tabs?mode=domain',
-    )
+    expect(tabListLink?.getAttribute('href')).toBe('app.html#/saved-tabs')
     expect(tabListLink?.getAttribute('aria-current')).toBe('page')
     expect(chatLink?.getAttribute('aria-current')).toBeNull()
     expect(periodicLink?.getAttribute('aria-current')).toBeNull()
