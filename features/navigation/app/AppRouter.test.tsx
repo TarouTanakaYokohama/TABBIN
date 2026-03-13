@@ -47,6 +47,10 @@ vi.mock('@/features/ai-chat/routes/AiChatRoute', () => ({
   AiChatRoute: () => <div>ai-chat-route</div>,
 }))
 
+vi.mock('@/features/analytics/routes/AnalyticsRoute', () => ({
+  AnalyticsRoute: () => <div>analytics-route</div>,
+}))
+
 vi.mock('@/features/periodic-execution/routes/PeriodicExecutionRoute', () => ({
   PeriodicExecutionRoute: () => <div>periodic-execution-route</div>,
 }))
@@ -80,20 +84,22 @@ describe('AppRouter', () => {
   it('サイドバークリックで SPA 遷移する', () => {
     render(<AppRouter initialEntries={['/saved-tabs?mode=domain']} />)
 
-    const periodicLink = screen.getAllByRole('link', {
-      name: '定期実行',
+    const analyticsLink = screen.getAllByRole('link', {
+      name: '(preview)分析',
     })[0]
-    if (!periodicLink) {
-      throw new Error('定期実行リンクが見つかりません')
+    if (!analyticsLink) {
+      throw new Error('(preview)分析リンクが見つかりません')
     }
 
-    fireEvent.click(periodicLink)
+    fireEvent.click(analyticsLink)
 
-    expect(screen.getByText('periodic-execution-route')).toBeTruthy()
+    expect(screen.getByText('analytics-route')).toBeTruthy()
   })
 
   it('router context では内部リンクが app.html ではなく route を指す', () => {
     render(<AppRouter initialEntries={['/saved-tabs?mode=custom']} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'サイドバーを開く' }))
 
     expect(
       screen
@@ -102,9 +108,20 @@ describe('AppRouter', () => {
     ).toBe('/ai-chat')
     expect(
       screen
+        .getAllByRole('link', { name: '(preview)分析' })[0]
+        ?.getAttribute('href'),
+    ).toBe('/analytics')
+    expect(
+      screen
         .getAllByRole('link', { name: 'カスタムモード' })[0]
         ?.getAttribute('href'),
     ).toBe('/saved-tabs?mode=custom')
+  })
+
+  it('analytics route を開ける', () => {
+    render(<AppRouter initialEntries={['/analytics']} />)
+
+    expect(screen.getByText('analytics-route')).toBeTruthy()
   })
 
   it('SavedTabsRoute から別 mode を選ぶと replace navigate する', () => {

@@ -15,6 +15,10 @@ import type {
   AiSavedUrlRecord,
   AiSavedUrlToolItem,
 } from '@/features/ai-chat/types'
+import {
+  generateAnalyticsResult,
+  getDefaultAnalyticsQuery,
+} from '@/features/analytics/lib/analytics'
 
 const paginationSchema = z.object({
   page: z.number().int().min(1).default(DEFAULT_SAVED_URL_PAGE),
@@ -102,6 +106,56 @@ const createAiChatTools = (records: AiSavedUrlRecord[]) => ({
     }),
     execute: async input =>
       mapPageForToolOutput(searchSavedUrlsPage(records, input)),
+  }),
+  generateSavedTabsAnalytics: tool({
+    description: AI_CHAT_TOOL_DESCRIPTIONS.generateSavedTabsAnalytics,
+    inputSchema: z.object({
+      chartType: z.enum(['area', 'bar', 'line', 'pie', 'radar']).default('bar'),
+      compareBy: z.enum(['mode', 'none']).default('none'),
+      customDateRange: z
+        .object({
+          from: z.string().optional(),
+          to: z.string().optional(),
+        })
+        .optional(),
+      filters: z
+        .object({
+          excludedDomains: z.array(z.string()).default([]),
+          excludedParentCategories: z.array(z.string()).default([]),
+          excludedProjectCategories: z.array(z.string()).default([]),
+          excludedProjects: z.array(z.string()).default([]),
+          excludedSubCategories: z.array(z.string()).default([]),
+          includedDomains: z.array(z.string()).default([]),
+          includedParentCategories: z.array(z.string()).default([]),
+          includedProjectCategories: z.array(z.string()).default([]),
+          includedProjects: z.array(z.string()).default([]),
+          includedSubCategories: z.array(z.string()).default([]),
+        })
+        .default(getDefaultAnalyticsQuery().filters),
+      groupBy: z
+        .enum([
+          'domain',
+          'parentCategory',
+          'project',
+          'projectCategory',
+          'subCategory',
+          'time',
+        ])
+        .default('domain'),
+      limit: z.number().int().min(1).max(20).default(8),
+      mode: z.enum(['both', 'custom', 'domain']).default('both'),
+      normalize: z.boolean().default(false),
+      sort: z
+        .enum(['label-asc', 'label-desc', 'value-asc', 'value-desc'])
+        .default('value-desc'),
+      stacked: z.boolean().default(false),
+      timeBucket: z.enum(['day', 'month', 'week']).default('day'),
+      timeRange: z
+        .enum(['30d', '365d', '7d', '90d', 'all', 'custom'])
+        .default('all'),
+      title: z.string().trim().optional(),
+    }),
+    execute: async input => generateAnalyticsResult(records, input),
   }),
   inferUserInterests: tool({
     description: AI_CHAT_TOOL_DESCRIPTIONS.inferUserInterests,

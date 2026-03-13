@@ -108,6 +108,20 @@ describe('Sidebar', () => {
     expect(wrapper?.style.getPropertyValue('--sidebar-width')).toBe('320px')
   })
 
+  it('保存済み幅がない時はアイコン幅で開始する', () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen>
+        <Sidebar>
+          <div>sidebar-content</div>
+        </Sidebar>
+        <SidebarInset>main-content</SidebarInset>
+      </SidebarProvider>,
+    )
+
+    const wrapper = container.firstElementChild as HTMLElement | null
+    expect(wrapper?.style.getPropertyValue('--sidebar-width')).toBe('48px')
+  })
+
   it('SidebarProvider は viewport 高に固定して子の内部スクロールを許可する', () => {
     const { container } = render(
       <SidebarProvider defaultOpen>

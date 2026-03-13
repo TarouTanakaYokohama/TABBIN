@@ -107,6 +107,7 @@ describe('ExtensionSidebar', () => {
     expect(content.querySelectorAll('section')).toHaveLength(1)
     expect(content.firstChild?.textContent).toContain('タブ一覧')
     expect(content.textContent).toContain('チャット')
+    expect(content.textContent).toContain('(preview)分析')
     expect(content.textContent).toContain('定期実行')
     expect(footer.textContent).toContain('オプション')
     expect(
@@ -149,6 +150,9 @@ describe('ExtensionSidebar', () => {
       .getAllByRole('link', { name: 'タブ一覧' })
       .at(-1)
     const chatLink = sidebar.getAllByRole('link', { name: 'チャット' }).at(-1)
+    const analyticsLink = sidebar
+      .getAllByRole('link', { name: '(preview)分析' })
+      .at(-1)
     const periodicLink = sidebar
       .getAllByRole('link', { name: '定期実行' })
       .at(-1)
@@ -161,7 +165,13 @@ describe('ExtensionSidebar', () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
 
-    for (const link of [tabListLink, chatLink, periodicLink, optionLink]) {
+    for (const link of [
+      tabListLink,
+      chatLink,
+      analyticsLink,
+      periodicLink,
+      optionLink,
+    ]) {
       expect(link?.className).toContain('size-11')
       expect(link?.className).toContain('items-center')
       expect(link?.className).toContain('justify-center')
@@ -170,6 +180,7 @@ describe('ExtensionSidebar', () => {
     expect(tabListLink?.getAttribute('href')).toBe('app.html#/saved-tabs')
     expect(tabListLink?.getAttribute('aria-current')).toBe('page')
     expect(chatLink?.getAttribute('aria-current')).toBeNull()
+    expect(analyticsLink?.getAttribute('aria-current')).toBeNull()
     expect(periodicLink?.getAttribute('aria-current')).toBeNull()
 
     sidebarContextValue.sidebarWidth = 256
@@ -249,7 +260,7 @@ describe('ExtensionSidebar', () => {
       <ExtensionSidebar
         state={{
           expandedGroup: 'tab-list',
-          item: 'ai-chat',
+          item: 'analytics',
         }}
       />,
     )
@@ -258,7 +269,7 @@ describe('ExtensionSidebar', () => {
 
     expect(
       sidebar
-        .getAllByRole('link', { name: 'チャット' })
+        .getAllByRole('link', { name: '(preview)分析' })
         .at(-1)
         ?.getAttribute('aria-current'),
     ).toBe('page')
@@ -288,7 +299,7 @@ describe('ExtensionSidebar', () => {
     ).toBe('page')
     expect(
       sidebar
-        .getAllByRole('link', { name: 'チャット' })
+        .getAllByRole('link', { name: '(preview)分析' })
         .at(-1)
         ?.getAttribute('aria-current'),
     ).toBeNull()

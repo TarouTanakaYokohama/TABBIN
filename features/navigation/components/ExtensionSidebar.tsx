@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Clock3,
   Folder,
   FolderTree,
@@ -94,6 +95,11 @@ const topLevelItems: Array<{
     icon: MessageCircleMore,
     id: 'ai-chat',
     label: 'チャット',
+  },
+  {
+    icon: BarChart3,
+    id: 'analytics',
+    label: '(preview)分析',
   },
   {
     icon: Clock3,

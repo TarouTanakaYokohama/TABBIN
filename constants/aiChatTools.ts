@@ -24,6 +24,12 @@ const AI_CHAT_TOOL_DEFINITIONS = [
     title: 'キーワードタブ検索',
   },
   {
+    description:
+      '保存済みタブをドメイン、カテゴリ、プロジェクト、時系列で集計し、chartSpecs を返す。チャートや分析を求められたら優先して使う',
+    name: 'generateSavedTabsAnalytics',
+    title: '保存分析',
+  },
+  {
     description: '保存傾向から興味のありそうなテーマを推定する',
     name: 'inferUserInterests',
     title: '興味推定',
