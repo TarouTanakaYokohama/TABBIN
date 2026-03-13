@@ -25,6 +25,13 @@ import {
 } from '@/components/ui/chart'
 import type { AiChartSeries, AiChartSpec } from '@/features/ai-chat/types'
 
+interface AiChartPointSelection {
+  label: string
+  seriesKey?: string
+  spec: AiChartSpec
+  value?: number
+}
+
 const PIE_CHART_COLOR_TOKENS = [
   'chart-1',
   'chart-2',
@@ -100,6 +107,90 @@ const ChartLegendBlock = ({
     <ChartLegend content={<ChartLegendContent nameKey={nameKey} />} />
   ) : null
 
+const createChartPointClickHandler = ({
+  onChartPointClick,
+  series,
+  spec,
+}: {
+  onChartPointClick?: (selection: AiChartPointSelection) => void
+  series: AiChartSeries
+  spec: AiChartSpec
+}) => {
+  if (!onChartPointClick) {
+    return undefined
+  }
+
+  return (...args: unknown[]) => {
+    const datum = args[0]
+    if (!datum || typeof datum !== 'object') {
+      return
+    }
+
+    const labelKey = spec.categoryKey || spec.xKey || 'label'
+    const record = datum as Record<string, unknown>
+    const labelValue = record[labelKey]
+    const value = record[series.dataKey]
+
+    if (typeof labelValue !== 'string') {
+      return
+    }
+
+    onChartPointClick({
+      label: labelValue,
+      seriesKey: series.dataKey,
+      spec,
+      value: typeof value === 'number' ? value : undefined,
+    })
+  }
+}
+
+const createTooltipChartClickHandler = ({
+  onChartPointClick,
+  primarySeries,
+  spec,
+}: {
+  onChartPointClick?: (selection: AiChartPointSelection) => void
+  primarySeries: AiChartSeries
+  spec: AiChartSpec
+}) => {
+  if (!onChartPointClick) {
+    return undefined
+  }
+
+  return (state: {
+    activeDataKey?: unknown
+    activeLabel?: unknown
+    isTooltipActive?: unknown
+  }) => {
+    if (state.isTooltipActive !== true) {
+      return
+    }
+
+    const labelKey = spec.categoryKey || spec.xKey || 'label'
+    const activeLabel = state.activeLabel
+    if (typeof activeLabel !== 'string' && typeof activeLabel !== 'number') {
+      return
+    }
+
+    const label = String(activeLabel)
+    const seriesKey =
+      typeof state.activeDataKey === 'string'
+        ? state.activeDataKey
+        : primarySeries.dataKey
+    const matchingDatum = spec.data.find(
+      datum => String(datum[labelKey] ?? '') === label,
+    )
+    const value = matchingDatum?.[seriesKey]
+
+    onChartPointClick({
+      label,
+      seriesKey,
+      spec,
+      value: typeof value === 'number' ? value : undefined,
+    })
+  }
+}
+
 const getPieChartData = (spec: AiChartSpec) =>
   spec.data.map((datum, index) => ({
     ...datum,
@@ -110,11 +201,13 @@ const getPieChartData = (spec: AiChartSpec) =>
 
 const renderPieChart = ({
   categoryKey,
+  onChartPointClick,
   primarySeries,
   shouldShowLegend,
   spec,
 }: {
   categoryKey: string
+  onChartPointClick?: (selection: AiChartPointSelection) => void
   primarySeries: AiChartSeries
   shouldShowLegend: boolean
   spec: AiChartSpec
@@ -132,6 +225,11 @@ const renderPieChart = ({
       data={getPieChartData(spec)}
       dataKey={primarySeries.dataKey}
       nameKey={categoryKey}
+      onClick={createChartPointClickHandler({
+        onChartPointClick,
+        series: primarySeries,
+        spec,
+      })}
       outerRadius={80}
     />
     <ChartLegendBlock
@@ -142,14 +240,26 @@ const renderPieChart = ({
 )
 
 const renderBarChart = ({
+  onChartPointClick,
+  primarySeries,
   shouldShowLegend,
   spec,
 }: {
+  onChartPointClick?: (selection: AiChartPointSelection) => void
+  primarySeries: AiChartSeries
   shouldShowLegend: boolean
   spec: AiChartSpec
 }) =>
   spec.xKey ? (
-    <BarChart accessibilityLayer data={spec.data}>
+    <BarChart
+      accessibilityLayer
+      data={spec.data}
+      onClick={createTooltipChartClickHandler({
+        onChartPointClick,
+        primarySeries,
+        spec,
+      })}
+    >
       <CartesianGrid vertical={false} />
       <XAxis axisLine={false} dataKey={spec.xKey} tickLine={false} />
       <YAxis axisLine={false} tickLine={false} />
@@ -167,6 +277,11 @@ const renderBarChart = ({
           dataKey={series.dataKey}
           fill={getChartColor(series.colorToken)}
           key={series.dataKey}
+          onClick={createChartPointClickHandler({
+            onChartPointClick,
+            series,
+            spec,
+          })}
           radius={6}
           stackId={spec.stacked ? 'stack' : undefined}
         />
@@ -175,14 +290,26 @@ const renderBarChart = ({
   ) : null
 
 const renderLineChart = ({
+  onChartPointClick,
+  primarySeries,
   shouldShowLegend,
   spec,
 }: {
+  onChartPointClick?: (selection: AiChartPointSelection) => void
+  primarySeries: AiChartSeries
   shouldShowLegend: boolean
   spec: AiChartSpec
 }) =>
   spec.xKey ? (
-    <LineChart accessibilityLayer data={spec.data}>
+    <LineChart
+      accessibilityLayer
+      data={spec.data}
+      onClick={createTooltipChartClickHandler({
+        onChartPointClick,
+        primarySeries,
+        spec,
+      })}
+    >
       <CartesianGrid vertical={false} />
       <XAxis axisLine={false} dataKey={spec.xKey} tickLine={false} />
       <YAxis axisLine={false} tickLine={false} />
@@ -209,14 +336,26 @@ const renderLineChart = ({
   ) : null
 
 const renderAreaChart = ({
+  onChartPointClick,
+  primarySeries,
   shouldShowLegend,
   spec,
 }: {
+  onChartPointClick?: (selection: AiChartPointSelection) => void
+  primarySeries: AiChartSeries
   shouldShowLegend: boolean
   spec: AiChartSpec
 }) =>
   spec.xKey ? (
-    <AreaChart accessibilityLayer data={spec.data}>
+    <AreaChart
+      accessibilityLayer
+      data={spec.data}
+      onClick={createTooltipChartClickHandler({
+        onChartPointClick,
+        primarySeries,
+        spec,
+      })}
+    >
       <CartesianGrid vertical={false} />
       <XAxis axisLine={false} dataKey={spec.xKey} tickLine={false} />
       <YAxis axisLine={false} tickLine={false} />
@@ -246,14 +385,26 @@ const renderAreaChart = ({
 
 const renderRadarChart = ({
   categoryKey,
+  onChartPointClick,
+  primarySeries,
   shouldShowLegend,
   spec,
 }: {
   categoryKey: string
+  onChartPointClick?: (selection: AiChartPointSelection) => void
+  primarySeries: AiChartSeries
   shouldShowLegend: boolean
   spec: AiChartSpec
 }) => (
-  <RadarChart accessibilityLayer data={spec.data}>
+  <RadarChart
+    accessibilityLayer
+    data={spec.data}
+    onClick={createTooltipChartClickHandler({
+      onChartPointClick,
+      primarySeries,
+      spec,
+    })}
+  >
     <ChartTooltip
       content={
         <ChartTooltipContent
@@ -279,11 +430,13 @@ const renderRadarChart = ({
 
 const renderChartContent = ({
   categoryKey,
+  onChartPointClick,
   primarySeries,
   shouldShowLegend,
   spec,
 }: {
   categoryKey: string
+  onChartPointClick?: (selection: AiChartPointSelection) => void
   primarySeries: AiChartSeries
   shouldShowLegend: boolean
   spec: AiChartSpec
@@ -292,19 +445,37 @@ const renderChartContent = ({
     case 'pie':
       return renderPieChart({
         categoryKey,
+        onChartPointClick,
         primarySeries,
         shouldShowLegend,
         spec,
       })
     case 'bar':
-      return renderBarChart({ shouldShowLegend, spec })
+      return renderBarChart({
+        onChartPointClick,
+        primarySeries,
+        shouldShowLegend,
+        spec,
+      })
     case 'line':
-      return renderLineChart({ shouldShowLegend, spec })
+      return renderLineChart({
+        onChartPointClick,
+        primarySeries,
+        shouldShowLegend,
+        spec,
+      })
     case 'area':
-      return renderAreaChart({ shouldShowLegend, spec })
+      return renderAreaChart({
+        onChartPointClick,
+        primarySeries,
+        shouldShowLegend,
+        spec,
+      })
     case 'radar':
       return renderRadarChart({
         categoryKey,
+        onChartPointClick,
+        primarySeries,
         shouldShowLegend,
         spec,
       })
@@ -313,13 +484,20 @@ const renderChartContent = ({
   }
 }
 
-const AiChart = ({ spec }: { spec: AiChartSpec }) => {
+const AiChart = ({
+  onChartPointClick,
+  spec,
+}: {
+  onChartPointClick?: (selection: AiChartPointSelection) => void
+  spec: AiChartSpec
+}) => {
   const config = createChartConfig(spec.series)
   const primarySeries = spec.series[0]
   const categoryKey = spec.categoryKey || spec.xKey || 'label'
   const shouldShowLegend = spec.showLegend ?? spec.series.length > 1
   const chartContent = renderChartContent({
     categoryKey,
+    onChartPointClick,
     primarySeries,
     shouldShowLegend,
     spec,
@@ -350,7 +528,13 @@ const AiChart = ({ spec }: { spec: AiChartSpec }) => {
   )
 }
 
-const AiChartRenderer = ({ charts }: { charts?: AiChartSpec[] }) => {
+const AiChartRenderer = ({
+  charts,
+  onChartPointClick,
+}: {
+  charts?: AiChartSpec[]
+  onChartPointClick?: (selection: AiChartPointSelection) => void
+}) => {
   const renderableCharts = (charts ?? []).filter(isRenderableChartSpec)
 
   if (renderableCharts.length === 0) {
@@ -360,10 +544,15 @@ const AiChartRenderer = ({ charts }: { charts?: AiChartSpec[] }) => {
   return (
     <div className='space-y-3 pt-3'>
       {renderableCharts.map(spec => (
-        <AiChart key={`${spec.type}-${spec.title}`} spec={spec} />
+        <AiChart
+          key={`${spec.type}-${spec.title}`}
+          onChartPointClick={onChartPointClick}
+          spec={spec}
+        />
       ))}
     </div>
   )
 }
 
 export { AiChartRenderer }
+export type { AiChartPointSelection }

@@ -2,6 +2,7 @@ import type { ViewMode } from '@/types/storage'
 
 type SidebarItemId =
   | 'ai-chat'
+  | 'analytics'
   | 'periodic-execution'
   | 'saved-tabs-domain'
   | 'saved-tabs-custom'
@@ -42,6 +43,16 @@ const getSidebarStateFromLocation = (
   }
 
   if (
+    normalizedPathname === 'analytics.html' ||
+    normalizedPathname === 'analytics'
+  ) {
+    return {
+      expandedGroup: 'tab-list',
+      item: 'analytics',
+    }
+  }
+
+  if (
     normalizedPathname === 'periodic-execution.html' ||
     normalizedPathname === 'periodic-execution'
   ) {
@@ -64,6 +75,8 @@ const getAppRoute = (item: SidebarItemId): string => {
   switch (item) {
     case 'ai-chat':
       return '/ai-chat'
+    case 'analytics':
+      return '/analytics'
     case 'periodic-execution':
       return '/periodic-execution'
     case 'saved-tabs-custom':
@@ -79,6 +92,8 @@ const getPageHref = (item: SidebarItemId): string => {
   switch (item) {
     case 'ai-chat':
       return 'ai-chat.html'
+    case 'analytics':
+      return 'analytics.html'
     case 'periodic-execution':
       return 'periodic-execution.html'
     case 'saved-tabs-custom':
@@ -98,6 +113,10 @@ const getLegacyRedirectHref = (pathname: string, search: string): string => {
 
   if (normalizedPathname === 'ai-chat.html') {
     return getAppEntryHref(getAppRoute('ai-chat'))
+  }
+
+  if (normalizedPathname === 'analytics.html') {
+    return getAppEntryHref(getAppRoute('analytics'))
   }
 
   if (normalizedPathname === 'periodic-execution.html') {

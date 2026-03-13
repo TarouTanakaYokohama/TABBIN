@@ -41,12 +41,12 @@ const clampSidebarWidth = (width: number): number =>
 
 const loadSidebarWidth = (): number => {
   if (typeof window === 'undefined') {
-    return SIDEBAR_WIDTH
+    return SIDEBAR_WIDTH_ICON_PX
   }
 
   const storedWidth = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
   if (!storedWidth) {
-    return clampSidebarWidth(SIDEBAR_WIDTH)
+    return clampSidebarWidth(SIDEBAR_WIDTH_ICON_PX)
   }
 
   const savedWidth = Number(storedWidth)

@@ -9,6 +9,7 @@ import {
   useNavigate,
 } from 'react-router-dom'
 import { AiChatRoute } from '@/features/ai-chat/routes/AiChatRoute'
+import { AnalyticsRoute } from '@/features/analytics/routes/AnalyticsRoute'
 import {
   getSavedTabsEntryRoute,
   getSavedTabsHrefForMode,
@@ -86,6 +87,7 @@ const AppRoutes = () => (
       />
       <Route path='/saved-tabs' element={<SavedTabsRoutePage />} />
       <Route path='/ai-chat' element={<AiChatRoute />} />
+      <Route path='/analytics' element={<AnalyticsRoute />} />
       <Route path='/periodic-execution' element={<PeriodicExecutionRoute />} />
       <Route
         path='*'
