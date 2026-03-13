@@ -482,7 +482,7 @@ export const ProjectManagementModal = ({
             <div className='mb-3 space-y-1'>
               <Label>自動振り分けキーワード</Label>
               <p className='text-muted-foreground text-xs'>
-                新規保存されたタブだけが対象です。複数キーワードはカンマ区切りで入力します。
+                新規保存されたタブが対象です。
               </p>
             </div>
 
