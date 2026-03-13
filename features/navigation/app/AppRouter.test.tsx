@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const storageMocks = vi.hoisted(() => ({
+  getViewMode: vi.fn(),
+}))
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
@@ -20,8 +24,22 @@ vi.mock('@/components/ui/tooltip', () => ({
 }))
 
 vi.mock('@/features/saved-tabs/routes/SavedTabsRoute', () => ({
-  SavedTabsRoute: ({ search }: { search?: string }) => (
-    <div>{`saved-tabs-route:${search ?? ''}`}</div>
+  SavedTabsRoute: ({
+    onViewModeNavigate,
+    search,
+  }: {
+    onViewModeNavigate?: (mode: 'custom' | 'domain') => void
+    search?: string
+  }) => (
+    <div>
+      <div>{`saved-tabs-route:${search ?? ''}`}</div>
+      <button onClick={() => onViewModeNavigate?.('custom')} type='button'>
+        navigate-custom
+      </button>
+      <button onClick={() => onViewModeNavigate?.('domain')} type='button'>
+        navigate-domain
+      </button>
+    </div>
   ),
 }))
 
@@ -33,13 +51,30 @@ vi.mock('@/features/periodic-execution/routes/PeriodicExecutionRoute', () => ({
   PeriodicExecutionRoute: () => <div>periodic-execution-route</div>,
 }))
 
+vi.mock('@/lib/storage/projects', () => ({
+  getViewMode: storageMocks.getViewMode,
+}))
+
 import { AppRouter } from './AppRouter'
 
 describe('AppRouter', () => {
-  it('ルートパスは saved-tabs に redirect する', () => {
+  beforeEach(() => {
+    storageMocks.getViewMode.mockReset()
+    window.history.replaceState({}, '', '/')
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('ルートパスは保存済み viewMode の saved-tabs に redirect する', async () => {
+    storageMocks.getViewMode.mockResolvedValue('custom')
+
     render(<AppRouter initialEntries={['/']} />)
 
-    expect(screen.getByText('saved-tabs-route:?mode=domain')).toBeTruthy()
+    expect(
+      await screen.findByText('saved-tabs-route:?mode=custom'),
+    ).toBeTruthy()
   })
 
   it('サイドバークリックで SPA 遷移する', () => {
@@ -70,5 +105,39 @@ describe('AppRouter', () => {
         .getAllByRole('link', { name: 'カスタムモード' })[0]
         ?.getAttribute('href'),
     ).toBe('/saved-tabs?mode=custom')
+  })
+
+  it('SavedTabsRoute から別 mode を選ぶと replace navigate する', () => {
+    render(<AppRouter initialEntries={['/saved-tabs?mode=domain']} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'navigate-custom' }))
+
+    expect(screen.getByText('saved-tabs-route:?mode=custom')).toBeTruthy()
+  })
+
+  it('SavedTabsRoute から同じ mode を選んだ場合は再 navigate しない', () => {
+    render(<AppRouter initialEntries={['/saved-tabs?mode=domain']} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'navigate-domain' }))
+
+    expect(screen.getByText('saved-tabs-route:?mode=domain')).toBeTruthy()
+  })
+
+  it('不明なルートは viewMode 取得失敗時に domain で開く', async () => {
+    storageMocks.getViewMode.mockRejectedValue(new Error('storage failed'))
+
+    render(<AppRouter initialEntries={['/unknown']} />)
+
+    expect(
+      await screen.findByText('saved-tabs-route:?mode=domain'),
+    ).toBeTruthy()
+  })
+
+  it('initialEntries が無い場合は HashRouter を使う', () => {
+    window.history.replaceState({}, '', '/app.html#/saved-tabs?mode=custom')
+
+    render(<AppRouter />)
+
+    expect(screen.getByText('saved-tabs-route:?mode=custom')).toBeTruthy()
   })
 })

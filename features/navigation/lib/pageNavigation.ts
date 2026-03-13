@@ -88,6 +88,8 @@ const getPageHref = (item: SidebarItemId): string => {
   }
 }
 
+const getSavedTabsEntryRoute = (): string => '/saved-tabs'
+
 const getSavedTabsHrefForMode = (mode: ViewMode): string =>
   getAppRoute(mode === 'custom' ? 'saved-tabs-custom' : 'saved-tabs-domain')
 
@@ -102,10 +104,14 @@ const getLegacyRedirectHref = (pathname: string, search: string): string => {
     return getAppEntryHref(getAppRoute('periodic-execution'))
   }
 
+  const params = new URLSearchParams(search)
+
+  if (!params.has('mode')) {
+    return getAppEntryHref(getSavedTabsEntryRoute())
+  }
+
   const mode = getSavedTabsModeFromLocation(search)
-  return getAppEntryHref(
-    getAppRoute(mode === 'custom' ? 'saved-tabs-custom' : 'saved-tabs-domain'),
-  )
+  return getAppEntryHref(getSavedTabsHrefForMode(mode))
 }
 
 export type { SidebarItemId, SidebarState }
@@ -115,6 +121,7 @@ export {
   getAppRoute,
   getLegacyRedirectHref,
   getPageHref,
+  getSavedTabsEntryRoute,
   getSavedTabsHrefForMode,
   getSavedTabsModeFromLocation,
   getSidebarStateFromLocation,
