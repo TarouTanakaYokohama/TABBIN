@@ -163,9 +163,11 @@ describe('PeriodicExecutionRoute', () => {
     render(createElement(PeriodicExecutionRoute))
 
     expect(screen.getAllByText('定期実行').length).toBeGreaterThan(0)
+    expect(screen.getByText('自動削除')).toBeTruthy()
     expect(screen.getByText('タブの自動削除期間')).toBeTruthy()
-    expect(screen.getByText('朝8時のAIレビュー')).toBeTruthy()
-    expect(screen.getByText('今後追加する自動整理')).toBeTruthy()
+    expect(
+      screen.getByText('古い保存タブを自動整理する設定です。'),
+    ).toBeTruthy()
   })
 
   it('自動削除期間の変更と確認操作を処理する', () => {

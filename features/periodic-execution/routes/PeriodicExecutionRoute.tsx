@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Toaster } from '@/components/ui/sonner'
 import { ExtensionPageHeader } from '@/features/navigation/components/ExtensionPageHeader'
 import { useAutoDeletePeriod } from '@/features/options/hooks/useAutoDeletePeriod'
@@ -26,55 +25,17 @@ export const PeriodicExecutionRoute = () => {
   return (
     <>
       <Toaster position='top-right' />
-      <div className='mx-auto min-h-screen max-w-7xl px-6 py-8'>
-        <ExtensionPageHeader
-          title='定期実行'
-          description='朝のレビューや自動整理など、保存タブに対する定期ジョブをここに集約します。v1 では自動削除設定の移設と、今後の自動化項目の情報設計までを扱います。'
+      <div className='min-h-screen px-6 py-8'>
+        <ExtensionPageHeader title='定期実行' />
+
+        <AutoDeleteSettingsCard
+          confirmationState={confirmationState}
+          hideConfirmation={hideConfirmation}
+          pendingAutoDeletePeriod={pendingAutoDeletePeriod}
+          selectedAutoDeletePeriod={settings.autoDeletePeriod ?? 'never'}
+          onAutoDeletePeriodChange={handleAutoDeletePeriodChange}
+          onPrepareAutoDeletePeriod={prepareAutoDeletePeriod}
         />
-
-        <div className='grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]'>
-          <AutoDeleteSettingsCard
-            confirmationState={confirmationState}
-            hideConfirmation={hideConfirmation}
-            pendingAutoDeletePeriod={pendingAutoDeletePeriod}
-            selectedAutoDeletePeriod={settings.autoDeletePeriod ?? 'never'}
-            onAutoDeletePeriodChange={handleAutoDeletePeriodChange}
-            onPrepareAutoDeletePeriod={prepareAutoDeletePeriod}
-          />
-
-          <div className='space-y-6'>
-            <Card className='rounded-2xl border-border'>
-              <CardHeader>
-                <CardTitle>朝8時のAIレビュー</CardTitle>
-              </CardHeader>
-              <CardContent className='space-y-3 text-sm leading-6'>
-                <p className='text-muted-foreground'>
-                  毎朝 8 時に、過去 24 時間で追加した URL を AI が確認し、
-                  「見た方がよい」「後回しでよい」などを提案する想定です。
-                </p>
-                <div className='rounded-xl border border-border border-dashed bg-muted/30 p-4'>
-                  <p className='font-medium'>v1 では準備中です</p>
-                  <p className='mt-1 text-muted-foreground'>
-                    実行時刻、対象期間、通知方法、AI
-                    モデル選択は次段で追加します。
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className='rounded-2xl border-border'>
-              <CardHeader>
-                <CardTitle>今後追加する自動整理</CardTitle>
-              </CardHeader>
-              <CardContent className='space-y-3 text-muted-foreground text-sm leading-6'>
-                <p>重複 URL の整理</p>
-                <p>長期間未読タブの削除候補提案</p>
-                <p>カテゴリ別の再整理提案</p>
-                <p>保存タブ数が多すぎる時の通知</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
       </div>
     </>
   )
