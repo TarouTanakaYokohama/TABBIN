@@ -338,6 +338,7 @@ export const CustomProjectSection = ({
   handleCreateProject,
   handleDeleteProject,
   handleRenameProject,
+  handleUpdateProjectKeywords,
   handleAddCategory,
   handleDeleteCategory,
   handleRenameCategory, // 追加: カテゴリ名変更ハンドラ
@@ -649,6 +650,7 @@ export const CustomProjectSection = ({
                     handleAddUrl={handleAddUrl}
                     handleDeleteProject={handleDeleteProject}
                     handleRenameProject={handleRenameProject}
+                    handleUpdateProjectKeywords={handleUpdateProjectKeywords}
                     handleAddCategory={handleAddCategory}
                     handleDeleteCategory={handleDeleteCategory}
                     handleRenameCategory={handleRenameCategory} // 追加: カテゴリ名変更ハンドラ

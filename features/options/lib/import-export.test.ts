@@ -159,6 +159,11 @@ const buildCustomProject = (
 ): CustomProject => ({
   id: 'project-1',
   name: 'Project 1',
+  projectKeywords: {
+    titleKeywords: [],
+    urlKeywords: [],
+    domainKeywords: [],
+  },
   urlIds: [],
   categories: [],
   createdAt: 1,
@@ -222,6 +227,11 @@ describe('import-export ユーティリティ', () => {
           id: 'project-1',
           name: 'Project 1',
           urlIds: ['url-1'],
+          projectKeywords: {
+            titleKeywords: ['release'],
+            urlKeywords: ['docs'],
+            domainKeywords: ['example.com'],
+          },
           categories: ['Docs'],
           categoryOrder: ['Docs'],
           urlMetadata: {
@@ -276,6 +286,11 @@ describe('import-export ユーティリティ', () => {
             category: 'Docs',
           },
         ],
+        projectKeywords: {
+          titleKeywords: ['release'],
+          urlKeywords: ['docs'],
+          domainKeywords: ['example.com'],
+        },
         categories: ['Docs'],
         categoryOrder: ['Docs'],
         createdAt: 10,
@@ -293,6 +308,11 @@ describe('import-export ユーティリティ', () => {
             category: undefined,
           },
         ],
+        projectKeywords: {
+          titleKeywords: [],
+          urlKeywords: [],
+          domainKeywords: [],
+        },
         categories: [],
         createdAt: 12,
         updatedAt: 13,
@@ -309,6 +329,11 @@ describe('import-export ユーティリティ', () => {
           id: 'project-1',
           name: 'Project 1',
           urlIds: ['url-1'],
+          projectKeywords: {
+            titleKeywords: ['release'],
+            urlKeywords: ['docs'],
+            domainKeywords: ['example.com'],
+          },
           categories: ['Docs'],
           categoryOrder: ['Docs'],
           urlMetadata: {
@@ -412,6 +437,11 @@ describe('import-export ユーティリティ', () => {
         id: 'project-1',
         name: 'Project 1',
         urlIds: ['restored-url-1'],
+        projectKeywords: {
+          titleKeywords: ['release'],
+          urlKeywords: ['docs'],
+          domainKeywords: ['example.com'],
+        },
         categories: ['Docs'],
         categoryOrder: ['Docs'],
         urlMetadata: {

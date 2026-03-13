@@ -29,6 +29,7 @@ export interface ProjectCardContextType {
     handleSetUrlCategory: CustomProjectCardProps['handleSetUrlCategory']
     handleOpenAllUrls?: CustomProjectCardProps['handleOpenAllUrls']
     handleRenameProject?: CustomProjectCardProps['handleRenameProject']
+    handleUpdateProjectKeywords?: CustomProjectCardProps['handleUpdateProjectKeywords']
     handleDeleteProject?: CustomProjectCardProps['handleDeleteProject']
     handleDeleteUrlsFromProject?: CustomProjectCardProps['handleDeleteUrlsFromProject']
   }

@@ -25,6 +25,7 @@ const CustomProjectCard = memo(
     handleOpenAllUrls,
     handleDeleteProject,
     handleRenameProject,
+    handleUpdateProjectKeywords,
     settings,
     draggedItem,
     isDropTarget = false,
@@ -48,6 +49,7 @@ const CustomProjectCard = memo(
         handleOpenAllUrls,
         handleDeleteProject,
         handleRenameProject,
+        handleUpdateProjectKeywords,
         handleDeleteUrlsFromProject,
       }}
       hookHandlers={{
