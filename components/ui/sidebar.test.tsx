@@ -30,6 +30,7 @@ vi.mock('./sheet', () => ({
 
 import {
   Sidebar,
+  SidebarContent,
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
@@ -135,6 +136,42 @@ describe('Sidebar', () => {
     const wrapper = container.firstElementChild as HTMLElement | null
     expect(wrapper?.className.includes('h-svh')).toBe(true)
     expect(wrapper?.className.includes('overflow-hidden')).toBe(true)
+  })
+
+  it('icon 収縮時も SidebarContent は縦スクロールを維持する', () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen>
+        <Sidebar>
+          <div data-sidebar='header'>header</div>
+          <SidebarContent>content</SidebarContent>
+          <div data-sidebar='footer'>footer</div>
+        </Sidebar>
+        <SidebarInset>main-content</SidebarInset>
+      </SidebarProvider>,
+    )
+
+    const resizeHandle = screen.getByRole('button', {
+      name: 'サイドバーの幅を調整',
+    })
+
+    fireEvent.pointerDown(resizeHandle, {
+      clientX: 256,
+    })
+    fireEvent.pointerMove(window, {
+      clientX: 12,
+    })
+    fireEvent.pointerUp(window)
+
+    const content = container.querySelector(
+      '[data-sidebar="content"]',
+    ) as HTMLElement | null
+
+    expect(content?.className.includes('overflow-auto')).toBe(true)
+    expect(
+      content?.className.includes(
+        'group-data-[collapsible=icon]:overflow-hidden',
+      ),
+    ).toBe(false)
   })
 
   it('ドラッグ最小値ではアイコン幅まで縮み、icon 状態になる', () => {
