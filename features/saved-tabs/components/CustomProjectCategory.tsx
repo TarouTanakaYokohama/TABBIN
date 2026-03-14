@@ -5,18 +5,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import {
-  ArrowUpDown,
-  ArrowUpNarrowWide,
-  ArrowUpWideNarrow,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  GripVertical,
-  Settings,
-  Trash2,
-} from 'lucide-react'
-import { memo, useEffect, useMemo, useState } from 'react'
+import { ExternalLink, GripVertical, Settings, Trash2 } from 'lucide-react'
+import { memo, useMemo, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,36 +30,17 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import type { SortOrder } from '../hooks/useSortOrder'
 import type { CustomProjectCategoryProps } from '../types/CustomProjectCategory.types'
 import { ProjectUrlItem } from './ProjectUrlItem'
+import { CardCollapseControl } from './shared/CardCollapseControl'
+import { CardSortControl } from './shared/CardSortControl'
 import {
   SavedTabsResponsiveLabel,
   SavedTabsResponsiveTooltipContent,
 } from './shared/SavedTabsResponsive'
 
 type CategoryUrl = NonNullable<CustomProjectCategoryProps['urls']>[number]
-type SortOrder = 'default' | 'asc' | 'desc'
-
-const sortOrderLabels: Record<SortOrder, string> = {
-  default: 'デフォルト',
-  asc: '保存日時の昇順',
-  desc: '保存日時の降順',
-}
-
-const nextSortOrderMap: Record<SortOrder, SortOrder> = {
-  default: 'asc',
-  asc: 'desc',
-  desc: 'default',
-}
-
-const sortOrderIcons = {
-  default: ArrowUpDown,
-  asc: ArrowUpNarrowWide,
-  desc: ArrowUpWideNarrow,
-} as const
-
-const getCollapseLabel = (isCollapsed: boolean): string =>
-  isCollapsed ? '展開' : '折りたたむ'
 
 const shouldConfirmBulkOpen = (urlCount: number): boolean => urlCount >= 10
 
@@ -92,24 +63,6 @@ const sortCategoryUrls = (
   return sorted
 }
 
-const getEmptyCategoryMessage = ({
-  isReorderTarget,
-  isCategoryReorder,
-  isDropTarget,
-}: {
-  isReorderTarget: boolean
-  isCategoryReorder: boolean
-  isDropTarget: boolean
-}): string => {
-  if (isReorderTarget && isCategoryReorder) {
-    return 'カテゴリの順序を変更'
-  }
-  if (isDropTarget) {
-    return 'ここにドロップしてカテゴリに追加'
-  }
-  return 'このカテゴリにはURLがありません。URLをドラッグ＆ドロップで追加できます。'
-}
-
 const getReorderStyle = (isReorderTarget: boolean): React.CSSProperties => {
   if (!isReorderTarget) {
     return {}
@@ -129,8 +82,9 @@ interface CategoryHeaderMainProps {
   isCollapseDisabled: boolean
   sortOrder: SortOrder
   urlCount: number
-  onToggleCollapse: (event: React.MouseEvent) => void
-  onToggleSort: (event: React.MouseEvent) => void
+  setIsCollapsed: (value: boolean) => void
+  setUserCollapsedState: (value: boolean) => void
+  setSortOrder: React.Dispatch<React.SetStateAction<SortOrder>>
 }
 
 const CategoryHeaderMain = ({
@@ -141,59 +95,28 @@ const CategoryHeaderMain = ({
   isCollapseDisabled,
   sortOrder,
   urlCount,
-  onToggleCollapse,
-  onToggleSort,
+  setIsCollapsed,
+  setUserCollapsedState,
+  setSortOrder,
 }: CategoryHeaderMainProps) => {
-  const SortOrderIcon = sortOrderIcons[sortOrder]
-  const collapseLabel = getCollapseLabel(isCollapsed)
-  const sortLabel = sortOrderLabels[sortOrder]
-
   return (
     <div
       {...attributes}
       {...listeners}
       className='flex grow cursor-grab items-center gap-2 overflow-hidden hover:cursor-grab active:cursor-grabbing'
     >
-      <Tooltip>
-        <TooltipTrigger asChild={true}>
-          <Button
-            variant='secondary'
-            size='sm'
-            onPointerDown={event => event.stopPropagation()}
-            onClick={onToggleCollapse}
-            className={`flex items-center gap-1 ${
-              isCollapseDisabled
-                ? 'cursor-not-allowed opacity-50'
-                : 'cursor-pointer'
-            }`}
-            aria-label={collapseLabel}
-            disabled={isCollapseDisabled}
-          >
-            {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-          </Button>
-        </TooltipTrigger>
-        <SavedTabsResponsiveTooltipContent side='top'>
-          {collapseLabel}
-        </SavedTabsResponsiveTooltipContent>
-      </Tooltip>
-
-      <Tooltip>
-        <TooltipTrigger asChild={true}>
-          <Button
-            variant='secondary'
-            size='sm'
-            onPointerDown={event => event.stopPropagation()}
-            onClick={onToggleSort}
-            className='flex cursor-pointer items-center gap-1'
-            aria-label={sortLabel}
-          >
-            <SortOrderIcon size={14} />
-          </Button>
-        </TooltipTrigger>
-        <SavedTabsResponsiveTooltipContent side='top'>
-          {sortLabel}
-        </SavedTabsResponsiveTooltipContent>
-      </Tooltip>
+      <CardCollapseControl
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
+        setUserCollapsedState={setUserCollapsedState}
+        isDisabled={isCollapseDisabled}
+        onPointerDown={event => event.stopPropagation()}
+      />
+      <CardSortControl
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+        onPointerDown={event => event.stopPropagation()}
+      />
 
       <div className='shrink-0 text-muted-foreground'>
         <GripVertical size={16} aria-hidden='true' />
@@ -207,8 +130,6 @@ const CategoryHeaderMain = ({
 }
 
 interface CategoryHeaderActionsProps {
-  isReorderTarget: boolean
-  isCategoryReorder: boolean
   showManageActions: boolean
   showBulkActions: boolean
   onOpenManageDialog: () => void
@@ -217,8 +138,6 @@ interface CategoryHeaderActionsProps {
 }
 
 const CategoryHeaderActions = ({
-  isReorderTarget,
-  isCategoryReorder,
   showManageActions,
   showBulkActions,
   onOpenManageDialog,
@@ -226,13 +145,6 @@ const CategoryHeaderActions = ({
   onDeleteAllClick,
 }: CategoryHeaderActionsProps) => (
   <div className='flex items-center gap-1'>
-    {isReorderTarget && isCategoryReorder && (
-      <div className='mr-2 flex items-center text-blue-600 text-sm'>
-        <ArrowUpDown className='mr-1' size={14} />
-        <span>順序を変更</span>
-      </div>
-    )}
-
     {showManageActions && (
       <Tooltip>
         <TooltipTrigger asChild={true}>
@@ -298,9 +210,6 @@ const CategoryHeaderActions = ({
 interface CategoryContentProps {
   urls: CategoryUrl[]
   isOver: boolean
-  isDropTarget: boolean
-  isReorderTarget: boolean
-  isCategoryReorder: boolean
   category: string
   projectId: string
   categoryDropId: string
@@ -318,9 +227,6 @@ interface CategoryContentProps {
 const CategoryContent = ({
   urls,
   isOver,
-  isDropTarget,
-  isReorderTarget,
-  isCategoryReorder,
   category,
   projectId,
   categoryDropId,
@@ -330,12 +236,6 @@ const CategoryContent = ({
   handleSetUrlCategory,
   settings,
 }: CategoryContentProps) => {
-  const emptyMessage = getEmptyCategoryMessage({
-    isReorderTarget,
-    isCategoryReorder,
-    isDropTarget,
-  })
-
   return (
     <CardContent
       ref={setDroppableRef}
@@ -374,9 +274,7 @@ const CategoryContent = ({
           className={`rounded border-2 border-dashed p-4 py-2 text-center text-muted-foreground ${
             isOver ? 'border-primary bg-primary/10' : ''
           }`}
-        >
-          {emptyMessage}
-        </div>
+        />
       )}
     </CardContent>
   )
@@ -453,7 +351,7 @@ const CategoryManageDialog = ({
 
           <div className='border-t pt-4'>
             <p className='text-gray-600 text-sm'>
-              カテゴリを削除すると、このカテゴリに属するすべてのURLは未分類になります。
+              カテゴリを削除すると、このカテゴリに属するすべてのタブは未分類になります。
             </p>
             {showDeleteConfirm ? (
               <div className='mt-2 flex justify-end gap-2'>
@@ -597,7 +495,6 @@ const CustomProjectCategoryComponent = ({
     () => sortCategoryUrls(urls || [], sortOrder),
     [urls, sortOrder],
   )
-  const [isCollapsed, setIsCollapsed] = useState(false)
   const [userCollapsedState, setUserCollapsedState] = useState(false)
   const [showManageDialog, setShowManageDialog] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState(category)
@@ -606,18 +503,6 @@ const CustomProjectCategoryComponent = ({
   const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
   const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false)
 
-  useEffect(() => {
-    setNewCategoryName(category)
-  }, [category])
-
-  useEffect(() => {
-    if (isDraggingCategory || isCategoryReorder) {
-      setIsCollapsed(true)
-      return
-    }
-    setIsCollapsed(userCollapsedState)
-  }, [isDraggingCategory, isCategoryReorder, userCollapsedState])
-
   const isDropTarget = isHighlighted || isOver
   const isSelfDragging = isDraggingCategory && draggedCategoryName === category
   const isReorderTarget =
@@ -625,6 +510,8 @@ const CustomProjectCategoryComponent = ({
     draggedCategoryName !== null &&
     draggedCategoryName !== category &&
     isDropTarget
+  const isCollapsed =
+    isDraggingCategory || isCategoryReorder || userCollapsedState
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -645,18 +532,6 @@ const CustomProjectCategoryComponent = ({
   )
   const showBulkActions = sortedCategoryUrls.length > 0
   const isCollapseDisabled = isDraggingCategory || isCategoryReorder
-
-  const handleToggleCollapse = (event: React.MouseEvent) => {
-    event.stopPropagation()
-    const newState = !isCollapsed
-    setIsCollapsed(newState)
-    setUserCollapsedState(newState)
-  }
-
-  const handleToggleSort = (event: React.MouseEvent) => {
-    event.stopPropagation()
-    setSortOrder(current => nextSortOrderMap[current])
-  }
 
   const handleOpenAllUrlsConfirmed = () => {
     if (handleOpenAllUrls) {
@@ -717,6 +592,13 @@ const CustomProjectCategoryComponent = ({
     setShowManageDialog(false)
   }
 
+  const handleOpenManageDialog = () => {
+    setNewCategoryName(category)
+    setRenameError(null)
+    setShowDeleteConfirm(false)
+    setShowManageDialog(true)
+  }
+
   return (
     <>
       <Card
@@ -742,15 +624,14 @@ const CustomProjectCategoryComponent = ({
             isCollapseDisabled={isCollapseDisabled}
             sortOrder={sortOrder}
             urlCount={sortedCategoryUrls.length}
-            onToggleCollapse={handleToggleCollapse}
-            onToggleSort={handleToggleSort}
+            setIsCollapsed={setUserCollapsedState}
+            setUserCollapsedState={setUserCollapsedState}
+            setSortOrder={setSortOrder}
           />
           <CategoryHeaderActions
-            isReorderTarget={isReorderTarget}
-            isCategoryReorder={isCategoryReorder}
             showManageActions={showManageActions}
             showBulkActions={showBulkActions}
-            onOpenManageDialog={() => setShowManageDialog(true)}
+            onOpenManageDialog={handleOpenManageDialog}
             onOpenAllClick={handleOpenAllClick}
             onDeleteAllClick={handleDeleteAllClick}
           />
@@ -760,9 +641,6 @@ const CustomProjectCategoryComponent = ({
           <CategoryContent
             urls={sortedCategoryUrls}
             isOver={isOver}
-            isDropTarget={isDropTarget}
-            isReorderTarget={isReorderTarget}
-            isCategoryReorder={isCategoryReorder}
             category={category}
             projectId={projectId}
             categoryDropId={categoryDropId}

@@ -51,6 +51,46 @@ describe('inferUserInterests', () => {
       count: 3,
       value: 'Frontend',
     })
+    expect(result.chartSpecs).toEqual([
+      {
+        categoryKey: 'label',
+        data: [
+          { count: 3, label: 'Frontend' },
+          { count: 2, label: 'Favorites' },
+          { count: 1, label: 'AI' },
+        ],
+        description: '最近保存したカテゴリ比率',
+        series: [{ colorToken: 'chart-1', dataKey: 'count', label: '保存数' }],
+        title: 'よく保存しているジャンル',
+        type: 'pie',
+        valueFormat: 'count',
+      },
+      {
+        data: [
+          { count: 3, label: 'Frontend' },
+          { count: 2, label: 'Favorites' },
+          { count: 1, label: 'AI' },
+        ],
+        description: '最近保存したカテゴリ件数',
+        series: [{ colorToken: 'chart-1', dataKey: 'count', label: '保存数' }],
+        title: 'ジャンル別の保存数',
+        type: 'bar',
+        valueFormat: 'count',
+        xKey: 'label',
+      },
+      {
+        data: [
+          { count: 2, label: 'react.dev' },
+          { count: 1, label: 'vercel.com' },
+        ],
+        description: '最近保存したドメイン件数',
+        series: [{ colorToken: 'chart-2', dataKey: 'count', label: '保存数' }],
+        title: 'よく保存しているドメイン',
+        type: 'bar',
+        valueFormat: 'count',
+        xKey: 'label',
+      },
+    ])
   })
 
   it('データが少ないときは推測弱めのフラグを立てる', () => {
@@ -83,6 +123,7 @@ describe('inferUserInterests', () => {
         topDomains: [],
         topCategories: [],
       },
+      chartSpecs: [],
     })
   })
 
@@ -177,5 +218,19 @@ describe('inferUserInterests', () => {
     ])
 
     expect(result.summary).toContain('カテゴリ偏りはまだ弱めです。')
+    expect(result.chartSpecs).toEqual([
+      {
+        data: [
+          { count: 2, label: 'react.dev' },
+          { count: 1, label: 'vercel.com' },
+        ],
+        description: '最近保存したドメイン件数',
+        series: [{ colorToken: 'chart-2', dataKey: 'count', label: '保存数' }],
+        title: 'よく保存しているドメイン',
+        type: 'bar',
+        valueFormat: 'count',
+        xKey: 'label',
+      },
+    ])
   })
 })

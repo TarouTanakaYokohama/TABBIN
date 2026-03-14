@@ -29,10 +29,12 @@ import {
   setUrlCategory,
   updateCategoryOrder,
   updateCustomProjectName,
+  updateProjectKeywords,
   updateProjectOrder,
 } from '@/lib/storage/projects'
 import type {
   CustomProject,
+  ProjectKeywordSettings,
   TabGroup,
   UserSettings,
   ViewMode,
@@ -62,9 +64,8 @@ interface UseProjectManagementReturn {
   /**
    * 新しいカスタムプロジェクトを作成する。
    * @param name - プロジェクト名
-   * @param description - 説明（省略可）
    */
-  handleCreateProject: (name: string, description?: string) => Promise<void>
+  handleCreateProject: (name: string) => Promise<void>
   /**
    * カスタムプロジェクトを削除する。
    * @param projectId - 削除するプロジェクトの ID
@@ -76,6 +77,15 @@ interface UseProjectManagementReturn {
    * @param newName - 新しいプロジェクト名
    */
   handleRenameProject: (projectId: string, newName: string) => Promise<void>
+  /**
+   * プロジェクトの自動振り分けキーワードを更新する。
+   * @param projectId - 対象プロジェクトの ID
+   * @param projectKeywords - タイトル/URL/ドメインのキーワード設定
+   */
+  handleUpdateProjectKeywords: (
+    projectId: string,
+    projectKeywords: ProjectKeywordSettings,
+  ) => Promise<void>
   /**
    * プロジェクトに URL を追加する。
    * @param projectId - 対象プロジェクトの ID
@@ -174,11 +184,14 @@ interface UseProjectManagementReturn {
 const useProjectManagement = (
   _tabGroups: TabGroup[],
   _settings: UserSettings,
+  initialViewMode?: ViewMode,
 ): UseProjectManagementReturn => {
   const [customProjects, setCustomProjects] = useState<CustomProject[]>([])
-  const [viewMode, setViewMode] = useState<ViewMode>('domain')
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    initialViewMode ?? 'domain',
+  )
   const customProjectsRef = useRef<CustomProject[]>([])
-  const viewModeRef = useRef<ViewMode>('domain')
+  const viewModeRef = useRef<ViewMode>(initialViewMode ?? 'domain')
   const creatingProjectNamesRef = useRef<Set<string>>(new Set())
 
   // ref を最新の state に同期する
@@ -232,7 +245,7 @@ const useProjectManagement = (
 
   /** 新しいカスタムプロジェクトを作成する */
   const handleCreateProject = useCallback(
-    async (name: string, description?: string): Promise<void> => {
+    async (name: string): Promise<void> => {
       const normalizedName = name.trim()
       const projectKey = normalizedName.toLowerCase()
       if (!normalizedName) {
@@ -244,10 +257,7 @@ const useProjectManagement = (
 
       creatingProjectNamesRef.current.add(projectKey)
       try {
-        const newProject = await createCustomProject(
-          normalizedName,
-          description,
-        )
+        const newProject = await createCustomProject(normalizedName)
         setCustomProjects(prev => {
           const withoutCreated = prev.filter(
             project => project.id !== newProject.id,
@@ -325,6 +335,34 @@ const useProjectManagement = (
     [],
   )
 
+  /** プロジェクトの自動振り分けキーワードを更新する */
+  const handleUpdateProjectKeywords = useCallback(
+    async (
+      projectId: string,
+      projectKeywords: ProjectKeywordSettings,
+    ): Promise<void> => {
+      try {
+        await updateProjectKeywords(projectId, projectKeywords)
+        setCustomProjects(prev =>
+          prev.map(project =>
+            project.id === projectId
+              ? {
+                  ...project,
+                  projectKeywords,
+                  updatedAt: Date.now(),
+                }
+              : project,
+          ),
+        )
+        toast.success('キーワード設定を更新しました')
+      } catch (error) {
+        console.error('キーワード設定更新エラー:', error)
+        toast.error('キーワード設定の更新に失敗しました')
+      }
+    },
+    [],
+  )
+
   /** プロジェクトに URL を追加する */
   const handleAddUrlToProject = useCallback(
     async (projectId: string, url: string, title: string): Promise<void> => {
@@ -332,10 +370,10 @@ const useProjectManagement = (
         await addUrlToCustomProject(projectId, url, title)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        toast.success('URLを追加しました')
+        toast.success('タブを追加しました')
       } catch (error) {
         console.error('URL追加エラー:', error)
-        toast.error('URLの追加に失敗しました')
+        toast.error('タブの追加に失敗しました')
       }
     },
     [],
@@ -348,10 +386,10 @@ const useProjectManagement = (
         await removeUrlFromCustomProject(projectId, url)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        toast.success('URLを削除しました')
+        toast.success('タブを削除しました')
       } catch (error) {
         console.error('URL削除エラー:', error)
-        toast.error('URLの削除に失敗しました')
+        toast.error('タブの削除に失敗しました')
       }
     },
     [],
@@ -364,10 +402,10 @@ const useProjectManagement = (
         await removeUrlsFromCustomProject(projectId, urls)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        toast.success(`${urls.length}件のURLを削除しました`)
+        toast.success(`${urls.length}件のタブを削除しました`)
       } catch (error) {
         console.error('URL一括削除エラー:', error)
-        toast.error('URLの削除に失敗しました')
+        toast.error('タブの削除に失敗しました')
       }
     },
     [],
@@ -437,7 +475,7 @@ const useProjectManagement = (
         setCustomProjects(updatedProjects)
       } catch (error) {
         console.error('URL分類エラー:', error)
-        toast.error('URLの分類更新に失敗しました')
+        toast.error('タブの分類更新に失敗しました')
       }
     },
     [],
@@ -486,7 +524,7 @@ const useProjectManagement = (
         )
       } catch (error) {
         console.error('URL順序更新エラー:', error)
-        toast.error('URLの順序更新に失敗しました')
+        toast.error('タブの順序更新に失敗しました')
       }
     },
     [],
@@ -574,8 +612,11 @@ const useProjectManagement = (
           '初回ロード: ビューモードとカスタムプロジェクトを取得します',
         )
         // 最初にビューモードを取得
-        const mode = await getViewMode()
+        const mode = initialViewMode ?? (await getViewMode())
         setViewMode(mode)
+        if (initialViewMode) {
+          await saveViewMode(initialViewMode)
+        }
         console.log(`ビューモード: ${mode}`)
 
         // カスタムプロジェクトを読み込む
@@ -590,7 +631,7 @@ const useProjectManagement = (
       }
     }
     loadViewMode()
-  }, [syncDomainDataToCustomProjects])
+  }, [initialViewMode, syncDomainDataToCustomProjects])
   return {
     customProjects,
     setCustomProjects,
@@ -603,6 +644,7 @@ const useProjectManagement = (
     handleCreateProject,
     handleDeleteProject,
     handleRenameProject,
+    handleUpdateProjectKeywords,
     handleAddUrlToProject,
     handleDeleteUrlFromProject,
     handleDeleteUrlsFromProject,

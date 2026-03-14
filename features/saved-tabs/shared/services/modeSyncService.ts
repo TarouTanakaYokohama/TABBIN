@@ -185,7 +185,6 @@ const areProjectsEqual = (a: CustomProject, b: CustomProject): boolean => {
   return (
     a.id === b.id &&
     a.name === b.name &&
-    a.description === b.description &&
     a.createdAt === b.createdAt &&
     a.updatedAt === b.updatedAt &&
     areStringArraysEqual(a.urlIds, b.urlIds) &&

@@ -25,10 +25,12 @@ const CustomProjectCard = memo(
     handleOpenAllUrls,
     handleDeleteProject,
     handleRenameProject,
+    handleUpdateProjectKeywords,
     settings,
     draggedItem,
     isDropTarget = false,
     isProjectReorderMode = false,
+    isCrossProjectUrlDragActive = false,
   }: CustomProjectCardProps) => (
     <ProjectCardRoot
       project={project}
@@ -36,6 +38,7 @@ const CustomProjectCard = memo(
       draggedItem={draggedItem}
       isDropTarget={isDropTarget}
       isProjectReorderMode={isProjectReorderMode}
+      isCrossProjectUrlDragActive={isCrossProjectUrlDragActive}
       handlers={{
         handleOpenUrl,
         handleDeleteUrl,
@@ -46,6 +49,7 @@ const CustomProjectCard = memo(
         handleOpenAllUrls,
         handleDeleteProject,
         handleRenameProject,
+        handleUpdateProjectKeywords,
         handleDeleteUrlsFromProject,
       }}
       hookHandlers={{

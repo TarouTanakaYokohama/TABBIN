@@ -35,9 +35,7 @@ export const ViewModeToggle = ({
       return (
         <div className='flex items-center gap-2'>
           <Folder size={16} />
-          <SavedTabsResponsiveLabel>
-            (preview)カスタムモード
-          </SavedTabsResponsiveLabel>
+          <SavedTabsResponsiveLabel>カスタムモード</SavedTabsResponsiveLabel>
         </div>
       )
     }
@@ -49,7 +47,7 @@ export const ViewModeToggle = ({
       <TooltipTrigger asChild={true}>
         <div>
           <Select value={currentMode} onValueChange={onChange}>
-            <SelectTrigger className='flex h-9 cursor-pointer items-center gap-2'>
+            <SelectTrigger className='flex h-9 items-center gap-2'>
               <SelectValue placeholder='ドメインまたはカスタムモードを選択'>
                 {renderSelectedValue()}
               </SelectValue>
@@ -64,7 +62,7 @@ export const ViewModeToggle = ({
               <SelectItem value='custom'>
                 <div className='flex items-center gap-2'>
                   <Folder size={16} />
-                  <span>(preview)カスタムモード</span>
+                  <span>カスタムモード</span>
                 </div>
               </SelectItem>
             </SelectContent>

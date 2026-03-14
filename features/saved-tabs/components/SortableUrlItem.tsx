@@ -220,7 +220,7 @@ export const SortableUrlItem = ({
           <AlertDialogHeader>
             <AlertDialogTitle>タブを削除しますか？</AlertDialogTitle>
             <AlertDialogDescription>
-              このURLを削除します。この操作は元に戻せません。
+              このタブを削除します。この操作は元に戻せません。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

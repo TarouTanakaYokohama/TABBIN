@@ -1,0 +1,421 @@
+import {
+  BarChart3,
+  Clock3,
+  Folder,
+  FolderTree,
+  Globe,
+  MessageCircleMore,
+  PanelLeft,
+  Wrench,
+} from 'lucide-react'
+import { Link, useInRouterContext } from 'react-router-dom'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  useSidebar,
+} from '@/components/ui/sidebar'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
+  type SidebarItemId,
+  type SidebarState,
+  getAppEntryHref,
+  getAppRoute,
+  getSavedTabsEntryRoute,
+} from '@/features/navigation/lib/pageNavigation'
+import { cn } from '@/lib/utils'
+
+interface ExtensionSidebarProps {
+  state: SidebarState
+}
+
+const LinkLabel = ({
+  to,
+  isActive,
+  label,
+  children,
+}: {
+  to: string
+  isActive: boolean
+  label: string
+  children: React.ReactNode
+}) => {
+  const isInRouterContext = useInRouterContext()
+
+  if (isInRouterContext) {
+    return (
+      <Link
+        aria-current={isActive ? 'page' : undefined}
+        aria-label={label}
+        className={cn(
+          expandedNavLinkClass,
+          isActive && expandedNavLinkActiveClass,
+        )}
+        to={to}
+      >
+        {children}
+      </Link>
+    )
+  }
+
+  return (
+    <a
+      aria-current={isActive ? 'page' : undefined}
+      aria-label={label}
+      className={cn(
+        expandedNavLinkClass,
+        isActive && expandedNavLinkActiveClass,
+      )}
+      href={getAppEntryHref(to)}
+    >
+      {children}
+    </a>
+  )
+}
+
+const topLevelItems: Array<{
+  icon: React.ComponentType<{ className?: string }>
+  id: SidebarItemId
+  label: string
+}> = [
+  {
+    icon: MessageCircleMore,
+    id: 'ai-chat',
+    label: 'チャット',
+  },
+  {
+    icon: BarChart3,
+    id: 'analytics',
+    label: '(preview)分析',
+  },
+  {
+    icon: Clock3,
+    id: 'periodic-execution',
+    label: '定期実行',
+  },
+]
+
+const tabListItems: Array<{
+  icon: React.ComponentType<{ className?: string }>
+  id: SidebarItemId
+  label: string
+}> = [
+  {
+    icon: Globe,
+    id: 'saved-tabs-domain',
+    label: 'ドメインモード',
+  },
+  {
+    icon: Folder,
+    id: 'saved-tabs-custom',
+    label: 'カスタムモード',
+  },
+]
+
+const expandedPrimaryButtonClass = 'rounded-xl p-0'
+const expandedNavLinkClass =
+  'flex min-h-11 w-full min-w-0 items-center justify-start gap-3 rounded-xl px-4 text-base font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+const expandedNavLinkActiveClass =
+  'bg-sidebar-accent text-sidebar-accent-foreground'
+const expandedSubmenuClass =
+  'mx-0 mt-1 ml-4 gap-1.5 border-sidebar-border/70 px-0 py-0 pl-4'
+const iconRailLinkClass =
+  'flex size-11 items-center justify-center rounded-2xl text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+const ICON_RAIL_WIDTH_PX = 48
+const EXPANDED_SIDEBAR_WIDTH_PX = 256
+const SIDEBAR_WIDTH_STORAGE_KEY = 'tabbin-extension-sidebar-width'
+
+interface RailItem {
+  icon: React.ComponentType<{ className?: string }>
+  isActive: boolean
+  label: string
+  to?: string
+  href?: string
+  rel?: string
+  target?: string
+}
+
+const IconRailLink = ({
+  icon: Icon,
+  isActive,
+  label,
+  to,
+  href,
+  rel,
+  target,
+}: RailItem) => {
+  const isInRouterContext = useInRouterContext()
+  const className = cn(
+    iconRailLinkClass,
+    isActive
+      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+      : 'bg-transparent',
+  )
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {to && isInRouterContext ? (
+          <Link
+            aria-current={isActive ? 'page' : undefined}
+            aria-label={label}
+            className={className}
+            data-active={isActive}
+            to={to}
+          >
+            <Icon className='size-5 shrink-0' />
+          </Link>
+        ) : (
+          <a
+            aria-current={isActive ? 'page' : undefined}
+            aria-label={label}
+            className={className}
+            data-active={isActive}
+            href={to ? getAppEntryHref(to) : href}
+            rel={rel}
+            target={target}
+          >
+            <Icon className='size-5 shrink-0' />
+          </a>
+        )}
+      </TooltipTrigger>
+      <TooltipContent side='right' align='center'>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
+  const { open, setOpen, setSidebarWidth, sidebarWidth } = useSidebar()
+  const isIconCollapsed = open && sidebarWidth <= ICON_RAIL_WIDTH_PX
+  const handleCollapseSidebar = () => {
+    setOpen(true)
+    setSidebarWidth(ICON_RAIL_WIDTH_PX)
+
+    try {
+      window.localStorage.setItem(
+        SIDEBAR_WIDTH_STORAGE_KEY,
+        String(ICON_RAIL_WIDTH_PX),
+      )
+    } catch {
+      // localStorage が使えない環境では保持をスキップする
+    }
+  }
+  const handleExpandSidebar = () => {
+    setOpen(true)
+    setSidebarWidth(EXPANDED_SIDEBAR_WIDTH_PX)
+
+    try {
+      window.localStorage.setItem(
+        SIDEBAR_WIDTH_STORAGE_KEY,
+        String(EXPANDED_SIDEBAR_WIDTH_PX),
+      )
+    } catch {
+      // localStorage が使えない環境では保持をスキップする
+    }
+  }
+  const savedTabsHref = getSavedTabsEntryRoute()
+  const railItems: RailItem[] = [
+    {
+      icon: FolderTree,
+      isActive: state.item.startsWith('saved-tabs-'),
+      label: 'タブ一覧',
+      to: savedTabsHref,
+    },
+    ...topLevelItems.map(item => ({
+      icon: item.icon,
+      isActive: state.item === item.id,
+      label: item.label,
+      to: getAppRoute(item.id),
+    })),
+  ]
+  const optionItem: RailItem = {
+    href: 'options.html',
+    icon: Wrench,
+    isActive: false,
+    label: 'オプション',
+    rel: 'noreferrer',
+    target: '_blank',
+  }
+
+  return (
+    <Sidebar>
+      <SidebarHeader
+        className={cn('gap-1 px-3 py-3', isIconCollapsed && 'px-0 py-2')}
+      >
+        <div className='flex items-center justify-between gap-2 rounded-lg py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0'>
+          {isIconCollapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  aria-label='サイドバーを開く'
+                  className={iconRailLinkClass}
+                  onClick={handleExpandSidebar}
+                  type='button'
+                >
+                  <PanelLeft className='size-5 shrink-0' />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side='right' align='center'>
+                サイドバーを開く
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <div className='flex items-center gap-2'>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    aria-label='サイドバーを小さくする'
+                    className={iconRailLinkClass}
+                    onClick={handleCollapseSidebar}
+                    type='button'
+                  >
+                    <PanelLeft className='size-5 shrink-0' />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side='right' align='center'>
+                  サイドバーを小さくする
+                </TooltipContent>
+              </Tooltip>
+              <div className='min-w-0 group-data-[collapsible=icon]:hidden'>
+                <p className='font-semibold text-3xl leading-none'>TABBIN</p>
+              </div>
+            </div>
+          )}
+          {!isIconCollapsed ? (
+            <div aria-hidden='true' className='size-11 shrink-0' />
+          ) : null}
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent className={cn(isIconCollapsed && 'items-center')}>
+        <SidebarGroup className={cn(isIconCollapsed && 'w-full px-0 py-2')}>
+          <SidebarGroupContent>
+            {isIconCollapsed ? (
+              <div className='flex h-full flex-col items-center'>
+                <div className='flex flex-col items-center gap-3 pt-2'>
+                  {railItems.map(item => (
+                    <IconRailLink key={item.label} {...item} />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <SidebarMenu className='gap-1.5'>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={state.item.startsWith('saved-tabs-')}
+                    className={expandedPrimaryButtonClass}
+                    size='lg'
+                    tooltip='タブ一覧'
+                    asChild
+                  >
+                    <LinkLabel
+                      to={savedTabsHref}
+                      isActive={state.item.startsWith('saved-tabs-')}
+                      label='タブ一覧'
+                    >
+                      <FolderTree className='size-5 shrink-0' />
+                      <span className='group-data-[collapsible=icon]:hidden'>
+                        タブ一覧
+                      </span>
+                    </LinkLabel>
+                  </SidebarMenuButton>
+                  <SidebarMenuSub className={expandedSubmenuClass}>
+                    {tabListItems.map(item => (
+                      <SidebarMenuSubItem key={item.id}>
+                        <SidebarMenuSubButton
+                          asChild
+                          className='h-11 gap-3 rounded-xl px-4 text-base'
+                          isActive={state.item === item.id}
+                        >
+                          <LinkLabel
+                            to={getAppRoute(item.id)}
+                            isActive={state.item === item.id}
+                            label={item.label}
+                          >
+                            <item.icon className='size-4' />
+                            <span>{item.label}</span>
+                          </LinkLabel>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                </SidebarMenuItem>
+                {topLevelItems.map(item => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      isActive={state.item === item.id}
+                      className={expandedPrimaryButtonClass}
+                      size='lg'
+                      tooltip={item.label}
+                      asChild
+                    >
+                      <LinkLabel
+                        to={getAppRoute(item.id)}
+                        isActive={state.item === item.id}
+                        label={item.label}
+                      >
+                        <item.icon className='size-5 shrink-0' />
+                        <span className='group-data-[collapsible=icon]:hidden'>
+                          {item.label}
+                        </span>
+                      </LinkLabel>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            )}
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter
+        className={cn(
+          'border-sidebar-border border-t p-3',
+          isIconCollapsed && 'items-center px-0 py-3',
+        )}
+      >
+        {isIconCollapsed ? (
+          <IconRailLink {...optionItem} />
+        ) : (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className='rounded-xl p-0'
+                tooltip='オプション'
+                asChild
+              >
+                <a
+                  aria-label='オプション'
+                  className={expandedNavLinkClass}
+                  href='options.html'
+                  target='_blank'
+                  rel='noreferrer'
+                >
+                  <Wrench className='size-5 shrink-0' />
+                  <span className='group-data-[collapsible=icon]:hidden'>
+                    オプション
+                  </span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
+      </SidebarFooter>
+    </Sidebar>
+  )
+}

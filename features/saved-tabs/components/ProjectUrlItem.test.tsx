@@ -124,7 +124,7 @@ describe('ProjectUrlItem', () => {
     fireEvent.click(link)
     expect(handleOpenUrl).toHaveBeenCalledWith(item.url)
 
-    fireEvent.click(screen.getByRole('button', { name: 'URLを削除' }))
+    fireEvent.click(screen.getByRole('button', { name: 'タブを削除' }))
     expect(handleDeleteUrl).toHaveBeenCalledWith('project-1', item.url)
 
     expect(useSortableMock).toHaveBeenCalledWith(
@@ -192,7 +192,7 @@ describe('ProjectUrlItem', () => {
     expect(screen.getByText('Child')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Doc/ })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'URLを削除' }))
+    fireEvent.click(screen.getByRole('button', { name: 'タブを削除' }))
     const confirmButton = await screen.findByRole('button', {
       name: '削除する',
     })

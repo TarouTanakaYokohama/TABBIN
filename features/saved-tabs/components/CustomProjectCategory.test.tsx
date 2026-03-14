@@ -434,7 +434,8 @@ describe('CustomProjectCategory', () => {
       />,
     )
 
-    expect(screen.getByText(/このカテゴリにはURLがありません/)).toBeTruthy()
+    const emptyState = screen.getByTestId('card-content').querySelector('div')
+    expect(emptyState).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'カテゴリ管理' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'すべて開く' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'すべて削除' })).toBeNull()
@@ -447,7 +448,9 @@ describe('CustomProjectCategory', () => {
         })}
       />,
     )
-    expect(screen.getByText('ここにドロップしてカテゴリに追加')).toBeTruthy()
+    expect(
+      screen.getByTestId('card').className.includes('border-primary'),
+    ).toBe(true)
 
     rerender(
       <CustomProjectCategory
@@ -460,7 +463,6 @@ describe('CustomProjectCategory', () => {
         })}
       />,
     )
-    expect(screen.getByText('順序を変更')).toBeTruthy()
     expect(screen.queryByTestId('card-content')).toBeNull()
   })
 
@@ -505,7 +507,7 @@ describe('CustomProjectCategory', () => {
       />,
     )
 
-    const emptyState = screen.getByText('ここにドロップしてカテゴリに追加')
+    const emptyState = screen.getByTestId('card-content').querySelector('div')
     expect(emptyState).toBeTruthy()
     expect(
       (emptyState as HTMLDivElement).className.includes('border-primary'),

@@ -1,4 +1,8 @@
-import type { CustomProject, UserSettings } from '@/types/storage'
+import type {
+  CustomProject,
+  ProjectKeywordSettings,
+  UserSettings,
+} from '@/types/storage'
 
 export interface CustomProjectCardProps {
   project: CustomProject
@@ -13,6 +17,10 @@ export interface CustomProjectCardProps {
   ) => void
   handleDeleteProject: (projectId: string) => void
   handleRenameProject: (projectId: string, newName: string) => void
+  handleUpdateProjectKeywords?: (
+    projectId: string,
+    projectKeywords: ProjectKeywordSettings,
+  ) => void
   handleAddCategory: (projectId: string, categoryName: string) => void
   handleDeleteCategory: (projectId: string, categoryName: string) => void
   handleSetUrlCategory: (
@@ -37,6 +45,7 @@ export interface CustomProjectCardProps {
     url: string,
   ) => void
   isProjectReorderMode?: boolean
+  isCrossProjectUrlDragActive?: boolean
   handleRenameCategory?: (
     projectId: string,
     oldCategoryName: string,

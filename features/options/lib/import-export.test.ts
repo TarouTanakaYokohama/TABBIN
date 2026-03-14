@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { UserSettings } from '@/types/storage'
+import type {
+  AiChatConversation,
+  AiChatConversationMessage,
+} from '@/features/ai-chat/types'
+import type { AnalyticsQuery } from '@/features/analytics/lib/analytics'
+import type { SavedAnalyticsView } from '@/lib/storage/analytics'
+import type { AiChatToolTrace } from '@/types/background'
+import type { CustomProject, UserSettings } from '@/types/storage'
 
 vi.mock('@/lib/storage/categories', () => ({
   saveParentCategories: vi.fn(),
@@ -62,7 +69,12 @@ import { downloadAsJson, exportSettings, importSettings } from './import-export'
 
 type StorageStore = Record<string, unknown>
 
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+const clone = <T>(value: T): T => {
+  if (value === undefined) {
+    return value
+  }
+  return JSON.parse(JSON.stringify(value)) as T
+}
 
 const readStorageByKeys = (
   store: StorageStore,
@@ -149,12 +161,142 @@ const buildFullUserSettings = (
   ...override,
 })
 
+const buildCustomProject = (
+  override: Partial<CustomProject> = {},
+): CustomProject => ({
+  id: 'project-1',
+  name: 'Project 1',
+  projectKeywords: {
+    titleKeywords: [],
+    urlKeywords: [],
+    domainKeywords: [],
+  },
+  urlIds: [],
+  categories: [],
+  createdAt: 1,
+  updatedAt: 1,
+  ...override,
+})
+
+const buildAnalyticsQuery = (
+  override: Partial<AnalyticsQuery> = {},
+): AnalyticsQuery => ({
+  chartType: 'bar',
+  compareBy: 'none',
+  filters: {
+    excludedDomains: [],
+    excludedParentCategories: [],
+    excludedProjectCategories: [],
+    excludedProjects: [],
+    excludedSubCategories: [],
+    includedDomains: [],
+    includedParentCategories: [],
+    includedProjectCategories: [],
+    includedProjects: [],
+    includedSubCategories: [],
+  },
+  groupBy: 'domain',
+  limit: 8,
+  mode: 'both',
+  normalize: false,
+  sort: 'value-desc',
+  stacked: false,
+  timeBucket: 'day',
+  timeRange: '30d',
+  ...override,
+})
+
+const buildAnalyticsView = (
+  override: Partial<SavedAnalyticsView> = {},
+): SavedAnalyticsView => ({
+  createdAt: 1,
+  id: 'analytics-view-1',
+  name: 'Top Domains',
+  query: buildAnalyticsQuery(),
+  updatedAt: 2,
+  ...override,
+})
+
+const buildAiChatToolTrace = (
+  override: Partial<AiChatToolTrace> = {},
+): AiChatToolTrace => ({
+  input: { groupBy: 'domain' },
+  output: { count: 1 },
+  state: 'output-available',
+  title: '保存分析',
+  toolCallId: 'tool-call-1',
+  toolName: 'generateSavedTabsAnalytics',
+  type: 'dynamic-tool',
+  ...override,
+})
+
+const buildAiChatMessage = (
+  override: Partial<AiChatConversationMessage> = {},
+): AiChatConversationMessage => ({
+  content: '最近の保存タブを分析して',
+  id: 'message-1',
+  role: 'user',
+  ...override,
+})
+
+const buildAiChatConversation = (
+  override: Partial<AiChatConversation> = {},
+): AiChatConversation => ({
+  createdAt: 1,
+  id: 'conversation-1',
+  messages: [
+    buildAiChatMessage(),
+    buildAiChatMessage({
+      attachments: [
+        {
+          content: 'attachment body',
+          filename: 'context.txt',
+          kind: 'text',
+          mediaType: 'text/plain',
+        },
+      ],
+      charts: [
+        {
+          data: [{ count: 1, label: 'docs.example.com' }],
+          series: [
+            {
+              colorToken: 'chart-1',
+              dataKey: 'count',
+              label: '保存数',
+            },
+          ],
+          title: 'ドメイン別保存数',
+          type: 'bar',
+          xKey: 'label',
+        },
+      ],
+      content: 'docs.example.com が最も多いです',
+      id: 'message-2',
+      ollamaError: {
+        baseUrl: 'http://localhost:11434',
+        downloadUrl: 'https://ollama.com/download',
+        faqUrl: 'https://example.com/faq',
+        kind: 'notInstalledOrNotRunning',
+        tagsUrl: 'http://localhost:11434/api/tags',
+      },
+      reasoning: '保存数が最も多いドメインを集計しました。',
+      role: 'assistant',
+      toolTraces: [buildAiChatToolTrace()],
+    }),
+  ],
+  title: '保存タブを分析して',
+  updatedAt: 2,
+  ...override,
+})
+
 describe('import-export ユーティリティ', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(migrateToUrlsStorage).mockResolvedValue(undefined)
+    vi.mocked(createOrUpdateUrlRecord).mockReset()
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockReset()
     vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(new Map())
   })
 
@@ -171,6 +313,8 @@ describe('import-export ユーティリティ', () => {
     const savedTabs = [{ id: 'tab-1', domain: 'https://example.com', urls: [] }]
 
     createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
       parentCategories,
       savedTabs,
     })
@@ -182,13 +326,343 @@ describe('import-export ユーティリティ', () => {
     const result = await exportSettings()
 
     expect(result).toEqual({
+      activeAiChatConversationId: '',
+      aiChatConversations: [],
       version: '9.9.9',
       timestamp: '2026-02-16T00:00:00.000Z',
       userSettings,
       parentCategories,
+      savedAnalyticsViews: [],
       savedTabs,
+      customProjects: [],
+      customProjectOrder: [],
       urls: [],
     })
+  })
+
+  it('exportSettings は AI チャット履歴を含める', async () => {
+    const aiChatConversations = [
+      buildAiChatConversation(),
+      buildAiChatConversation({
+        createdAt: 3,
+        id: 'conversation-2',
+        messages: [
+          buildAiChatMessage({
+            content: 'プロジェクト別に見せて',
+            id: 'message-3',
+            role: 'user',
+          }),
+        ],
+        title: 'プロジェクト別に見せて',
+        updatedAt: 4,
+      }),
+    ]
+
+    createChromeMock({
+      activeAiChatConversationId: 'conversation-2',
+      aiChatConversations,
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await exportSettings()
+
+    expect(result.aiChatConversations).toEqual(aiChatConversations)
+    expect(result.activeAiChatConversationId).toBe('conversation-2')
+  })
+
+  it('exportSettings は customProjects と customProjectOrder を含める', async () => {
+    createChromeMock({
+      customProjectOrder: ['project-2', 'project-1'],
+      customProjects: [
+        buildCustomProject({
+          id: 'project-1',
+          name: 'Project 1',
+          urlIds: ['url-1'],
+          projectKeywords: {
+            titleKeywords: ['release'],
+            urlKeywords: ['docs'],
+            domainKeywords: ['example.com'],
+          },
+          categories: ['Docs'],
+          categoryOrder: ['Docs'],
+          urlMetadata: {
+            'url-1': {
+              category: 'Docs',
+              notes: 'memo',
+            },
+          },
+          createdAt: 10,
+          updatedAt: 11,
+        }),
+        buildCustomProject({
+          id: 'project-2',
+          name: 'Project 2',
+          urlIds: ['url-2'],
+          categories: [],
+          createdAt: 12,
+          updatedAt: 13,
+        }),
+      ],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [
+        {
+          id: 'url-1',
+          url: 'https://example.com/docs',
+          title: 'Docs',
+          savedAt: 100,
+        },
+        {
+          id: 'url-2',
+          url: 'https://example.com/2',
+          title: 'Two',
+          savedAt: 101,
+        },
+      ],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await exportSettings()
+
+    expect(result.customProjects).toEqual([
+      {
+        id: 'project-1',
+        name: 'Project 1',
+        urls: [
+          {
+            url: 'https://example.com/docs',
+            title: 'Docs',
+            notes: 'memo',
+            savedAt: 100,
+            category: 'Docs',
+          },
+        ],
+        projectKeywords: {
+          titleKeywords: ['release'],
+          urlKeywords: ['docs'],
+          domainKeywords: ['example.com'],
+        },
+        categories: ['Docs'],
+        categoryOrder: ['Docs'],
+        createdAt: 10,
+        updatedAt: 11,
+      },
+      {
+        id: 'project-2',
+        name: 'Project 2',
+        urls: [
+          {
+            url: 'https://example.com/2',
+            title: 'Two',
+            notes: undefined,
+            savedAt: 101,
+            category: undefined,
+          },
+        ],
+        projectKeywords: {
+          titleKeywords: [],
+          urlKeywords: [],
+          domainKeywords: [],
+        },
+        categories: [],
+        createdAt: 12,
+        updatedAt: 13,
+      },
+    ])
+    expect(result.customProjectOrder).toEqual(['project-2', 'project-1'])
+  })
+
+  it('exportSettings は savedAnalyticsViews を含める', async () => {
+    const savedAnalyticsViews = [
+      buildAnalyticsView(),
+      buildAnalyticsView({
+        createdAt: 3,
+        id: 'analytics-view-2',
+        name: 'Recent Projects',
+        query: buildAnalyticsQuery({
+          groupBy: 'project',
+          timeRange: '7d',
+        }),
+        updatedAt: 4,
+      }),
+    ]
+
+    createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedAnalyticsViews,
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await exportSettings()
+
+    expect(result.savedAnalyticsViews).toEqual(savedAnalyticsViews)
+  })
+
+  it('exportSettings の customProjects は importSettings で round-trip 復元できる', async () => {
+    createChromeMock({
+      customProjectOrder: ['project-2', 'custom-uncategorized', 'project-1'],
+      customProjects: [
+        buildCustomProject({
+          id: 'project-1',
+          name: 'Project 1',
+          urlIds: ['url-1'],
+          projectKeywords: {
+            titleKeywords: ['release'],
+            urlKeywords: ['docs'],
+            domainKeywords: ['example.com'],
+          },
+          categories: ['Docs'],
+          categoryOrder: ['Docs'],
+          urlMetadata: {
+            'url-1': {
+              category: 'Docs',
+              notes: 'memo-1',
+            },
+          },
+          createdAt: 10,
+          updatedAt: 11,
+        }),
+        buildCustomProject({
+          id: 'project-2',
+          name: 'Project 2',
+          urlIds: ['url-2'],
+          categories: ['Backlog'],
+          categoryOrder: ['Backlog'],
+          urlMetadata: {
+            'url-2': {
+              category: 'Backlog',
+              notes: 'memo-2',
+            },
+          },
+          createdAt: 12,
+          updatedAt: 13,
+        }),
+        buildCustomProject({
+          id: 'custom-uncategorized',
+          name: '未分類',
+          urlIds: ['url-3'],
+          categories: [],
+          createdAt: 14,
+          updatedAt: 15,
+        }),
+      ],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [
+        {
+          id: 'url-1',
+          url: 'https://example.com/docs',
+          title: 'Docs',
+          savedAt: 100,
+        },
+        {
+          id: 'url-2',
+          url: 'https://example.com/backlog',
+          title: 'Backlog',
+          savedAt: 101,
+        },
+        {
+          id: 'url-3',
+          url: 'https://example.com/uncategorized',
+          title: 'Uncategorized',
+          savedAt: 102,
+        },
+      ],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const backup = await exportSettings()
+
+    const importedStore = createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    }).store
+
+    vi.mocked(createOrUpdateUrlRecord)
+      .mockResolvedValueOnce({
+        id: 'restored-url-1',
+        url: 'https://example.com/docs',
+        title: 'Docs',
+        savedAt: 200,
+      })
+      .mockResolvedValueOnce({
+        id: 'restored-url-2',
+        url: 'https://example.com/backlog',
+        title: 'Backlog',
+        savedAt: 201,
+      })
+      .mockResolvedValueOnce({
+        id: 'restored-url-3',
+        url: 'https://example.com/uncategorized',
+        title: 'Uncategorized',
+        savedAt: 202,
+      })
+
+    const result = await importSettings(JSON.stringify(backup), false)
+
+    expect(result.success).toBe(true)
+    expect(importedStore.customProjectOrder).toEqual([
+      'project-2',
+      'custom-uncategorized',
+      'project-1',
+    ])
+    expect(importedStore.customProjects).toEqual([
+      buildCustomProject({
+        id: 'project-1',
+        name: 'Project 1',
+        urlIds: ['restored-url-1'],
+        projectKeywords: {
+          titleKeywords: ['release'],
+          urlKeywords: ['docs'],
+          domainKeywords: ['example.com'],
+        },
+        categories: ['Docs'],
+        categoryOrder: ['Docs'],
+        urlMetadata: {
+          'restored-url-1': {
+            category: 'Docs',
+            notes: 'memo-1',
+          },
+        },
+        createdAt: 10,
+        updatedAt: 11,
+      }),
+      buildCustomProject({
+        id: 'project-2',
+        name: 'Project 2',
+        urlIds: ['restored-url-2'],
+        categories: ['Backlog'],
+        categoryOrder: ['Backlog'],
+        urlMetadata: {
+          'restored-url-2': {
+            category: 'Backlog',
+            notes: 'memo-2',
+          },
+        },
+        createdAt: 12,
+        updatedAt: 13,
+      }),
+      buildCustomProject({
+        id: 'custom-uncategorized',
+        name: '未分類',
+        urlIds: ['restored-url-3'],
+        categories: [],
+        createdAt: 14,
+        updatedAt: 15,
+      }),
+    ])
   })
 
   it('importSettings は AI チャット設定を保持する', async () => {
@@ -209,14 +683,14 @@ describe('import-export ユーティリティ', () => {
           id: 'default-system-prompt',
           name: 'デフォルト',
           template:
-            'あなたは TABBIN に保存された URL だけを根拠に答えるアシスタントです。',
+            'あなたは TABBIN に保存されたタブの情報だけを根拠に答えるアシスタントです。',
           updatedAt: 0,
         },
         {
           createdAt: 1,
           id: 'research-system-prompt',
           name: 'リサーチ',
-          template: '保存 URL の比較観点を多めに出してください。',
+          template: '保存タブの比較観点を多めに出してください。',
           updatedAt: 1,
         },
       ],
@@ -254,6 +728,279 @@ describe('import-export ユーティリティ', () => {
         ollamaModel: 'llama3.2',
       }),
     )
+  })
+
+  it('importSettings は savedAnalyticsViews を id でマージする', async () => {
+    const currentAnalyticsView = buildAnalyticsView({
+      createdAt: 10,
+      id: 'analytics-view-shared',
+      name: 'Current View',
+      updatedAt: 11,
+    })
+    const importedAnalyticsView = buildAnalyticsView({
+      createdAt: 20,
+      id: 'analytics-view-shared',
+      name: 'Imported View',
+      query: buildAnalyticsQuery({
+        chartType: 'line',
+        groupBy: 'project',
+      }),
+      updatedAt: 21,
+    })
+    const addedAnalyticsView = buildAnalyticsView({
+      createdAt: 30,
+      id: 'analytics-view-added',
+      name: 'Added View',
+      query: buildAnalyticsQuery({
+        groupBy: 'time',
+        timeBucket: 'week',
+      }),
+      updatedAt: 31,
+    })
+    const { store } = createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedAnalyticsViews: [currentAnalyticsView],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedAnalyticsViews: [importedAnalyticsView, addedAnalyticsView],
+        savedTabs: [],
+        urls: [],
+      }),
+      true,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.savedAnalyticsViews).toEqual([
+      importedAnalyticsView,
+      addedAnalyticsView,
+    ])
+  })
+
+  it('importSettings は savedAnalyticsViews を全置換できる', async () => {
+    const importedAnalyticsView = buildAnalyticsView({
+      createdAt: 20,
+      id: 'analytics-view-imported',
+      name: 'Imported View',
+      updatedAt: 21,
+    })
+    const { store } = createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedAnalyticsViews: [buildAnalyticsView()],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedAnalyticsViews: [importedAnalyticsView],
+        savedTabs: [],
+        urls: [],
+      }),
+      false,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.savedAnalyticsViews).toEqual([importedAnalyticsView])
+  })
+
+  it('importSettings は AI チャット履歴を id でマージする', async () => {
+    const currentConversation = buildAiChatConversation({
+      createdAt: 10,
+      id: 'conversation-shared',
+      title: 'Current Conversation',
+      updatedAt: 11,
+    })
+    const importedConversation = buildAiChatConversation({
+      createdAt: 20,
+      id: 'conversation-shared',
+      messages: [
+        buildAiChatMessage({
+          content: '更新された会話です',
+          id: 'message-imported',
+          role: 'user',
+        }),
+      ],
+      title: 'Imported Conversation',
+      updatedAt: 21,
+    })
+    const addedConversation = buildAiChatConversation({
+      createdAt: 30,
+      id: 'conversation-added',
+      messages: [
+        buildAiChatMessage({
+          content: '新しい会話です',
+          id: 'message-added',
+          role: 'user',
+        }),
+      ],
+      title: 'Added Conversation',
+      updatedAt: 31,
+    })
+
+    const { store } = createChromeMock({
+      activeAiChatConversationId: 'conversation-shared',
+      aiChatConversations: [currentConversation],
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        activeAiChatConversationId: 'conversation-added',
+        aiChatConversations: [importedConversation, addedConversation],
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedTabs: [],
+        urls: [],
+      }),
+      true,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.aiChatConversations).toEqual([
+      importedConversation,
+      addedConversation,
+    ])
+    expect(store.activeAiChatConversationId).toBe('conversation-added')
+  })
+
+  it('importSettings は無効な active id の AI チャット履歴をマージ時に維持する', async () => {
+    const currentConversation = buildAiChatConversation({
+      id: 'conversation-current',
+    })
+    const addedConversation = buildAiChatConversation({
+      id: 'conversation-added',
+      title: 'Added Conversation',
+    })
+
+    const { store } = createChromeMock({
+      activeAiChatConversationId: 'conversation-current',
+      aiChatConversations: [currentConversation],
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        activeAiChatConversationId: 'conversation-missing',
+        aiChatConversations: [addedConversation],
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedTabs: [],
+        urls: [],
+      }),
+      true,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.activeAiChatConversationId).toBe('conversation-current')
+  })
+
+  it('importSettings は AI チャット履歴を全置換し active id を復元する', async () => {
+    const importedConversation = buildAiChatConversation({
+      createdAt: 20,
+      id: 'conversation-imported',
+      title: 'Imported Conversation',
+      updatedAt: 21,
+    })
+
+    const { store } = createChromeMock({
+      activeAiChatConversationId: 'conversation-old',
+      aiChatConversations: [
+        buildAiChatConversation({ id: 'conversation-old' }),
+      ],
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        activeAiChatConversationId: 'conversation-imported',
+        aiChatConversations: [importedConversation],
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedTabs: [],
+        urls: [],
+      }),
+      false,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.aiChatConversations).toEqual([importedConversation])
+    expect(store.activeAiChatConversationId).toBe('conversation-imported')
+  })
+
+  it('importSettings は全置換時に無効な active id を先頭会話へフォールバックする', async () => {
+    const importedConversation = buildAiChatConversation({
+      id: 'conversation-first',
+      title: 'First Imported Conversation',
+    })
+
+    const { store } = createChromeMock({
+      activeAiChatConversationId: 'conversation-old',
+      aiChatConversations: [
+        buildAiChatConversation({ id: 'conversation-old' }),
+      ],
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await importSettings(
+      JSON.stringify({
+        activeAiChatConversationId: 'conversation-missing',
+        aiChatConversations: [importedConversation],
+        version: '9.9.9',
+        timestamp: '2026-03-14T00:00:00.000Z',
+        userSettings: buildFullUserSettings(),
+        parentCategories: [],
+        savedTabs: [],
+        urls: [],
+      }),
+      false,
+    )
+
+    expect(result.success).toBe(true)
+    expect(store.activeAiChatConversationId).toBe('conversation-first')
   })
 
   it('移行しやすいバックアップデータ用に urlIds から urls を再構築する', async () => {
@@ -1595,6 +2342,232 @@ describe('import-export ユーティリティ', () => {
     ])
   })
 
+  it('importSettings は merge モードで customProjects を既存順維持で追加する', async () => {
+    const { store } = createChromeMock({
+      customProjectOrder: ['current-project'],
+      customProjects: [
+        buildCustomProject({
+          id: 'current-project',
+          name: 'Current Project',
+          urlIds: ['url-current'],
+          categories: ['Current'],
+          createdAt: 1,
+          updatedAt: 2,
+        }),
+      ],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecord).mockResolvedValueOnce({
+      id: 'url-duplicate-project-1',
+      url: 'https://duplicate.example.com/1',
+      title: 'Duplicate 1',
+      savedAt: 9,
+    })
+    vi.mocked(createOrUpdateUrlRecord).mockResolvedValueOnce({
+      id: 'url-imported-project-1',
+      url: 'https://imported.example.com/1',
+      title: 'Imported 1',
+      savedAt: 10,
+    })
+
+    const imported = {
+      version: '4.0.0',
+      timestamp: '2026-03-08T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      customProjects: [
+        buildCustomProject({
+          id: 'current-project',
+          name: 'Imported Duplicate',
+          urls: [
+            {
+              url: 'https://duplicate.example.com/1',
+              title: 'Duplicate 1',
+            },
+          ],
+          categories: ['Duplicate'],
+          createdAt: 10,
+          updatedAt: 11,
+        }),
+        buildCustomProject({
+          id: 'imported-project',
+          name: 'Imported Project',
+          urls: [
+            {
+              url: 'https://imported.example.com/1',
+              title: 'Imported 1',
+              notes: 'memo',
+              category: 'Imported',
+            },
+          ],
+          categories: ['Imported'],
+          categoryOrder: ['Imported'],
+          createdAt: 12,
+          updatedAt: 13,
+        }),
+      ],
+      customProjectOrder: ['imported-project', 'current-project'],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), true)
+
+    expect(result.success).toBe(true)
+    expect(store.customProjects).toEqual([
+      buildCustomProject({
+        id: 'current-project',
+        name: 'Current Project',
+        urlIds: ['url-current'],
+        categories: ['Current'],
+        createdAt: 1,
+        updatedAt: 2,
+      }),
+      buildCustomProject({
+        id: 'imported-project',
+        name: 'Imported Project',
+        urlIds: ['url-imported-project-1'],
+        urlMetadata: {
+          'url-imported-project-1': {
+            notes: 'memo',
+            category: 'Imported',
+          },
+        },
+        categories: ['Imported'],
+        categoryOrder: ['Imported'],
+        createdAt: 12,
+        updatedAt: 13,
+      }),
+    ])
+    expect(store.customProjectOrder).toEqual([
+      'current-project',
+      'imported-project',
+    ])
+    expect(addUrlsToUncategorizedProject).not.toHaveBeenCalled()
+  })
+
+  it('importSettings は customProjects の URL 変換を一括処理する', async () => {
+    const { store } = createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(
+      new Map([
+        [
+          'https://example.com/a',
+          {
+            id: 'url-a',
+            url: 'https://example.com/a',
+            title: 'A',
+            savedAt: 100,
+          },
+        ],
+        [
+          'https://example.com/b',
+          {
+            id: 'url-b',
+            url: 'https://example.com/b',
+            title: 'B',
+            savedAt: 101,
+          },
+        ],
+      ]),
+    )
+
+    const imported = {
+      version: '4.0.1',
+      timestamp: '2026-03-08T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      customProjects: [
+        buildCustomProject({
+          id: 'project-a',
+          name: 'Project A',
+          urls: [
+            {
+              url: 'https://example.com/a',
+              title: 'A',
+              notes: 'note-a',
+              category: 'Docs',
+            },
+          ],
+          categories: ['Docs'],
+          categoryOrder: ['Docs'],
+          createdAt: 10,
+          updatedAt: 11,
+        }),
+        buildCustomProject({
+          id: 'project-b',
+          name: 'Project B',
+          urls: [
+            {
+              url: 'https://example.com/b',
+              title: 'B',
+            },
+          ],
+          categories: [],
+          createdAt: 12,
+          updatedAt: 13,
+        }),
+      ],
+      customProjectOrder: ['project-a', 'project-b'],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    expect(createOrUpdateUrlRecordsBatch).toHaveBeenCalledTimes(1)
+    expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
+    expect(store.customProjects).toEqual([
+      buildCustomProject({
+        id: 'project-a',
+        name: 'Project A',
+        urlIds: ['url-a'],
+        categories: ['Docs'],
+        categoryOrder: ['Docs'],
+        urlMetadata: {
+          'url-a': {
+            notes: 'note-a',
+            category: 'Docs',
+          },
+        },
+        createdAt: 10,
+        updatedAt: 11,
+      }),
+      buildCustomProject({
+        id: 'project-b',
+        name: 'Project B',
+        urlIds: ['url-b'],
+        categories: [],
+        createdAt: 12,
+        updatedAt: 13,
+      }),
+    ])
+  })
+
   it('importSettings は overwrite モードで全データを置き換える', async () => {
     const { set } = createChromeMock()
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
@@ -1706,6 +2679,90 @@ describe('import-export ユーティリティ', () => {
         title: 'ok',
       },
     ])
+  })
+
+  it('importSettings は overwrite モードで customProjects と customProjectOrder を復元する', async () => {
+    const { store } = createChromeMock({
+      customProjectOrder: ['stale-project'],
+      customProjects: [
+        buildCustomProject({
+          id: 'stale-project',
+          name: 'Stale',
+          urlIds: ['url-stale'],
+          categories: [],
+          createdAt: 1,
+          updatedAt: 1,
+        }),
+      ],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecord).mockResolvedValueOnce({
+      id: 'url-restored-project-1',
+      url: 'https://restored.example.com/1',
+      title: 'Restored 1',
+      savedAt: 20,
+    })
+
+    const imported = {
+      version: '4.0.1',
+      timestamp: '2026-03-08T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      customProjects: [
+        buildCustomProject({
+          id: 'restored-project',
+          name: 'Restored',
+          urls: [
+            {
+              url: 'https://restored.example.com/1',
+              title: 'Restored 1',
+              notes: 'note',
+              category: 'Docs',
+            },
+          ],
+          categories: ['Docs'],
+          categoryOrder: ['Docs'],
+          createdAt: 20,
+          updatedAt: 21,
+        }),
+      ],
+      customProjectOrder: ['restored-project'],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    expect(store.customProjects).toEqual([
+      buildCustomProject({
+        id: 'restored-project',
+        name: 'Restored',
+        urlIds: ['url-restored-project-1'],
+        urlMetadata: {
+          'url-restored-project-1': {
+            notes: 'note',
+            category: 'Docs',
+          },
+        },
+        categories: ['Docs'],
+        categoryOrder: ['Docs'],
+        createdAt: 20,
+        updatedAt: 21,
+      }),
+    ])
+    expect(store.customProjectOrder).toEqual(['restored-project'])
+    expect(addUrlsToUncategorizedProject).not.toHaveBeenCalled()
   })
 
   it('カスタムモード同期に失敗しても importSettings は成功を返す', async () => {

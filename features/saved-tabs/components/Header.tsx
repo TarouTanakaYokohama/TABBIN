@@ -1,4 +1,4 @@
-import { Plus, Wrench, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -46,6 +46,7 @@ export const Header = ({
   const [isCustomProjectModalOpen, setIsCustomProjectModalOpen] =
     useState(false)
   const [newProjectName, setNewProjectName] = useState('')
+  const normalizedSearchQuery = searchQuery.trim()
   const groupsForDisplay = filteredTabGroups || tabGroups
   const customGroupsForDisplay = filteredCustomProjects || customProjects
   const domainTabCount = groupsForDisplay.reduce((sum, group) => {
@@ -59,6 +60,9 @@ export const Header = ({
   }, 0)
 
   const customTabCount = customGroupsForDisplay.reduce((sum, project) => {
+    if (normalizedSearchQuery.length === 0 && project.urlIds) {
+      return sum + project.urlIds.length
+    }
     if (project.urls) {
       return sum + project.urls.length
     }
@@ -110,9 +114,6 @@ export const Header = ({
   return (
     <div className='mb-4 flex items-center gap-4'>
       <div className='flex flex-1 items-center gap-1'>
-        <h1 className='whitespace-nowrap font-bold text-3xl text-foreground'>
-          TABBIN
-        </h1>
         <div className='relative w-full min-w-24'>
           <Input
             type='text'
@@ -175,24 +176,6 @@ export const Header = ({
           </Tooltip>
         )}
         <ViewModeToggle currentMode={currentMode} onChange={onModeChange} />
-        <Tooltip>
-          <TooltipTrigger asChild={true}>
-            <Button
-              type='button'
-              variant='outline'
-              className='flex h-9 cursor-pointer items-center gap-2'
-              onClick={() =>
-                window.open(chrome.runtime.getURL('options.html'), '_blank')
-              }
-            >
-              <Wrench size={16} />
-              <SavedTabsResponsiveLabel>オプション</SavedTabsResponsiveLabel>
-            </Button>
-          </TooltipTrigger>
-          <SavedTabsResponsiveTooltipContent side='top'>
-            オプション
-          </SavedTabsResponsiveTooltipContent>
-        </Tooltip>
         <div className='space-x-4 text-muted-foreground text-sm'>
           <p>タブ:{tabCount}</p>
           {currentMode === 'custom' ? (

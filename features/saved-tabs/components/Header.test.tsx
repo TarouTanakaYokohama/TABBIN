@@ -94,9 +94,6 @@ vi.mock('@/components/ui/dialog', () => ({
 
 import { Header } from './Header'
 
-const openSpy = vi.fn()
-const getUrlSpy = vi.fn((path: string) => `chrome-extension://id/${path}`)
-
 const createTabGroups = (): TabGroup[] => [
   {
     id: 'group-1',
@@ -141,13 +138,6 @@ const createProps = (
 describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.spyOn(window, 'open').mockImplementation(openSpy as never)
-    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
-    chromeGlobal.chrome = {
-      runtime: {
-        getURL: getUrlSpy,
-      },
-    } as unknown as typeof chrome
   })
 
   afterEach(() => {
@@ -155,7 +145,7 @@ describe('Header', () => {
     vi.restoreAllMocks()
   })
 
-  it('検索入力変更・クリア・件数表示・オプションボタン動作を処理する', () => {
+  it('検索入力変更・クリア・件数表示を処理する', () => {
     const onSearchChange = vi.fn()
 
     render(
@@ -181,13 +171,6 @@ describe('Header', () => {
     }
     fireEvent.click(clearButton)
     expect(onSearchChange).toHaveBeenCalledWith('')
-
-    fireEvent.click(screen.getByRole('button', { name: /オプション/ }))
-    expect(getUrlSpy).toHaveBeenCalledWith('options.html')
-    expect(openSpy).toHaveBeenCalledWith(
-      'chrome-extension://id/options.html',
-      '_blank',
-    )
 
     expect(screen.getByText('タブ:2')).toBeTruthy()
     expect(screen.getByText('ドメイン:1')).toBeTruthy()
@@ -232,6 +215,65 @@ describe('Header', () => {
     )
 
     expect(screen.getByText('タブ:2')).toBeTruthy()
+    expect(screen.getByText('プロジェクト:1')).toBeTruthy()
+  })
+
+  it('custom モードでは検索なしなら urlIds を優先してタブ件数を表示する', () => {
+    const customProjects = [
+      {
+        id: 'custom-project-1',
+        name: 'Project A',
+        categories: [],
+        createdAt: 1,
+        updatedAt: 1,
+        urls: [{ url: 'https://example.com/legacy', title: 'Legacy' }],
+        urlIds: ['url-1', 'url-2', 'url-3'],
+      },
+    ] as CustomProject[]
+
+    render(
+      <Header
+        {...createProps({
+          currentMode: 'custom',
+          customProjects,
+        })}
+      />,
+    )
+
+    expect(screen.getByText('タブ:3')).toBeTruthy()
+    expect(screen.getByText('プロジェクト:1')).toBeTruthy()
+  })
+
+  it('custom モードでは検索中なら filtered urls の件数を優先する', () => {
+    const customProjects = [
+      {
+        id: 'custom-project-1',
+        name: 'Project A',
+        categories: [],
+        createdAt: 1,
+        updatedAt: 1,
+        urlIds: ['url-1', 'url-2', 'url-3'],
+      },
+    ] as CustomProject[]
+    const filteredCustomProjects = [
+      {
+        ...customProjects[0],
+        urls: [{ url: 'https://example.com/matched', title: 'Matched' }],
+      },
+    ] as CustomProject[]
+
+    render(
+      <Header
+        {...createProps({
+          currentMode: 'custom',
+          searchQuery: 'matched',
+          customProjects,
+          filteredCustomProjects,
+        })}
+      />,
+    )
+
+    expect(screen.getByText('タブ:1')).toBeTruthy()
     expect(screen.getByText('プロジェクト:1')).toBeTruthy()
   })
 

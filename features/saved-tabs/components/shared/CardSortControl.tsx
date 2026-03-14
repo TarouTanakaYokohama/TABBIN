@@ -10,6 +10,8 @@ interface CardSortControlProps {
   sortOrder: SortOrder
   /** ソート順を設定する関数 */
   setSortOrder: React.Dispatch<React.SetStateAction<SortOrder>>
+  /** ポインターダウン時の追加ハンドラ */
+  onPointerDown?: (event: React.PointerEvent<HTMLButtonElement>) => void
 }
 
 /**
@@ -20,6 +22,7 @@ interface CardSortControlProps {
 export const CardSortControl = ({
   sortOrder,
   setSortOrder,
+  onPointerDown,
 }: CardSortControlProps) => {
   let label = '保存日時の降順'
   if (sortOrder === 'default') {
@@ -41,6 +44,7 @@ export const CardSortControl = ({
         <Button
           variant='secondary'
           size='sm'
+          onPointerDown={onPointerDown}
           onClick={e => {
             e.stopPropagation()
             setSortOrder(o => {

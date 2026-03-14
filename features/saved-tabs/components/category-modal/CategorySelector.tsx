@@ -60,7 +60,7 @@ export const CategorySelector = () => {
         value={selection.selectedCategoryId || ''}
         onValueChange={selection.handleCategoryChange}
       >
-        <SelectTrigger className='w-full cursor-pointer' id='categorySelect'>
+        <SelectTrigger className='w-full' id='categorySelect'>
           <SelectValue placeholder='作成済みのカテゴリを選択してドメインを管理' />
         </SelectTrigger>
         <SelectContent>

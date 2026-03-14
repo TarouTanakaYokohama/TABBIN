@@ -154,6 +154,16 @@ const parseStackTrace = (trace: string): ParsedStackTrace => {
   }
 }
 
+const getStackFrameKey = (frame: StackFrame) =>
+  [
+    frame.raw,
+    frame.filePath,
+    frame.functionName,
+    frame.lineNumber,
+    frame.columnNumber,
+    frame.isInternal ? 'internal' : 'external',
+  ].join(':')
+
 export type StackTraceProps = ComponentProps<'div'> & {
   trace: string
   open?: boolean
@@ -479,7 +489,7 @@ export const StackTraceFrames = memo(
 
     return (
       <div className={cn('space-y-1 p-3', className)} {...props}>
-        {framesToShow.map((frame, index) => (
+        {framesToShow.map(frame => (
           <div
             className={cn(
               'text-xs',
@@ -487,7 +497,7 @@ export const StackTraceFrames = memo(
                 ? 'text-muted-foreground/50'
                 : 'text-foreground/90',
             )}
-            key={`${frame.raw}-${index}`}
+            key={getStackFrameKey(frame)}
           >
             <span className='text-muted-foreground'>at </span>
             {frame.functionName && (

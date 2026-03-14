@@ -87,7 +87,7 @@ export const SubCategorySelector = () => {
         onValueChange={subcategory.setActiveCategory}
         disabled={rename.isRenaming}
       >
-        <SelectTrigger className='w-full cursor-pointer rounded border p-2'>
+        <SelectTrigger className='w-full rounded border p-2'>
           <SelectValue placeholder='管理する子カテゴリを選択' />
         </SelectTrigger>
         <SelectContent>

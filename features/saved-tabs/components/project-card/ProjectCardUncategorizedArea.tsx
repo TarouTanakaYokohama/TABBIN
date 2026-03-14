@@ -21,7 +21,7 @@ export const ProjectCardUncategorizedArea = () => {
   if (urls.projectUrls.length > 0 && urls.uncategorizedUrls.length > 0) {
     return (
       <section
-        className={`uncategorized-area uncategorized-drop-zone mt-4 overflow-x-hidden p-4 ${
+        className={`uncategorized-area uncategorized-drop-zone overflow-x-hidden px-4 ${
           isUncategorizedOver
             ? 'rounded border-2 border-primary bg-primary/10 shadow-sm'
             : 'rounded border border-muted border-dashed'
@@ -33,7 +33,7 @@ export const ProjectCardUncategorizedArea = () => {
         data-is-drop-area='true'
         data-uncategorized-area='true'
         data-uncategorized-container='true'
-        aria-label='未分類URLエリア'
+        aria-label='未分類タブエリア'
       >
         {project.categories.length > 0 && (
           <h3
@@ -41,13 +41,7 @@ export const ProjectCardUncategorizedArea = () => {
             data-type='uncategorized'
             data-uncategorized-area='true'
           >
-            未分類のURL
-            {isUncategorizedOver && (
-              <span className='text-primary' data-type='uncategorized'>
-                {' '}
-                (ドロップでカテゴリ解除)
-              </span>
-            )}
+            未分類のタブ
           </h3>
         )}
 
@@ -103,7 +97,7 @@ export const ProjectCardUncategorizedArea = () => {
         data-uncategorized-area='true'
         data-uncategorized-container='true'
         data-empty-container='true'
-        aria-label='URLをここにドロップして未分類に移動'
+        aria-label='タブをここにドロップして未分類に移動'
         onClick={() => {
           const selectedUrl = window.getSelection()?.toString()
           if (
@@ -115,15 +109,7 @@ export const ProjectCardUncategorizedArea = () => {
         }}
         type='button'
       >
-        <div className='text-center font-medium'>
-          <span
-            className={
-              isUncategorizedOver ? 'text-primary' : 'text-muted-foreground'
-            }
-          >
-            URLをここにドロップして<strong>未分類</strong>に移動
-          </span>
-        </div>
+        <div className='min-h-8' />
       </button>
     )
   }

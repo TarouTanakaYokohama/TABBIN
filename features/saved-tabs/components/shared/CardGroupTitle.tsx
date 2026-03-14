@@ -4,7 +4,6 @@ import { GripVertical } from 'lucide-react'
 
 interface CardGroupTitleProps {
   title: string
-  description?: string
   badges?: React.ReactNode
   sortableAttributes?: DraggableAttributes
   sortableListeners?: SyntheticListenerMap
@@ -17,7 +16,6 @@ interface CardGroupTitleProps {
  */
 export const CardGroupTitle = ({
   title,
-  description,
   badges,
   sortableAttributes,
   sortableListeners,
@@ -31,16 +29,7 @@ export const CardGroupTitle = ({
     >
       <GripVertical size={16} aria-hidden='true' className='shrink-0' />
       <div className='flex min-w-0 items-center gap-2'>
-        <div className='flex min-w-0 flex-col'>
-          <h2 className='truncate font-bold text-foreground text-xl'>
-            {title}
-          </h2>
-          {description && (
-            <p className='truncate font-normal text-muted-foreground text-sm'>
-              {description}
-            </p>
-          )}
-        </div>
+        <h2 className='truncate font-bold text-foreground text-xl'>{title}</h2>
         {badges && (
           <span className='flex shrink-0 gap-2 text-muted-foreground'>
             {badges}

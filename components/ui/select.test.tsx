@@ -85,14 +85,13 @@ describe('select ui', () => {
 
     expect(screen.getByText('Current Value').tagName).toBe('SPAN')
     expect(screen.getByRole('button').className).toContain('trigger-extra')
+    expect(screen.getByRole('button').className).toContain('cursor-pointer')
     expect(screen.getByRole('button').className).toContain('justify-between')
     expect(screen.getByText('Group Label').className).toContain('label-extra')
     expect(item?.className).toContain('item-extra')
     expect(group?.querySelector('.separator-extra')).toBeTruthy()
     expect(content.className).toContain('content-extra')
-    expect(viewport.className).toContain(
-      'min-w-[var(--radix-select-trigger-width)]',
-    )
+    expect(viewport.className).toContain('min-w-(--radix-select-trigger-width)')
   })
 
   it('popper 以外の position では popper 専用クラスを付けない', () => {
@@ -110,7 +109,7 @@ describe('select ui', () => {
     const { content, viewport } = getRenderedNodes()
     expect(content.className).not.toContain('translate-y-1')
     expect(viewport.className).not.toContain(
-      'min-w-[var(--radix-select-trigger-width)]',
+      'min-w-(--radix-select-trigger-width)',
     )
   })
 })

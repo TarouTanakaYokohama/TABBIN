@@ -1,5 +1,9 @@
 // filepath: features/saved-tabs/types/CustomProjectSection.types.ts
-import type { CustomProject, UserSettings } from '@/types/storage'
+import type {
+  CustomProject,
+  ProjectKeywordSettings,
+  UserSettings,
+} from '@/types/storage'
 
 export interface CustomProjectSectionProps {
   projects: CustomProject[]
@@ -12,9 +16,13 @@ export interface CustomProjectSectionProps {
     title: string,
     category?: string,
   ) => void
-  handleCreateProject: (name: string, description?: string) => void
+  handleCreateProject: (name: string) => void
   handleDeleteProject: (projectId: string) => void
   handleRenameProject: (projectId: string, newName: string) => void
+  handleUpdateProjectKeywords?: (
+    projectId: string,
+    projectKeywords: ProjectKeywordSettings,
+  ) => void
   handleAddCategory: (projectId: string, categoryName: string) => void
   handleDeleteCategory: (projectId: string, categoryName: string) => void
   handleRenameCategory?: (

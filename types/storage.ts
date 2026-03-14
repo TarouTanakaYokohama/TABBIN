@@ -21,6 +21,12 @@ export interface SubCategoryKeyword {
   keywords: string[] // 関連キーワードリスト
 }
 
+export interface ProjectKeywordSettings {
+  titleKeywords: string[]
+  urlKeywords: string[]
+  domainKeywords: string[]
+}
+
 export interface TabGroup {
   id: string
   domain: string
@@ -85,7 +91,7 @@ export interface DomainParentCategoryMapping {
 export interface CustomProject {
   id: string
   name: string
-  description?: string
+  projectKeywords?: ProjectKeywordSettings
   // 新形式: URLのIDを参照
   urlIds?: string[]
   // 旧形式: 既存データとの互換性のため残す（マイグレーション用）

@@ -25,7 +25,7 @@ export const ProjectCardDragOverlay = () => {
   return (
     <DragOverlay style={{ pointerEvents: 'none' }}>
       <div className='rounded border bg-secondary p-2'>
-        {activeUrl.title || 'URL'}
+        {activeUrl.title || 'タブ'}
       </div>
     </DragOverlay>
   )

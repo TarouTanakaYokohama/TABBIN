@@ -174,7 +174,7 @@ const handleProcessedUrlDrop = (params: {
   } = params
   const moveToUncategorized = () => {
     handleSetUrlCategory(projectId, actualUrl, undefined)
-    toast.success('URLを未分類に移動しました')
+    toast.success('タブを未分類に移動しました')
     clearDragState()
   }
   if (
@@ -199,7 +199,7 @@ const handleProcessedUrlDrop = (params: {
   if (urlToUrlDropResult.kind === 'reordered') {
     handleReorderUrls(projectId, urlToUrlDropResult.reorderedUrls)
     setProjectUrls(urlToUrlDropResult.reorderedUrls)
-    toast.success('URLの順序を変更しました')
+    toast.success('タブの順序を変更しました')
     clearDragState()
     return
   }
@@ -214,8 +214,8 @@ const handleProcessedUrlDrop = (params: {
     )
     toast.success(
       urlToUrlDropResult.overCategory
-        ? `URLを「${urlToUrlDropResult.overCategory}」に移動しました`
-        : 'URLを未分類に移動しました',
+        ? `タブを「${urlToUrlDropResult.overCategory}」に移動しました`
+        : 'タブを未分類に移動しました',
     )
     clearDragState()
     return
@@ -224,7 +224,7 @@ const handleProcessedUrlDrop = (params: {
     const targetCategory = over.data.current.categoryName
     if (targetCategory && targetCategory !== dragSourceCategory) {
       handleSetUrlCategory(projectId, actualUrl, targetCategory)
-      toast.success(`URLを「${targetCategory}」に移動しました`)
+      toast.success(`タブを「${targetCategory}」に移動しました`)
       clearDragState()
       return
     }
@@ -324,7 +324,7 @@ export const useCustomProjectCard = ({
       }
     }
     loadProjectUrls()
-  }, [project.id, project.updatedAt])
+  }, [project.id, project.updatedAt, project.urlIds, project.urls])
 
   // --- 衝突検出ストラテジー ---
   const collisionDetectionStrategy: CollisionDetection = useCallback(
@@ -419,7 +419,7 @@ export const useCustomProjectCard = ({
             targetElement.closest('[data-url]')?.getAttribute('data-url')
           if (urlAttr && projectUrlsRef.current.some(u => u.url === urlAttr)) {
             handleSetUrlCategoryRef.current(project.id, urlAttr, undefined)
-            toast.success('URLのカテゴリを解除しました（Alt+クリック）')
+            toast.success('タブのカテゴリを解除しました（Alt+クリック）')
           }
         }
       }

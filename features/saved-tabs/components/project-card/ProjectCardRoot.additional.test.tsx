@@ -162,7 +162,6 @@ const createProps = (
     project: {
       id: projectOverrides?.id ?? 'project-1',
       name: projectOverrides?.name ?? 'Project A',
-      description: projectOverrides?.description ?? 'Desc',
       categories: projectOverrides?.categories ?? [],
       createdAt: projectOverrides?.createdAt ?? 1,
       updatedAt: projectOverrides?.updatedAt ?? 1,

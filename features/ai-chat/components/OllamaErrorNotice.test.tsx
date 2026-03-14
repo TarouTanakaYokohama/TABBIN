@@ -1,6 +1,25 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OllamaErrorNotice } from './OllamaErrorNotice'
+
+const mocked = vi.hoisted(() => ({
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
+  writeClipboardText: vi.fn(),
+}))
+
+vi.mock('sonner', () => ({
+  toast: {
+    error: mocked.toastError,
+    success: mocked.toastSuccess,
+  },
+}))
 
 const baseError = {
   allowedOrigins: 'chrome-extension://test-extension-id',
@@ -10,12 +29,10 @@ const baseError = {
   tagsUrl: 'http://localhost:11434/api/tags',
 } as const
 
-const mocked = vi.hoisted(() => ({
-  writeClipboardText: vi.fn(),
-}))
-
 describe('OllamaErrorNotice', () => {
   beforeEach(() => {
+    mocked.toastError.mockReset()
+    mocked.toastSuccess.mockReset()
     mocked.writeClipboardText.mockReset()
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
@@ -27,6 +44,7 @@ describe('OllamaErrorNotice', () => {
 
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -91,11 +109,28 @@ describe('OllamaErrorNotice', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'コマンドをコピー' }))
+    const copyButton = screen.getByRole('button', { name: 'コマンドをコピー' })
+
+    fireEvent.click(copyButton)
+    await Promise.resolve()
 
     expect(mocked.writeClipboardText).toHaveBeenCalledWith(
       'launchctl setenv OLLAMA_ORIGINS "chrome-extension://test-extension-id"',
     )
+    expect(mocked.toastSuccess).toHaveBeenCalledWith('コマンドをコピーしました')
+    await waitFor(() => {
+      expect(copyButton.getAttribute('data-state')).toBe('copied')
+    })
+    expect(copyButton.getAttribute('title')).toBe('コピーしました')
+
+    await new Promise(resolve => {
+      setTimeout(resolve, 2100)
+    })
+
+    await waitFor(() => {
+      expect(copyButton.getAttribute('data-state')).toBe('idle')
+    })
+    expect(copyButton.getAttribute('title')).toBe('コピー')
   })
 
   it('Windows の value row をコピーできる', async () => {
@@ -111,9 +146,11 @@ describe('OllamaErrorNotice', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '入力値をコピー' }))
 
-    expect(mocked.writeClipboardText).toHaveBeenCalledWith(
-      'chrome-extension://test-extension-id',
-    )
+    await waitFor(() => {
+      expect(mocked.writeClipboardText).toHaveBeenCalledWith(
+        'chrome-extension://test-extension-id',
+      )
+    })
   })
 
   it('確認コマンド row をコピーできる', async () => {
@@ -131,8 +168,59 @@ describe('OllamaErrorNotice', () => {
       screen.getByRole('button', { name: '確認コマンドをコピー' }),
     )
 
-    expect(mocked.writeClipboardText).toHaveBeenCalledWith(
-      'curl http://localhost:11434/api/tags',
+    await waitFor(() => {
+      expect(mocked.writeClipboardText).toHaveBeenCalledWith(
+        'curl http://localhost:11434/api/tags',
+      )
+    })
+  })
+
+  it('clipboard API がないと error toast を出す', async () => {
+    render(
+      <OllamaErrorNotice
+        error={{
+          ...baseError,
+          kind: 'notInstalledOrNotRunning',
+        }}
+        platform='win'
+      />,
     )
+
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: undefined,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '入力値をコピー' }))
+
+    await waitFor(() => {
+      expect(mocked.toastError).toHaveBeenCalledWith(
+        '入力値をコピーできませんでした',
+      )
+    })
+  })
+
+  it('clipboard 書き込みが失敗すると error toast を出す', async () => {
+    mocked.writeClipboardText.mockRejectedValueOnce(new Error('failed'))
+
+    render(
+      <OllamaErrorNotice
+        error={{
+          ...baseError,
+          kind: 'forbidden',
+        }}
+        platform='mac'
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '確認コマンドをコピー' }),
+    )
+
+    await waitFor(() => {
+      expect(mocked.toastError).toHaveBeenCalledWith(
+        '確認コマンドをコピーできませんでした',
+      )
+    })
   })
 })

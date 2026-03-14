@@ -3,7 +3,7 @@ import type { UserSettings } from '@/types/storage'
 
 const mocked = vi.hoisted(() => ({
   saveTabsWithAutoCategory: vi.fn(),
-  addUrlsToUncategorizedProject: vi.fn(),
+  saveUrlsToCustomProjects: vi.fn(),
   getUserSettings: vi.fn(),
   openSavedTabsPage: vi.fn(),
   filterTabsByUserSettings: vi.fn(),
@@ -13,7 +13,7 @@ vi.mock('@/lib/storage/migration', () => ({
   saveTabsWithAutoCategory: mocked.saveTabsWithAutoCategory,
 }))
 vi.mock('@/lib/storage/projects', () => ({
-  addUrlsToUncategorizedProject: mocked.addUrlsToUncategorizedProject,
+  saveUrlsToCustomProjects: mocked.saveUrlsToCustomProjects,
 }))
 vi.mock('@/lib/storage/settings', () => ({
   getUserSettings: mocked.getUserSettings,
@@ -91,7 +91,7 @@ describe('extension-actions モジュール', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
     mocked.saveTabsWithAutoCategory.mockResolvedValue(undefined)
-    mocked.addUrlsToUncategorizedProject.mockResolvedValue(undefined)
+    mocked.saveUrlsToCustomProjects.mockResolvedValue(undefined)
     mocked.getUserSettings.mockResolvedValue(buildSettings())
     mocked.openSavedTabsPage.mockResolvedValue(9999)
     mocked.filterTabsByUserSettings.mockImplementation(
@@ -129,7 +129,7 @@ describe('extension-actions モジュール', () => {
         currentWindow: true,
       })
       expect(mocked.saveTabsWithAutoCategory).toHaveBeenCalledWith([activeTab])
-      expect(mocked.addUrlsToUncategorizedProject).toHaveBeenCalledWith([
+      expect(mocked.saveUrlsToCustomProjects).toHaveBeenCalledWith([
         {
           url: 'https://current.example/path',
           title: 'Current',
@@ -178,7 +178,7 @@ describe('extension-actions モジュール', () => {
       })
       chromeTabs.query.mockResolvedValueOnce([activeTab])
       mocked.filterTabsByUserSettings.mockResolvedValueOnce([activeTab])
-      mocked.addUrlsToUncategorizedProject.mockRejectedValueOnce(
+      mocked.saveUrlsToCustomProjects.mockRejectedValueOnce(
         new Error('custom sync failed'),
       )
 
@@ -189,7 +189,7 @@ describe('extension-actions モジュール', () => {
         },
       ])
       expect(console.error).toHaveBeenCalledWith(
-        'カスタムモード未分類プロジェクトへの同期に失敗しました:',
+        'カスタムモードへの同期に失敗しました:',
         expect.any(Error),
       )
       expect(mocked.showNotification).toHaveBeenCalledWith(
@@ -227,7 +227,7 @@ describe('extension-actions モジュール', () => {
 
       await handleSaveCurrentTab()
 
-      expect(mocked.addUrlsToUncategorizedProject).not.toHaveBeenCalled()
+      expect(mocked.saveUrlsToCustomProjects).not.toHaveBeenCalled()
     })
   })
   describe('handleSaveSameDomainTabs関数', () => {
@@ -332,7 +332,7 @@ describe('extension-actions モジュール', () => {
         }),
       ])
       expect(mocked.saveTabsWithAutoCategory).toHaveBeenCalledWith(filteredTabs)
-      expect(mocked.addUrlsToUncategorizedProject).toHaveBeenCalledWith([
+      expect(mocked.saveUrlsToCustomProjects).toHaveBeenCalledWith([
         {
           url: 'https://same.example/page-1',
           title: 'Active',
@@ -529,7 +529,7 @@ describe('extension-actions モジュール', () => {
         populate: true,
       })
       expect(mocked.saveTabsWithAutoCategory).toHaveBeenCalledWith(tabs)
-      expect(mocked.addUrlsToUncategorizedProject).toHaveBeenCalledWith([
+      expect(mocked.saveUrlsToCustomProjects).toHaveBeenCalledWith([
         {
           url: 'https://a.example',
           title: 'A',
@@ -818,7 +818,7 @@ describe('extension-actions モジュール', () => {
         currentWindow: true,
       })
       expect(mocked.saveTabsWithAutoCategory).toHaveBeenCalledWith(queriedTabs)
-      expect(mocked.addUrlsToUncategorizedProject).toHaveBeenCalledWith([
+      expect(mocked.saveUrlsToCustomProjects).toHaveBeenCalledWith([
         {
           url: 'https://keep.example/1',
           title: 'One',
@@ -957,7 +957,7 @@ describe('extension-actions モジュール', () => {
       )
       await expect(handleExtensionActionClick()).resolves.toBeUndefined()
       expect(mocked.saveTabsWithAutoCategory).toHaveBeenCalledWith([activeTab])
-      expect(mocked.addUrlsToUncategorizedProject).toHaveBeenCalledWith([
+      expect(mocked.saveUrlsToCustomProjects).toHaveBeenCalledWith([
         {
           url: 'https://current.example',
           title: 'Current',

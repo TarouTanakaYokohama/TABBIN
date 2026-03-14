@@ -19,7 +19,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardHeader } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -29,7 +31,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import type { CustomProject } from '@/types/storage'
 import {
   DragHandlersContext,
@@ -37,16 +38,59 @@ import {
 } from '../contexts/DragHandlersContext'
 import type { CustomProjectSectionProps } from '../types/CustomProjectSection.types'
 import { CustomProjectCard } from './CustomProjectCard'
+import { CardCollapseControl } from './shared/CardCollapseControl'
+import { CardGroupTitle } from './shared/CardGroupTitle'
+import { CardSortControl } from './shared/CardSortControl'
 
 const createProjectSchema = z.object({
   name: z.string().trim().min(1, 'プロジェクト名を入力してください'),
-  description: z.string(),
 })
 
 type CreateProjectFormValues = z.infer<typeof createProjectSchema>
 
+interface ActiveDragData {
+  projectId?: string
+  type?: string
+  title?: string
+  url?: string
+}
+interface DragDebugPayload {
+  activeId: string
+  activeType: string | null
+  sourceProjectId: string | null
+  overId: string | null
+  overType: string | null
+  overProjectId: string | null
+  targetProjectId: string | null
+}
+
+let lastKnownActiveDragData: ActiveDragData | null = null
+
+const ProjectDragPreview = ({ project }: { project: CustomProject }) => (
+  <Card className='mb-4 w-full max-w-[600px] overflow-x-hidden shadow-md'>
+    <CardHeader className='sticky top-0 z-50 my-2 flex-row items-baseline justify-between bg-card pl-1 text-foreground'>
+      <div className='flex grow items-center gap-2'>
+        <CardCollapseControl
+          isCollapsed={false}
+          setIsCollapsed={() => {}}
+          setUserCollapsedState={() => {}}
+          isDisabled={true}
+        />
+        <CardSortControl sortOrder='default' setSortOrder={() => {}} />
+        <CardGroupTitle
+          title={project.name}
+          badges={
+            <Badge variant='secondary'>{project.urls?.length ?? 0}</Badge>
+          }
+          className='py-2'
+        />
+      </div>
+    </CardHeader>
+  </Card>
+)
+
 const resolveTargetProjectId = (over: DragEndEvent['over']): string | null => {
-  const overProjectId = over?.data.current?.projectId
+  const overProjectId = over?.data?.current?.projectId
   if (typeof overProjectId === 'string' && overProjectId.length > 0) {
     return overProjectId
   }
@@ -55,6 +99,9 @@ const resolveTargetProjectId = (over: DragEndEvent['over']): string | null => {
     return null
   }
 
+  if (over.id.startsWith('project-header-')) {
+    return over.id.slice('project-header-'.length)
+  }
   if (over.id.startsWith('project-')) {
     return over.id.slice('project-'.length)
   }
@@ -62,6 +109,224 @@ const resolveTargetProjectId = (over: DragEndEvent['over']): string | null => {
     return over.id.slice('uncategorized-'.length)
   }
   return null
+}
+
+const parseActiveDragData = (value: unknown): ActiveDragData | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const candidate = value as ActiveDragData
+  const hasRecognizedData =
+    typeof candidate.projectId === 'string' ||
+    typeof candidate.type === 'string' ||
+    typeof candidate.title === 'string' ||
+    typeof candidate.url === 'string'
+
+  return hasRecognizedData ? candidate : null
+}
+
+const resolveActiveDragData = (
+  current: unknown,
+  fallback: ActiveDragData | null,
+): ActiveDragData | null => {
+  return parseActiveDragData(current) ?? fallback ?? lastKnownActiveDragData
+}
+
+const buildDragDebugPayload = (
+  activeId: string,
+  activeData: ActiveDragData | null,
+  over: DragEndEvent['over'],
+): DragDebugPayload => ({
+  activeId,
+  activeType: activeData?.type ?? null,
+  sourceProjectId: activeData?.projectId ?? null,
+  overId: typeof over?.id === 'string' ? over.id : null,
+  overType: over?.data?.current?.type ?? null,
+  overProjectId:
+    typeof over?.data?.current?.projectId === 'string'
+      ? over.data.current.projectId
+      : null,
+  targetProjectId: resolveTargetProjectId(over),
+})
+
+const updateCrossProjectDragState = ({
+  activeData,
+  over,
+  setDraggedOverProjectId,
+  setIsCrossProjectUrlDragActive,
+}: {
+  activeData: ActiveDragData | null
+  over: DragOverEvent['over']
+  setDraggedOverProjectId: React.Dispatch<React.SetStateAction<string | null>>
+  setIsCrossProjectUrlDragActive: React.Dispatch<React.SetStateAction<boolean>>
+}) => {
+  if (!over || activeData?.type !== 'url') {
+    setDraggedOverProjectId(prev => (prev === null ? prev : null))
+    return
+  }
+
+  const sourceProjectId = activeData.projectId
+  const projectId = over.data?.current?.projectId
+  if (projectId && sourceProjectId && projectId !== sourceProjectId) {
+    setDraggedOverProjectId(prev => (prev === projectId ? prev : projectId))
+    setIsCrossProjectUrlDragActive(true)
+    return
+  }
+
+  setDraggedOverProjectId(prev => (prev === null ? prev : null))
+}
+
+const resetSectionDragState = ({
+  setIsProjectReorderMode,
+  setIsCrossProjectUrlDragActive,
+  setDraggedItem,
+  setDraggedProject,
+  setDraggedOverProjectId,
+  activeDragDataRef,
+  lastDragOverDebugRef,
+}: {
+  setIsProjectReorderMode: React.Dispatch<React.SetStateAction<boolean>>
+  setIsCrossProjectUrlDragActive: React.Dispatch<React.SetStateAction<boolean>>
+  setDraggedItem: React.Dispatch<
+    React.SetStateAction<{
+      url: string
+      projectId: string
+      title: string
+    } | null>
+  >
+  setDraggedProject: React.Dispatch<React.SetStateAction<CustomProject | null>>
+  setDraggedOverProjectId: React.Dispatch<React.SetStateAction<string | null>>
+  activeDragDataRef: React.RefObject<ActiveDragData | null>
+  lastDragOverDebugRef: React.RefObject<string | null>
+}) => {
+  setIsProjectReorderMode(false)
+  setIsCrossProjectUrlDragActive(false)
+  setDraggedItem(null)
+  setDraggedProject(null)
+  setDraggedOverProjectId(null)
+  activeDragDataRef.current = null
+  lastKnownActiveDragData = null
+  lastDragOverDebugRef.current = null
+}
+
+const applyUrlDragStartState = ({
+  activeId,
+  projectId,
+  title,
+  url,
+  setIsProjectReorderMode,
+  setDraggedProject,
+  setIsCrossProjectUrlDragActive,
+  setDraggedOverProjectId,
+  setDraggedItem,
+}: {
+  activeId: string
+  projectId: string
+  title?: string
+  url?: string
+  setIsProjectReorderMode: React.Dispatch<React.SetStateAction<boolean>>
+  setDraggedProject: React.Dispatch<React.SetStateAction<CustomProject | null>>
+  setIsCrossProjectUrlDragActive: React.Dispatch<React.SetStateAction<boolean>>
+  setDraggedOverProjectId: React.Dispatch<React.SetStateAction<string | null>>
+  setDraggedItem: React.Dispatch<
+    React.SetStateAction<{
+      url: string
+      projectId: string
+      title: string
+    } | null>
+  >
+}) => {
+  setIsProjectReorderMode(false)
+  setDraggedProject(null)
+  setIsCrossProjectUrlDragActive(false)
+  setDraggedOverProjectId(null)
+  setDraggedItem({
+    projectId,
+    title: title ?? '',
+    url: url ?? activeId,
+  })
+}
+
+const applyProjectDragStartState = ({
+  projectId,
+  projects,
+  setDraggedItem,
+  setIsProjectReorderMode,
+  setDraggedProject,
+}: {
+  projectId: string
+  projects: CustomProject[]
+  setDraggedItem: React.Dispatch<
+    React.SetStateAction<{
+      url: string
+      projectId: string
+      title: string
+    } | null>
+  >
+  setIsProjectReorderMode: React.Dispatch<React.SetStateAction<boolean>>
+  setDraggedProject: React.Dispatch<React.SetStateAction<CustomProject | null>>
+}) => {
+  setDraggedItem(null)
+  const project = projects.find(
+    currentProject => currentProject.id === projectId,
+  )
+  if (project) {
+    setIsProjectReorderMode(true)
+    setDraggedProject(project)
+  }
+}
+
+const handleDragEndByType = ({
+  activeId,
+  activeData,
+  event,
+  over,
+  projects,
+  projectDragHandlersRef,
+  handleReorderProjects,
+  handleUrlDragSequence,
+}: {
+  activeId: string
+  activeData: ActiveDragData | null
+  event: DragEndEvent
+  over: DragEndEvent['over']
+  projects: CustomProject[]
+  projectDragHandlersRef: React.RefObject<Record<string, ProjectDragHandlers>>
+  handleReorderProjects?: (newOrder: string[]) => void | Promise<void>
+  handleUrlDragSequence: (event: DragEndEvent) => void
+}) => {
+  if (activeData?.type === 'url') {
+    handleUrlDragSequence(event)
+    return
+  }
+
+  if (activeData?.type === 'category') {
+    const sourceProjectId = activeData.projectId
+    if (sourceProjectId && projectDragHandlersRef.current[sourceProjectId]) {
+      projectDragHandlersRef.current[sourceProjectId].handleCategoryDragEnd(
+        event,
+      )
+    }
+    return
+  }
+
+  if (activeData?.type !== 'project' || !over || activeId === String(over.id)) {
+    return
+  }
+
+  const oldIndex = projects.findIndex(project => project.id === activeId)
+  const newIndex = projects.findIndex(project => project.id === over.id)
+
+  if (oldIndex !== -1 && newIndex !== -1 && handleReorderProjects) {
+    handleReorderProjects(
+      arrayMove(
+        projects.map(project => project.id),
+        oldIndex,
+        newIndex,
+      ),
+    )
+  }
 }
 
 export const CustomProjectSection = ({
@@ -73,6 +338,7 @@ export const CustomProjectSection = ({
   handleCreateProject,
   handleDeleteProject,
   handleRenameProject,
+  handleUpdateProjectKeywords,
   handleAddCategory,
   handleDeleteCategory,
   handleRenameCategory, // 追加: カテゴリ名変更ハンドラ
@@ -97,7 +363,6 @@ export const CustomProjectSection = ({
     resolver: zodResolver(createProjectSchema),
     defaultValues: {
       name: '',
-      description: '',
     },
     reValidateMode: 'onChange',
   })
@@ -115,6 +380,8 @@ export const CustomProjectSection = ({
     null,
   )
   const [isProjectReorderMode, setIsProjectReorderMode] = useState(false)
+  const [isCrossProjectUrlDragActive, setIsCrossProjectUrlDragActive] =
+    useState(false)
 
   // ドラッグオーバー中のプロジェクトIDを管理
   const [draggedOverProjectId, setDraggedOverProjectId] = useState<
@@ -128,6 +395,8 @@ export const CustomProjectSection = ({
   )
 
   const projectDragHandlersRef = useRef<Record<string, ProjectDragHandlers>>({})
+  const activeDragDataRef = useRef<ActiveDragData | null>(null)
+  const lastDragOverDebugRef = useRef<string | null>(null)
 
   const dragHandlersContextValue = useMemo(
     () => ({
@@ -155,10 +424,7 @@ export const CustomProjectSection = ({
     }
   }
 
-  const handleCreateProjectSubmit = ({
-    name,
-    description,
-  }: CreateProjectFormValues) => {
+  const handleCreateProjectSubmit = ({ name }: CreateProjectFormValues) => {
     const trimmedName = name.trim()
 
     if (
@@ -171,7 +437,7 @@ export const CustomProjectSection = ({
       return
     }
 
-    handleCreateProject(trimmedName, description)
+    handleCreateProject(trimmedName)
     closeCreateDialog()
   }
 
@@ -180,8 +446,6 @@ export const CustomProjectSection = ({
       clearErrors('name')
     },
   })
-  const descriptionField = register('description')
-
   const handleNameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter') {
       return
@@ -196,30 +460,45 @@ export const CustomProjectSection = ({
 
   // ドラッグ開始時の処理
   const handleDragStart = (event: DragStartEvent) => {
-    if (!event.active.data.current) {
+    const activeData = parseActiveDragData(event.active.data.current)
+    if (!activeData?.projectId) {
       return
     }
+    const { projectId, type, title, url } = activeData
 
-    const { projectId, type } = event.active.data.current as {
-      projectId?: string
-      type: string
+    activeDragDataRef.current = {
+      projectId,
+      type,
+      title,
+      url,
     }
-
-    if (!projectId) {
-      return
+    lastKnownActiveDragData = {
+      projectId,
+      type,
+      title,
+      url,
     }
 
     if (type === 'url') {
-      // URLドラッグではセクション全体の状態更新を最小化する
-      setIsProjectReorderMode(false)
-      setDraggedProject(null)
+      applyUrlDragStartState({
+        activeId: String(event.active.id),
+        projectId,
+        title,
+        url,
+        setIsProjectReorderMode,
+        setDraggedProject,
+        setIsCrossProjectUrlDragActive,
+        setDraggedOverProjectId,
+        setDraggedItem,
+      })
     } else if (type === 'project') {
-      // プロジェクトドラッグの場合
-      const project = projects.find(p => p.id === projectId)
-      if (project) {
-        setIsProjectReorderMode(true)
-        setDraggedProject(project)
-      }
+      applyProjectDragStartState({
+        projectId,
+        projects,
+        setDraggedItem,
+        setIsProjectReorderMode,
+        setDraggedProject,
+      })
     }
 
     // プロジェクトへ伝播
@@ -232,20 +511,27 @@ export const CustomProjectSection = ({
   // ドラッグオーバー時の処理
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event
-    const activeData = active.data.current
+    const activeData = resolveActiveDragData(
+      active.data.current,
+      activeDragDataRef.current,
+    )
+    const debugPayload = buildDragDebugPayload(
+      String(active.id),
+      activeData,
+      over,
+    )
+    const debugSignature = JSON.stringify(debugPayload)
 
-    if (over && activeData?.type === 'url') {
-      // URLドラッグ時のオーバー処理
-      const sourceProjectId = activeData.projectId as string | undefined
-      const projectId = over.data.current?.projectId
-      if (projectId && sourceProjectId && projectId !== sourceProjectId) {
-        setDraggedOverProjectId(prev => (prev === projectId ? prev : projectId))
-      } else {
-        setDraggedOverProjectId(prev => (prev === null ? prev : null))
-      }
-    } else {
-      setDraggedOverProjectId(prev => (prev === null ? prev : null))
+    if (lastDragOverDebugRef.current !== debugSignature) {
+      lastDragOverDebugRef.current = debugSignature
     }
+
+    updateCrossProjectDragState({
+      activeData,
+      over,
+      setDraggedOverProjectId,
+      setIsCrossProjectUrlDragActive,
+    })
 
     // 全てのプロジェクトへ伝播させる (hoverが外れたことを伝えるため)
     Object.entries(projectDragHandlersRef.current).forEach(([id, handlers]) => {
@@ -259,44 +545,40 @@ export const CustomProjectSection = ({
   // ドラッグ終了時の処理
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
-    const dragType = active.data.current?.type
+    const activeData = resolveActiveDragData(
+      active.data.current,
+      activeDragDataRef.current,
+    )
+    handleDragEndByType({
+      activeId: String(active.id),
+      activeData,
+      event,
+      over,
+      projects,
+      projectDragHandlersRef,
+      handleReorderProjects,
+      handleUrlDragSequence,
+    })
 
-    if (dragType === 'url') {
-      handleUrlDragSequence(event)
-    } else if (dragType === 'category') {
-      const sourceProjectId = active.data.current?.projectId as string
-      if (sourceProjectId && projectDragHandlersRef.current[sourceProjectId]) {
-        projectDragHandlersRef.current[sourceProjectId].handleCategoryDragEnd(
-          event,
-        )
-      }
-    } else if (dragType === 'project' && over && active.id !== over.id) {
-      // プロジェクトドラッグの場合の処理
-      // プロジェクトの順序を変更
-      const oldIndex = projects.findIndex(p => p.id === active.id)
-      const newIndex = projects.findIndex(p => p.id === over.id)
-
-      if (oldIndex !== -1 && newIndex !== -1 && handleReorderProjects) {
-        const newOrder = arrayMove(
-          projects.map(p => p.id),
-          oldIndex,
-          newIndex,
-        )
-        handleReorderProjects(newOrder)
-      }
-    }
-
-    // すべてのドラッグ状態をリセット
-    setIsProjectReorderMode(false)
-    setDraggedItem(null)
-    setDraggedProject(null)
-    setDraggedOverProjectId(null)
+    resetSectionDragState({
+      setIsProjectReorderMode,
+      setIsCrossProjectUrlDragActive,
+      setDraggedItem,
+      setDraggedProject,
+      setDraggedOverProjectId,
+      activeDragDataRef,
+      lastDragOverDebugRef,
+    })
   }
 
   // URLドラッグに関わるシーケンス制御
   const handleUrlDragSequence = (event: DragEndEvent) => {
     const { active, over } = event
-    const sourceProjectId = active.data.current?.projectId as string
+    const activeData = resolveActiveDragData(
+      active.data.current,
+      activeDragDataRef.current,
+    )
+    const sourceProjectId = activeData?.projectId as string
     const targetProjectId = resolveTargetProjectId(over)
 
     if (
@@ -331,7 +613,11 @@ export const CustomProjectSection = ({
     sourceProjectId: string,
   ) => {
     const { active } = event
-    const draggedUrl = active.id as string
+    const activeData = resolveActiveDragData(
+      active.data.current,
+      activeDragDataRef.current,
+    )
+    const draggedUrl = activeData?.url ?? (active.id as string)
 
     if (handleMoveUrlBetweenProjects) {
       handleMoveUrlBetweenProjects(sourceProjectId, targetProjectId, draggedUrl)
@@ -353,7 +639,7 @@ export const CustomProjectSection = ({
               items={projects.map(project => project.id)}
               strategy={verticalListSortingStrategy}
             >
-              <div className='grid gap-4'>
+              <div>
                 {projects.map(project => (
                   <CustomProjectCard
                     key={project.id}
@@ -364,6 +650,7 @@ export const CustomProjectSection = ({
                     handleAddUrl={handleAddUrl}
                     handleDeleteProject={handleDeleteProject}
                     handleRenameProject={handleRenameProject}
+                    handleUpdateProjectKeywords={handleUpdateProjectKeywords}
                     handleAddCategory={handleAddCategory}
                     handleDeleteCategory={handleDeleteCategory}
                     handleRenameCategory={handleRenameCategory} // 追加: カテゴリ名変更ハンドラ
@@ -377,6 +664,7 @@ export const CustomProjectSection = ({
                     // ドラッグオーバー中のプロジェクトIDを渡す
                     isDropTarget={draggedOverProjectId === project.id}
                     isProjectReorderMode={isProjectReorderMode}
+                    isCrossProjectUrlDragActive={isCrossProjectUrlDragActive}
                     handleMoveUrlsBetweenCategories={
                       handleMoveUrlsBetweenCategories
                     }
@@ -387,19 +675,14 @@ export const CustomProjectSection = ({
             </SortableContext>
 
             {/* ドラッグ中の要素のオーバーレイ */}
-            <DragOverlay>
+            <DragOverlay style={{ pointerEvents: 'none' }}>
               {draggedItem && (
                 <div className='max-w-[300px] truncate rounded-md border bg-background p-2 shadow-md'>
                   {draggedItem.title || draggedItem.url}
                 </div>
               )}
               {draggedProject && (
-                <div className='w-full max-w-[600px] rounded-md border bg-background p-4 shadow-lg'>
-                  <div className='font-bold text-lg'>{draggedProject.name}</div>
-                  <div className='text-muted-foreground text-sm'>
-                    {draggedProject.description}
-                  </div>
-                </div>
+                <ProjectDragPreview project={draggedProject} />
               )}
             </DragOverlay>
           </DndContext>
@@ -442,15 +725,6 @@ export const CustomProjectSection = ({
                 {nameError && (
                   <p className='mt-1 text-red-500 text-xs'>{nameError}</p>
                 )}
-              </div>
-              <div>
-                <Label htmlFor='description'>説明（オプション）</Label>
-                <Textarea
-                  id='description'
-                  {...descriptionField}
-                  placeholder='例: ユーザーエクスペリエンスの改善とパフォーマンス最適化'
-                  className='w-full'
-                />
               </div>
             </div>
             <DialogFooter>

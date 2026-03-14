@@ -3,6 +3,7 @@ import { createOllama } from 'ai-sdk-ollama'
 import { AI_CHAT_TOOL_TITLES } from '@/constants/aiChatTools'
 import { buildTextAttachmentContext } from '@/features/ai-chat/lib/attachments'
 import { buildAiSavedUrlRecords } from '@/features/ai-chat/lib/buildAiContext'
+import { inferUserInterests } from '@/features/ai-chat/lib/inferInterests'
 import { listSavedUrlPage } from '@/features/ai-chat/lib/savedUrlQuery'
 import {
   buildFinalSystemPrompt,
@@ -10,6 +11,7 @@ import {
   normalizeAiSystemPromptSettings,
 } from '@/features/ai-chat/lib/systemPromptPresets'
 import type {
+  AiChartSpec,
   AiChatAttachment,
   AiSavedUrlRecord,
 } from '@/features/ai-chat/types'
@@ -40,12 +42,14 @@ interface AiChatRequest {
 
 interface AiChatResult {
   answer: string
+  charts: AiChartSpec[]
   recordCount: number
   reasoning: string
   toolTraces: AiChatToolTrace[]
 }
 
 interface AiChatStepUpdate {
+  charts?: AiChartSpec[]
   reasoning: string
   toolTraces: AiChatToolTrace[]
 }
@@ -181,8 +185,8 @@ const createContextSummary = (records: AiSavedUrlRecord[]): string =>
     })
 
     return [
-      `保存済み URL の件数: ${recentSavedUrlPage.totalItems}`,
-      '最近保存した URL 一覧:',
+      `保存済みタブの件数: ${recentSavedUrlPage.totalItems}`,
+      '最近保存したタブ一覧:',
       ...recentSavedUrlPage.items.map(
         (record, index) =>
           `${index + 1}. ${record.title} | ${record.url} | domain=${record.domain}`,
@@ -349,7 +353,7 @@ const createToolTraces = (
 
 const summarizePromptIntent = (prompt: string): string => {
   if (/どんな|一覧|何が|何の/i.test(prompt)) {
-    return '保存済み URL の一覧確認'
+    return '保存済みタブの一覧確認'
   }
   if (/好き|興味|傾向/i.test(prompt)) {
     return '保存傾向の推定'
@@ -357,7 +361,7 @@ const summarizePromptIntent = (prompt: string): string => {
   if (/月|追加|いつ/i.test(prompt)) {
     return '期間や追加時期の確認'
   }
-  return '保存済み URL の検索と要約'
+  return '保存済みタブの検索と要約'
 }
 
 const summarizeToolTrace = (toolTrace: AiChatToolTrace): string => {
@@ -386,7 +390,7 @@ const createReasoningSummary = ({
 }): string =>
   [
     `- 質問の解釈: ${summarizePromptIntent(prompt)}`,
-    `- 参照対象: 保存済み URL ${recordCount} 件`,
+    `- 参照対象: 保存済みタブ ${recordCount} 件`,
     `- 使用ツール: ${
       toolTraces.length > 0
         ? toolTraces.map(toolTrace => toolTrace.title).join('、')
@@ -394,8 +398,8 @@ const createReasoningSummary = ({
     }`,
     `- 回答方針: ${
       toolTraces.length > 0
-        ? 'ツール結果を保存済み URL の根拠として使って回答しました。'
-        : '保存済み URL の要約コンテキストを直接参照して回答しました。'
+        ? 'ツール結果を保存済みタブの根拠として使って回答しました。'
+        : '保存済みタブの要約コンテキストを直接参照して回答しました。'
     }`,
     ...toolTraces.map(
       toolTrace => `- ${toolTrace.title}: ${summarizeToolTrace(toolTrace)}`,
@@ -423,6 +427,45 @@ const mergeToolTraces = (
 
   return mergedToolTraces
 }
+
+const isChartSpec = (value: unknown): value is AiChartSpec => {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const spec = value as Partial<AiChartSpec>
+
+  return (
+    typeof spec.title === 'string' &&
+    typeof spec.type === 'string' &&
+    Array.isArray(spec.data) &&
+    Array.isArray(spec.series)
+  )
+}
+
+const getChartSpecsFromOutput = (output: unknown): AiChartSpec[] => {
+  if (!output || typeof output !== 'object') {
+    return []
+  }
+
+  const chartSpecs = (output as { chartSpecs?: unknown }).chartSpecs
+  if (!Array.isArray(chartSpecs)) {
+    return []
+  }
+
+  return chartSpecs.filter(isChartSpec)
+}
+
+const getChartsFromToolTraces = (
+  toolTraces: AiChatToolTrace[],
+): AiChartSpec[] =>
+  toolTraces.flatMap(toolTrace => getChartSpecsFromOutput(toolTrace.output))
+
+const CHART_REQUEST_PATTERN =
+  /円グラフ|棒グラフ|線グラフ|レーダー|グラフ|チャート|割合|比率|構成|ジャンル|カテゴリ|傾向/u
+
+const shouldFallbackToInterestCharts = (prompt: string): boolean =>
+  CHART_REQUEST_PATTERN.test(prompt)
 
 const listLocalOllamaModels = async (
   fetchImpl: typeof fetch = fetch,
@@ -583,9 +626,15 @@ const runAiChatRequest = async (
     streamedToolTraces,
     createToolTraces(result),
   )
+  const toolCharts = getChartsFromToolTraces(toolTraces)
+  const fallbackCharts =
+    toolCharts.length === 0 && shouldFallbackToInterestCharts(prompt)
+      ? inferUserInterests(records).chartSpecs
+      : []
 
   return {
     answer: result.text,
+    charts: toolCharts.length > 0 ? toolCharts : fallbackCharts,
     recordCount: records.length,
     reasoning: createReasoningSummary({
       prompt,
