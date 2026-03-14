@@ -17,10 +17,6 @@ vi.mock('@/lib/storage/migration', () => ({
   migrateToUrlsStorage: vi.fn(),
 }))
 
-vi.mock('@/lib/storage/projects', () => ({
-  addUrlsToUncategorizedProject: vi.fn(),
-}))
-
 vi.mock('@/lib/storage/settings', () => {
   const defaultSettings: UserSettings = {
     removeTabAfterOpen: true,
@@ -55,7 +51,6 @@ vi.mock('@/lib/storage/urls', () => ({
 
 import { saveParentCategories } from '@/lib/storage/categories'
 import { migrateToUrlsStorage } from '@/lib/storage/migration'
-import { addUrlsToUncategorizedProject } from '@/lib/storage/projects'
 import {
   defaultSettings,
   getUserSettings,
@@ -409,7 +404,29 @@ describe('import-export ユーティリティ', () => {
         }),
       ],
       parentCategories: [],
-      savedTabs: [],
+      savedTabs: [
+        {
+          id: 'saved-group',
+          domain: 'https://example.com',
+          urls: [
+            {
+              url: 'https://example.com/docs',
+              title: 'Docs',
+              savedAt: 100,
+            },
+            {
+              url: 'https://example.com/backlog',
+              title: 'Backlog',
+              savedAt: 101,
+            },
+            {
+              url: 'https://example.com/uncategorized',
+              title: 'Uncategorized',
+              savedAt: 102,
+            },
+          ],
+        },
+      ],
       urls: [
         {
           id: 'url-1',
@@ -507,7 +524,7 @@ describe('import-export ユーティリティ', () => {
     expect(result.savedAnalyticsViews).toEqual(savedAnalyticsViews)
   })
 
-  it('exportSettings の customProjects は importSettings で round-trip 復元できる', async () => {
+  it('exportSettings の customProjects は importSettings で順序と設定を保持する', async () => {
     createChromeMock({
       customProjectOrder: ['project-2', 'custom-uncategorized', 'project-1'],
       customProjects: [
@@ -590,25 +607,37 @@ describe('import-export ユーティリティ', () => {
       urls: [],
     }).store
 
-    vi.mocked(createOrUpdateUrlRecord)
-      .mockResolvedValueOnce({
-        id: 'restored-url-1',
-        url: 'https://example.com/docs',
-        title: 'Docs',
-        savedAt: 200,
-      })
-      .mockResolvedValueOnce({
-        id: 'restored-url-2',
-        url: 'https://example.com/backlog',
-        title: 'Backlog',
-        savedAt: 201,
-      })
-      .mockResolvedValueOnce({
-        id: 'restored-url-3',
-        url: 'https://example.com/uncategorized',
-        title: 'Uncategorized',
-        savedAt: 202,
-      })
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(
+      new Map([
+        [
+          'https://example.com/docs',
+          {
+            id: 'url-1',
+            url: 'https://example.com/docs',
+            title: 'Docs',
+            savedAt: 200,
+          },
+        ],
+        [
+          'https://example.com/backlog',
+          {
+            id: 'url-2',
+            url: 'https://example.com/backlog',
+            title: 'Backlog',
+            savedAt: 201,
+          },
+        ],
+        [
+          'https://example.com/uncategorized',
+          {
+            id: 'url-3',
+            url: 'https://example.com/uncategorized',
+            title: 'Uncategorized',
+            savedAt: 202,
+          },
+        ],
+      ]),
+    )
 
     const result = await importSettings(JSON.stringify(backup), false)
 
@@ -620,9 +649,26 @@ describe('import-export ユーティリティ', () => {
     ])
     expect(importedStore.customProjects).toEqual([
       buildCustomProject({
+        id: 'project-2',
+        name: 'Project 2',
+        urlIds: [],
+        categories: ['Backlog'],
+        categoryOrder: ['Backlog'],
+        createdAt: 12,
+        updatedAt: 13,
+      }),
+      buildCustomProject({
+        id: 'custom-uncategorized',
+        name: '未分類',
+        urlIds: [],
+        categories: [],
+        createdAt: 14,
+        updatedAt: 15,
+      }),
+      buildCustomProject({
         id: 'project-1',
         name: 'Project 1',
-        urlIds: ['restored-url-1'],
+        urlIds: [],
         projectKeywords: {
           titleKeywords: ['release'],
           urlKeywords: ['docs'],
@@ -630,37 +676,8 @@ describe('import-export ユーティリティ', () => {
         },
         categories: ['Docs'],
         categoryOrder: ['Docs'],
-        urlMetadata: {
-          'restored-url-1': {
-            category: 'Docs',
-            notes: 'memo-1',
-          },
-        },
         createdAt: 10,
         updatedAt: 11,
-      }),
-      buildCustomProject({
-        id: 'project-2',
-        name: 'Project 2',
-        urlIds: ['restored-url-2'],
-        categories: ['Backlog'],
-        categoryOrder: ['Backlog'],
-        urlMetadata: {
-          'restored-url-2': {
-            category: 'Backlog',
-            notes: 'memo-2',
-          },
-        },
-        createdAt: 12,
-        updatedAt: 13,
-      }),
-      buildCustomProject({
-        id: 'custom-uncategorized',
-        name: '未分類',
-        urlIds: ['restored-url-3'],
-        categories: [],
-        createdAt: 14,
-        updatedAt: 15,
       }),
     ])
   })
@@ -1500,20 +1517,33 @@ describe('import-export ユーティリティ', () => {
     expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
     expect(saveUserSettings).toHaveBeenCalledTimes(1)
     expect(saveParentCategories).toHaveBeenCalledTimes(1)
-    expect(set).toHaveBeenCalledWith({
-      savedTabs: [
-        {
-          id: 'missing-group',
-          domain: 'https://missing.example.com',
-          urlIds: ['missing-url-id'],
-          urlSubCategories: undefined,
-          parentCategoryId: undefined,
-          categoryKeywords: [],
-          subCategories: [],
-          savedAt: undefined,
-        },
-      ],
-    })
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customProjectOrder: ['custom-uncategorized'],
+        customProjects: [
+          buildCustomProject({
+            id: 'custom-uncategorized',
+            name: '未分類',
+            urlIds: ['missing-url-id'],
+            categories: [],
+            createdAt: expect.any(Number),
+            updatedAt: expect.any(Number),
+          }),
+        ],
+        savedTabs: [
+          {
+            id: 'missing-group',
+            domain: 'https://missing.example.com',
+            urlIds: ['missing-url-id'],
+            urlSubCategories: undefined,
+            parentCategoryId: undefined,
+            categoryKeywords: [],
+            subCategories: [],
+            savedAt: undefined,
+          },
+        ],
+      }),
+    )
     expect(set).toHaveBeenCalledWith({
       urls: [
         expect.objectContaining({
@@ -1558,20 +1588,33 @@ describe('import-export ユーティリティ', () => {
     expect(result.success).toBe(true)
     expect(result.message).toContain('代替URLを生成しました')
     expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
-    expect(set).toHaveBeenCalledWith({
-      savedTabs: [
-        {
-          id: 'missing-overwrite-group',
-          domain: 'https://missing-overwrite.example.com',
-          urlIds: ['missing-overwrite-url-id'],
-          urlSubCategories: undefined,
-          parentCategoryId: undefined,
-          subCategories: [],
-          categoryKeywords: [],
-          savedAt: undefined,
-        },
-      ],
-    })
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customProjectOrder: ['custom-uncategorized'],
+        customProjects: [
+          buildCustomProject({
+            id: 'custom-uncategorized',
+            name: '未分類',
+            urlIds: ['missing-overwrite-url-id'],
+            categories: [],
+            createdAt: expect.any(Number),
+            updatedAt: expect.any(Number),
+          }),
+        ],
+        savedTabs: [
+          {
+            id: 'missing-overwrite-group',
+            domain: 'https://missing-overwrite.example.com',
+            urlIds: ['missing-overwrite-url-id'],
+            urlSubCategories: undefined,
+            parentCategoryId: undefined,
+            subCategories: [],
+            categoryKeywords: [],
+            savedAt: undefined,
+          },
+        ],
+      }),
+    )
     expect(set).toHaveBeenCalledWith({
       urls: [
         expect.objectContaining({
@@ -1849,20 +1892,33 @@ describe('import-export ユーティリティ', () => {
         domainNames: [],
       },
     ])
-    expect(set).toHaveBeenCalledWith({
-      savedTabs: [
-        {
-          id: 'safe-group',
-          domain: 'https://safe.example.com',
-          urlIds: ['new-url-id'],
-          urlSubCategories: undefined,
-          parentCategoryId: undefined,
-          categoryKeywords: [],
-          subCategories: [],
-          savedAt: undefined,
-        },
-      ],
-    })
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customProjectOrder: ['custom-uncategorized'],
+        customProjects: [
+          buildCustomProject({
+            id: 'custom-uncategorized',
+            name: '未分類',
+            urlIds: ['new-url-id'],
+            categories: [],
+            createdAt: expect.any(Number),
+            updatedAt: expect.any(Number),
+          }),
+        ],
+        savedTabs: [
+          {
+            id: 'safe-group',
+            domain: 'https://safe.example.com',
+            urlIds: ['new-url-id'],
+            urlSubCategories: undefined,
+            parentCategoryId: undefined,
+            categoryKeywords: [],
+            subCategories: [],
+            savedAt: undefined,
+          },
+        ],
+      }),
+    )
   })
 
   it('merge モードではインポート値が省略された場合に既存の parent/savedAt を保持する', async () => {
@@ -2050,6 +2106,83 @@ describe('import-export ユーティリティ', () => {
       expect.objectContaining({
         categoryKeywords: [{ categoryName: 'edge', keywords: [] }],
         subCategories: ['Obj', 'Str'],
+      }),
+    )
+  })
+
+  it('merge モードでは子カテゴリ順序を既存優先で復元する', async () => {
+    const { set } = createChromeMock({
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'ordered-group',
+          domain: 'https://ordered.example.com',
+          urlIds: ['ordered-url-id'],
+          subCategories: ['ExistingA', 'ExistingB'],
+          subCategoryOrder: ['ExistingA', 'ExistingB'],
+          subCategoryOrderWithUncategorized: [
+            'ExistingA',
+            '__uncategorized',
+            'ExistingB',
+          ],
+        },
+      ],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecord).mockResolvedValue({
+      id: 'ordered-url-id',
+      url: 'https://ordered.example.com/path',
+      title: '',
+      savedAt: 1,
+    })
+
+    const imported = {
+      version: '1.0.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'ordered-group-imported',
+          domain: 'https://ordered.example.com',
+          urls: [{ url: 'https://ordered.example.com/path' }],
+          subCategories: ['ImportedB', 'ExistingB', 'ImportedA'],
+          subCategoryOrder: ['ImportedB', 'ExistingB', 'ImportedA'],
+          subCategoryOrderWithUncategorized: [
+            'ImportedB',
+            '__uncategorized',
+            'ExistingB',
+            'ImportedA',
+          ],
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), true)
+
+    expect(result.success).toBe(true)
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
+    expect(savedTabsArg[0]).toEqual(
+      expect.objectContaining({
+        subCategories: ['ExistingA', 'ExistingB', 'ImportedB', 'ImportedA'],
+        subCategoryOrder: ['ExistingA', 'ExistingB', 'ImportedB', 'ImportedA'],
+        subCategoryOrderWithUncategorized: [
+          'ExistingA',
+          '__uncategorized',
+          'ExistingB',
+          'ImportedB',
+          'ImportedA',
+        ],
       }),
     )
   })
@@ -2330,16 +2463,6 @@ describe('import-export ユーティリティ', () => {
         categoryKeywords: [{ categoryName: 'topic', keywords: ['keyword'] }],
       }),
     )
-    expect(addUrlsToUncategorizedProject).toHaveBeenCalledWith([
-      {
-        url: 'https://existing.example.com/new',
-        title: 'Existing New',
-      },
-      {
-        url: 'https://new.example.com/path',
-        title: 'New Domain',
-      },
-    ])
   })
 
   it('importSettings は merge モードで customProjects を既存順維持で追加する', async () => {
@@ -2356,22 +2479,45 @@ describe('import-export ユーティリティ', () => {
         }),
       ],
       parentCategories: [],
-      savedTabs: [],
-      urls: [],
+      savedTabs: [
+        {
+          id: 'current-group',
+          domain: 'https://current.example.com',
+          urlIds: ['url-current'],
+        },
+      ],
+      urls: [
+        {
+          id: 'url-current',
+          url: 'https://current.example.com/1',
+          title: 'Current 1',
+          savedAt: 1,
+        },
+      ],
     })
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
-    vi.mocked(createOrUpdateUrlRecord).mockResolvedValueOnce({
-      id: 'url-duplicate-project-1',
-      url: 'https://duplicate.example.com/1',
-      title: 'Duplicate 1',
-      savedAt: 9,
-    })
-    vi.mocked(createOrUpdateUrlRecord).mockResolvedValueOnce({
-      id: 'url-imported-project-1',
-      url: 'https://imported.example.com/1',
-      title: 'Imported 1',
-      savedAt: 10,
-    })
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(
+      new Map([
+        [
+          'https://duplicate.example.com/1',
+          {
+            id: 'url-duplicate-project-1',
+            url: 'https://duplicate.example.com/1',
+            title: 'Duplicate 1',
+            savedAt: 9,
+          },
+        ],
+        [
+          'https://imported.example.com/1',
+          {
+            id: 'url-imported-project-1',
+            url: 'https://imported.example.com/1',
+            title: 'Imported 1',
+            savedAt: 10,
+          },
+        ],
+      ]),
+    )
 
     const imported = {
       version: '4.0.0',
@@ -2417,7 +2563,22 @@ describe('import-export ユーティリティ', () => {
       ],
       customProjectOrder: ['imported-project', 'current-project'],
       parentCategories: [],
-      savedTabs: [],
+      savedTabs: [
+        {
+          id: 'imported-group',
+          domain: 'https://imported.example.com',
+          urls: [
+            {
+              url: 'https://duplicate.example.com/1',
+              title: 'Duplicate 1',
+            },
+            {
+              url: 'https://imported.example.com/1',
+              title: 'Imported 1',
+            },
+          ],
+        },
+      ],
       urls: [],
     }
 
@@ -2448,12 +2609,20 @@ describe('import-export ユーティリティ', () => {
         createdAt: 12,
         updatedAt: 13,
       }),
+      buildCustomProject({
+        id: 'custom-uncategorized',
+        name: '未分類',
+        urlIds: ['url-duplicate-project-1'],
+        categories: [],
+        createdAt: expect.any(Number),
+        updatedAt: expect.any(Number),
+      }),
     ])
     expect(store.customProjectOrder).toEqual([
       'current-project',
       'imported-project',
+      'custom-uncategorized',
     ])
-    expect(addUrlsToUncategorizedProject).not.toHaveBeenCalled()
   })
 
   it('importSettings は customProjects の URL 変換を一括処理する', async () => {
@@ -2461,7 +2630,16 @@ describe('import-export ユーティリティ', () => {
       customProjectOrder: [],
       customProjects: [],
       parentCategories: [],
-      savedTabs: [],
+      savedTabs: [
+        {
+          id: 'saved-group',
+          domain: 'https://example.com',
+          urls: [
+            { url: 'https://example.com/a', title: 'A' },
+            { url: 'https://example.com/b', title: 'B' },
+          ],
+        },
+      ],
       urls: [],
     })
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
@@ -2532,7 +2710,16 @@ describe('import-export ユーティリティ', () => {
       ],
       customProjectOrder: ['project-a', 'project-b'],
       parentCategories: [],
-      savedTabs: [],
+      savedTabs: [
+        {
+          id: 'saved-group',
+          domain: 'https://example.com',
+          urls: [
+            { url: 'https://example.com/a', title: 'A' },
+            { url: 'https://example.com/b', title: 'B' },
+          ],
+        },
+      ],
       urls: [],
     }
 
@@ -2669,15 +2856,15 @@ describe('import-export ユーティリティ', () => {
         savedAt: 999,
       }),
     )
-    expect(addUrlsToUncategorizedProject).toHaveBeenCalledWith([
-      {
-        url: 'https://replace.example.com/fail',
-        title: 'fail',
-      },
-      {
-        url: 'https://replace.example.com/ok',
-        title: 'ok',
-      },
+    expect(set.mock.calls[0]?.[0]?.customProjects).toEqual([
+      buildCustomProject({
+        id: 'custom-uncategorized',
+        name: '未分類',
+        urlIds: ['url-overwrite-2'],
+        categories: [],
+        createdAt: expect.any(Number),
+        updatedAt: expect.any(Number),
+      }),
     ])
   })
 
@@ -2699,12 +2886,19 @@ describe('import-export ユーティリティ', () => {
       urls: [],
     })
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
-    vi.mocked(createOrUpdateUrlRecord).mockResolvedValueOnce({
-      id: 'url-restored-project-1',
-      url: 'https://restored.example.com/1',
-      title: 'Restored 1',
-      savedAt: 20,
-    })
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(
+      new Map([
+        [
+          'https://restored.example.com/1',
+          {
+            id: 'url-restored-project-1',
+            url: 'https://restored.example.com/1',
+            title: 'Restored 1',
+            savedAt: 20,
+          },
+        ],
+      ]),
+    )
 
     const imported = {
       version: '4.0.1',
@@ -2737,7 +2931,18 @@ describe('import-export ユーティリティ', () => {
       ],
       customProjectOrder: ['restored-project'],
       parentCategories: [],
-      savedTabs: [],
+      savedTabs: [
+        {
+          id: 'saved-group',
+          domain: 'https://restored.example.com',
+          urls: [
+            {
+              url: 'https://restored.example.com/1',
+              title: 'Restored 1',
+            },
+          ],
+        },
+      ],
       urls: [],
     }
 
@@ -2762,12 +2967,327 @@ describe('import-export ユーティリティ', () => {
       }),
     ])
     expect(store.customProjectOrder).toEqual(['restored-project'])
-    expect(addUrlsToUncategorizedProject).not.toHaveBeenCalled()
   })
 
-  it('カスタムモード同期に失敗しても importSettings は成功を返す', async () => {
-    createChromeMock({
+  it('importSettings は overwrite モードで customProjects を savedTabs に合わせて正規化する', async () => {
+    const { store } = createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
       parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(
+      new Map([
+        [
+          'https://example.com/a',
+          {
+            id: 'url-a',
+            url: 'https://example.com/a',
+            title: 'A',
+            savedAt: 100,
+          },
+        ],
+        [
+          'https://example.com/b',
+          {
+            id: 'url-b',
+            url: 'https://example.com/b',
+            title: 'B',
+            savedAt: 101,
+          },
+        ],
+        [
+          'https://example.com/c',
+          {
+            id: 'url-c',
+            url: 'https://example.com/c',
+            title: 'C',
+            savedAt: 102,
+          },
+        ],
+      ]),
+    )
+
+    const imported = {
+      version: '4.0.1',
+      timestamp: '2026-03-08T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      customProjects: [
+        buildCustomProject({
+          id: 'project-main',
+          name: 'Main',
+          urls: [
+            {
+              url: 'https://example.com/a',
+              title: 'A',
+              notes: 'keep-a',
+              category: 'Docs',
+            },
+            {
+              url: 'https://example.com/c',
+              title: 'C',
+              notes: 'drop-c',
+              category: 'Extra',
+            },
+          ],
+          categories: ['Docs', 'Extra'],
+          categoryOrder: ['Docs', 'Extra'],
+          createdAt: 10,
+          updatedAt: 11,
+        }),
+        buildCustomProject({
+          id: 'custom-uncategorized',
+          name: '未分類',
+          urls: [],
+          categories: [],
+          createdAt: 12,
+          updatedAt: 13,
+        }),
+      ],
+      customProjectOrder: ['project-main', 'custom-uncategorized'],
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'group-main',
+          domain: 'https://example.com',
+          urls: [
+            { url: 'https://example.com/a', title: 'A' },
+            { url: 'https://example.com/b', title: 'B' },
+          ],
+        },
+      ],
+      urls: [],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    expect(store.customProjects).toEqual([
+      buildCustomProject({
+        id: 'project-main',
+        name: 'Main',
+        urlIds: ['url-a'],
+        urlMetadata: {
+          'url-a': {
+            notes: 'keep-a',
+            category: 'Docs',
+          },
+        },
+        categories: ['Docs', 'Extra'],
+        categoryOrder: ['Docs', 'Extra'],
+        createdAt: 10,
+        updatedAt: 11,
+      }),
+      buildCustomProject({
+        id: 'custom-uncategorized',
+        name: '未分類',
+        urlIds: ['url-b'],
+        categories: [],
+        createdAt: 12,
+        updatedAt: 13,
+      }),
+    ])
+    expect(store.customProjectOrder).toEqual([
+      'project-main',
+      'custom-uncategorized',
+    ])
+  })
+
+  it('importSettings は merge モードで customProjects を savedTabs に合わせて重複なく正規化する', async () => {
+    const { store } = createChromeMock({
+      customProjectOrder: ['current-project'],
+      customProjects: [
+        buildCustomProject({
+          id: 'current-project',
+          name: 'Current',
+          urlIds: ['url-current'],
+          categories: [],
+          createdAt: 1,
+          updatedAt: 2,
+        }),
+      ],
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'current-group',
+          domain: 'https://current.example.com',
+          urlIds: ['url-current'],
+        },
+      ],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(
+      new Map([
+        [
+          'https://imported.example.com/a',
+          {
+            id: 'url-imported-a',
+            url: 'https://imported.example.com/a',
+            title: 'Imported A',
+            savedAt: 100,
+          },
+        ],
+        [
+          'https://imported.example.com/b',
+          {
+            id: 'url-imported-b',
+            url: 'https://imported.example.com/b',
+            title: 'Imported B',
+            savedAt: 101,
+          },
+        ],
+        [
+          'https://imported.example.com/extra',
+          {
+            id: 'url-imported-extra',
+            url: 'https://imported.example.com/extra',
+            title: 'Imported Extra',
+            savedAt: 102,
+          },
+        ],
+      ]),
+    )
+
+    const imported = {
+      version: '4.0.1',
+      timestamp: '2026-03-08T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      customProjects: [
+        buildCustomProject({
+          id: 'project-main',
+          name: 'Main',
+          urls: [
+            {
+              url: 'https://imported.example.com/a',
+              title: 'Imported A',
+              notes: 'keep-a',
+              category: 'Docs',
+            },
+            {
+              url: 'https://imported.example.com/extra',
+              title: 'Imported Extra',
+              notes: 'drop-extra',
+              category: 'Extra',
+            },
+          ],
+          categories: ['Docs', 'Extra'],
+          categoryOrder: ['Docs', 'Extra'],
+          createdAt: 10,
+          updatedAt: 11,
+        }),
+        buildCustomProject({
+          id: 'project-secondary',
+          name: 'Secondary',
+          urls: [
+            {
+              url: 'https://imported.example.com/a',
+              title: 'Imported A',
+              notes: 'drop-duplicate',
+              category: 'Dup',
+            },
+          ],
+          categories: ['Dup'],
+          categoryOrder: ['Dup'],
+          createdAt: 12,
+          updatedAt: 13,
+        }),
+      ],
+      customProjectOrder: ['project-main', 'project-secondary'],
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'imported-group',
+          domain: 'https://imported.example.com',
+          urls: [
+            {
+              url: 'https://imported.example.com/a',
+              title: 'Imported A',
+            },
+            {
+              url: 'https://imported.example.com/b',
+              title: 'Imported B',
+            },
+          ],
+        },
+      ],
+      urls: [],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), true)
+
+    expect(result.success).toBe(true)
+    expect(store.customProjects).toEqual([
+      buildCustomProject({
+        id: 'current-project',
+        name: 'Current',
+        urlIds: ['url-current'],
+        categories: [],
+        createdAt: 1,
+        updatedAt: 2,
+      }),
+      buildCustomProject({
+        id: 'project-main',
+        name: 'Main',
+        urlIds: ['url-imported-a'],
+        urlMetadata: {
+          'url-imported-a': {
+            notes: 'keep-a',
+            category: 'Docs',
+          },
+        },
+        categories: ['Docs', 'Extra'],
+        categoryOrder: ['Docs', 'Extra'],
+        createdAt: 10,
+        updatedAt: 11,
+      }),
+      buildCustomProject({
+        id: 'project-secondary',
+        name: 'Secondary',
+        urlIds: [],
+        categories: ['Dup'],
+        categoryOrder: ['Dup'],
+        createdAt: 12,
+        updatedAt: 13,
+      }),
+      buildCustomProject({
+        id: 'custom-uncategorized',
+        name: '未分類',
+        urlIds: ['url-imported-b'],
+        categories: [],
+        createdAt: expect.any(Number),
+        updatedAt: expect.any(Number),
+      }),
+    ])
+    expect(store.customProjectOrder).toEqual([
+      'current-project',
+      'project-main',
+      'project-secondary',
+      'custom-uncategorized',
+    ])
+  })
+
+  it('customProjects が無いバックアップでも未分類プロジェクトへ整合化して importSettings は成功する', async () => {
+    const { store } = createChromeMock({
+      parentCategories: [],
+      customProjects: [],
+      customProjectOrder: [],
       savedTabs: [],
     })
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
@@ -2777,9 +3297,6 @@ describe('import-export ユーティリティ', () => {
       title: 'sync-failure',
       savedAt: 1,
     })
-    vi.mocked(addUrlsToUncategorizedProject).mockRejectedValueOnce(
-      new Error('sync failed'),
-    )
 
     const imported = {
       version: '3.1.0',
@@ -2810,16 +3327,17 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), true)
 
     expect(result.success).toBe(true)
-    expect(addUrlsToUncategorizedProject).toHaveBeenCalledWith([
-      {
-        url: 'https://sync-failure.example.com',
-        title: 'sync-failure',
-      },
+    expect(store.customProjectOrder).toEqual(['custom-uncategorized'])
+    expect(store.customProjects).toEqual([
+      buildCustomProject({
+        id: 'custom-uncategorized',
+        name: '未分類',
+        urlIds: ['sync-failure-url'],
+        categories: [],
+        createdAt: expect.any(Number),
+        updatedAt: expect.any(Number),
+      }),
     ])
-    expect(console.error).toHaveBeenCalledWith(
-      'カスタムモード同期エラー:',
-      expect.any(Error),
-    )
   })
 
   it('importSettings は大量URL時にURL変換を一括で実行する', async () => {
@@ -2948,6 +3466,66 @@ describe('import-export ユーティリティ', () => {
       expect.objectContaining({
         subCategories: ['ObjSub', 'StrSub'],
         categoryKeywords: [{ categoryName: 'valid', keywords: [] }],
+      }),
+    )
+  })
+
+  it('overwrite モードでは子カテゴリ順序を復元する', async () => {
+    const { set } = createChromeMock()
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecord).mockResolvedValue({
+      id: 'url-ordered-1',
+      url: 'https://ordered-overwrite.example.com',
+      title: 'Ordered',
+      savedAt: 10,
+    })
+
+    const imported = {
+      version: '5.0.0',
+      timestamp: '2026-02-16T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'ordered-overwrite-group',
+          domain: 'https://ordered-overwrite.example.com',
+          urls: [
+            {
+              url: 'https://ordered-overwrite.example.com',
+              title: 'Ordered',
+            },
+          ],
+          subCategories: ['Alpha', 'Beta'],
+          subCategoryOrder: ['Beta', 'Missing', 'Alpha'],
+          subCategoryOrderWithUncategorized: [
+            'Beta',
+            '__uncategorized',
+            'Missing',
+            'Alpha',
+          ],
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
+      string,
+      unknown
+    >[]
+    expect(savedTabsArg[0]).toEqual(
+      expect.objectContaining({
+        subCategories: ['Alpha', 'Beta'],
+        subCategoryOrder: ['Beta', 'Alpha'],
+        subCategoryOrderWithUncategorized: ['Beta', '__uncategorized', 'Alpha'],
       }),
     )
   })

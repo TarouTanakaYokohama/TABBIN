@@ -7,7 +7,6 @@ import type { AiChatConversation } from '@/features/ai-chat/types'
 import type { SavedAnalyticsView } from '@/lib/storage/analytics'
 import { saveParentCategories } from '@/lib/storage/categories'
 import { migrateToUrlsStorage } from '@/lib/storage/migration'
-import { addUrlsToUncategorizedProject } from '@/lib/storage/projects'
 import {
   defaultSettings,
   getUserSettings,
@@ -68,6 +67,8 @@ interface ImportedTabData {
   parentCategoryId?: string
   subCategories?: unknown[]
   categoryKeywords?: unknown[]
+  subCategoryOrder?: unknown[]
+  subCategoryOrderWithUncategorized?: unknown[]
   savedAt?: number
 }
 interface ImportedCustomProjectData {
@@ -117,6 +118,8 @@ interface ConvertedUrlData {
   urlSubCategories?: Record<string, string>
 }
 const BULK_URL_CONVERSION_THRESHOLD = 100
+const CUSTOM_UNCATEGORIZED_PROJECT_ID = 'custom-uncategorized'
+const CUSTOM_UNCATEGORIZED_PROJECT_NAME = '未分類'
 const importedUrlDataSchema = z.object({
   url: z.string(),
   title: z.string().optional(),
@@ -367,6 +370,8 @@ const backupDataSchema = z.object({
       parentCategoryId: z.string().optional(),
       subCategories: z.array(z.unknown()).optional(),
       categoryKeywords: z.array(z.unknown()).optional(),
+      subCategoryOrder: z.array(z.unknown()).optional(),
+      subCategoryOrderWithUncategorized: z.array(z.unknown()).optional(),
       savedAt: z.number().optional(),
     }),
   ),
@@ -491,6 +496,99 @@ const normalizeStringArray = (items: unknown[] | undefined): string[] => {
   return values
 }
 
+const normalizeSubCategoryOrder = (
+  items: unknown[] | undefined,
+  validCategories: string[],
+): string[] | undefined => {
+  const validCategorySet = new Set(validCategories)
+  const normalized = normalizeStringArray(items).filter(category =>
+    validCategorySet.has(category),
+  )
+  return normalized.length > 0 ? normalized : undefined
+}
+
+const normalizeSubCategoryOrderWithUncategorized = (
+  items: unknown[] | undefined,
+  validCategories: string[],
+): string[] | undefined => {
+  const validCategorySet = new Set(validCategories)
+  const normalized = normalizeStringArray(items).filter(
+    category =>
+      category === '__uncategorized' || validCategorySet.has(category),
+  )
+  return normalized.length > 0 ? normalized : undefined
+}
+
+const mergeOrderedSubCategories = ({
+  existingOrder,
+  importedOrder,
+  validCategories,
+}: {
+  existingOrder: unknown[] | undefined
+  importedOrder: unknown[] | undefined
+  validCategories: string[]
+}): string[] | undefined => {
+  const normalizedExisting =
+    normalizeSubCategoryOrder(existingOrder, validCategories) || []
+  const normalizedImported =
+    normalizeSubCategoryOrder(importedOrder, validCategories) || []
+  const mergedOrder = [...normalizedExisting]
+  const seen = new Set(normalizedExisting)
+  for (const category of normalizedImported) {
+    if (seen.has(category)) {
+      continue
+    }
+    seen.add(category)
+    mergedOrder.push(category)
+  }
+  for (const category of validCategories) {
+    if (seen.has(category)) {
+      continue
+    }
+    seen.add(category)
+    mergedOrder.push(category)
+  }
+  return mergedOrder.length > 0 ? mergedOrder : undefined
+}
+
+const mergeOrderedSubCategoriesWithUncategorized = ({
+  existingOrder,
+  importedOrder,
+  validCategories,
+}: {
+  existingOrder: unknown[] | undefined
+  importedOrder: unknown[] | undefined
+  validCategories: string[]
+}): string[] | undefined => {
+  const normalizedExisting =
+    normalizeSubCategoryOrderWithUncategorized(
+      existingOrder,
+      validCategories,
+    ) || []
+  const normalizedImported =
+    normalizeSubCategoryOrderWithUncategorized(
+      importedOrder,
+      validCategories,
+    ) || []
+  const mergedOrder = [...normalizedExisting]
+  const seen = new Set(normalizedExisting)
+  for (const category of normalizedImported) {
+    if (seen.has(category)) {
+      continue
+    }
+    seen.add(category)
+    mergedOrder.push(category)
+  }
+  for (const category of validCategories) {
+    if (seen.has(category)) {
+      continue
+    }
+    seen.add(category)
+    mergedOrder.push(category)
+  }
+  return mergedOrder.length > 0 ? mergedOrder : undefined
+}
+
 const normalizeProjectKeywords = (
   projectKeywords: ImportedCustomProjectData['projectKeywords'],
 ): ProjectKeywordSettings => ({
@@ -540,6 +638,160 @@ const normalizeImportedCustomProject = (
     ...(categoryOrder.length > 0 ? { categoryOrder } : {}),
     createdAt,
     updatedAt,
+  }
+}
+
+const buildCustomProjectUrlIdList = (tabGroups: TabGroup[]): string[] => {
+  const orderedUrlIds: string[] = []
+  const seen = new Set<string>()
+  for (const group of tabGroups) {
+    for (const urlId of group.urlIds || []) {
+      if (seen.has(urlId)) {
+        continue
+      }
+      seen.add(urlId)
+      orderedUrlIds.push(urlId)
+    }
+  }
+  return orderedUrlIds
+}
+
+const stripCustomProjectUrls = (project: CustomProject): CustomProject => {
+  const { urls: _urls, ...rest } = project
+  return rest
+}
+
+const sanitizeCustomProjectMetadata = (
+  project: CustomProject,
+  urlIds: string[],
+): CustomProject['urlMetadata'] | undefined => {
+  if (!project.urlMetadata) {
+    return undefined
+  }
+  const allowedIdSet = new Set(urlIds)
+  const entries = Object.entries(project.urlMetadata).filter(([urlId]) =>
+    allowedIdSet.has(urlId),
+  )
+  if (entries.length === 0) {
+    return undefined
+  }
+  return Object.fromEntries(entries)
+}
+
+const buildSanitizedCustomProject = (
+  project: CustomProject,
+  urlIds: string[],
+): CustomProject => {
+  const { urlMetadata: _urlMetadata, ...rest } = stripCustomProjectUrls(project)
+  const nextMetadata = sanitizeCustomProjectMetadata(project, urlIds)
+  return {
+    ...rest,
+    urlIds,
+    ...(nextMetadata ? { urlMetadata: nextMetadata } : {}),
+  }
+}
+
+const buildUncategorizedCustomProject = (
+  now: number,
+  project?: CustomProject,
+): CustomProject => {
+  if (project) {
+    return stripCustomProjectUrls(project)
+  }
+  return {
+    id: CUSTOM_UNCATEGORIZED_PROJECT_ID,
+    name: CUSTOM_UNCATEGORIZED_PROJECT_NAME,
+    projectKeywords: normalizeProjectKeywords(undefined),
+    urlIds: [],
+    categories: [],
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
+const alignCustomProjectsWithSavedTabs = ({
+  customProjectOrder,
+  customProjects,
+  tabGroups,
+}: {
+  customProjectOrder: string[] | undefined
+  customProjects: CustomProject[]
+  tabGroups: TabGroup[]
+}): {
+  customProjectOrder: string[]
+  customProjects: CustomProject[]
+} => {
+  const orderedTabUrlIds = buildCustomProjectUrlIdList(tabGroups)
+  const allowedUrlIdSet = new Set(orderedTabUrlIds)
+  const normalizedProjects = customProjects.map(project =>
+    stripCustomProjectUrls(normalizeImportedCustomProject(project)),
+  )
+  const normalizedOrder = normalizeCustomProjectOrder(
+    customProjectOrder,
+    normalizedProjects,
+  )
+  const projectById = new Map(
+    normalizedProjects.map(project => [project.id, project]),
+  )
+  const orderedProjects = normalizedOrder
+    .map(projectId => projectById.get(projectId))
+    .filter((project): project is CustomProject => Boolean(project))
+  const remainingProjects = normalizedProjects.filter(
+    project => !normalizedOrder.includes(project.id),
+  )
+  const allProjects = [...orderedProjects, ...remainingProjects]
+  const assignedUrlIds = new Set<string>()
+  const sanitizedProjects = allProjects.map(project => {
+    const nextUrlIds: string[] = []
+    for (const urlId of project.urlIds || []) {
+      if (!allowedUrlIdSet.has(urlId) || assignedUrlIds.has(urlId)) {
+        continue
+      }
+      assignedUrlIds.add(urlId)
+      nextUrlIds.push(urlId)
+    }
+    return buildSanitizedCustomProject(project, nextUrlIds)
+  })
+  const missingUrlIds = orderedTabUrlIds.filter(
+    urlId => !assignedUrlIds.has(urlId),
+  )
+  if (missingUrlIds.length > 0) {
+    const now = Date.now()
+    const uncategorizedIndex = sanitizedProjects.findIndex(
+      project => project.id === CUSTOM_UNCATEGORIZED_PROJECT_ID,
+    )
+    const uncategorizedProject = buildUncategorizedCustomProject(
+      now,
+      uncategorizedIndex === -1
+        ? undefined
+        : sanitizedProjects[uncategorizedIndex],
+    )
+    const uncategorizedUrlIds = uncategorizedProject.urlIds || []
+    uncategorizedProject.urlIds = uncategorizedUrlIds
+    const urlIdSet = new Set(uncategorizedUrlIds)
+    for (const urlId of missingUrlIds) {
+      if (urlIdSet.has(urlId)) {
+        continue
+      }
+      urlIdSet.add(urlId)
+      uncategorizedUrlIds.push(urlId)
+    }
+    const nextUncategorizedProject = buildSanitizedCustomProject(
+      uncategorizedProject,
+      uncategorizedUrlIds,
+    )
+    if (uncategorizedIndex === -1) {
+      sanitizedProjects.push(nextUncategorizedProject)
+    } else {
+      sanitizedProjects[uncategorizedIndex] = nextUncategorizedProject
+    }
+  }
+  return {
+    customProjects: sanitizedProjects,
+    customProjectOrder: normalizeCustomProjectOrder(
+      customProjectOrder,
+      sanitizedProjects,
+    ),
   }
 }
 
@@ -1383,6 +1635,17 @@ const buildMergedExistingDomainTab = async (
     existingTab.subCategories,
     importedTab.subCategories,
   )
+  const mergedSubCategoryOrder = mergeOrderedSubCategories({
+    existingOrder: existingTab.subCategoryOrder,
+    importedOrder: importedTab.subCategoryOrder,
+    validCategories: mergedSubCategories,
+  })
+  const mergedSubCategoryOrderWithUncategorized =
+    mergeOrderedSubCategoriesWithUncategorized({
+      existingOrder: existingTab.subCategoryOrderWithUncategorized,
+      importedOrder: importedTab.subCategoryOrderWithUncategorized,
+      validCategories: mergedSubCategories,
+    })
   return {
     id: existingTab.id,
     domain: existingTab.domain,
@@ -1392,6 +1655,15 @@ const buildMergedExistingDomainTab = async (
       importedTab.parentCategoryId || existingTab.parentCategoryId,
     categoryKeywords: mergedKeywords,
     subCategories: mergedSubCategories,
+    ...(mergedSubCategoryOrder
+      ? { subCategoryOrder: mergedSubCategoryOrder }
+      : {}),
+    ...(mergedSubCategoryOrderWithUncategorized
+      ? {
+          subCategoryOrderWithUncategorized:
+            mergedSubCategoryOrderWithUncategorized,
+        }
+      : {}),
     savedAt: resolveMergedSavedAt(existingTab.savedAt, importedTab.savedAt),
   }
 }
@@ -1409,6 +1681,15 @@ const buildMergedNewDomainTab = async (
   const normalizedSubCategories = normalizeSubCategories(
     importedTab.subCategories,
   )
+  const normalizedSubCategoryOrder = normalizeSubCategoryOrder(
+    importedTab.subCategoryOrder,
+    normalizedSubCategories,
+  )
+  const normalizedSubCategoryOrderWithUncategorized =
+    normalizeSubCategoryOrderWithUncategorized(
+      importedTab.subCategoryOrderWithUncategorized,
+      normalizedSubCategories,
+    )
   return {
     id: importedTab.id,
     domain: importedTab.domain,
@@ -1417,6 +1698,15 @@ const buildMergedNewDomainTab = async (
     parentCategoryId: importedTab.parentCategoryId,
     categoryKeywords: normalizedKeywords,
     subCategories: normalizedSubCategories,
+    ...(normalizedSubCategoryOrder
+      ? { subCategoryOrder: normalizedSubCategoryOrder }
+      : {}),
+    ...(normalizedSubCategoryOrderWithUncategorized
+      ? {
+          subCategoryOrderWithUncategorized:
+            normalizedSubCategoryOrderWithUncategorized,
+        }
+      : {}),
     savedAt: importedTab.savedAt,
   }
 }
@@ -1515,25 +1805,6 @@ const buildBulkUrlRecordMap = async (
   }
   console.log(`インポートURLを一括変換します: ${importedUrlItems.length}件`)
   return createOrUpdateUrlRecordsBatch(importedUrlItems)
-}
-const syncImportedTabsToCustomMode = async (
-  normalizedImportedTabs: NormalizedImportedTab[],
-): Promise<void> => {
-  const savedTabItems = normalizedImportedTabs.flatMap(tab =>
-    tab.urls
-      .filter(urlData => Boolean(urlData.url))
-      .map(urlData => ({
-        url: urlData.url,
-        title: urlData.title || '',
-      })),
-  )
-  if (savedTabItems.length > 0) {
-    try {
-      await addUrlsToUncategorizedProject(savedTabItems)
-    } catch (error) {
-      console.error('カスタムモード同期エラー:', error)
-    }
-  }
 }
 const shouldImportCustomProjects = (importedData: BackupData): boolean => {
   return Array.isArray(importedData.customProjects)
@@ -1729,14 +2000,26 @@ const importWithMerge = async ({
     normalizedImportedTabs,
     bulkUrlRecordMap,
   )
-  const mergedCustomProjectData = shouldImportCustomProjects(importedData)
-    ? mergeImportedCustomProjects(
-        currentCustomProjects,
-        currentCustomProjectOrder,
-        resolvedImportedCustomProjects,
-        importedData.customProjectOrder,
-      )
-    : undefined
+  const mergedCustomProjectData = alignCustomProjectsWithSavedTabs({
+    customProjectOrder: shouldImportCustomProjects(importedData)
+      ? [
+          ...currentCustomProjectOrder,
+          ...normalizeCustomProjectOrder(
+            importedData.customProjectOrder,
+            resolvedImportedCustomProjects,
+          ).filter(id => !currentCustomProjectOrder.includes(id)),
+        ]
+      : currentCustomProjectOrder,
+    customProjects: shouldImportCustomProjects(importedData)
+      ? mergeImportedCustomProjects(
+          currentCustomProjects,
+          currentCustomProjectOrder,
+          resolvedImportedCustomProjects,
+          importedData.customProjectOrder,
+        ).customProjects
+      : currentCustomProjects,
+    tabGroups: mergedTabs,
+  })
   const mergedAiChatHistory = resolveMergedAiChatHistory({
     currentActiveConversationId: currentActiveAiChatConversationId,
     currentConversations: currentAiChatConversations,
@@ -1754,12 +2037,8 @@ const importWithMerge = async ({
     saveUserSettings(mergedSettings),
     saveParentCategories(mergedCategories),
     chrome.storage.local.set({
-      ...(mergedCustomProjectData
-        ? {
-            customProjectOrder: mergedCustomProjectData.customProjectOrder,
-            customProjects: mergedCustomProjectData.customProjects,
-          }
-        : {}),
+      customProjectOrder: mergedCustomProjectData.customProjectOrder,
+      customProjects: mergedCustomProjectData.customProjects,
       ...(mergedAiChatHistory
         ? {
             [ACTIVE_AI_CHAT_CONVERSATION_ID_KEY]:
@@ -1775,9 +2054,6 @@ const importWithMerge = async ({
       savedTabs: mergedTabs,
     }),
   ])
-  if (!shouldImportCustomProjects(importedData)) {
-    await syncImportedTabsToCustomMode(normalizedImportedTabs)
-  }
   const unresolvedWarning = await createUnresolvedWarning(unresolvedTabs)
   const addedCategories = countAddedCategories(
     importedData.parentCategories,
@@ -1804,12 +2080,18 @@ const importWithOverwrite = async ({
     normalizedImportedTabs,
     bulkUrlRecordMap,
   )
-  const overwriteCustomProjectData = shouldImportCustomProjects(importedData)
-    ? overwriteImportedCustomProjects(
-        resolvedImportedCustomProjects,
-        importedData.customProjectOrder,
-      )
-    : undefined
+  const overwriteCustomProjectData = alignCustomProjectsWithSavedTabs({
+    customProjectOrder: shouldImportCustomProjects(importedData)
+      ? importedData.customProjectOrder
+      : [],
+    customProjects: shouldImportCustomProjects(importedData)
+      ? overwriteImportedCustomProjects(
+          resolvedImportedCustomProjects,
+          importedData.customProjectOrder,
+        ).customProjects
+      : [],
+    tabGroups: cleanTabGroups,
+  })
   const overwriteAiChatHistory = resolveOverwriteAiChatHistory(importedData)
   const overwriteSavedAnalyticsViews = shouldImportSavedAnalyticsViews(
     importedData,
@@ -1823,12 +2105,8 @@ const importWithOverwrite = async ({
     }),
     saveParentCategories(cleanParentCategories),
     chrome.storage.local.set({
-      ...(overwriteCustomProjectData
-        ? {
-            customProjectOrder: overwriteCustomProjectData.customProjectOrder,
-            customProjects: overwriteCustomProjectData.customProjects,
-          }
-        : {}),
+      customProjectOrder: overwriteCustomProjectData.customProjectOrder,
+      customProjects: overwriteCustomProjectData.customProjects,
       ...(overwriteAiChatHistory
         ? {
             [ACTIVE_AI_CHAT_CONVERSATION_ID_KEY]:
@@ -1844,9 +2122,6 @@ const importWithOverwrite = async ({
       savedTabs: cleanTabGroups,
     }),
   ])
-  if (!shouldImportCustomProjects(importedData)) {
-    await syncImportedTabsToCustomMode(normalizedImportedTabs)
-  }
   const unresolvedWarning = await createUnresolvedWarning(unresolvedTabs)
   await migrateToUrlsStorage()
   return {
