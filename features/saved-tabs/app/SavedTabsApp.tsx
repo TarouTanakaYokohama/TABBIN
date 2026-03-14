@@ -1340,8 +1340,8 @@ const SavedTabsApp = ({
       <div
         className={
           isAiSidebarOpen
-            ? 'min-h-screen w-full px-4 py-2'
-            : 'container mx-auto min-h-screen px-4 py-2'
+            ? 'min-h-screen w-full py-2'
+            : 'container mx-auto min-h-screen py-2'
         }
       >
         <Header

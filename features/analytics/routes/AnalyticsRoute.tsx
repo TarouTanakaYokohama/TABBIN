@@ -314,7 +314,7 @@ const AnalyticsRoute = () => {
     >
       <main className='min-h-0 min-w-0 flex-1 overflow-hidden bg-muted/10 p-4'>
         <div className='mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-4'>
-          <section className='grid min-h-0 flex-1 gap-4 xl:grid-cols-[360px_minmax(0,1fr)]'>
+          <section className='grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)] gap-4'>
             <aside
               className='min-h-0 space-y-4 overflow-y-auto overscroll-contain'
               data-testid='analytics-sidebar-pane'
@@ -458,7 +458,7 @@ const AnalyticsRoute = () => {
                 </div>
               </div>
               <div
-                className='sticky -top-5 z-10 -mx-5 bg-card/95 px-5 pt-5 pb-4 backdrop-blur supports-backdrop-filter:bg-card/80'
+                className='-top-5 z-10 -mx-5 bg-card/95 px-5 pt-5 pb-4 backdrop-blur supports-backdrop-filter:bg-card/80'
                 data-testid='analytics-sticky-chart-panel'
               >
                 <div className='rounded-3xl border border-border border-dashed bg-background/70 p-4'>

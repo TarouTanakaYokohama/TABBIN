@@ -11,7 +11,7 @@ export default defineConfig({
     name: 'TABBIN',
     description:
       'ブラウザのタブを整理・分類する拡張機能です。散らかりがちなタブを管理できます。',
-    version: '2.0.0',
+    version: '2.0.1',
     host_permissions: [
       'http://localhost:11434/*',
       'http://127.0.0.1:11434/*',
