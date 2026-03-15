@@ -50,6 +50,7 @@ import {
   getCustomProjects,
   moveUrlBetweenCustomProjects,
   removeUrlFromAllCustomProjects,
+  removeUrlsFromAllCustomProjects,
 } from '@/lib/storage/projects'
 import { defaultSettings } from '@/lib/storage/settings'
 import {
@@ -648,7 +649,6 @@ const SavedTabsApp = ({
     groupToDelete: TabGroup,
   ) => {
     try {
-      const { getTabGroupUrls } = await import('@/lib/storage/tabs')
       const urlsToDelete = await getTabGroupUrls(groupToDelete)
       if (urlsToDelete && urlsToDelete.length > 0) {
         for (const item of urlsToDelete) {
@@ -674,7 +674,6 @@ const SavedTabsApp = ({
     groupsToDelete: TabGroup[],
   ) => {
     try {
-      const { getTabGroupUrls } = await import('@/lib/storage/tabs')
       const allUrlsToDelete: string[] = []
 
       for (const group of groupsToDelete) {
@@ -686,9 +685,6 @@ const SavedTabsApp = ({
 
       if (allUrlsToDelete.length > 0) {
         try {
-          const { removeUrlsFromAllCustomProjects } = await import(
-            '@/lib/storage/projects'
-          )
           await removeUrlsFromAllCustomProjects(allUrlsToDelete)
         } catch (err) {
           console.error('URL一括同期削除エラー:', err)
