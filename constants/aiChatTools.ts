@@ -52,9 +52,9 @@ const AI_CHAT_TOOL_DESCRIPTIONS = Object.fromEntries(
   ]),
 ) as Record<AiChatToolDefinition['name'], AiChatToolDefinition['description']>
 
+export type { AiChatToolDefinition }
 export {
   AI_CHAT_TOOL_DEFINITIONS,
   AI_CHAT_TOOL_DESCRIPTIONS,
   AI_CHAT_TOOL_TITLES,
 }
-export type { AiChatToolDefinition }

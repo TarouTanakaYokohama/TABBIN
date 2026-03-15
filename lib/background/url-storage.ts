@@ -319,6 +319,7 @@ const handleTabCreated = async (tab: chrome.tabs.Tab): Promise<void> => {
     }
   }
 }
+
 export {
   clearDraggedUrlInfo,
   getDraggedUrlInfo,

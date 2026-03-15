@@ -1171,12 +1171,13 @@ const updateProjectKeywords = async (
   projects[projectIndex] = project
   await saveCustomProjects(projects)
 }
+
 export {
   CUSTOM_UNCATEGORIZED_PROJECT_ID,
   CUSTOM_UNCATEGORIZED_PROJECT_NAME,
   addCategoryToProject,
-  addUrlsToUncategorizedProject,
   addUrlToCustomProject,
+  addUrlsToUncategorizedProject,
   createCustomProject,
   deleteCustomProject,
   getCustomProjects,
@@ -1186,8 +1187,8 @@ export {
   moveUrlBetweenCustomProjects,
   removeCategoryFromProject,
   removeUrlFromAllCustomProjects,
-  removeUrlsFromAllCustomProjects,
   removeUrlFromCustomProject,
+  removeUrlsFromAllCustomProjects,
   removeUrlsFromCustomProject,
   renameCategoryInProject,
   reorderProjectUrls,

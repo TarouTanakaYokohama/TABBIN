@@ -554,5 +554,5 @@ const AiChartRenderer = ({
   )
 }
 
-export { AiChartRenderer }
 export type { AiChartPointSelection }
+export { AiChartRenderer }

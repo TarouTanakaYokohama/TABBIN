@@ -2204,5 +2204,6 @@ const importSettings = async (
     }
   }
 }
-export { downloadAsJson, exportSettings, importSettings }
+
 export type { BackupData }
+export { downloadAsJson, exportSettings, importSettings }

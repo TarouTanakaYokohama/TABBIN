@@ -723,4 +723,5 @@ const CategoryManagementModal = ({
     </Dialog>
   )
 }
+
 export { CategoryManagementModal, categoryNameSchema }

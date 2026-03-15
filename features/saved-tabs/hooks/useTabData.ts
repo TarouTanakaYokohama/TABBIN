@@ -311,5 +311,6 @@ const useTabData = (
     refreshTabGroupsWithUrls,
   }
 }
-export { useTabData }
+
 export type { UseTabDataReturn }
+export { useTabData }
