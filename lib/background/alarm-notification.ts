@@ -108,4 +108,5 @@ const showNotification = async (
     console.error('通知表示エラー:', notificationError)
   }
 }
+
 export { setupExpiredTabsCheckAlarm, showNotification }

@@ -152,4 +152,5 @@ const resetSavedTabsPageId = (): void => {
   savedTabsPageId = null
   isCreatingSavedTabsPage = false
 }
+
 export { openSavedTabsPage, resetSavedTabsPageId }

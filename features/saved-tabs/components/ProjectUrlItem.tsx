@@ -298,4 +298,4 @@ const ProjectUrlItem = memo(ProjectUrlItemComponent)
 ProjectUrlItem.displayName = 'ProjectUrlItem'
 
 export type { ProjectUrlItemProps }
-export { getCategoryDisplayName, getCategoryLevel, ProjectUrlItem }
+export { ProjectUrlItem, getCategoryDisplayName, getCategoryLevel }

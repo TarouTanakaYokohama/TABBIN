@@ -432,4 +432,5 @@ const handleAiChatStreamPortMessage = (
       port.postMessage(errorMessage)
     })
 }
+
 export { setupMessageListener }

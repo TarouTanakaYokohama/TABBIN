@@ -545,6 +545,7 @@ const removeUrlsFromTabGroup = async (
     }
   }
 }
+
 export {
   addSubCategoryToGroup,
   addSubCategoryWithKeywords,

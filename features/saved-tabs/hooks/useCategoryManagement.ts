@@ -381,5 +381,6 @@ const useCategoryManagement = (
     handleMoveDomainToCategory,
   }
 }
-export { useCategoryManagement }
+
 export type { UseCategoryManagementReturn }
+export { useCategoryManagement }

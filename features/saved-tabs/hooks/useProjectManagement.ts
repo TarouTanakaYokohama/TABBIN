@@ -657,5 +657,6 @@ const useProjectManagement = (
     handleRenameCategory,
   }
 }
-export { useProjectManagement }
+
 export type { UseProjectManagementReturn }
+export { useProjectManagement }

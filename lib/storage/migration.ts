@@ -658,6 +658,7 @@ const migrateToUrlsStorage = async (): Promise<void> => {
     throw error
   }
 }
+
 export {
   assignDomainToCategory,
   migrateParentCategoriesToDomainNames,

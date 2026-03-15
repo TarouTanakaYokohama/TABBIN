@@ -65,6 +65,7 @@ const deleteSavedAnalyticsView = async (viewId: string): Promise<void> => {
   await saveSavedAnalyticsViews(nextViews)
 }
 
+export type { SavedAnalyticsView }
 export {
   SAVED_ANALYTICS_VIEWS_KEY,
   createSavedAnalyticsView,
@@ -72,4 +73,3 @@ export {
   loadSavedAnalyticsViews,
   saveSavedAnalyticsViews,
 }
-export type { SavedAnalyticsView }
