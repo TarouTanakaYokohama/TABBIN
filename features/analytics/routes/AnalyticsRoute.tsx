@@ -33,6 +33,7 @@ import {
   type AnalyticsQuery,
   generateAnalyticsResult,
   getDefaultAnalyticsQuery,
+  normalizeAnalyticsQuery,
 } from '@/features/analytics/lib/analytics'
 import { loadAnalyticsRecords } from '@/features/analytics/lib/loadAnalyticsRecords'
 import {
@@ -48,7 +49,8 @@ const defaultAnalyticsQuery = getDefaultAnalyticsQuery()
 
 const analyticsGroupByOptions = [
   { label: 'ドメイン', value: 'domain' },
-  { label: '時系列', value: 'time' },
+  { label: '時系列（直近）', value: 'timeRecent' },
+  { label: '時系列（件数順）', value: 'timeTop' },
   { label: '親カテゴリ', value: 'parentCategory' },
   { label: '子カテゴリ', value: 'subCategory' },
   { label: 'プロジェクト', value: 'project' },
@@ -136,7 +138,7 @@ const awaitableEmptyRecords: Awaited<ReturnType<typeof loadAnalyticsRecords>> =
 const normalizeAnalyticsRouteQuery = (
   analyticsQuery: AnalyticsQuery,
 ): AnalyticsQuery => ({
-  ...analyticsQuery,
+  ...normalizeAnalyticsQuery(analyticsQuery),
   mode: 'both',
 })
 
@@ -152,7 +154,8 @@ const getDrilldownLabelsForRecord = (
   query: AnalyticsQuery,
 ): string[] => {
   switch (query.groupBy) {
-    case 'time':
+    case 'timeRecent':
+    case 'timeTop':
       return (
         generateAnalyticsResult([record], {
           ...query,
@@ -240,7 +243,7 @@ const AnalyticsRoute = () => {
   } = useSharedAiChatHistory()
   const [records, setRecords] = useState(awaitableEmptyRecords)
   const [savedViews, setSavedViews] = useState<SavedAnalyticsView[]>([])
-  const [query, setQuery] = useState<AnalyticsQuery>(
+  const [query, setQuery] = useState<AnalyticsQuery>(() =>
     normalizeAnalyticsRouteQuery(defaultAnalyticsQuery),
   )
   const [viewName, setViewName] = useState('')
