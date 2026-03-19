@@ -5,17 +5,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserSettings } from '@/types/storage'
 
 const mocked = vi.hoisted(() => ({
+  addExcludePattern: vi.fn(),
   confirmationConfirm: vi.fn(),
   createRoot: vi.fn(),
   handleCategoryKeyDown: vi.fn(),
   handleColorChange: vi.fn(),
-  handleExcludePatternsBlur: vi.fn(),
-  handleExcludePatternsChange: vi.fn(),
+  handleExcludePatternInputChange: vi.fn(),
   handleResetColors: vi.fn(),
   handleSelectAutoDelete: vi.fn(),
   handleSelectClickBehavior: vi.fn(),
   hideConfirmation: vi.fn(),
+  inputProps: [] as Record<string, unknown>[],
+  removeExcludePattern: vi.fn(),
   renderRoot: vi.fn(),
+  setExcludePatternInput: vi.fn(),
   selectContentProps: [] as Record<string, unknown>[],
   setSettings: vi.fn(),
   settings: {
@@ -36,7 +39,6 @@ const mocked = vi.hoisted(() => ({
     removeTabAfterOpen: false,
     showSavedTime: false,
   } as UserSettings,
-  textareaProps: [] as Record<string, unknown>[],
   updateSetting: vi.fn(),
   useAutoDeletePeriodResult: {
     confirmationState: {
@@ -50,11 +52,14 @@ const mocked = vi.hoisted(() => ({
     prepareAutoDeletePeriod: vi.fn(),
   },
   useSettingsResult: {
-    handleExcludePatternsBlur: vi.fn(),
-    handleExcludePatternsChange: vi.fn(),
+    addExcludePattern: vi.fn(),
+    excludePatternInput: '',
+    handleExcludePatternInputChange: vi.fn(),
     isLoading: false,
+    removeExcludePattern: vi.fn(),
     setSettings: vi.fn(),
     settings: {} as UserSettings,
+    setExcludePatternInput: vi.fn(),
     updateSetting: vi.fn(),
   },
 }))
@@ -110,7 +115,10 @@ vi.mock('@/components/ui/checkbox', () => ({
 }))
 
 vi.mock('@/components/ui/input', () => ({
-  Input: (props: Record<string, unknown>) => <input {...props} />,
+  Input: (props: Record<string, unknown>) => {
+    mocked.inputProps.push(props)
+    return <input {...props} />
+  },
 }))
 
 vi.mock('@/components/ui/label', () => ({
@@ -191,13 +199,6 @@ vi.mock('@/components/ui/sonner', () => ({
   Toaster: () => createElement('div', null, 'Toaster'),
 }))
 
-vi.mock('@/components/ui/textarea', () => ({
-  Textarea: (props: Record<string, unknown>) => {
-    mocked.textareaProps.push(props)
-    return <textarea {...props} />
-  },
-}))
-
 vi.mock('@/features/options/ImportExportSettings', () => ({
   ImportExportSettings: () =>
     createElement('div', null, 'ImportExportSettings'),
@@ -236,17 +237,21 @@ const resetHookState = () => {
   mocked.updateSetting.mockResolvedValue(true)
   mocked.handleColorChange.mockReset()
   mocked.handleResetColors.mockReset()
-  mocked.handleCategoryKeyDown.mockReset()
   mocked.hideConfirmation.mockReset()
+  mocked.inputProps = []
   mocked.renderRoot.mockReset()
   mocked.selectContentProps = []
-  mocked.textareaProps = []
+  mocked.addExcludePattern.mockResolvedValue(true)
+  mocked.removeExcludePattern.mockResolvedValue(undefined)
   mocked.useSettingsResult = {
-    handleExcludePatternsBlur: mocked.handleExcludePatternsBlur,
-    handleExcludePatternsChange: mocked.handleExcludePatternsChange,
+    addExcludePattern: mocked.addExcludePattern,
+    excludePatternInput: '',
+    handleExcludePatternInputChange: mocked.handleExcludePatternInputChange,
     isLoading: false,
+    removeExcludePattern: mocked.removeExcludePattern,
     setSettings: mocked.setSettings,
     settings: mocked.settings,
+    setExcludePatternInput: mocked.setExcludePatternInput,
     updateSetting: mocked.updateSetting,
   }
   mocked.useAutoDeletePeriodResult = {
@@ -345,44 +350,24 @@ describe('options main behavior', () => {
 
     expect(screen.queryByText('タブの自動削除期間')).toBeNull()
 
-    const textarea = document.querySelector('textarea')
-    if (!textarea) {
-      throw new Error('textarea not found')
-    }
-    fireEvent.change(textarea, { target: { value: 'https://example.com' } })
-    fireEvent.blur(textarea)
-    expect(mocked.handleExcludePatternsChange).toHaveBeenCalledTimes(1)
-    expect(mocked.handleExcludePatternsBlur).toHaveBeenCalledTimes(1)
-
-    ;(
-      mocked.textareaProps[0]?.onKeyDown as
-        | ((event: {
-            currentTarget: { tagName: string }
-            key: string
-            preventDefault: () => void
-            stopPropagation: () => void
-          }) => void)
-        | undefined
-    )?.({
-      currentTarget: { tagName: 'TEXTAREA' },
-      key: 'Enter',
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
+    const excludeInput = screen.getByPlaceholderText('例: chrome-extension://')
+    fireEvent.change(excludeInput, {
+      target: { value: 'https://example.com' },
     })
+    expect(mocked.handleExcludePatternInputChange).toHaveBeenCalledTimes(1)
+    fireEvent.blur(excludeInput)
+    expect(mocked.addExcludePattern).toHaveBeenCalledTimes(1)
 
-    const inputLikeEvent = {
-      currentTarget: { tagName: 'INPUT' },
-      key: 'Enter',
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
-    }
-    ;(
-      mocked.textareaProps[0]?.onKeyDown as
-        | ((event: typeof inputLikeEvent) => void)
-        | undefined
-    )?.(inputLikeEvent)
-    expect(inputLikeEvent.preventDefault).toHaveBeenCalledTimes(1)
-    expect(mocked.handleCategoryKeyDown).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: '除外パターンを追加' }))
+    expect(mocked.addExcludePattern).toHaveBeenCalledTimes(2)
+
+    fireEvent.keyDown(excludeInput, { key: 'Enter' })
+    expect(mocked.addExcludePattern).toHaveBeenCalledTimes(3)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '除外パターン chrome:// を削除' }),
+    )
+    expect(mocked.removeExcludePattern).toHaveBeenCalledWith('chrome://')
 
     fireEvent.click(screen.getByRole('button', { name: 'リセット' }))
     expect(mocked.handleResetColors).toHaveBeenCalledTimes(1)

@@ -7,9 +7,10 @@ if (!import.meta.env.DEV) {
   console.debug = () => {}
 }
 
-import { RotateCcw } from 'lucide-react'
+import { Plus, RotateCcw, X } from 'lucide-react'
 import { ModeToggle } from '@/components/mode-toggle'
 import { ThemeProvider } from '@/components/theme-provider'
+import { Badge } from '@/components/ui/badge'
 // UIコンポーネントのインポート
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox' // Switchの代わりにCheckboxをインポート
@@ -23,12 +24,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Toaster } from '@/components/ui/sonner'
-import { Textarea } from '@/components/ui/textarea'
 // 定数をインポート
 import { clickBehaviorOptions } from '@/constants/clickBehaviorOptions'
 import { colorOptions } from '@/constants/colorOptions'
 import { getDefaultColor } from '@/constants/defaultColors'
-import { useCategories } from '@/features/options/hooks/useCategories'
 import { useColorSettings } from '@/features/options/hooks/useColorSettings'
 import { useSettings } from '@/features/options/hooks/useSettings'
 import { ImportExportSettings } from '@/features/options/ImportExportSettings'
@@ -50,12 +49,14 @@ const createThemeColorChangeHandler =
 const OptionsPage = () => {
   // カスタムhooksを使用
   const {
+    addExcludePattern,
+    excludePatternInput,
+    handleExcludePatternInputChange,
     settings,
     setSettings,
     isLoading,
+    removeExcludePattern,
     updateSetting,
-    handleExcludePatternsChange,
-    handleExcludePatternsBlur,
   } = useSettings()
 
   // 色設定hooks
@@ -63,9 +64,6 @@ const OptionsPage = () => {
     settings,
     setSettings,
   )
-
-  // カテゴリ管理hooks
-  const { handleCategoryKeyDown } = useCategories()
 
   // クリック挙動設定変更ハンドラ
   const handleClickBehaviorChange = async (value: string) => {
@@ -111,21 +109,15 @@ const OptionsPage = () => {
     await updateSetting('confirmDeleteAll', checked)
   }
 
-  // テキストエリアとEnterキーの処理
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+  const handleExcludePatternKeyDown = async (
+    e: React.KeyboardEvent<HTMLInputElement>,
   ) => {
-    // テキストエリアの場合は元の処理を維持
-    if (e.currentTarget.tagName.toLowerCase() === 'textarea') {
-      if (e.key === 'Enter') {
-        e.stopPropagation()
-      }
+    if (e.key !== 'Enter') {
+      return
     }
-    // カテゴリ入力の場合
-    else if (e.key === 'Enter') {
-      e.preventDefault()
-      handleCategoryKeyDown(e)
-    }
+
+    e.preventDefault()
+    await addExcludePattern()
   }
 
   if (isLoading) {
@@ -351,17 +343,66 @@ const OptionsPage = () => {
             htmlFor='excludePatterns'
             className='mb-2 block text-foreground'
           >
-            保存・閉じない URL パターン（1行に1つ）
+            保存・閉じない URL パターン
           </Label>
-          <Textarea
-            id='excludePatterns'
-            value={settings.excludePatterns.join('\n')}
-            onChange={handleExcludePatternsChange}
-            onBlur={handleExcludePatternsBlur}
-            onKeyDown={handleKeyDown}
-            className='h-32 w-full rounded border border-input bg-background p-2 text-foreground focus:ring-2 focus:ring-ring'
-            placeholder='例：&#10;chrome-extension://&#10;chrome://'
-          />
+          <div className='flex gap-2'>
+            <Input
+              id='excludePatterns'
+              value={excludePatternInput}
+              onChange={handleExcludePatternInputChange}
+              onBlur={() => {
+                void addExcludePattern()
+              }}
+              onKeyDown={handleExcludePatternKeyDown}
+              className='bg-background text-foreground'
+              placeholder='例: chrome-extension://'
+            />
+            <Button
+              type='button'
+              onClick={() => {
+                void addExcludePattern()
+              }}
+              variant='secondary'
+              aria-label='除外パターンを追加'
+            >
+              <Plus size={16} />
+              追加
+            </Button>
+          </div>
+          <div className='mt-3 flex flex-wrap gap-2 rounded-md border border-border bg-background/40 p-3'>
+            {settings.excludePatterns.filter(pattern => pattern.trim())
+              .length === 0 ? (
+              <p className='text-muted-foreground text-sm'>
+                除外パターンはありません
+              </p>
+            ) : (
+              settings.excludePatterns
+                .filter(pattern => pattern.trim())
+                .map(pattern => (
+                  <Badge
+                    key={pattern}
+                    variant='outline'
+                    className='flex max-w-full items-center gap-1 pr-1'
+                  >
+                    <span className='max-w-[240px] truncate' title={pattern}>
+                      {pattern}
+                    </span>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='icon-sm'
+                      className='h-5 w-5 rounded-full'
+                      onClick={() => {
+                        void removeExcludePattern(pattern)
+                      }}
+                      aria-label={`除外パターン ${pattern} を削除`}
+                    >
+                      <X size={12} />
+                    </Button>
+                  </Badge>
+                ))
+            )}
+          </div>
           <p className='mt-1 text-muted-foreground text-sm'>
             これらのパターンに一致するURLは保存されず、タブも閉じられません。
           </p>

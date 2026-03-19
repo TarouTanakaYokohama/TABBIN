@@ -191,6 +191,45 @@ describe('useSettingsフック', () => {
     )
   })
 
+  it('addExcludePattern は trim 後の新規値を追加して保存し入力を空にする', async () => {
+    vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
+    vi.mocked(saveUserSettings).mockResolvedValue(undefined)
+
+    const { result } = renderHook(() => useSettings())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    act(() => {
+      result.current.handleExcludePatternInputChange({
+        target: { value: '  https://example.com  ' },
+      } as ChangeEvent<HTMLInputElement>)
+    })
+
+    let success = false
+    await act(async () => {
+      success = await result.current.addExcludePattern()
+    })
+
+    expect(success).toBe(true)
+    expect(result.current.excludePatternInput).toBe('')
+    expect(result.current.settings.excludePatterns).toEqual([
+      'chrome-extension://',
+      'chrome://',
+      'https://example.com',
+    ])
+    expect(saveUserSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        excludePatterns: [
+          'chrome-extension://',
+          'chrome://',
+          'https://example.com',
+        ],
+      }),
+    )
+  })
+
   it('chrome.storage.onChanged イベントから状態を更新する', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
 
