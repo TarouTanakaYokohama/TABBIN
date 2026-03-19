@@ -10,7 +10,7 @@ const meta = {
 
 type Story = StoryObj<typeof ModeToggle>
 
-export const Default: Story = {
+export const ToggleMenu: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(

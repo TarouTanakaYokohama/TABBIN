@@ -215,9 +215,11 @@ const useTabData = (
     async (nextGroups?: TabGroup[]): Promise<TabGroup[]> => {
       const groups =
         nextGroups ??
-        ((await chrome.storage.local.get('savedTabs')).savedTabs as
-          | TabGroup[]
-          | undefined) ??
+        ((
+          await chrome.storage.local.get<{
+            savedTabs?: import('@/types/storage').TabGroup[]
+          }>('savedTabs')
+        ).savedTabs as TabGroup[] | undefined) ??
         []
       const normalizedGroups = Array.isArray(groups) ? groups : []
       skipNextTabGroupsSyncRef.current = true
@@ -236,7 +238,9 @@ const useTabData = (
         await runInitialMigrations()
 
         // データ読み込み
-        const storageResult = await chrome.storage.local.get('savedTabs')
+        const storageResult = await chrome.storage.local.get<{
+          savedTabs?: import('@/types/storage').TabGroup[]
+        }>('savedTabs')
         const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
           ? storageResult.savedTabs
           : []

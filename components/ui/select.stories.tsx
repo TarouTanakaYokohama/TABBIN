@@ -9,29 +9,31 @@ import {
   SelectValue,
 } from './select'
 
+const SelectStory = () => {
+  const [value, setValue] = useState('domain')
+
+  return (
+    <div className='w-72'>
+      <Select value={value} onValueChange={setValue}>
+        <SelectTrigger>
+          <SelectValue placeholder='表示モードを選択' />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value='domain'>ドメインモード</SelectItem>
+          <SelectItem value='custom'>カスタムモード</SelectItem>
+          <SelectItem value='archived'>アーカイブ表示</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
 export default {
   title: 'UI/Select',
   component: Select,
-  render: () => {
-    const [value, setValue] = useState('domain')
-
-    return (
-      <div className='w-72'>
-        <Select value={value} onValueChange={setValue}>
-          <SelectTrigger>
-            <SelectValue placeholder='表示モードを選択' />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='domain'>ドメインモード</SelectItem>
-            <SelectItem value='custom'>カスタムモード</SelectItem>
-            <SelectItem value='archived'>アーカイブ表示</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-    )
-  },
+  render: () => <SelectStory />,
 } satisfies Meta<typeof Select>
 
 type Story = StoryObj<typeof Select>
 
-export const Default: Story = {}
+export const ViewModeSelector: Story = {}

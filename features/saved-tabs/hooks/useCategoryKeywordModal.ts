@@ -171,8 +171,9 @@ export const useCategoryKeywordModal = ({
       return
     }
     try {
-      const { parentCategories: stored = [] } =
-        await chrome.storage.local.get('parentCategories')
+      const { parentCategories: stored = [] } = await chrome.storage.local.get<{
+        parentCategories?: import('@/types/storage').ParentCategory[]
+      }>('parentCategories')
       const storedCategories = stored as ParentCategory[]
       setInternalParentCategories(storedCategories)
       if (onUpdateParentCategories) {
@@ -262,7 +263,9 @@ export const useCategoryKeywordModal = ({
       const updatedKeywords = keywords.filter(k => k !== keywordToRemove)
       setKeywords(updatedKeywords)
       try {
-        const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+        const { savedTabs = [] } = await chrome.storage.local.get<{
+          savedTabs?: import('@/types/storage').TabGroup[]
+        }>('savedTabs')
         const updatedGroups = (savedTabs as TabGroup[]).map(g =>
           g.id === group.id
             ? {
@@ -332,7 +335,9 @@ export const useCategoryKeywordModal = ({
     setIsProcessing(true)
     try {
       const validName = newSubCategory.trim()
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      const { savedTabs = [] } = await chrome.storage.local.get<{
+        savedTabs?: import('@/types/storage').TabGroup[]
+      }>('savedTabs')
       const updatedTabs = savedTabs.map((tab: TabGroup) => {
         if (tab.id === group.id) {
           return {
@@ -452,7 +457,9 @@ export const useCategoryKeywordModal = ({
     setIsProcessing(true)
     try {
       const validName = newCategoryName.trim()
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      const { savedTabs = [] } = await chrome.storage.local.get<{
+        savedTabs?: import('@/types/storage').TabGroup[]
+      }>('savedTabs')
       const updatedTabs = savedTabs.map((tab: TabGroup) =>
         renameCategoryInTab(tab, group.id, activeCategory, validName),
       )

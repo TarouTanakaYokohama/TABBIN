@@ -6,11 +6,11 @@ import type {
   UrlRecord,
   ViewMode,
 } from '@/types/storage'
-import { migrateToUrlsStorage } from './migration'
 import {
   findMatchingProjectIdForSavedTab,
   normalizeProjectKeywords,
 } from './project-keywords'
+import { migrateToUrlsStorage } from './url-migration'
 import {
   createOrUpdateUrlRecord,
   getUrlRecords,
@@ -59,10 +59,10 @@ const getCustomProjects = async (): Promise<CustomProject[]> => {
     await migrateToUrlsStorage()
 
     // プロジェクトとプロジェクト順序を同時に取得
-    const data = await chrome.storage.local.get([
-      'customProjects',
-      'customProjectOrder',
-    ])
+    const data = await chrome.storage.local.get<{
+      customProjects?: CustomProject[]
+      customProjectOrder?: string[]
+    }>(['customProjects', 'customProjectOrder'])
     const customProjects = data.customProjects || []
     const projectOrder = data.customProjectOrder || []
     console.log(
@@ -397,7 +397,9 @@ const addUrlIdToDomainMode = async (
   url: string,
   urlId: string,
 ): Promise<void> => {
-  const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+  const { savedTabs = [] } = await chrome.storage.local.get<{
+    savedTabs?: import('@/types/storage').TabGroup[]
+  }>('savedTabs')
   const domain = getDomainFromUrl(url)
   const domainGroup = savedTabs.find(
     (group: TabGroup) => group.domain === domain,
@@ -526,7 +528,9 @@ const removeUrlFromCustomProject = async (
 
   // ドメインモードからも同じURLを削除
   try {
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+    const { savedTabs = [] } = await chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+    }>('savedTabs')
 
     // URLレコードを取得
     const urlRecords = await getUrlRecordsByIds(
@@ -568,7 +572,9 @@ const syncDeleteToDomainMode = async (
   urlsLength: number,
 ): Promise<void> => {
   try {
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+    const { savedTabs = [] } = await chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+    }>('savedTabs')
 
     const urlRecords = await getUrlRecordsByIds(
       savedTabs.flatMap((g: TabGroup) => g.urlIds || []),

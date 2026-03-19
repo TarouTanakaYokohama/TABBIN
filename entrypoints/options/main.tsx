@@ -8,7 +8,6 @@ if (!import.meta.env.DEV) {
 }
 
 import { RotateCcw } from 'lucide-react'
-import { createRoot } from 'react-dom/client'
 import { ModeToggle } from '@/components/mode-toggle'
 import { ThemeProvider } from '@/components/theme-provider'
 // UIコンポーネントのインポート
@@ -33,6 +32,7 @@ import { useCategories } from '@/features/options/hooks/useCategories'
 import { useColorSettings } from '@/features/options/hooks/useColorSettings'
 import { useSettings } from '@/features/options/hooks/useSettings'
 import { ImportExportSettings } from '@/features/options/ImportExportSettings'
+import { mountToElement } from '@/lib/react/render-root'
 import type { UserSettings } from '@/types/storage'
 
 const createThemeColorChangeHandler =
@@ -459,16 +459,12 @@ const OptionsPage = () => {
 
 // Reactコンポーネントをレンダリング
 document.addEventListener('DOMContentLoaded', () => {
-  const appContainer = document.getElementById('options-app')
-  if (!appContainer) {
-    throw new Error('Failed to find the options app container')
-  }
-
-  const root = createRoot(appContainer)
-  root.render(
+  mountToElement(
+    'options-app',
     <ThemeProvider defaultTheme='system' storageKey='tab-manager-theme'>
       <OptionsPage />
     </ThemeProvider>,
+    'Failed to find the options app container',
   )
 })
 

@@ -29,6 +29,6 @@ const meta = {
 
 type Story = StoryObj<typeof ThemeConsumer>
 
-export const Default: Story = {}
+export const ThemeSwitcher: Story = {}
 
 export default meta

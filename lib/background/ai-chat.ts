@@ -541,7 +541,9 @@ const runAiChatRequest = async (
       getUrlRecords(),
       getCustomProjects(),
       getParentCategories(),
-      chrome.storage.local.get('savedTabs'),
+      chrome.storage.local.get<{
+        savedTabs?: import('@/types/storage').TabGroup[]
+      }>('savedTabs'),
     ])
 
   const records = buildAiSavedUrlRecords({

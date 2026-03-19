@@ -560,7 +560,9 @@ const SavedTabsApp = ({
         return
       }
       const uniqueUrlSet = new Set(urlsToRemove)
-      const storageResult = await chrome.storage.local.get('savedTabs')
+      const storageResult = await chrome.storage.local.get<{
+        savedTabs?: import('@/types/storage').TabGroup[]
+      }>('savedTabs')
       const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
         ? storageResult.savedTabs
         : []
@@ -738,7 +740,9 @@ const SavedTabsApp = ({
     async (id: string) => {
       try {
         // 削除前にカテゴリ設定と親カテゴリ情報を保存
-        const storageResult = await chrome.storage.local.get('savedTabs')
+        const storageResult = await chrome.storage.local.get<{
+          savedTabs?: import('@/types/storage').TabGroup[]
+        }>('savedTabs')
         const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
           ? storageResult.savedTabs
           : []
@@ -793,7 +797,9 @@ const SavedTabsApp = ({
         return
       }
       try {
-        const storageResult = await chrome.storage.local.get('savedTabs')
+        const storageResult = await chrome.storage.local.get<{
+          savedTabs?: import('@/types/storage').TabGroup[]
+        }>('savedTabs')
         const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
           ? storageResult.savedTabs
           : []
@@ -985,7 +991,9 @@ const SavedTabsApp = ({
     }
     const syncCategoryAssignments = async () => {
       try {
-        const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+        const { savedTabs = [] } = await chrome.storage.local.get<{
+          savedTabs?: import('@/types/storage').TabGroup[]
+        }>('savedTabs')
         const currentSavedTabs = savedTabs as TabGroup[]
         const currentCategories = [...categories]
         const syncState: CategorySyncState = {

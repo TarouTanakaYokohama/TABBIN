@@ -43,4 +43,4 @@ export default {
 
 type Story = StoryObj<typeof Tabs>
 
-export const Default: Story = {}
+export const OverviewTabs: Story = {}

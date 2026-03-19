@@ -1941,7 +1941,15 @@ const importWithMerge = async ({
 }: ImportExecutionParams): Promise<ImportResult> => {
   const [currentSettings, storageData] = await Promise.all([
     getUserSettings(),
-    chrome.storage.local.get([
+    chrome.storage.local.get<{
+      activeAiChatConversationId?: string
+      aiChatConversations?: import('@/features/ai-chat/types').AiChatConversation[]
+      customProjectOrder?: string[]
+      customProjects?: CustomProject[]
+      parentCategories?: ParentCategory[]
+      savedAnalyticsViews?: import('@/lib/storage/analytics').SavedAnalyticsView[]
+      savedTabs?: TabGroup[]
+    }>([
       ACTIVE_AI_CHAT_CONVERSATION_ID_KEY,
       AI_CHAT_CONVERSATIONS_KEY,
       'customProjectOrder',

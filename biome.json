@@ -179,7 +179,7 @@
         "recommended": true,
         "noDoubleEquals": "error",
         "noFocusedTests": "error",
-        "noImportCycles": "off",
+        "noImportCycles": "warn",
         "useAwait": "off"
       }
     },

@@ -1,0 +1,34 @@
+{
+  "absolute": false,
+  "threshold": 0.7,
+  "minTokens": 80,
+  "reporters": ["console"],
+  "gitignore": true,
+  "ignore": [
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/*.stories.*",
+    "**/stories/**",
+    "**/.storybook/**",
+    "**/coverage/**",
+    "**/.output/**",
+    "**/.wxt/**",
+    "**/storybook-static/**",
+    "**/playwright-report/**",
+    "**/test-results/**",
+    "**/node_modules/**",
+    "**/tests/**",
+    "**/tests-examples/**",
+    "**/start/**"
+  ],
+  "path": [
+    "components",
+    "constants",
+    "entrypoints",
+    "features",
+    "hooks",
+    "lib",
+    "types",
+    "utils"
+  ]
+}

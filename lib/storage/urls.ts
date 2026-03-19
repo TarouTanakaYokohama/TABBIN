@@ -192,8 +192,12 @@ const isUrlRecordReferenced = async (urlId: string): Promise<boolean> => {
   try {
     // SavedTabsとCustomProjectsは独立しているため並列取得
     const [savedTabsResult, customProjectsResult] = await Promise.all([
-      chrome.storage.local.get('savedTabs'),
-      chrome.storage.local.get('customProjects'),
+      chrome.storage.local.get<{
+        savedTabs?: import('@/types/storage').TabGroup[]
+      }>('savedTabs'),
+      chrome.storage.local.get<{
+        customProjects?: import('@/types/storage').CustomProject[]
+      }>('customProjects'),
     ])
     const { savedTabs = [] } = savedTabsResult
     const { customProjects = [] } = customProjectsResult
@@ -225,8 +229,12 @@ const cleanupUnreferencedUrls = async (): Promise<number> => {
     const [urlRecords, savedTabsResult, customProjectsResult] =
       await Promise.all([
         getUrlRecords(),
-        chrome.storage.local.get('savedTabs'),
-        chrome.storage.local.get('customProjects'),
+        chrome.storage.local.get<{
+          savedTabs?: import('@/types/storage').TabGroup[]
+        }>('savedTabs'),
+        chrome.storage.local.get<{
+          customProjects?: import('@/types/storage').CustomProject[]
+        }>('customProjects'),
       ])
     const { savedTabs = [] } = savedTabsResult
     const { customProjects = [] } = customProjectsResult
@@ -275,6 +283,7 @@ const deduplicateUrlRecords = async (): Promise<number> => {
     const urlRecords = await getUrlRecords()
     const urlMap = new Map<string, UrlRecord>()
     const duplicateIds: string[] = []
+    const replacementIdMap = new Map<string, string>()
 
     // URLをキーとして重複をチェック
     for (const record of urlRecords) {
@@ -283,9 +292,11 @@ const deduplicateUrlRecords = async (): Promise<number> => {
         // 重複が見つかった場合、より新しいレコードを保持
         if (record.savedAt > existingRecord.savedAt) {
           duplicateIds.push(existingRecord.id)
+          replacementIdMap.set(existingRecord.id, record.id)
           urlMap.set(record.url, record)
         } else {
           duplicateIds.push(record.id)
+          replacementIdMap.set(record.id, existingRecord.id)
         }
       } else {
         urlMap.set(record.url, record)
@@ -293,7 +304,7 @@ const deduplicateUrlRecords = async (): Promise<number> => {
     }
     if (duplicateIds.length > 0) {
       // 重複IDの参照を更新
-      await updateUrlReferences(duplicateIds, urlMap)
+      await updateUrlReferences(duplicateIds, replacementIdMap)
 
       // 重複レコードを削除
       const deduplicatedRecords = Array.from(urlMap.values())
@@ -311,22 +322,19 @@ const deduplicateUrlRecords = async (): Promise<number> => {
  */
 const updateUrlReferences = async (
   duplicateIds: string[],
-  urlMap: Map<string, UrlRecord>,
+  replacementIdMap: Map<string, string>,
 ): Promise<void> => {
   try {
     // SavedTabsの参照を更新
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+    const { savedTabs = [] } = await chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+    }>('savedTabs')
     let tabsUpdated = false
     for (const tabGroup of savedTabs) {
       if (tabGroup.urlIds) {
         const updatedIds = tabGroup.urlIds.map((id: string) => {
           if (duplicateIds.includes(id)) {
-            // 重複IDを正しいIDに置き換え
-            const urlRecord = Array.from(urlMap.values()).find(r => r.id === id)
-            if (urlRecord) {
-              const correctRecord = urlMap.get(urlRecord.url)
-              return correctRecord?.id || id
-            }
+            return replacementIdMap.get(id) || id
           }
           return id
         })
@@ -343,19 +351,15 @@ const updateUrlReferences = async (
     }
 
     // CustomProjectsの参照を更新
-    const { customProjects = [] } =
-      await chrome.storage.local.get('customProjects')
+    const { customProjects = [] } = await chrome.storage.local.get<{
+      customProjects?: import('@/types/storage').CustomProject[]
+    }>('customProjects')
     let projectsUpdated = false
     for (const project of customProjects) {
       if (project.urlIds) {
         const updatedIds = project.urlIds.map((id: string) => {
           if (duplicateIds.includes(id)) {
-            // 重複IDを正しいIDに置き換え
-            const urlRecord = Array.from(urlMap.values()).find(r => r.id === id)
-            if (urlRecord) {
-              const correctRecord = urlMap.get(urlRecord.url)
-              return correctRecord?.id || id
-            }
+            return replacementIdMap.get(id) || id
           }
           return id
         })
