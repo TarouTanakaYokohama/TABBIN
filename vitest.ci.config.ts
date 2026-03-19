@@ -8,10 +8,15 @@ export default defineConfig({
   test: {
     coverage: {
       exclude: [
+        '.storybook/**',
+        '**/*.stories.ts',
+        '**/*.stories.tsx',
         '**/*.css',
+        'components/storybook/**',
         'components/**',
         'constants/defaultColors.ts',
         'entrypoints/options/main.tsx',
+        'lib/storybook/**',
       ],
     },
     environment: 'jsdom',
