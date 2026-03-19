@@ -23,7 +23,6 @@ export const CategoryGroupActions = () => {
     } else {
       for (const { id } of domainsToDelete) {
         await handlers.handleDeleteGroup(id)
-        await new Promise(resolve => setTimeout(resolve, 10))
       }
     }
     if (reorder.isReorderMode) {

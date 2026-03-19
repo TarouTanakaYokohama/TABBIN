@@ -6,7 +6,7 @@ import {
 import { migrateToUrlsStorage } from './migration'
 import {
   removeUrlFromAllCustomProjects,
-  removeUrlsFromAllCustomProjects,
+  removeUrlIdsFromAllCustomProjects,
 } from './projects'
 import { createOrUpdateUrlRecord, getUrlRecordsByIds } from './urls'
 
@@ -486,6 +486,81 @@ const processTabGroupForBulkDelete = (
   return group.urlIds.length === 0
 }
 
+const persistBulkDeleteForGroup = async ({
+  savedTabs,
+  groupIndex,
+  group,
+  idsToDelete,
+  groupId,
+  deletedCount,
+}: {
+  savedTabs: TabGroup[]
+  groupIndex: number
+  group: TabGroup
+  idsToDelete: Set<string>
+  groupId: string
+  deletedCount: number
+}): Promise<void> => {
+  const isGroupEmpty = processTabGroupForBulkDelete(group, idsToDelete)
+
+  if (isGroupEmpty) {
+    savedTabs.splice(groupIndex, 1)
+    console.log(
+      `グループ ${groupId} のURLがなくなったため、グループを削除しました`,
+    )
+  } else {
+    savedTabs[groupIndex] = group
+  }
+
+  await chrome.storage.local.set({
+    savedTabs,
+  })
+  console.log(`${deletedCount}件のURLをグループ ${groupId} から削除しました`)
+
+  try {
+    await removeUrlIdsFromAllCustomProjects([...idsToDelete])
+  } catch (error) {
+    console.error(
+      'カスタムプロジェクトからの複数URL ID同期削除に失敗しました:',
+      error,
+    )
+  }
+}
+
+/**
+ * タブグループから複数のURL IDを一括で削除し、関連メタデータ（サブカテゴリなど）を更新する。
+ */
+const removeUrlIdsFromTabGroup = async (
+  groupId: string,
+  urlIds: string[],
+): Promise<void> => {
+  if (urlIds.length === 0) {
+    return
+  }
+
+  await migrateToUrlsStorage()
+  const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+  const groupIndex = savedTabs.findIndex((g: TabGroup) => g.id === groupId)
+  if (groupIndex === -1) {
+    return
+  }
+
+  const group = savedTabs[groupIndex]
+  if (!(group.urlIds && group.urlIds.length > 0)) {
+    return
+  }
+
+  const idsToDelete = new Set(urlIds)
+  await persistBulkDeleteForGroup({
+    savedTabs,
+    groupIndex,
+    group,
+    idsToDelete,
+    groupId,
+    deletedCount: urlIds.length,
+  })
+}
+
 /**
  * タブグループから複数のURLを一括で削除し、関連メタデータ（サブカテゴリなど）を更新する。
  */
@@ -516,32 +591,14 @@ const removeUrlsFromTabGroup = async (
 
     if (recordsToDelete.length > 0) {
       const idsToDelete = new Set(recordsToDelete.map(r => r.id))
-
-      const isGroupEmpty = processTabGroupForBulkDelete(group, idsToDelete)
-
-      // グループにURLが無くなった場合はグループ自体を削除
-      if (isGroupEmpty) {
-        savedTabs.splice(groupIndex, 1)
-        console.log(
-          `グループ ${groupId} のURLがなくなったため、グループを削除しました`,
-        )
-      } else {
-        savedTabs[groupIndex] = group
-      }
-      await chrome.storage.local.set({
+      await persistBulkDeleteForGroup({
         savedTabs,
+        groupIndex,
+        group,
+        idsToDelete,
+        groupId,
+        deletedCount: urls.length,
       })
-      console.log(`${urls.length}件のURLをグループ ${groupId} から削除しました`)
-
-      // 同期してカスタムプロジェクトからも削除
-      try {
-        await removeUrlsFromAllCustomProjects(urls)
-      } catch (error) {
-        console.error(
-          'カスタムプロジェクトからの複数URL同期削除に失敗しました:',
-          error,
-        )
-      }
     }
   }
 }
@@ -553,6 +610,7 @@ export {
   autoCategorizeTabs,
   getTabGroupUrls,
   removeUrlFromTabGroup,
+  removeUrlIdsFromTabGroup,
   removeUrlsFromTabGroup,
   reorderTabGroupUrls,
   restoreCategorySettings,

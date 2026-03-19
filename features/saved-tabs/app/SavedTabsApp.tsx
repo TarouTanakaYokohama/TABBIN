@@ -49,7 +49,7 @@ import { saveParentCategories } from '@/lib/storage/categories'
 import {
   getCustomProjects,
   moveUrlBetweenCustomProjects,
-  removeUrlFromAllCustomProjects,
+  removeUrlIdsFromAllCustomProjects,
   removeUrlsFromAllCustomProjects,
 } from '@/lib/storage/projects'
 import { defaultSettings } from '@/lib/storage/settings'
@@ -57,6 +57,7 @@ import {
   addSubCategoryToGroup,
   getTabGroupUrls,
   removeUrlFromTabGroup,
+  removeUrlIdsFromTabGroup,
   removeUrlsFromTabGroup,
 } from '@/lib/storage/tabs'
 import type {
@@ -649,17 +650,23 @@ const SavedTabsApp = ({
     groupToDelete: TabGroup,
   ) => {
     try {
+      if (groupToDelete.urlIds && groupToDelete.urlIds.length > 0) {
+        try {
+          await removeUrlIdsFromAllCustomProjects(groupToDelete.urlIds)
+        } catch (err) {
+          console.error('URL ID一括同期削除エラー:', err)
+        }
+        return
+      }
+
       const urlsToDelete = await getTabGroupUrls(groupToDelete)
       if (urlsToDelete && urlsToDelete.length > 0) {
-        for (const item of urlsToDelete) {
-          try {
-            await removeUrlFromAllCustomProjects(item.url)
-          } catch (err) {
-            console.error(
-              `URL ${item.url} のカスタムプロジェクト同期削除エラー:`,
-              err,
-            )
-          }
+        try {
+          await removeUrlsFromAllCustomProjects(
+            urlsToDelete.map(item => item.url),
+          )
+        } catch (err) {
+          console.error('URL一括同期削除エラー:', err)
         }
       }
     } catch (err) {
@@ -674,14 +681,29 @@ const SavedTabsApp = ({
     groupsToDelete: TabGroup[],
   ) => {
     try {
-      const allUrlsToDelete: string[] = []
-
-      for (const group of groupsToDelete) {
-        const urlsToDelete = await getTabGroupUrls(group)
-        if (urlsToDelete && urlsToDelete.length > 0) {
-          allUrlsToDelete.push(...urlsToDelete.map(item => item.url))
+      const groupsWithUrlIds = groupsToDelete.filter(
+        group => group.urlIds && group.urlIds.length > 0,
+      )
+      const groupsWithoutUrlIds = groupsToDelete.filter(
+        group => !(group.urlIds && group.urlIds.length > 0),
+      )
+      const allUrlIdsToDelete = groupsWithUrlIds.flatMap(
+        group => group.urlIds || [],
+      )
+      if (allUrlIdsToDelete.length > 0) {
+        try {
+          await removeUrlIdsFromAllCustomProjects(allUrlIdsToDelete)
+        } catch (err) {
+          console.error('URL ID一括同期削除エラー:', err)
         }
       }
+
+      const urlsByGroup = await Promise.all(
+        groupsWithoutUrlIds.map(group => getTabGroupUrls(group)),
+      )
+      const allUrlsToDelete = urlsByGroup.flatMap(urlsToDelete =>
+        (urlsToDelete || []).map(item => item.url),
+      )
 
       if (allUrlsToDelete.length > 0) {
         try {
@@ -822,27 +844,45 @@ const SavedTabsApp = ({
       setCategories,
     ],
   )
-  const handleDeleteUrl = useCallback(
-    async (groupId: string, url: string) => {
-      try {
-        // 新形式のURL削除関数を呼び出し
-        await removeUrlFromTabGroup(groupId, url)
-        await refreshTabGroupsWithUrls()
-        console.log(`URL ${url} をグループ ${groupId} から削除しました`)
-      } catch (error) {
-        console.error('URL削除エラー:', error)
-      }
-    },
-    [refreshTabGroupsWithUrls],
-  )
+  const handleDeleteUrl = useCallback(async (groupId: string, url: string) => {
+    try {
+      // 新形式のURL削除関数を呼び出し
+      await removeUrlFromTabGroup(groupId, url)
+      console.log(`URL ${url} をグループ ${groupId} から削除しました`)
+    } catch (error) {
+      console.error('URL削除エラー:', error)
+    }
+  }, [])
   const handleDeleteUrls = useCallback(
     async (groupId: string, urls: string[]) => {
       if (urls.length === 0) {
         return
       }
       try {
-        await removeUrlsFromTabGroup(groupId, urls)
-        await refreshTabGroupsWithUrls()
+        const targetUrls = new Set(urls)
+        const targetGroup = tabGroupsWithUrls.find(
+          group => group.id === groupId,
+        )
+        const resolvedUrlIds = (targetGroup?.urls || [])
+          .map(item => ({
+            id: item.id,
+            url: item.url,
+          }))
+          .filter(
+            (
+              item,
+            ): item is {
+              id: string
+              url: string
+            } => Boolean(item.id) && targetUrls.has(item.url),
+          )
+          .map(item => item.id)
+
+        if (resolvedUrlIds.length === urls.length) {
+          await removeUrlIdsFromTabGroup(groupId, resolvedUrlIds)
+        } else {
+          await removeUrlsFromTabGroup(groupId, urls)
+        }
         console.log(
           `${urls.length}件のURLをグループ ${groupId} から削除しました`,
         )
@@ -850,19 +890,19 @@ const SavedTabsApp = ({
         console.error('URL一括削除エラー:', error)
       }
     },
-    [refreshTabGroupsWithUrls],
+    [tabGroupsWithUrls],
   )
   const handleUpdateUrls = useCallback(
     async (groupId: string, _updatedUrls: TabGroup['urls']) => {
       try {
-        // 新形式では直接URL更新は不要（共通URLストレージで管理）
-        await refreshTabGroupsWithUrls()
-        console.log(`グループ ${groupId} のURL更新後のデータを更新しました`)
+        console.log(
+          `グループ ${groupId} のURL更新はストレージ同期に委譲しました`,
+        )
       } catch (error) {
         console.error('URL更新後のデータ更新エラー:', error)
       }
     },
-    [refreshTabGroupsWithUrls],
+    [],
   )
 
   // 子カテゴリを追加

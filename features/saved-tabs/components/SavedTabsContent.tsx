@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
-import { removeUrlFromTabGroup } from '@/lib/storage/tabs'
+import { removeUrlsFromTabGroup } from '@/lib/storage/tabs'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
 import {
@@ -76,10 +76,10 @@ export const SortableCategorySection = ({
     try {
       const urlsToDelete = [...urls]
       const urlsToRemove = urlsToDelete.map(item => item.url)
-
-      for (const url of urlsToRemove) {
-        await removeUrlFromTabGroup(props.groupId, url)
-        await new Promise(resolve => setTimeout(resolve, 10))
+      if (handleDeleteAllTabs) {
+        await handleDeleteAllTabs(urlsToDelete)
+      } else {
+        await removeUrlsFromTabGroup(props.groupId, urlsToRemove)
       }
       console.log(
         `カテゴリ「${categoryDisplayName}」から${urlsToRemove.length}件のURLを削除しました`,
@@ -89,7 +89,13 @@ export const SortableCategorySection = ({
     } finally {
       setIsDeleting(false)
     }
-  }, [urls, props.groupId, categoryDisplayName, isDeleting])
+  }, [
+    categoryDisplayName,
+    handleDeleteAllTabs,
+    isDeleting,
+    props.groupId,
+    urls,
+  ])
 
   // 削除ボタンクリック時の処理
   const onDeleteAllTabs = useCallback((e: React.MouseEvent) => {

@@ -775,6 +775,36 @@ const removeUrlsFromAllCustomProjects = async (
   }
 } // カスタムプロジェクトを削除する関数
 
+/**
+ * 全てのプロジェクトから複数の URL ID をまとめて削除する。
+ */
+const removeUrlIdsFromAllCustomProjects = async (
+  urlIds: string[],
+): Promise<void> => {
+  if (urlIds.length === 0) {
+    return
+  }
+
+  try {
+    await migrateToUrlsStorage()
+    const projects = await getCustomProjects()
+    const idsToDelete = new Set(urlIds)
+    const hasChanges = processProjectsForBulkDelete(projects, idsToDelete)
+
+    if (hasChanges) {
+      await saveCustomProjects(projects)
+      console.log(
+        `${urlIds.length}件のURL IDをすべてのカスタムプロジェクトから削除しました`,
+      )
+    }
+  } catch (error) {
+    console.error(
+      'カスタムプロジェクトからの複数URL ID削除中にエラーが発生しました:',
+      error,
+    )
+  }
+} // カスタムプロジェクトを削除する関数
+
 const ensureProjectMetadataEntry = (
   project: CustomProject,
   urlId: string,
@@ -1188,6 +1218,7 @@ export {
   removeCategoryFromProject,
   removeUrlFromAllCustomProjects,
   removeUrlFromCustomProject,
+  removeUrlIdsFromAllCustomProjects,
   removeUrlsFromAllCustomProjects,
   removeUrlsFromCustomProject,
   renameCategoryInProject,
