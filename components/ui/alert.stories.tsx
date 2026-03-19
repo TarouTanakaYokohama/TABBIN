@@ -23,9 +23,9 @@ export default {
 
 type Story = StoryObj<typeof Alert>
 
-export const Default: Story = {}
+export const StatusNotice: Story = {}
 
-export const Destructive: Story = {
+export const DestructiveAlert: Story = {
   args: {
     variant: 'destructive',
   },

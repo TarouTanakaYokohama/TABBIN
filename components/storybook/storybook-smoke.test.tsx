@@ -13,11 +13,11 @@ import preview from '../../.storybook/preview'
 
 const { Primary } = composeStories(buttonStories, preview)
 const { Conversation } = composeStories(messageStories, preview)
-const { Default: ModeToggleDefault } = composeStories(
+const { ToggleMenu: ModeToggleDefault } = composeStories(
   modeToggleStories,
   preview,
 )
-const { Default: ImportExportDefault } = composeStories(
+const { Idle: ImportExportDefault } = composeStories(
   importExportStories,
   preview,
 )

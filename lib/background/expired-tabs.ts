@@ -68,7 +68,9 @@ export const checkAndRemoveExpiredTabs = async (): Promise<void> => {
     console.log('期限切れタブのチェックを開始...', new Date().toLocaleString())
 
     // ストレージから直接取得する - より単純化した取得方法
-    const data = await chrome.storage.local.get(['userSettings'])
+    const data = await chrome.storage.local.get<{
+      userSettings?: import('@/types/storage').UserSettings
+    }>(['userSettings'])
     const autoDeletePeriod = data.userSettings?.autoDeletePeriod ?? 'never'
 
     // デバッグログを追加
@@ -94,7 +96,9 @@ export const checkAndRemoveExpiredTabs = async (): Promise<void> => {
     console.log(`カットオフ時刻: ${new Date(cutoffTime).toLocaleString()}`)
 
     // 保存されたタブを取得
-    const storageResult = await chrome.storage.local.get('savedTabs')
+    const storageResult = await chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+    }>('savedTabs')
     const savedTabs: TabGroup[] = storageResult.savedTabs || []
     if (savedTabs.length === 0) {
       console.log('保存されたタブはありません')
@@ -176,7 +180,9 @@ export const updateTabTimestamps = async (
 }> => {
   try {
     console.log(`タブの保存時刻を更新します: ${period || '不明な期間'}`)
-    const storageResult = await chrome.storage.local.get('savedTabs')
+    const storageResult = await chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+    }>('savedTabs')
     const savedTabs: TabGroup[] = storageResult.savedTabs || []
     if (savedTabs.length === 0) {
       console.log('保存されたタブがありません')

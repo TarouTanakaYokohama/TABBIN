@@ -9,7 +9,7 @@ const meta = {
 
 type Story = StoryObj<typeof ImportExportSettings>
 
-export const Default: Story = {}
+export const Idle: Story = {}
 
 export const OpenedImportDialog: Story = {
   play: async ({ canvasElement }) => {

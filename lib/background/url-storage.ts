@@ -112,7 +112,10 @@ const updateGroupAfterUrlRemoval = (
  */
 const removeUrlFromStorage = async (url: string): Promise<void> => {
   try {
-    const storageResult = await chrome.storage.local.get(['savedTabs', 'urls'])
+    const storageResult = await chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+      urls?: import('@/types/storage').UrlRecord[]
+    }>(['savedTabs', 'urls'])
     const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
       ? storageResult.savedTabs
       : []
@@ -156,8 +159,12 @@ const handleTabGroupRemoval = async (groupId: string): Promise<void> => {
 const removeFromParentCategories = async (groupId: string): Promise<void> => {
   try {
     const [categoriesStorage, tabsStorage] = await Promise.all([
-      chrome.storage.local.get('parentCategories'),
-      chrome.storage.local.get('savedTabs'),
+      chrome.storage.local.get<{
+        parentCategories?: import('@/types/storage').ParentCategory[]
+      }>('parentCategories'),
+      chrome.storage.local.get<{
+        savedTabs?: import('@/types/storage').TabGroup[]
+      }>('savedTabs'),
     ])
     const parentCategories: ParentCategory[] =
       categoriesStorage.parentCategories || []

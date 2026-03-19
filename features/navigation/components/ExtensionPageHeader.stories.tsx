@@ -11,7 +11,7 @@ const meta = {
 
 type Story = StoryObj<typeof ExtensionPageHeader>
 
-export const Default: Story = {}
+export const TitleOnly: Story = {}
 
 export const WithDescription: Story = {
   args: {

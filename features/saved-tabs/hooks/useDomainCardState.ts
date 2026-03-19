@@ -203,7 +203,9 @@ export const useDomainCardState = ({
         if (updatedAllOrder) {
           setAllCategoryIds(updatedAllOrder)
         }
-        const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+        const { savedTabs = [] } = await chrome.storage.local.get<{
+          savedTabs?: import('@/types/storage').TabGroup[]
+        }>('savedTabs')
         const updatedTabs = savedTabs.map((tab: TabGroup) => {
           if (tab.id === group.id) {
             const updatedTab = {

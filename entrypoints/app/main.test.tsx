@@ -86,4 +86,26 @@ describe('app bootstrap', () => {
     )
     expect(mocked.renderRoot).toHaveBeenCalledTimes(1)
   })
+
+  it('同じ app 要素へ再度 mount しても createRoot を再利用する', async () => {
+    let domReadyHandler: EventListener | undefined
+
+    vi.spyOn(document, 'addEventListener').mockImplementation(((
+      type: string,
+      callback: EventListenerOrEventListenerObject | null,
+    ) => {
+      if (type === 'DOMContentLoaded' && typeof callback === 'function') {
+        domReadyHandler = callback
+      }
+    }) as typeof document.addEventListener)
+
+    await importModule()
+    document.body.innerHTML = '<div id="app"></div>'
+
+    domReadyHandler?.(new Event('DOMContentLoaded'))
+    domReadyHandler?.(new Event('DOMContentLoaded'))
+
+    expect(mocked.createRoot).toHaveBeenCalledTimes(1)
+    expect(mocked.renderRoot).toHaveBeenCalledTimes(2)
+  })
 })
