@@ -144,6 +144,7 @@ const useTabData = (
   const [tabGroups, setTabGroups] = useState<TabGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [tabGroupsWithUrls, setTabGroupsWithUrls] = useState<TabGroup[]>([])
+  const skipNextTabGroupsSyncRef = useRef(false)
 
   // コールバック参照を ref で保持（useEffect 依存配列の安定性のため）
   const onCategoriesLoadedRef = useRef(onCategoriesLoaded)
@@ -219,6 +220,7 @@ const useTabData = (
           | undefined) ??
         []
       const normalizedGroups = Array.isArray(groups) ? groups : []
+      skipNextTabGroupsSyncRef.current = true
       setTabGroups(normalizedGroups)
       const groupsWithUrls = await loadTabGroupsWithUrls(normalizedGroups)
       setTabGroupsWithUrls(groupsWithUrls)
@@ -291,6 +293,10 @@ const useTabData = (
   useEffect(() => {
     let cancelled = false
     const loadUrlsForTabGroups = async () => {
+      if (skipNextTabGroupsSyncRef.current) {
+        skipNextTabGroupsSyncRef.current = false
+        return
+      }
       const groupsWithUrls = await loadTabGroupsWithUrls(tabGroups)
       if (!cancelled) {
         console.log('URL取得完了、状態を更新...')

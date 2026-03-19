@@ -278,11 +278,13 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     expect(await screen.findByRole('button', { name: '削除する' })).toBeTruthy()
   })
 
-  it('カテゴリ全削除確認で removeUrlFromTabGroup を呼ぶ', async () => {
+  it('カテゴリ全削除確認で handleDeleteAllTabs を 1 回だけ呼ぶ', async () => {
+    const handleDeleteAllTabs = vi.fn().mockResolvedValue(undefined)
+
     render(
       <SavedTabsContentComponent
         {...createProps({
-          handleDeleteAllTabs: vi.fn(),
+          handleDeleteAllTabs,
         })}
       />,
     )
@@ -291,26 +293,23 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     fireEvent.click(await screen.findByRole('button', { name: '削除する' }))
 
     await waitFor(() => {
-      expect(removeUrlFromTabGroupMock).toHaveBeenCalledWith(
-        'group-1',
-        'https://a.com',
-      )
-      expect(removeUrlFromTabGroupMock).toHaveBeenCalledWith(
-        'group-1',
-        'https://b.com',
-      )
+      expect(handleDeleteAllTabs).toHaveBeenCalledWith([
+        { url: 'https://a.com', title: 'A' },
+        { url: 'https://b.com', title: 'B' },
+      ])
     })
 
+    expect(removeUrlFromTabGroupMock).not.toHaveBeenCalled()
     expect(console.log).toHaveBeenCalled()
   })
 
   it('削除処理で例外時でも落ちずに終了する', async () => {
-    removeUrlFromTabGroupMock.mockRejectedValueOnce(new Error('boom'))
+    const handleDeleteAllTabs = vi.fn().mockRejectedValueOnce(new Error('boom'))
 
     const { rerender } = render(
       <SavedTabsContentComponent
         {...createProps({
-          handleDeleteAllTabs: vi.fn(),
+          handleDeleteAllTabs,
         })}
       />,
     )
@@ -323,7 +322,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     rerender(
       <SavedTabsContentComponent
         {...createProps({
-          handleDeleteAllTabs: vi.fn(),
+          handleDeleteAllTabs,
           categoryName: 'error-case',
         })}
       />,
@@ -339,7 +338,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
 
   it('削除確認の二重実行を防ぐ', async () => {
     let resolveUpdate: (() => void) | undefined
-    removeUrlFromTabGroupMock.mockImplementationOnce(
+    const handleDeleteAllTabs = vi.fn().mockImplementationOnce(
       () =>
         new Promise<void>(resolve => {
           resolveUpdate = resolve
@@ -349,7 +348,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     render(
       <SavedTabsContentComponent
         {...createProps({
-          handleDeleteAllTabs: vi.fn(),
+          handleDeleteAllTabs,
         })}
       />,
     )
@@ -365,7 +364,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     fireEvent.click(confirmButton)
 
     await waitFor(() => {
-      expect(removeUrlFromTabGroupMock).toHaveBeenCalled()
+      expect(handleDeleteAllTabs).toHaveBeenCalledTimes(1)
     })
 
     resolveUpdate?.()

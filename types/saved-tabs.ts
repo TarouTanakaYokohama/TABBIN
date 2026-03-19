@@ -8,7 +8,7 @@ export interface CategoryGroupProps {
   handleDeleteGroup: (id: string) => void
   handleDeleteGroups?: (ids: string[]) => void
   handleDeleteUrl: (groupId: string, url: string) => void
-  handleDeleteUrls?: (groupId: string, urls: string[]) => void
+  handleDeleteUrls?: (groupId: string, urls: string[]) => Promise<void>
   handleOpenTab: (url: string) => void
   handleUpdateUrls: (groupId: string, updatedUrls: TabGroup['urls']) => void
   handleUpdateDomainsOrder?: (
@@ -33,7 +33,7 @@ export interface SortableDomainCardProps {
   handleDeleteGroup: (id: string) => void
   handleDeleteGroups?: (ids: string[]) => void
   handleDeleteUrl: (groupId: string, url: string) => void
-  handleDeleteUrls?: (groupId: string, urls: string[]) => void
+  handleDeleteUrls?: (groupId: string, urls: string[]) => Promise<void>
   handleOpenTab: (url: string) => void
   handleUpdateUrls: (groupId: string, updatedUrls: TabGroup['urls']) => void
   handleDeleteCategory?: (groupId: string, categoryName: string) => void

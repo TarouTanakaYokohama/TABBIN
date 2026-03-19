@@ -60,6 +60,7 @@ export const CategoryGroupContent = () => {
               handleOpenAllTabs={handlers.handleOpenAllTabs}
               handleDeleteGroup={reorder.handleDeleteSingleDomain}
               handleDeleteUrl={handlers.handleDeleteUrl}
+              handleDeleteUrls={handlers.handleDeleteUrls}
               handleOpenTab={handlers.handleOpenTab}
               handleUpdateUrls={handlers.handleUpdateUrls}
               handleDeleteCategory={handlers.handleDeleteCategory}

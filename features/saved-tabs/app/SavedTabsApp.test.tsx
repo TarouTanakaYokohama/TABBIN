@@ -76,6 +76,7 @@ const mocked = vi.hoisted(() => {
   })
 
   const customModeContainerSpy = vi.fn()
+  const domainModeContainerSpy = vi.fn()
   const headerSpy = vi.fn()
 
   const settings: UserSettings = {
@@ -131,6 +132,7 @@ const mocked = vi.hoisted(() => {
   return {
     categoryState,
     customModeContainerSpy,
+    domainModeContainerSpy,
     getProjectUrls,
     headerSpy,
     projectState,
@@ -215,7 +217,10 @@ vi.mock('@/features/saved-tabs/custom/CustomModeContainer', () => ({
 }))
 
 vi.mock('@/features/saved-tabs/domain/DomainModeContainer', () => ({
-  DomainModeContainer: () => <div>domain-mode</div>,
+  DomainModeContainer: (props: Record<string, unknown>) => {
+    mocked.domainModeContainerSpy(props)
+    return <div>domain-mode</div>
+  },
 }))
 
 vi.mock('@/features/saved-tabs/lib/custom-project-move', () => ({
@@ -251,15 +256,25 @@ vi.mock('@/lib/storage/projects', () => ({
   getProjectUrls: mocked.getProjectUrls,
   moveUrlBetweenCustomProjects: vi.fn(),
   removeUrlFromAllCustomProjects: vi.fn(),
+  removeUrlIdsFromAllCustomProjects: vi.fn(),
+  removeUrlsFromAllCustomProjects: vi.fn(),
 }))
 
 vi.mock('@/lib/storage/tabs', () => ({
   addSubCategoryToGroup: vi.fn(),
   getTabGroupUrls: vi.fn(async () => []),
   removeUrlFromTabGroup: vi.fn(),
+  removeUrlIdsFromTabGroup: vi.fn(),
   removeUrlsFromTabGroup: vi.fn(),
 }))
 
+import { handleTabGroupRemoval } from '@/features/saved-tabs/lib/tab-operations'
+import {
+  removeUrlFromAllCustomProjects,
+  removeUrlIdsFromAllCustomProjects,
+  removeUrlsFromAllCustomProjects,
+} from '@/lib/storage/projects'
+import { getTabGroupUrls, removeUrlIdsFromTabGroup } from '@/lib/storage/tabs'
 import { SavedTabsApp } from './SavedTabsApp'
 
 describe('SavedTabsApp custom search', () => {
@@ -364,5 +379,138 @@ describe('SavedTabsApp custom search', () => {
         showSidebarTrigger: undefined,
       }),
     )
+  })
+
+  it('ドメイン全削除ではカスタムプロジェクト同期を URL ごとではなく一括で実行する', async () => {
+    const group: TabGroup = {
+      id: 'group-1',
+      domain: 'example.com',
+      urls: [
+        { id: 'url-a', url: 'https://example.com/a', title: 'A' },
+        { id: 'url-b', url: 'https://example.com/b', title: 'B' },
+      ],
+      urlIds: ['url-a', 'url-b'],
+    }
+    mocked.projectState.viewMode = 'domain'
+    mocked.projectState.viewModeRef = { current: 'domain' }
+    mocked.categoryState.categories = []
+    mocked.tabDataState.tabGroups = [group]
+    mocked.tabDataState.tabGroupsWithUrls = [group]
+
+    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
+    chromeGlobal.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => ({ savedTabs: [group] })),
+          set: vi.fn(),
+        },
+        onChanged: {
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        },
+      },
+      tabs: {
+        create: vi.fn(),
+      },
+      windows: {
+        create: vi.fn(),
+      },
+      runtime: {
+        getURL: vi.fn(),
+      },
+    } as unknown as typeof chrome
+
+    vi.mocked(getTabGroupUrls).mockResolvedValue([
+      { url: 'https://example.com/a', title: 'A', id: 'url-a', savedAt: 1 },
+      { url: 'https://example.com/b', title: 'B', id: 'url-b', savedAt: 2 },
+    ])
+
+    render(<SavedTabsApp initialViewMode='domain' />)
+
+    const domainProps = mocked.domainModeContainerSpy.mock.calls.at(
+      -1,
+    )?.[0] as {
+      handleDeleteGroup: (id: string) => Promise<void>
+    }
+
+    await domainProps.handleDeleteGroup('group-1')
+
+    expect(handleTabGroupRemoval).toHaveBeenCalledWith('group-1')
+    expect(removeUrlIdsFromAllCustomProjects).toHaveBeenCalledWith([
+      'url-a',
+      'url-b',
+    ])
+    expect(removeUrlsFromAllCustomProjects).not.toHaveBeenCalled()
+    expect(removeUrlFromAllCustomProjects).not.toHaveBeenCalled()
+  })
+
+  it('ドメイン子カテゴリ一括削除では URL 文字列ではなく URL ID ベースの削除を優先する', async () => {
+    const group: TabGroup = {
+      id: 'group-1',
+      domain: 'example.com',
+      urls: [
+        {
+          id: 'url-a',
+          url: 'https://example.com/a',
+          title: 'A',
+          subCategory: 'news',
+        },
+        {
+          id: 'url-b',
+          url: 'https://example.com/b',
+          title: 'B',
+          subCategory: 'news',
+        },
+      ],
+      urlIds: ['url-a', 'url-b'],
+      subCategories: ['news'],
+    }
+    mocked.projectState.viewMode = 'domain'
+    mocked.projectState.viewModeRef = { current: 'domain' }
+    mocked.categoryState.categories = []
+    mocked.tabDataState.tabGroups = [group]
+    mocked.tabDataState.tabGroupsWithUrls = [group]
+
+    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
+    chromeGlobal.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => ({ savedTabs: [group] })),
+          set: vi.fn(),
+        },
+        onChanged: {
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        },
+      },
+      tabs: {
+        create: vi.fn(),
+      },
+      windows: {
+        create: vi.fn(),
+      },
+      runtime: {
+        getURL: vi.fn(),
+      },
+    } as unknown as typeof chrome
+
+    render(<SavedTabsApp initialViewMode='domain' />)
+
+    const domainProps = mocked.domainModeContainerSpy.mock.calls.at(
+      -1,
+    )?.[0] as {
+      handleDeleteUrls: (groupId: string, urls: string[]) => Promise<void>
+    }
+
+    await domainProps.handleDeleteUrls('group-1', [
+      'https://example.com/a',
+      'https://example.com/b',
+    ])
+
+    expect(removeUrlIdsFromTabGroup).toHaveBeenCalledWith('group-1', [
+      'url-a',
+      'url-b',
+    ])
+    expect(mocked.tabDataState.refreshTabGroupsWithUrls).not.toHaveBeenCalled()
   })
 })

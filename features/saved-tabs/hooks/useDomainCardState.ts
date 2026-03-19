@@ -13,14 +13,15 @@ import type { ParentCategory, TabGroup } from '@/types/storage'
 interface UseDomainCardStateParams {
   /** タブグループデータ */
   group: TabGroup
-  /** URL更新ハンドラ */
-  handleUpdateUrls?: (groupId: string, updatedUrls: TabGroup['urls']) => void
+  /** 複数URL削除ハンドラ */
+  handleDeleteUrls?: (groupId: string, urls: string[]) => Promise<void>
   /** カテゴリ削除ハンドラ */
   handleDeleteCategory?: (groupId: string, categoryName: string) => void
   /** 並び替えモード状態 */
   isReorderMode: boolean
 }
 interface CategorizedUrlItem {
+  id?: string
   url: string
   title: string
   subCategory?: string
@@ -102,7 +103,7 @@ const buildCategoryOrderFromSaved = (
  */
 export const useDomainCardState = ({
   group,
-  handleUpdateUrls,
+  handleDeleteUrls,
   handleDeleteCategory,
   isReorderMode,
 }: UseDomainCardStateParams) => {
@@ -385,26 +386,25 @@ export const useDomainCardState = ({
     async (
       categoryName: string,
       urlsToDelete: Array<{
+        id?: string
         url: string
       }>,
     ) => {
       try {
         const urlsToRemove = urlsToDelete.map(item => item.url)
+        if (urlsToRemove.length === 0) {
+          return
+        }
         console.log(
           `「${categoryName}」から${urlsToRemove.length}件のタブを削除します`,
         )
-        for (const url of urlsToRemove) {
-          await removeUrlFromTabGroup(group.id, url)
-          await new Promise(resolve => setTimeout(resolve, 10))
+        if (handleDeleteUrls) {
+          await handleDeleteUrls(group.id, urlsToRemove)
+        } else {
+          for (const url of urlsToRemove) {
+            await removeUrlFromTabGroup(group.id, url)
+          }
         }
-        if (handleUpdateUrls) {
-          handleUpdateUrls(group.id, [])
-        }
-        requestAnimationFrame(() => {
-          const newActiveIds = getActiveCategoryIds()
-          setAllCategoryIds(newActiveIds)
-          setCategoryUpdateTrigger(prev => prev + 1)
-        })
         console.log(
           `「${categoryName}」カテゴリから${urlsToRemove.length}件のタブを削除完了`,
         )
@@ -412,7 +412,7 @@ export const useDomainCardState = ({
         console.error('カテゴリ内タブ削除エラー:', error)
       }
     },
-    [group.id, getActiveCategoryIds, handleUpdateUrls],
+    [group.id, handleDeleteUrls],
   )
 
   // --- 親カテゴリ読み込み ---
