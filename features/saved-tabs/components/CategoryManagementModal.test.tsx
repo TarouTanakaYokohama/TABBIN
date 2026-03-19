@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   act,
   cleanup,
@@ -219,6 +222,18 @@ describe('CategoryManagementModal', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+  })
+
+  it('shared ui button を使い、生の button 要素を残さない', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        './CategoryManagementModal.tsx',
+      ),
+      'utf8',
+    )
+
+    expect(source).not.toContain('<button')
   })
 
   it('isOpen=false のときは何も描画しない', () => {

@@ -85,10 +85,10 @@ describe('AppRouter', () => {
     render(<AppRouter initialEntries={['/saved-tabs?mode=domain']} />)
 
     const analyticsLink = screen.getAllByRole('link', {
-      name: '(preview)分析',
+      name: '分析',
     })[0]
     if (!analyticsLink) {
-      throw new Error('(preview)分析リンクが見つかりません')
+      throw new Error('分析リンクが見つかりません')
     }
 
     fireEvent.click(analyticsLink)
@@ -107,9 +107,7 @@ describe('AppRouter', () => {
         ?.getAttribute('href'),
     ).toBe('/ai-chat')
     expect(
-      screen
-        .getAllByRole('link', { name: '(preview)分析' })[0]
-        ?.getAttribute('href'),
+      screen.getAllByRole('link', { name: '分析' })[0]?.getAttribute('href'),
     ).toBe('/analytics')
     expect(
       screen

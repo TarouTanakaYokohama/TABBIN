@@ -9,6 +9,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { Link, useInRouterContext } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
 import {
   Sidebar,
   SidebarContent,
@@ -99,7 +100,7 @@ const topLevelItems: Array<{
   {
     icon: BarChart3,
     id: 'analytics',
-    label: '(preview)分析',
+    label: '分析',
   },
   {
     icon: Clock3,
@@ -133,7 +134,7 @@ const expandedNavLinkActiveClass =
 const expandedSubmenuClass =
   'mx-0 mt-1 ml-4 gap-1.5 border-sidebar-border/70 px-0 py-0 pl-4'
 const iconRailLinkClass =
-  'flex size-11 items-center justify-center rounded-2xl text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+  'flex size-11 items-center justify-center rounded-2xl text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer'
 const ICON_RAIL_WIDTH_PX = 48
 const EXPANDED_SIDEBAR_WIDTH_PX = 256
 const SIDEBAR_WIDTH_STORAGE_KEY = 'tabbin-extension-sidebar-width'
@@ -261,14 +262,16 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
           {isIconCollapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
                   aria-label='サイドバーを開く'
                   className={iconRailLinkClass}
                   onClick={handleExpandSidebar}
+                  size='icon'
                   type='button'
+                  variant='ghost'
                 >
                   <PanelLeft className='size-5 shrink-0' />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent side='right' align='center'>
                 サイドバーを開く
@@ -278,14 +281,16 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
             <div className='flex items-center gap-2'>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button
                     aria-label='サイドバーを小さくする'
                     className={iconRailLinkClass}
                     onClick={handleCollapseSidebar}
+                    size='icon'
                     type='button'
+                    variant='ghost'
                   >
                     <PanelLeft className='size-5 shrink-0' />
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent side='right' align='center'>
                   サイドバーを小さくする

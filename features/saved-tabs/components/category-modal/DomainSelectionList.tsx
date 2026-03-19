@@ -1,5 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useMemo, useRef } from 'react'
+import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import type { TabGroup } from '@/types/storage'
@@ -74,34 +75,36 @@ const DomainCategoryStatus = ({
 }) => {
   if (!belongsToCategory) {
     return (
-      <button
+      <Button
         type='button'
-        className='mt-1 flex w-full cursor-pointer items-center border-0 bg-transparent p-0 text-left text-muted-foreground text-xs hover:text-foreground'
+        className='mt-1 h-auto w-full justify-start p-0 text-left text-muted-foreground text-xs hover:text-foreground'
         onClick={onToggle}
         disabled={disabled}
         aria-label='未分類のドメイン'
+        variant='ghost'
       >
         <span className='mr-1 inline-block h-2 w-2 rounded-full bg-muted-foreground' />
         <span>未分類</span>
-      </button>
+      </Button>
     )
   }
 
   const isCurrentCategory = selectedCategoryId === belongsToCategory.id
   return (
-    <button
+    <Button
       type='button'
-      className='mt-1 flex w-full cursor-pointer items-center border-0 bg-transparent p-0 text-left text-muted-foreground text-xs hover:text-foreground'
+      className='mt-1 h-auto w-full justify-start p-0 text-left text-muted-foreground text-xs hover:text-foreground'
       onClick={onToggle}
       disabled={disabled}
       aria-label={`${isCurrentCategory ? '現在選択中のカテゴリ' : '所属カテゴリ'}: ${belongsToCategory.name}`}
+      variant='ghost'
     >
       <span className='mr-1 inline-block h-2 w-2 rounded-full bg-primary' />
       <span>
         {isCurrentCategory ? '現在選択中のカテゴリ: ' : '所属カテゴリ: '}
         {belongsToCategory.name}
       </span>
-    </button>
+    </Button>
   )
 }
 
