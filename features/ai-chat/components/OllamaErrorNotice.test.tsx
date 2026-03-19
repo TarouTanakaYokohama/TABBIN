@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   cleanup,
   fireEvent,
@@ -46,6 +49,19 @@ describe('OllamaErrorNotice', () => {
     cleanup()
     vi.useRealTimers()
     vi.unstubAllGlobals()
+  })
+
+  it('copy row に shared ui input を使い、生の input 要素を残さない', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        './OllamaErrorNotice.tsx',
+      ),
+      'utf8',
+    )
+
+    expect(source).toContain("from '@/components/ui/input'")
+    expect(source).not.toContain('<input')
   })
 
   it('Windows ではユーザー環境変数ベースの手順を表示する', () => {

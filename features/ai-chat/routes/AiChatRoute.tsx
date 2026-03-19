@@ -91,10 +91,11 @@ export const AiChatRoute = () => {
                     }`}
                   >
                     <div className='flex items-start gap-2'>
-                      <button
-                        type='button'
-                        className='min-w-0 flex-1 text-left'
+                      <Button
+                        className='h-auto min-w-0 flex-1 flex-col items-start justify-start whitespace-normal px-0 text-left hover:bg-transparent'
                         onClick={() => selectConversation(historyItem.id)}
+                        type='button'
+                        variant='ghost'
                       >
                         <p className='truncate font-medium text-foreground text-sm'>
                           {historyItem.title}
@@ -102,7 +103,7 @@ export const AiChatRoute = () => {
                         <p className='mt-1 line-clamp-2 text-muted-foreground text-xs leading-5'>
                           {historyItem.preview}
                         </p>
-                      </button>
+                      </Button>
                       <Button
                         type='button'
                         variant='ghost'

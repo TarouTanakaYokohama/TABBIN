@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   cleanup,
   fireEvent,
@@ -105,6 +108,18 @@ describe('ProjectManagementModal', () => {
     cleanup()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('shared ui button を使い、生の button 要素を残さない', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        './ProjectManagementModal.tsx',
+      ),
+      'utf8',
+    )
+
+    expect(source).not.toContain('<button')
   })
 
   it('閉じているときは何も描画しない', () => {

@@ -1,4 +1,23 @@
 import { useEffect, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   type AiChartPointSelection,
   AiChartRenderer,
@@ -26,6 +45,28 @@ import {
 import type { AiChatToolTrace } from '@/types/background'
 
 const defaultAnalyticsQuery = getDefaultAnalyticsQuery()
+
+const analyticsGroupByOptions = [
+  { label: 'ドメイン', value: 'domain' },
+  { label: '時系列', value: 'time' },
+  { label: '親カテゴリ', value: 'parentCategory' },
+  { label: '子カテゴリ', value: 'subCategory' },
+  { label: 'プロジェクト', value: 'project' },
+] as const satisfies ReadonlyArray<{
+  label: string
+  value: AnalyticsQuery['groupBy']
+}>
+
+const analyticsChartTypeOptions = [
+  { label: '棒グラフ', value: 'bar' },
+  { label: '折れ線', value: 'line' },
+  { label: '面グラフ', value: 'area' },
+  { label: '円グラフ', value: 'pie' },
+  { label: 'レーダー', value: 'radar' },
+] as const satisfies ReadonlyArray<{
+  label: string
+  value: AnalyticsQuery['chartType']
+}>
 
 const isAnalyticsQuery = (value: unknown): value is AnalyticsQuery => {
   if (!value || typeof value !== 'object') {
@@ -316,248 +357,307 @@ const AnalyticsRoute = () => {
         <div className='mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-4'>
           <section className='grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)] gap-4'>
             <aside
-              className='min-h-0 space-y-4 overflow-y-auto overscroll-contain'
-              data-testid='analytics-sidebar-pane'
+              className='min-h-0'
+              data-testid='analytics-sidebar-pane-container'
             >
-              <section className='rounded-3xl border border-border bg-card p-5'>
-                <h2 className='font-semibold text-lg'>分析条件</h2>
-                <div className='mt-4 grid gap-3'>
-                  <label className='grid gap-1.5 text-sm'>
-                    <span>ビュー名</span>
-                    <input
-                      aria-label='ビュー名'
-                      className='rounded-xl border border-input bg-background px-3 py-2'
-                      onChange={event => setViewName(event.target.value)}
-                      value={viewName}
-                    />
-                  </label>
-                  <label className='grid gap-1.5 text-sm'>
-                    <span>集計軸</span>
-                    <select
-                      aria-label='集計軸'
-                      className='rounded-xl border border-input bg-background px-3 py-2'
-                      onChange={event =>
-                        applyQuery({
-                          ...query,
-                          groupBy: event.target
-                            .value as AnalyticsQuery['groupBy'],
-                        })
-                      }
-                      value={query.groupBy}
-                    >
-                      <option value='domain'>ドメイン</option>
-                      <option value='time'>時系列</option>
-                      <option value='parentCategory'>親カテゴリ</option>
-                      <option value='subCategory'>子カテゴリ</option>
-                      <option value='project'>プロジェクト</option>
-                    </select>
-                  </label>
-                  <label className='grid gap-1.5 text-sm'>
-                    <span>グラフ種別</span>
-                    <select
-                      aria-label='グラフ種別'
-                      className='rounded-xl border border-input bg-background px-3 py-2'
-                      onChange={event =>
-                        applyQuery({
-                          ...query,
-                          chartType: event.target
-                            .value as AnalyticsQuery['chartType'],
-                        })
-                      }
-                      value={query.chartType}
-                    >
-                      <option value='bar'>棒グラフ</option>
-                      <option value='line'>折れ線</option>
-                      <option value='area'>面グラフ</option>
-                      <option value='pie'>円グラフ</option>
-                      <option value='radar'>レーダー</option>
-                    </select>
-                  </label>
-                  <label className='grid gap-1.5 text-sm'>
-                    <span>上位件数</span>
-                    <input
-                      aria-label='上位件数'
-                      className='rounded-xl border border-input bg-background px-3 py-2'
-                      min={1}
-                      onChange={event =>
-                        applyQuery({
-                          ...query,
-                          limit: Math.max(1, Number(event.target.value) || 1),
-                        })
-                      }
-                      type='number'
-                      value={query.limit}
-                    />
-                  </label>
-                </div>
-                <div className='mt-4 flex gap-2'>
-                  <button
-                    className='rounded-xl bg-foreground px-4 py-2 font-medium text-background'
-                    onClick={handleSaveView}
-                    type='button'
-                  >
-                    保存する
-                  </button>
-                  <button
-                    className='rounded-xl border border-border px-4 py-2'
-                    onClick={() => applyQuery(defaultAnalyticsQuery)}
-                    type='button'
-                  >
-                    初期化
-                  </button>
-                </div>
-              </section>
-
-              <section className='rounded-3xl border border-border bg-card p-5'>
-                <h2 className='font-semibold text-lg'>保存済みビュー</h2>
-                <div className='mt-4 space-y-2'>
-                  {savedViews.length === 0 ? (
-                    <p className='text-muted-foreground text-sm'>
-                      まだ保存された分析ビューはありません。
-                    </p>
-                  ) : (
-                    savedViews.map(view => (
-                      <div
-                        className='flex items-center justify-between gap-2 rounded-2xl border border-border p-3'
-                        key={view.id}
-                      >
-                        <button
-                          className='min-w-0 flex-1 text-left'
-                          onClick={() => applyQuery(view.query, view.name)}
-                          type='button'
+              <ScrollArea
+                className='h-full overflow-y-auto overscroll-contain'
+                data-testid='analytics-sidebar-pane'
+              >
+                <div className='space-y-4 pr-3'>
+                  <Card className='rounded-3xl border-border p-5 shadow-none'>
+                    <CardHeader className='gap-1 p-0'>
+                      <CardTitle className='text-lg'>分析条件</CardTitle>
+                    </CardHeader>
+                    <CardContent className='mt-4 grid gap-3 p-0'>
+                      <div className='grid gap-1.5'>
+                        <Label
+                          className='text-sm'
+                          htmlFor='analytics-view-name'
                         >
-                          <p className='truncate font-medium text-sm'>
-                            {view.name}
-                          </p>
-                        </button>
-                        <button
-                          aria-label={`${view.name}を削除`}
-                          className='rounded-lg border border-border px-2 py-1 text-sm'
-                          onClick={() => void handleDeleteView(view.id)}
-                          type='button'
-                        >
-                          削除
-                        </button>
+                          ビュー名
+                        </Label>
+                        <Input
+                          aria-label='ビュー名'
+                          className='rounded-xl bg-background'
+                          id='analytics-view-name'
+                          onChange={event => setViewName(event.target.value)}
+                          value={viewName}
+                        />
                       </div>
-                    ))
-                  )}
+                      <div className='grid gap-1.5'>
+                        <Label className='text-sm' htmlFor='analytics-group-by'>
+                          集計軸
+                        </Label>
+                        <Select
+                          onValueChange={value =>
+                            applyQuery({
+                              ...query,
+                              groupBy: value as AnalyticsQuery['groupBy'],
+                            })
+                          }
+                          value={query.groupBy}
+                        >
+                          <SelectTrigger
+                            aria-label='集計軸'
+                            className='rounded-xl bg-background'
+                            id='analytics-group-by'
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {analyticsGroupByOptions.map(option => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className='grid gap-1.5'>
+                        <Label
+                          className='text-sm'
+                          htmlFor='analytics-chart-type'
+                        >
+                          グラフ種別
+                        </Label>
+                        <Select
+                          onValueChange={value =>
+                            applyQuery({
+                              ...query,
+                              chartType: value as AnalyticsQuery['chartType'],
+                            })
+                          }
+                          value={query.chartType}
+                        >
+                          <SelectTrigger
+                            aria-label='グラフ種別'
+                            className='rounded-xl bg-background'
+                            id='analytics-chart-type'
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {analyticsChartTypeOptions.map(option => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className='grid gap-1.5'>
+                        <Label className='text-sm' htmlFor='analytics-limit'>
+                          上位件数
+                        </Label>
+                        <Input
+                          aria-label='上位件数'
+                          className='rounded-xl bg-background'
+                          id='analytics-limit'
+                          min={1}
+                          onChange={event =>
+                            applyQuery({
+                              ...query,
+                              limit: Math.max(
+                                1,
+                                Number(event.target.value) || 1,
+                              ),
+                            })
+                          }
+                          type='number'
+                          value={query.limit}
+                        />
+                      </div>
+                    </CardContent>
+                    <div className='mt-4 grid grid-cols-2 gap-2'>
+                      <Button
+                        className='w-full cursor-pointer rounded-xl'
+                        onClick={handleSaveView}
+                        type='button'
+                      >
+                        保存する
+                      </Button>
+                      <Button
+                        className='w-full cursor-pointer rounded-xl'
+                        onClick={() => applyQuery(defaultAnalyticsQuery)}
+                        type='button'
+                        variant='outline'
+                      >
+                        初期化
+                      </Button>
+                    </div>
+                  </Card>
+
+                  <Card className='rounded-3xl border-border p-5 shadow-none'>
+                    <CardHeader className='gap-1 p-0'>
+                      <CardTitle className='text-lg'>保存済みビュー</CardTitle>
+                      <CardDescription>
+                        保存した分析条件をここから再利用できます。
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className='mt-4 p-0'>
+                      {savedViews.length === 0 ? (
+                        <p className='text-muted-foreground text-sm'>
+                          まだ保存された分析ビューはありません。
+                        </p>
+                      ) : (
+                        <div className='space-y-2'>
+                          {savedViews.map(view => (
+                            <Card
+                              className='rounded-2xl border-border p-3 shadow-none'
+                              key={view.id}
+                            >
+                              <div className='flex items-center justify-between gap-2'>
+                                <Button
+                                  className='min-w-0 flex-1 justify-start px-0 text-left hover:bg-transparent'
+                                  onClick={() =>
+                                    applyQuery(view.query, view.name)
+                                  }
+                                  type='button'
+                                  variant='ghost'
+                                >
+                                  <span className='truncate font-medium text-sm'>
+                                    {view.name}
+                                  </span>
+                                </Button>
+                                <Button
+                                  aria-label={`${view.name}を削除`}
+                                  className='cursor-pointer rounded-lg'
+                                  onClick={() => void handleDeleteView(view.id)}
+                                  size='sm'
+                                  type='button'
+                                  variant='outline'
+                                >
+                                  削除
+                                </Button>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
-              </section>
+              </ScrollArea>
             </aside>
 
-            <section
-              className='min-h-0 min-w-0 overflow-y-auto overscroll-contain rounded-3xl border border-border bg-card p-5'
+            <ScrollArea
+              className='min-h-0 min-w-0 overflow-y-auto overscroll-contain rounded-3xl border border-border bg-card shadow-none'
               data-testid='analytics-canvas-pane'
             >
-              <div className='flex flex-wrap items-start justify-between gap-3'>
-                <div>
-                  <h2 className='font-semibold text-lg'>分析キャンバス</h2>
-                  <p className='mt-1 text-muted-foreground text-sm'>
-                    {summary}
-                  </p>
-                </div>
-              </div>
-              <div
-                className='-top-5 z-10 -mx-5 bg-card/95 px-5 pt-5 pb-4 backdrop-blur supports-backdrop-filter:bg-card/80'
-                data-testid='analytics-sticky-chart-panel'
-              >
-                <div className='rounded-3xl border border-border border-dashed bg-background/70 p-4'>
-                  <AiChartRenderer
-                    charts={
-                      isUsingAiCharts && aiChartSpecs.length > 0
-                        ? aiChartSpecs
-                        : generatedChartSpecs
-                    }
-                    onChartPointClick={handleChartPointClick}
-                  />
-                </div>
-              </div>
-              {drilldownSelection ? (
-                <section className='mt-4 rounded-3xl border border-border bg-background p-4'>
-                  <div className='flex flex-wrap items-start justify-between gap-3'>
-                    <div>
-                      <h3 className='font-semibold text-base'>
-                        ドリルダウン結果
-                      </h3>
-                      <p className='mt-1 text-muted-foreground text-sm'>
-                        {drilldownSelection.specTitle} /{' '}
-                        {drilldownSelection.label} /{' '}
-                        {drilldownSelection.matchingRecords.length}件
-                      </p>
-                    </div>
-                    <button
-                      className='rounded-xl border border-border px-3 py-2 text-sm'
-                      onClick={() => setDrilldownSelection(null)}
-                      type='button'
-                    >
-                      クリア
-                    </button>
+              <div className='p-5'>
+                <div className='flex flex-wrap items-start justify-between gap-3'>
+                  <div>
+                    <h2 className='font-semibold text-lg'>分析キャンバス</h2>
+                    <p className='mt-1 text-muted-foreground text-sm'>
+                      {summary}
+                    </p>
                   </div>
-                  <div className='mt-4 space-y-3'>
-                    {drilldownSelection.matchingRecords.length === 0 ? (
-                      <p className='text-muted-foreground text-sm'>
-                        該当する保存タブはありません。
-                      </p>
-                    ) : (
-                      drilldownSelection.matchingRecords.map(record => (
-                        <article
-                          className='rounded-2xl border border-border bg-card p-3'
-                          key={record.id}
-                        >
-                          <div className='flex flex-wrap items-start justify-between gap-3'>
-                            <div className='min-w-0 flex-1'>
-                              <p className='truncate font-medium text-sm'>
-                                {record.title}
-                              </p>
-                              <p className='mt-1 break-all text-muted-foreground text-xs'>
-                                {record.url}
-                              </p>
-                              <div className='mt-2 flex flex-wrap gap-2 text-xs'>
-                                <span className='rounded-full bg-muted px-2 py-1'>
-                                  {record.domain}
-                                </span>
-                                {record.savedInProjects.map(project => (
-                                  <span
-                                    className='rounded-full bg-muted px-2 py-1'
-                                    key={`${record.id}-${project}`}
+                </div>
+                <div
+                  className='-top-5 z-10 -mx-5 bg-card/95 px-5 pt-5 pb-4 backdrop-blur supports-backdrop-filter:bg-card/80'
+                  data-testid='analytics-sticky-chart-panel'
+                >
+                  <Card className='rounded-3xl border-dashed bg-background/70 p-4 shadow-none'>
+                    <AiChartRenderer
+                      charts={
+                        isUsingAiCharts && aiChartSpecs.length > 0
+                          ? aiChartSpecs
+                          : generatedChartSpecs
+                      }
+                      onChartPointClick={handleChartPointClick}
+                    />
+                  </Card>
+                </div>
+                {drilldownSelection ? (
+                  <Card className='mt-4 rounded-3xl bg-background p-4 shadow-none'>
+                    <div>
+                      <div>
+                        <h3 className='font-semibold text-base'>
+                          項目に含まれる保存タブ
+                        </h3>
+                        <p className='mt-1 text-muted-foreground text-sm'>
+                          {drilldownSelection.specTitle} /{' '}
+                          {drilldownSelection.label} /{' '}
+                          {drilldownSelection.matchingRecords.length}件
+                        </p>
+                      </div>
+                    </div>
+                    <div className='mt-4 space-y-3'>
+                      {drilldownSelection.matchingRecords.length === 0 ? (
+                        <p className='text-muted-foreground text-sm'>
+                          該当する保存タブはありません。
+                        </p>
+                      ) : (
+                        drilldownSelection.matchingRecords.map(record => (
+                          <Card
+                            className='rounded-2xl border-border bg-card p-3 shadow-none'
+                            key={record.id}
+                          >
+                            <div className='grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start'>
+                              <div className='min-w-0 flex-1'>
+                                <p className='truncate font-medium text-sm'>
+                                  {record.title}
+                                </p>
+                                <div className='mt-2 flex flex-wrap gap-2 text-xs'>
+                                  <Badge
+                                    className='rounded-full'
+                                    variant='secondary'
                                   >
-                                    {project}
-                                  </span>
-                                ))}
-                                {record.parentCategories.map(category => (
-                                  <span
-                                    className='rounded-full bg-muted px-2 py-1'
-                                    key={`${record.id}-${category}`}
+                                    {record.domain}
+                                  </Badge>
+                                  {record.parentCategories.map(category => (
+                                    <Badge
+                                      className='rounded-full'
+                                      key={`${record.id}-${category}`}
+                                      variant='secondary'
+                                    >
+                                      {category}
+                                    </Badge>
+                                  ))}
+                                  {record.savedInProjects.map(project => (
+                                    <Badge
+                                      className='rounded-full'
+                                      key={`${record.id}-${project}`}
+                                      variant='secondary'
+                                    >
+                                      {project}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className='flex shrink-0 items-center justify-between gap-2 sm:flex-col sm:items-end sm:justify-start'>
+                                <time className='text-muted-foreground text-xs'>
+                                  {new Date(record.savedAt).toLocaleString(
+                                    'ja-JP',
+                                  )}
+                                </time>
+                                <Button asChild size='sm' variant='outline'>
+                                  <a
+                                    aria-label={`${record.title} を開く`}
+                                    href={record.url}
+                                    rel='noreferrer'
+                                    target='_blank'
                                   >
-                                    {category}
-                                  </span>
-                                ))}
+                                    開く
+                                  </a>
+                                </Button>
                               </div>
                             </div>
-                            <div className='flex flex-col items-end gap-2'>
-                              <time className='text-muted-foreground text-xs'>
-                                {new Date(record.savedAt).toLocaleString(
-                                  'ja-JP',
-                                )}
-                              </time>
-                              <a
-                                aria-label={`${record.title} を開く`}
-                                className='rounded-xl border border-border px-3 py-2 text-sm'
-                                href={record.url}
-                                rel='noreferrer'
-                                target='_blank'
-                              >
-                                開く
-                              </a>
-                            </div>
-                          </div>
-                        </article>
-                      ))
-                    )}
-                  </div>
-                </section>
-              ) : null}
-            </section>
+                          </Card>
+                        ))
+                      )}
+                    </div>
+                  </Card>
+                ) : null}
+              </div>
+            </ScrollArea>
           </section>
         </div>
       </main>

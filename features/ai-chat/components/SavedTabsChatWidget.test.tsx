@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   cleanup,
   fireEvent,
@@ -220,6 +223,18 @@ describe('SavedTabsChatWidget', () => {
   afterEach(() => {
     cleanup()
     vi.unstubAllGlobals()
+  })
+
+  it('shared ui button を使い、生の button/input 要素を残さない', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        './SavedTabsChatWidget.tsx',
+      ),
+      'utf8',
+    )
+
+    expect(source).not.toContain('<button')
   })
 
   it('右下ランチャーからサイドバーを開ける', async () => {
