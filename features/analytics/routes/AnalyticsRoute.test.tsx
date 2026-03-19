@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   cleanup,
   fireEvent,
@@ -6,6 +9,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
+import { Children, Fragment, type ReactNode, isValidElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AiSavedUrlRecord } from '@/features/ai-chat/types'
 import type { SavedAnalyticsView } from '@/lib/storage/analytics'
@@ -22,6 +26,85 @@ const analyticsRouteMocks = vi.hoisted(() => ({
 vi.mock('@/features/analytics/lib/loadAnalyticsRecords', () => ({
   loadAnalyticsRecords: analyticsRouteMocks.loadRecordsMock,
 }))
+
+vi.mock('@/components/ui/select', () => {
+  const SelectTrigger = ({ children }: { children?: ReactNode }) => (
+    <Fragment>{children}</Fragment>
+  )
+  const SelectValue = ({
+    children,
+    placeholder,
+  }: {
+    children?: ReactNode
+    placeholder?: string
+  }) => <Fragment>{children ?? placeholder}</Fragment>
+  const SelectContent = ({ children }: { children?: ReactNode }) => (
+    <Fragment>{children}</Fragment>
+  )
+  const SelectItem = ({ children }: { children?: ReactNode }) => (
+    <Fragment>{children}</Fragment>
+  )
+
+  const Select = ({
+    children,
+    onValueChange,
+    value,
+  }: {
+    children?: ReactNode
+    onValueChange?: (value: string) => void
+    value?: string
+  }) => {
+    const [triggerNode, contentNode] =
+      Children.toArray(children).filter(isValidElement)
+    const triggerProps = isValidElement(triggerNode)
+      ? (triggerNode.props as Record<string, unknown>)
+      : {}
+    const contentChildren = isValidElement<{ children?: ReactNode }>(
+      contentNode,
+    )
+      ? contentNode.props.children
+      : undefined
+    const items = contentChildren
+      ? Children.toArray(contentChildren)
+          .filter(isValidElement)
+          .map(item => {
+            const props = item.props as {
+              children?: ReactNode
+              value: string
+            }
+
+            return {
+              children: props.children,
+              value: props.value,
+            }
+          })
+      : []
+
+    return (
+      <select
+        aria-label={triggerProps['aria-label'] as string | undefined}
+        className={triggerProps.className as string | undefined}
+        id={triggerProps.id as string | undefined}
+        onChange={event => onValueChange?.(event.target.value)}
+        value={value}
+      >
+        {items.map(item => (
+          <option key={item.value} value={item.value}>
+            {item.children}
+          </option>
+        ))}
+      </select>
+    )
+  }
+
+  return {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  }
+})
 
 vi.mock('@/features/ai-chat/components/AiChartRenderer', () => ({
   AiChartRenderer: ({
@@ -256,6 +339,23 @@ describe('AnalyticsRoute', () => {
     cleanup()
   })
 
+  it('shared ui コンポーネントを利用する実装になっている', () => {
+    const source = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), './AnalyticsRoute.tsx'),
+      {
+        encoding: 'utf8',
+      },
+    )
+
+    expect(source).toContain("from '@/components/ui/button'")
+    expect(source).toContain("from '@/components/ui/card'")
+    expect(source).toContain("from '@/components/ui/input'")
+    expect(source).toContain("from '@/components/ui/label'")
+    expect(source).toContain("from '@/components/ui/select'")
+    expect(source).toContain("from '@/components/ui/scroll-area'")
+    expect(source).toContain("from '@/components/ui/badge'")
+  })
+
   it('初期条件でチャートを表示する', async () => {
     render(<AnalyticsRoute />)
 
@@ -299,6 +399,21 @@ describe('AnalyticsRoute', () => {
     expect(canvasPane.className.includes('overscroll-contain')).toBe(true)
     expect(stickyChartPanel.className.includes('-top-5')).toBe(true)
     expect(stickyChartPanel.className.includes('-mx-5')).toBe(true)
+  })
+
+  it('分析条件の操作ボタンを1:1幅の2カラムで表示する', async () => {
+    render(<AnalyticsRoute />)
+
+    await screen.findByText('分析条件')
+
+    const saveButton = screen.getByRole('button', { name: '保存する' })
+    const resetButton = screen.getByRole('button', { name: '初期化' })
+    const buttonRow = saveButton.parentElement
+
+    expect(buttonRow?.className.includes('grid')).toBe(true)
+    expect(buttonRow?.className.includes('grid-cols-2')).toBe(true)
+    expect(saveButton.className.includes('w-full')).toBe(true)
+    expect(resetButton.className.includes('w-full')).toBe(true)
   })
 
   it('左側の手動フィルタ変更でチャートを更新する', async () => {
@@ -443,16 +558,49 @@ describe('AnalyticsRoute', () => {
     expect(await screen.findByText('クエリなしAIチャート')).toBeTruthy()
   })
 
-  it('チャートクリックでドリルダウン結果を表示する', async () => {
+  it('チャートクリックで項目に含まれる保存タブを表示する', async () => {
     render(<AnalyticsRoute />)
 
     expect((await screen.findAllByText('ドメイン別の保存数')).length).toBe(1)
     fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
 
-    expect(await screen.findByText('ドリルダウン結果')).toBeTruthy()
+    expect(await screen.findByText('項目に含まれる保存タブ')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'クリア' })).toBeNull()
     expect(screen.getByText('Example Docs')).toBeTruthy()
+    expect(screen.queryByText('https://docs.example.com/a')).toBeNull()
+    const savedAtText = new Date(records[0].savedAt).toLocaleString('ja-JP')
+    expect(screen.getByText(savedAtText)).toBeTruthy()
+    const openLink = screen.getByRole('link', { name: 'Example Docs を開く' })
+    expect(openLink).toBeTruthy()
+    expect(openLink.closest('div')?.className.includes('shrink-0')).toBe(true)
+  })
+
+  it('長いタイトルでもドリルダウンの操作列が見切れないレイアウトを使う', async () => {
+    analyticsRouteMocks.loadRecordsMock.mockResolvedValue([
+      {
+        ...records[0],
+        title:
+          'Extremely long analytics drilldown title that should never push the action area out of view even when the canvas is narrow',
+      },
+      records[1],
+    ])
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('ドメイン別の保存数')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+
+    const openLink = await screen.findByRole('link', {
+      name: 'Extremely long analytics drilldown title that should never push the action area out of view even when the canvas is narrow を開く',
+    })
+
+    const actionColumn = openLink.closest('div')
+    const cardLayout = actionColumn?.parentElement
+
+    expect(cardLayout?.className.includes('grid')).toBe(true)
     expect(
-      screen.getByRole('link', { name: 'Example Docs を開く' }),
-    ).toBeTruthy()
+      cardLayout?.className.includes('sm:grid-cols-[minmax(0,1fr)_auto]'),
+    ).toBe(true)
+    expect(actionColumn?.className.includes('sm:items-end')).toBe(true)
   })
 })

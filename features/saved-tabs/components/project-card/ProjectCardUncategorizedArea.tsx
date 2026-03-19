@@ -1,4 +1,5 @@
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { Button } from '@/components/ui/button'
 import { ProjectUrlItem } from '@/features/saved-tabs/components/ProjectUrlItem'
 import { useProjectCard } from './ProjectCardContext'
 
@@ -83,7 +84,7 @@ export const ProjectCardUncategorizedArea = () => {
     project.categories.length > 0
   ) {
     return (
-      <button
+      <Button
         className={`uncategorized-area uncategorized-drop-zone uncategorized-empty mt-4 w-full cursor-pointer rounded border-2 border-dashed p-8 text-left ${
           isUncategorizedOver
             ? 'border-primary bg-primary/10 shadow-md'
@@ -108,9 +109,10 @@ export const ProjectCardUncategorizedArea = () => {
           }
         }}
         type='button'
+        variant='outline'
       >
         <div className='min-h-8' />
-      </button>
+      </Button>
     )
   }
 

@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -86,12 +89,35 @@ describe('AiChatRoute', () => {
     cleanup()
   })
 
+  it('履歴一覧の操作に shared ui button を使い、生の button 要素を残さない', () => {
+    const source = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), './AiChatRoute.tsx'),
+      'utf8',
+    )
+
+    expect(source).not.toContain('<button')
+  })
+
   it('広い画面では左履歴を表示し、widget に sidebar-toggle を渡す', () => {
     render(createElement(AiChatRoute))
 
     expect(screen.getByText('最近の会話')).toBeTruthy()
     expect(screen.getAllByText('最初の会話').length).toBeGreaterThan(0)
     expect(screen.getByText('history-variant:sidebar-toggle')).toBeTruthy()
+  })
+
+  it('履歴項目の本文ボタンは縦積みレイアウトで削除ボタンを押し出さない', () => {
+    render(createElement(AiChatRoute))
+
+    const conversationButton = screen
+      .getAllByRole('button')
+      .find(button => button.className.includes('flex-1'))
+
+    expect(conversationButton).toBeTruthy()
+
+    expect(conversationButton?.className).toContain('flex-col')
+    expect(conversationButton?.className).toContain('items-start')
+    expect(conversationButton?.className).toContain('whitespace-normal')
   })
 
   it('狭い画面では左履歴を完全非表示にしてチャットを残り幅へ広げる', () => {

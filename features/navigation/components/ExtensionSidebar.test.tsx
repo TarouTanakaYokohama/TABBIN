@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   cleanup,
   fireEvent,
@@ -91,6 +94,19 @@ describe('ExtensionSidebar', () => {
     sidebarContextValue.sidebarWidth = 256
   })
 
+  it('shared ui button を使い、生の button 要素を残さない', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        './ExtensionSidebar.tsx',
+      ),
+      'utf8',
+    )
+
+    expect(source).toContain("from '@/components/ui/button'")
+    expect(source).not.toContain('<button')
+  })
+
   it('タブ一覧を先頭に表示し、オプションをフッター最下部に表示する', () => {
     render(
       <ExtensionSidebar
@@ -107,7 +123,7 @@ describe('ExtensionSidebar', () => {
     expect(content.querySelectorAll('section')).toHaveLength(1)
     expect(content.firstChild?.textContent).toContain('タブ一覧')
     expect(content.textContent).toContain('チャット')
-    expect(content.textContent).toContain('(preview)分析')
+    expect(content.textContent).toContain('分析')
     expect(content.textContent).toContain('定期実行')
     expect(footer.textContent).toContain('オプション')
     expect(
@@ -150,9 +166,7 @@ describe('ExtensionSidebar', () => {
       .getAllByRole('link', { name: 'タブ一覧' })
       .at(-1)
     const chatLink = sidebar.getAllByRole('link', { name: 'チャット' }).at(-1)
-    const analyticsLink = sidebar
-      .getAllByRole('link', { name: '(preview)分析' })
-      .at(-1)
+    const analyticsLink = sidebar.getAllByRole('link', { name: '分析' }).at(-1)
     const periodicLink = sidebar
       .getAllByRole('link', { name: '定期実行' })
       .at(-1)
@@ -269,7 +283,7 @@ describe('ExtensionSidebar', () => {
 
     expect(
       sidebar
-        .getAllByRole('link', { name: '(preview)分析' })
+        .getAllByRole('link', { name: '分析' })
         .at(-1)
         ?.getAttribute('aria-current'),
     ).toBe('page')
@@ -299,7 +313,7 @@ describe('ExtensionSidebar', () => {
     ).toBe('page')
     expect(
       sidebar
-        .getAllByRole('link', { name: '(preview)分析' })
+        .getAllByRole('link', { name: '分析' })
         .at(-1)
         ?.getAttribute('aria-current'),
     ).toBeNull()

@@ -24,7 +24,9 @@ export const SubCategoryKeywordManager = ({
   // タブグループを更新するヘルパー関数
   const updateTabGroup = async (updatedTabGroup: TabGroup) => {
     try {
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      const { savedTabs = [] } = await chrome.storage.local.get<{
+        savedTabs?: import('@/types/storage').TabGroup[]
+      }>('savedTabs')
       const updatedTabs = savedTabs.map((tab: TabGroup) =>
         tab.id === updatedTabGroup.id ? updatedTabGroup : tab,
       )
@@ -147,7 +149,9 @@ export const SubCategoryKeywordManager = ({
       console.log('タブグループID:', tabGroup.id)
 
       // タブの情報を取得
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+      const { savedTabs = [] } = await chrome.storage.local.get<{
+        savedTabs?: import('@/types/storage').TabGroup[]
+      }>('savedTabs')
       console.log('取得したsavedTabs:', savedTabs)
 
       // 対象のタブグループを探す
@@ -258,7 +262,9 @@ export const SubCategoryKeywordManager = ({
     console.log(`カテゴリ名を変更: ${oldName} → ${newName}`)
 
     // ストレージからタブグループを取得
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+    const { savedTabs = [] } = await chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+    }>('savedTabs')
 
     const updatedTabs = savedTabs.map((tab: TabGroup) => {
       if (tab.id === tabGroup.id) {

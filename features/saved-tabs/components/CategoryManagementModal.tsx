@@ -60,8 +60,9 @@ const confirmCategoryNameUpdated = async (
   maxAttempts = 5,
 ): Promise<boolean> => {
   for (let attempts = 0; attempts < maxAttempts; attempts++) {
-    const { parentCategories = [] } =
-      await chrome.storage.local.get('parentCategories')
+    const { parentCategories = [] } = await chrome.storage.local.get<{
+      parentCategories?: import('@/types/storage').ParentCategory[]
+    }>('parentCategories')
     const updatedCategory = parentCategories.find(
       (cat: ParentCategory) => cat.id === categoryId,
     )
@@ -78,8 +79,9 @@ const updateCategoryWithDomain = async (
   selectedDomain: string,
   selectedDomainInfo: AvailableDomain,
 ): Promise<void> => {
-  const { parentCategories = [] } =
-    await chrome.storage.local.get('parentCategories')
+  const { parentCategories = [] } = await chrome.storage.local.get<{
+    parentCategories?: import('@/types/storage').ParentCategory[]
+  }>('parentCategories')
   const targetCategory = parentCategories.find(
     (cat: ParentCategory) => cat.id === categoryId,
   )
@@ -148,9 +150,12 @@ const CategoryManagementModal = ({
   // 追加可能なドメイン一覧を取得
   const loadAvailableDomains = useCallback(async () => {
     try {
-      const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
-      const { parentCategories = [] } =
-        await chrome.storage.local.get('parentCategories')
+      const { savedTabs = [] } = await chrome.storage.local.get<{
+        savedTabs?: import('@/types/storage').TabGroup[]
+      }>('savedTabs')
+      const { parentCategories = [] } = await chrome.storage.local.get<{
+        parentCategories?: import('@/types/storage').ParentCategory[]
+      }>('parentCategories')
 
       // 現在のカテゴリのドメインを取得
       const targetCategory = parentCategories.find(
@@ -271,7 +276,9 @@ const CategoryManagementModal = ({
 
       // すべての更新が完了したことを確認してからリロード
       console.log('Modal - 最終確認開始')
-      const finalCheck = await chrome.storage.local.get('parentCategories')
+      const finalCheck = await chrome.storage.local.get<{
+        parentCategories?: import('@/types/storage').ParentCategory[]
+      }>('parentCategories')
       const finalCategory = finalCheck.parentCategories?.find(
         (cat: ParentCategory) => cat.id === category.id,
       )
@@ -317,7 +324,9 @@ const CategoryManagementModal = ({
     }
     setIsProcessing(true)
     try {
-      const data = await chrome.storage.local.get('parentCategories')
+      const data = await chrome.storage.local.get<{
+        parentCategories?: import('@/types/storage').ParentCategory[]
+      }>('parentCategories')
       const parentCategories: ParentCategory[] = data.parentCategories ?? []
       const updatedCategories = parentCategories.filter(
         cat => cat.id !== category.id,
@@ -385,8 +394,9 @@ const CategoryManagementModal = ({
     setIsProcessing(true)
     try {
       // 現在のカテゴリデータを取得
-      const { parentCategories = [] } =
-        await chrome.storage.local.get('parentCategories')
+      const { parentCategories = [] } = await chrome.storage.local.get<{
+        parentCategories?: import('@/types/storage').ParentCategory[]
+      }>('parentCategories')
 
       // 対象のカテゴリを検索
       const targetCategory = parentCategories.find(
@@ -571,13 +581,14 @@ const CategoryManagementModal = ({
                 )}
               </div>
             ) : (
-              <button
-                type='button'
+              <Button
                 onClick={handleStartRenaming}
-                className='flex w-full cursor-pointer justify-start rounded border bg-secondary/20 p-2'
+                className='w-full justify-start rounded border bg-secondary/20 p-2 hover:bg-secondary/30'
+                type='button'
+                variant='outline'
               >
                 {localCategoryName}
-              </button>
+              </Button>
             )}
           </div>
           {showDeleteConfirm && (
@@ -723,4 +734,5 @@ const CategoryManagementModal = ({
     </Dialog>
   )
 }
+
 export { CategoryManagementModal, categoryNameSchema }

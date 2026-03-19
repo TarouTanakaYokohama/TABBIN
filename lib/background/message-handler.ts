@@ -233,7 +233,9 @@ const handleCheckExpiredTabsMessage = (
   console.log('明示的な期限切れチェックリクエストを受信:', message)
 
   // 設定情報も出力
-  chrome.storage.local.get(['userSettings'], data => {
+  chrome.storage.local.get<{
+    userSettings?: import('@/types/storage').UserSettings
+  }>(['userSettings'], data => {
     console.log('現在のストレージ内の設定:', data)
   })
 
@@ -432,4 +434,5 @@ const handleAiChatStreamPortMessage = (
       port.postMessage(errorMessage)
     })
 }
+
 export { setupMessageListener }

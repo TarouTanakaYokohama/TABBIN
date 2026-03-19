@@ -50,7 +50,7 @@ export const DomainCardRoot = ({
 
   const state = useDomainCardState({
     group,
-    handleUpdateUrls: handlers.handleUpdateUrls,
+    handleDeleteUrls: handlers.handleDeleteUrls,
     handleDeleteCategory,
     isReorderMode,
   })

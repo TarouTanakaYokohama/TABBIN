@@ -58,7 +58,9 @@ const updateDomainCategoryMappingIfNeeded = async (
  */
 export const handleTabGroupRemoval = async (groupId: string): Promise<void> => {
   try {
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+    const { savedTabs = [] } = await chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+    }>('savedTabs')
     const groupToRemove = savedTabs.find(
       (group: TabGroup) => group.id === groupId,
     )
@@ -91,7 +93,9 @@ export const safelyUpdateGroupUrls = async (
 ): Promise<void> => {
   try {
     // ローカルストレージからタブを取得
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+    const { savedTabs = [] } = await chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+    }>('savedTabs')
 
     // 対象グループを特定
     const targetGroup = savedTabs.find((tab: TabGroup) => tab.id === groupId)

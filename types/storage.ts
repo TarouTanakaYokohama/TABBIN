@@ -35,6 +35,7 @@ export interface TabGroup {
   urlIds?: string[]
   // 旧形式: 既存データとの互換性のため残す（マイグレーション用）
   urls?: {
+    id?: string
     url: string
     title: string
     subCategory?: string // 子カテゴリ名

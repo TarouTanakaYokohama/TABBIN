@@ -462,19 +462,20 @@ export const ProjectManagementModal = ({
                 )}
               </div>
             ) : (
-              <button
-                type='button'
+              <Button
                 onClick={() => {
                   if (isUncategorizedProject) {
                     return
                   }
                   handleStartRenaming()
                 }}
-                className='flex w-full cursor-pointer justify-start rounded border bg-secondary/20 p-2'
+                className='w-full justify-start rounded border bg-secondary/20 p-2 hover:bg-secondary/30'
                 disabled={isUncategorizedProject}
+                type='button'
+                variant='outline'
               >
                 {localProjectName}
-              </button>
+              </Button>
             )}
           </div>
 

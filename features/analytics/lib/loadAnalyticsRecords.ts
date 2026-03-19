@@ -11,7 +11,9 @@ const loadAnalyticsRecords = async (): Promise<AiSavedUrlRecord[]> => {
       getUrlRecords(),
       getCustomProjects(),
       getParentCategories(),
-      chrome.storage.local.get('savedTabs'),
+      chrome.storage.local.get<{
+        savedTabs?: import('@/types/storage').TabGroup[]
+      }>('savedTabs'),
     ])
 
   return buildAiSavedUrlRecords({

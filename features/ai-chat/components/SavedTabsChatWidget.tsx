@@ -798,9 +798,7 @@ const SystemPromptManagerDialog = ({
             <div className='min-h-0 flex-1 overflow-y-auto px-3 py-3'>
               <div className='grid gap-2'>
                 {presets.map(prompt => (
-                  <button
-                    type='button'
-                    key={prompt.id}
+                  <Button
                     className={cn(
                       'cursor-pointer overflow-hidden rounded-md border px-3 py-3 text-left transition-colors',
                       prompt.id === selectedPromptId
@@ -808,6 +806,9 @@ const SystemPromptManagerDialog = ({
                         : 'border-border hover:border-border/80 hover:bg-muted/30',
                     )}
                     onClick={() => onSelectPrompt(prompt.id)}
+                    key={prompt.id}
+                    type='button'
+                    variant='ghost'
                   >
                     <div className='flex min-w-0 items-center justify-between gap-2'>
                       <p className='min-w-0 flex-1 truncate font-medium text-sm'>
@@ -819,7 +820,7 @@ const SystemPromptManagerDialog = ({
                         </span>
                       ) : null}
                     </div>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -1011,13 +1012,14 @@ const ChatHistoryDropdown = ({
                   )}
                 >
                   <div className='flex items-start gap-2'>
-                    <button
-                      type='button'
-                      className='min-w-0 flex-1 text-left'
+                    <Button
+                      className='min-w-0 flex-1 justify-start px-0 text-left hover:bg-transparent'
                       onClick={() => {
                         onSelectHistoryItem?.(historyItem.id)
                         setIsOpen(false)
                       }}
+                      type='button'
+                      variant='ghost'
                     >
                       <p className='truncate font-medium text-sm'>
                         {historyItem.title}
@@ -1025,7 +1027,7 @@ const ChatHistoryDropdown = ({
                       <p className='mt-1 line-clamp-2 text-muted-foreground text-xs leading-5'>
                         {historyItem.preview}
                       </p>
-                    </button>
+                    </Button>
                     {onDeleteHistoryItem ? (
                       <Button
                         type='button'
@@ -1716,16 +1718,17 @@ const SavedTabsChatPanel = ({
 
   return (
     <div className='sticky top-0 z-50 flex h-screen max-w-[calc(100vw-24px)] shrink-0 self-start overflow-hidden overscroll-none'>
-      <button
-        type='button'
+      <Button
         aria-label='AIチャットの幅を調整'
         className={`relative w-4 shrink-0 cursor-col-resize touch-none ${
           isResizing ? 'bg-primary/10' : 'bg-transparent'
         }`}
         onPointerDown={onResizeStart}
+        type='button'
+        variant='ghost'
       >
         <div className='absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border/80' />
-      </button>
+      </Button>
 
       {card}
     </div>

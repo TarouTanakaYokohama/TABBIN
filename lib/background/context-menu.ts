@@ -127,4 +127,5 @@ const setupMenuClickHandler = (): void => {
   })
   console.log('コンテキストメニュークリックハンドラーを設定しました')
 }
+
 export { createContextMenus }

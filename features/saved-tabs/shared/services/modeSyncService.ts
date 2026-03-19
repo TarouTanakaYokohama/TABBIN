@@ -300,5 +300,5 @@ const syncStorageChanges = async ({
   return events
 }
 
-export { syncStorageChanges }
 export type { SyncStorageChangesParams }
+export { syncStorageChanges }

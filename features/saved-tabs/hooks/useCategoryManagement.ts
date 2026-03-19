@@ -166,7 +166,9 @@ const useCategoryManagement = (
     ): Promise<void> => {
       try {
         console.log(`カテゴリ ${categoryName} の削除を開始します...`)
-        const storageResult = await chrome.storage.local.get('savedTabs')
+        const storageResult = await chrome.storage.local.get<{
+          savedTabs?: import('@/types/storage').TabGroup[]
+        }>('savedTabs')
         const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
           ? storageResult.savedTabs
           : []
@@ -381,5 +383,6 @@ const useCategoryManagement = (
     handleMoveDomainToCategory,
   }
 }
-export { useCategoryManagement }
+
 export type { UseCategoryManagementReturn }
+export { useCategoryManagement }

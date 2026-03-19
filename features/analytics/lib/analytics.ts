@@ -667,15 +667,9 @@ const getAnalyticsPresets = (): AnalyticsPreset[] => [
   },
 ]
 
-export {
-  UNCATEGORIZED_LABEL,
-  generateAnalyticsResult,
-  getAnalyticsPresets,
-  getDefaultAnalyticsQuery,
-}
 export type {
-  AnalyticsDateRange,
   AnalyticsCompareBy,
+  AnalyticsDateRange,
   AnalyticsFilters,
   AnalyticsGroupBy,
   AnalyticsMode,
@@ -685,4 +679,10 @@ export type {
   AnalyticsSort,
   AnalyticsTimeBucket,
   AnalyticsTimeRange,
+}
+export {
+  UNCATEGORIZED_LABEL,
+  generateAnalyticsResult,
+  getAnalyticsPresets,
+  getDefaultAnalyticsQuery,
 }

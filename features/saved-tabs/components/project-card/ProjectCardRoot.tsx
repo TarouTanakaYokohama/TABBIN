@@ -281,7 +281,6 @@ export const ProjectCardRoot = ({
                       // プロジェクト内のすべてのURLを削除
                       for (const urlItem of sortedProjectUrls) {
                         hookHandlers.handleDeleteUrl(project.id, urlItem.url)
-                        await new Promise(resolve => setTimeout(resolve, 10))
                       }
                     }
                   }

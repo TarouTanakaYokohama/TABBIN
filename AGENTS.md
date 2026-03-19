@@ -10,7 +10,7 @@ Tests are mostly colocated as `*.test.ts` / `*.test.tsx`. End-to-end tests are i
 - `bun run dev` / `bun run dev:firefox`: start WXT dev mode for Chrome/Firefox.
 - `bun run build` / `bun run build:firefox`: production extension build.
 - `bun run zip` / `bun run zip:firefox`: package extension zip artifacts.
-- `bun run compile`: TypeScript type-check (`tsc --noEmit`).
+- `bun run compile`: TypeScript type-check (`tsgo --noEmit`).
 - `bun run test` / `bun run test:coverage`: run Vitest tests (with optional coverage).
 - `bun run e2e`: run Playwright browser tests.
 - `bun run quality`: run format, lint, Biome check, and tests.

@@ -6,11 +6,11 @@ import type {
   UrlRecord,
   ViewMode,
 } from '@/types/storage'
-import { migrateToUrlsStorage } from './migration'
 import {
   findMatchingProjectIdForSavedTab,
   normalizeProjectKeywords,
 } from './project-keywords'
+import { migrateToUrlsStorage } from './url-migration'
 import {
   createOrUpdateUrlRecord,
   getUrlRecords,
@@ -59,10 +59,10 @@ const getCustomProjects = async (): Promise<CustomProject[]> => {
     await migrateToUrlsStorage()
 
     // プロジェクトとプロジェクト順序を同時に取得
-    const data = await chrome.storage.local.get([
-      'customProjects',
-      'customProjectOrder',
-    ])
+    const data = await chrome.storage.local.get<{
+      customProjects?: CustomProject[]
+      customProjectOrder?: string[]
+    }>(['customProjects', 'customProjectOrder'])
     const customProjects = data.customProjects || []
     const projectOrder = data.customProjectOrder || []
     console.log(
@@ -397,7 +397,9 @@ const addUrlIdToDomainMode = async (
   url: string,
   urlId: string,
 ): Promise<void> => {
-  const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+  const { savedTabs = [] } = await chrome.storage.local.get<{
+    savedTabs?: import('@/types/storage').TabGroup[]
+  }>('savedTabs')
   const domain = getDomainFromUrl(url)
   const domainGroup = savedTabs.find(
     (group: TabGroup) => group.domain === domain,
@@ -526,7 +528,9 @@ const removeUrlFromCustomProject = async (
 
   // ドメインモードからも同じURLを削除
   try {
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+    const { savedTabs = [] } = await chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+    }>('savedTabs')
 
     // URLレコードを取得
     const urlRecords = await getUrlRecordsByIds(
@@ -568,7 +572,9 @@ const syncDeleteToDomainMode = async (
   urlsLength: number,
 ): Promise<void> => {
   try {
-    const { savedTabs = [] } = await chrome.storage.local.get('savedTabs')
+    const { savedTabs = [] } = await chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+    }>('savedTabs')
 
     const urlRecords = await getUrlRecordsByIds(
       savedTabs.flatMap((g: TabGroup) => g.urlIds || []),
@@ -770,6 +776,36 @@ const removeUrlsFromAllCustomProjects = async (
   } catch (error) {
     console.error(
       'カスタムプロジェクトからの複数URL削除中にエラーが発生しました:',
+      error,
+    )
+  }
+} // カスタムプロジェクトを削除する関数
+
+/**
+ * 全てのプロジェクトから複数の URL ID をまとめて削除する。
+ */
+const removeUrlIdsFromAllCustomProjects = async (
+  urlIds: string[],
+): Promise<void> => {
+  if (urlIds.length === 0) {
+    return
+  }
+
+  try {
+    await migrateToUrlsStorage()
+    const projects = await getCustomProjects()
+    const idsToDelete = new Set(urlIds)
+    const hasChanges = processProjectsForBulkDelete(projects, idsToDelete)
+
+    if (hasChanges) {
+      await saveCustomProjects(projects)
+      console.log(
+        `${urlIds.length}件のURL IDをすべてのカスタムプロジェクトから削除しました`,
+      )
+    }
+  } catch (error) {
+    console.error(
+      'カスタムプロジェクトからの複数URL ID削除中にエラーが発生しました:',
       error,
     )
   }
@@ -1171,12 +1207,13 @@ const updateProjectKeywords = async (
   projects[projectIndex] = project
   await saveCustomProjects(projects)
 }
+
 export {
   CUSTOM_UNCATEGORIZED_PROJECT_ID,
   CUSTOM_UNCATEGORIZED_PROJECT_NAME,
   addCategoryToProject,
-  addUrlsToUncategorizedProject,
   addUrlToCustomProject,
+  addUrlsToUncategorizedProject,
   createCustomProject,
   deleteCustomProject,
   getCustomProjects,
@@ -1186,8 +1223,9 @@ export {
   moveUrlBetweenCustomProjects,
   removeCategoryFromProject,
   removeUrlFromAllCustomProjects,
-  removeUrlsFromAllCustomProjects,
   removeUrlFromCustomProject,
+  removeUrlIdsFromAllCustomProjects,
+  removeUrlsFromAllCustomProjects,
   removeUrlsFromCustomProject,
   renameCategoryInProject,
   reorderProjectUrls,

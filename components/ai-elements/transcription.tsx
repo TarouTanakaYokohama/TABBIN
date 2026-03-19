@@ -3,7 +3,13 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import type { Experimental_TranscriptionResult as TranscriptionResult } from 'ai'
 import type { ComponentProps, ReactNode } from 'react'
-import { createContext, useCallback, useContext, useMemo } from 'react'
+import {
+  Fragment,
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+} from 'react'
 import { cn } from '@/lib/utils'
 
 type TranscriptionSegment = TranscriptionResult['segments'][number]
@@ -67,7 +73,13 @@ export const Transcription = ({
       >
         {segments
           .filter(segment => segment.text.trim())
-          .map((segment, index) => children(segment, index))}
+          .map((segment, index) => (
+            <Fragment
+              key={`${segment.startSecond}-${segment.endSecond}-${segment.text}`}
+            >
+              {children(segment, index)}
+            </Fragment>
+          ))}
       </div>
     </TranscriptionContext.Provider>
   )

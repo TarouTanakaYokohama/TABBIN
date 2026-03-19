@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   cleanup,
   fireEvent,
@@ -63,6 +66,19 @@ const setCategoryModalContext = ({
 }
 
 describe('DomainSelectionList', () => {
+  it('shared ui button を使い、生の button 要素を残さない', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        './DomainSelectionList.tsx',
+      ),
+      'utf8',
+    )
+
+    expect(source).toContain("from '@/components/ui/button'")
+    expect(source).not.toContain('<button')
+  })
+
   it('カテゴリ一覧が空なら何も描画しない', () => {
     setCategoryModalContext({
       tabGroups: createTabGroups(1),

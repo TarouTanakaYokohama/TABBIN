@@ -63,7 +63,9 @@ const confirmCategorySaved = async (
 ): Promise<void> => {
   const maxRetries = 3
   for (let retryCount = 0; retryCount < maxRetries; retryCount++) {
-    const checkResult = await chrome.storage.local.get('parentCategories')
+    const checkResult = await chrome.storage.local.get<{
+      parentCategories?: import('@/types/storage').ParentCategory[]
+    }>('parentCategories')
     const savedCategory = checkResult.parentCategories?.find(
       (cat: ParentCategory) => cat.id === categoryId,
     )
@@ -78,7 +80,9 @@ const confirmCategorySaved = async (
       parentCategories: updatedGroups,
     })
   }
-  const finalCheck = await chrome.storage.local.get('parentCategories')
+  const finalCheck = await chrome.storage.local.get<{
+    parentCategories?: import('@/types/storage').ParentCategory[]
+  }>('parentCategories')
   const finalCategory = finalCheck.parentCategories?.find(
     (cat: ParentCategory) => cat.id === categoryId,
   )
@@ -131,7 +135,9 @@ export const useCategoryGroupState = ({
           newName,
           currentCategory: category,
         })
-        const result = await chrome.storage.local.get(['parentCategories'])
+        const result = await chrome.storage.local.get<{
+          parentCategories?: ParentCategory[]
+        }>(['parentCategories'])
         const baseGroups: ParentCategory[] = result.parentCategories || []
         const categoryGroups = ensureCategoryPresence(
           baseGroups,

@@ -25,4 +25,5 @@ const Checkbox = ({
     </CheckboxPrimitive.Root>
   )
 }
+
 export { Checkbox }

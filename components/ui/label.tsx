@@ -17,4 +17,5 @@ const Label = ({
     />
   )
 }
+
 export { Label }
