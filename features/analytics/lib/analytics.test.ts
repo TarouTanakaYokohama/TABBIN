@@ -150,7 +150,7 @@ describe('analytics', () => {
     ])
   })
 
-  it('時系列（件数順）は件数上位バケットを選んでから時系列順で表示する', () => {
+  it('時系列（件数）は件数上位バケットを選んでから時系列順で表示する', () => {
     const result = generateAnalyticsResult(
       [
         ...records,
