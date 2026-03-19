@@ -201,6 +201,8 @@ const analyticsQuerySchema = z.object({
     'projectCategory',
     'subCategory',
     'time',
+    'timeRecent',
+    'timeTop',
   ]),
   limit: z.number(),
   mode: z.enum(['both', 'custom', 'domain']),

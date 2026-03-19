@@ -18,6 +18,7 @@ import type {
 import {
   generateAnalyticsResult,
   getDefaultAnalyticsQuery,
+  normalizeAnalyticsQuery,
 } from '@/features/analytics/lib/analytics'
 
 const paginationSchema = z.object({
@@ -140,6 +141,8 @@ const createAiChatTools = (records: AiSavedUrlRecord[]) => ({
           'projectCategory',
           'subCategory',
           'time',
+          'timeRecent',
+          'timeTop',
         ])
         .default('domain'),
       limit: z.number().int().min(1).max(20).default(8),
@@ -155,7 +158,8 @@ const createAiChatTools = (records: AiSavedUrlRecord[]) => ({
         .default('all'),
       title: z.string().trim().optional(),
     }),
-    execute: async input => generateAnalyticsResult(records, input),
+    execute: async input =>
+      generateAnalyticsResult(records, normalizeAnalyticsQuery(input)),
   }),
   inferUserInterests: tool({
     description: AI_CHAT_TOOL_DESCRIPTIONS.inferUserInterests,

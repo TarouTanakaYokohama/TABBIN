@@ -428,6 +428,69 @@ describe('AnalyticsRoute', () => {
     expect(await screen.findByText('プロジェクト別の保存数')).toBeTruthy()
   })
 
+  it('集計軸に時系列の2種類を表示する', async () => {
+    render(<AnalyticsRoute />)
+
+    await screen.findByText('分析条件')
+
+    expect(screen.getByRole('option', { name: '時系列（直近）' })).toBeTruthy()
+    expect(
+      screen.getByRole('option', { name: '時系列（件数順）' }),
+    ).toBeTruthy()
+  })
+
+  it('保存済みビューの旧 time は時系列（直近）として読み込む', async () => {
+    analyticsRouteMocks.loadViewsMock.mockResolvedValue([
+      {
+        createdAt: 1,
+        id: 'view-legacy-time',
+        name: 'Legacy Time View',
+        query: {
+          chartType: 'line',
+          compareBy: 'none',
+          filters: {
+            excludedDomains: [],
+            excludedParentCategories: [],
+            excludedProjectCategories: [],
+            excludedProjects: [],
+            excludedSubCategories: [],
+            includedDomains: [],
+            includedParentCategories: [],
+            includedProjectCategories: [],
+            includedProjects: [],
+            includedSubCategories: [],
+          },
+          groupBy: 'time',
+          limit: 1,
+          mode: 'both',
+          normalize: false,
+          sort: 'value-desc',
+          stacked: false,
+          timeBucket: 'day',
+          timeRange: '30d',
+        } as never,
+        updatedAt: 1,
+      },
+    ])
+
+    render(<AnalyticsRoute />)
+
+    expect(
+      await screen.findByRole('button', { name: 'Legacy Time View' }),
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Legacy Time View' }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('[{"count":1,"label":"2026-03-13"}]'),
+      ).toBeTruthy()
+    })
+
+    const groupBySelect = screen.getByLabelText('集計軸') as HTMLSelectElement
+    expect(groupBySelect.value).toBe('timeRecent')
+  })
+
   it('現在の条件を保存できる', async () => {
     render(<AnalyticsRoute />)
 

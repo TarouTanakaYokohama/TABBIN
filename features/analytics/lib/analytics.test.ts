@@ -97,7 +97,7 @@ describe('analytics', () => {
         ...getDefaultAnalyticsQuery(),
         chartType: 'line',
         compareBy: 'mode',
-        groupBy: 'time',
+        groupBy: 'timeRecent',
         mode: 'both',
         timeBucket: 'day',
         timeRange: '30d',
@@ -126,6 +126,97 @@ describe('analytics', () => {
       domain: 0,
       label: '2026-03-12',
     })
+  })
+
+  it('時系列（直近）は上位件数ぶんの最新バケットだけを表示する', () => {
+    const result = generateAnalyticsResult(
+      records,
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'timeRecent',
+        limit: 2,
+        mode: 'both',
+        timeBucket: 'day',
+        timeRange: '30d',
+      },
+      {
+        now: NOW,
+      },
+    )
+
+    expect(result.chartSpecs[0]?.data).toEqual([
+      { count: 1, label: '2026-03-12' },
+      { count: 1, label: '2026-03-13' },
+    ])
+  })
+
+  it('時系列（件数順）は件数上位バケットを選んでから時系列順で表示する', () => {
+    const result = generateAnalyticsResult(
+      [
+        ...records,
+        {
+          id: '5',
+          url: 'https://docs.example.com/c',
+          title: 'Example Docs 2',
+          domain: 'docs.example.com',
+          savedAt: NOW - DAY_MS,
+          savedInTabGroups: ['docs.example.com'],
+          savedInProjects: [],
+          subCategories: ['Docs'],
+          projectCategories: ['Reading'],
+          parentCategories: ['Work'],
+        },
+        {
+          id: '6',
+          url: 'https://app.example.org/b',
+          title: 'App Entry 2',
+          domain: 'app.example.org',
+          savedAt: NOW - 8 * DAY_MS,
+          savedInTabGroups: ['app.example.org'],
+          savedInProjects: [],
+          subCategories: ['Ops'],
+          projectCategories: ['Review'],
+          parentCategories: ['Operations'],
+        },
+      ],
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'timeTop',
+        limit: 2,
+        mode: 'both',
+        timeBucket: 'day',
+        timeRange: '30d',
+      },
+      {
+        now: NOW,
+      },
+    )
+
+    expect(result.chartSpecs[0]?.data).toEqual([
+      { count: 2, label: '2026-03-06' },
+      { count: 2, label: '2026-03-13' },
+    ])
+  })
+
+  it('旧 time クエリは時系列（直近）として扱う', () => {
+    const result = generateAnalyticsResult(
+      records,
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'time' as never,
+        limit: 1,
+        mode: 'both',
+        timeBucket: 'day',
+        timeRange: '30d',
+      },
+      {
+        now: NOW,
+      },
+    )
+
+    expect(result.chartSpecs[0]?.data).toEqual([
+      { count: 1, label: '2026-03-13' },
+    ])
   })
 
   it('include/exclude と percent 正規化を適用できる', () => {

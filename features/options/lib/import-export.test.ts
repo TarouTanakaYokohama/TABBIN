@@ -769,7 +769,7 @@ describe('import-export ユーティリティ', () => {
       id: 'analytics-view-added',
       name: 'Added View',
       query: buildAnalyticsQuery({
-        groupBy: 'time',
+        groupBy: 'timeRecent',
         timeBucket: 'week',
       }),
       updatedAt: 31,

@@ -11,7 +11,8 @@ type AnalyticsGroupBy =
   | 'project'
   | 'projectCategory'
   | 'subCategory'
-  | 'time'
+  | 'timeRecent'
+  | 'timeTop'
 type AnalyticsTimeRange = '30d' | '365d' | '7d' | '90d' | 'all' | 'custom'
 type AnalyticsTimeBucket = 'day' | 'month' | 'week'
 type AnalyticsSort = 'label-asc' | 'label-desc' | 'value-asc' | 'value-desc'
@@ -49,6 +50,12 @@ interface AnalyticsQuery {
   timeBucket: AnalyticsTimeBucket
   timeRange: AnalyticsTimeRange
   title?: string
+}
+
+type LegacyAnalyticsGroupBy = AnalyticsGroupBy | 'time'
+
+type AnalyticsQueryInput = Omit<AnalyticsQuery, 'groupBy'> & {
+  groupBy: LegacyAnalyticsGroupBy
 }
 
 interface AnalyticsPreset {
@@ -113,6 +120,13 @@ const getDefaultAnalyticsQuery = (): AnalyticsQuery => ({
   stacked: false,
   timeBucket: 'day',
   timeRange: 'all',
+})
+
+const normalizeAnalyticsQuery = (
+  query: AnalyticsQueryInput,
+): AnalyticsQuery => ({
+  ...query,
+  groupBy: query.groupBy === 'time' ? 'timeRecent' : query.groupBy,
 })
 
 const parseLocalDateString = (value: string | undefined): number | null => {
@@ -315,7 +329,8 @@ const getLabelsForGroup = (
       return record.projectCategories.length > 0
         ? record.projectCategories
         : [UNCATEGORIZED_LABEL]
-    case 'time':
+    case 'timeRecent':
+    case 'timeTop':
       return [getTimeBucketLabel(record.savedAt, 'day')]
   }
 }
@@ -332,7 +347,8 @@ const getSingleSeriesTitle = (groupBy: AnalyticsGroupBy): string => {
       return 'プロジェクト別の保存数'
     case 'projectCategory':
       return 'プロジェクトカテゴリ別の保存数'
-    case 'time':
+    case 'timeRecent':
+    case 'timeTop':
       return '日別の保存推移'
   }
 }
@@ -356,17 +372,53 @@ const getNormalizedCount = (count: number, total: number): number => {
   return Math.round((count / total) * 100)
 }
 
+const sortTimeEntriesByTotalDesc = (
+  entries: Array<{ count: number; label: string }>,
+) => {
+  entries.sort(
+    (left, right) =>
+      right.count - left.count || left.label.localeCompare(right.label, 'ja'),
+  )
+}
+
+const getTimeGroupByVariant = (
+  groupBy: AnalyticsGroupBy,
+): 'timeRecent' | 'timeTop' | null => {
+  if (groupBy === 'timeRecent' || groupBy === 'timeTop') {
+    return groupBy
+  }
+
+  return null
+}
+
+const getLimitedTimeEntries = <T extends { count: number; label: string }>(
+  entries: T[],
+  groupBy: 'timeRecent' | 'timeTop',
+  limit: number,
+): T[] => {
+  if (groupBy === 'timeRecent') {
+    sortEntries(entries, 'label-asc')
+    return entries.slice(-limit)
+  }
+
+  sortTimeEntriesByTotalDesc(entries)
+  const limitedEntries = entries.slice(0, limit)
+  sortEntries(limitedEntries, 'label-asc')
+  return limitedEntries
+}
+
 const createSingleSeriesChart = (
   filteredRecords: AiSavedUrlRecord[],
   query: AnalyticsQuery,
 ): AiChartSpec => {
   const bucketMap = new Map<string, number>()
+  const timeGroupBy = getTimeGroupByVariant(query.groupBy)
+  const isTimeSeries = timeGroupBy !== null
 
   for (const record of filteredRecords) {
-    const labels =
-      query.groupBy === 'time'
-        ? [getTimeBucketLabel(record.savedAt, query.timeBucket)]
-        : getLabelsForGroup(record, query.groupBy)
+    const labels = isTimeSeries
+      ? [getTimeBucketLabel(record.savedAt, query.timeBucket)]
+      : getLabelsForGroup(record, query.groupBy)
 
     for (const label of labels) {
       bucketMap.set(label, (bucketMap.get(label) ?? 0) + 1)
@@ -377,10 +429,12 @@ const createSingleSeriesChart = (
     count,
     label,
   }))
-  sortEntries(entries, query.groupBy === 'time' ? 'label-asc' : query.sort)
-
-  const limitedEntries =
-    query.groupBy === 'time' ? entries : entries.slice(0, query.limit)
+  const limitedEntries = isTimeSeries
+    ? getLimitedTimeEntries(entries, timeGroupBy, query.limit)
+    : (() => {
+        sortEntries(entries, query.sort)
+        return entries.slice(0, query.limit)
+      })()
   const total = limitedEntries.reduce((sum, entry) => sum + entry.count, 0)
   const data = limitedEntries.map(entry => ({
     count: query.normalize
@@ -404,7 +458,7 @@ const createSingleSeriesChart = (
     stacked: query.stacked,
     title:
       query.title ??
-      (query.groupBy === 'time'
+      (isTimeSeries
         ? getTimeTitle(query.timeBucket)
         : getSingleSeriesTitle(query.groupBy)),
     type: query.chartType,
@@ -417,16 +471,8 @@ const createModeComparisonChart = (
   filteredRecords: AiSavedUrlRecord[],
   query: AnalyticsQuery,
 ): AiChartSpec => {
-  const labels =
-    query.groupBy === 'time'
-      ? [
-          ...new Set(
-            filteredRecords.map(record =>
-              getTimeBucketLabel(record.savedAt, query.timeBucket),
-            ),
-          ),
-        ].sort()
-      : []
+  const timeGroupBy = getTimeGroupByVariant(query.groupBy)
+  const isTimeSeries = timeGroupBy !== null
   const buckets = new Map<
     string,
     {
@@ -435,18 +481,10 @@ const createModeComparisonChart = (
     }
   >()
 
-  for (const label of labels) {
-    buckets.set(label, {
-      custom: 0,
-      domain: 0,
-    })
-  }
-
   for (const record of filteredRecords) {
-    const label =
-      query.groupBy === 'time'
-        ? getTimeBucketLabel(record.savedAt, query.timeBucket)
-        : record.domain
+    const label = isTimeSeries
+      ? getTimeBucketLabel(record.savedAt, query.timeBucket)
+      : record.domain
     const current = buckets.get(label) ?? {
       custom: 0,
       domain: 0,
@@ -463,12 +501,21 @@ const createModeComparisonChart = (
     buckets.set(label, current)
   }
 
-  const rawData = [...buckets.entries()]
-    .sort(([left], [right]) => left.localeCompare(right, 'ja'))
-    .map(([label, counts]) => ({
-      ...counts,
-      label,
-    }))
+  const entries = [...buckets.entries()].map(([label, counts]) => ({
+    count: counts.custom + counts.domain,
+    counts,
+    label,
+  }))
+  const limitedEntries = isTimeSeries
+    ? getLimitedTimeEntries(entries, timeGroupBy, query.limit)
+    : (() => {
+        sortEntries(entries, query.sort)
+        return entries.slice(0, query.limit)
+      })()
+  const rawData = limitedEntries.map(({ counts, label }) => ({
+    ...counts,
+    label,
+  }))
   const data = query.normalize
     ? rawData.map(entry => {
         const total = entry.domain + entry.custom
@@ -505,31 +552,32 @@ const createModeComparisonChart = (
 
 const generateAnalyticsResult = (
   records: AiSavedUrlRecord[],
-  query: AnalyticsQuery,
+  query: AnalyticsQueryInput,
   options: GenerateAnalyticsResultOptions = {},
 ): AnalyticsResult => {
+  const normalizedQuery = normalizeAnalyticsQuery(query)
   const now = options.now ?? Date.now()
   const filteredRecords = records.filter(
     record =>
-      matchesMode(record, query.mode) &&
+      matchesMode(record, normalizedQuery.mode) &&
       isWithinTimeRange(
         record.savedAt,
-        query.customDateRange,
-        query.timeRange,
+        normalizedQuery.customDateRange,
+        normalizedQuery.timeRange,
         now,
       ) &&
-      matchesFilters(record, query.filters),
+      matchesFilters(record, normalizedQuery.filters),
   )
 
   const chartSpec =
-    query.compareBy === 'mode'
-      ? createModeComparisonChart(filteredRecords, query)
-      : createSingleSeriesChart(filteredRecords, query)
+    normalizedQuery.compareBy === 'mode'
+      ? createModeComparisonChart(filteredRecords, normalizedQuery)
+      : createSingleSeriesChart(filteredRecords, normalizedQuery)
 
   return {
     chartSpecs: [chartSpec],
     filteredRecordCount: filteredRecords.length,
-    query,
+    query: normalizedQuery,
     summary: `${filteredRecords.length} 件の保存データから ${chartSpec.title} を作成しました。`,
   }
 }
@@ -556,7 +604,7 @@ const getAnalyticsPresets = (): AnalyticsPreset[] => [
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'line',
-      groupBy: 'time',
+      groupBy: 'timeRecent',
       timeBucket: 'day',
       timeRange: '30d',
     },
@@ -569,7 +617,7 @@ const getAnalyticsPresets = (): AnalyticsPreset[] => [
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'area',
-      groupBy: 'time',
+      groupBy: 'timeRecent',
       timeBucket: 'month',
       timeRange: '365d',
     },
@@ -631,7 +679,7 @@ const getAnalyticsPresets = (): AnalyticsPreset[] => [
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'line',
-      groupBy: 'time',
+      groupBy: 'timeRecent',
       timeBucket: 'day',
       timeRange: '7d',
     },
@@ -644,7 +692,7 @@ const getAnalyticsPresets = (): AnalyticsPreset[] => [
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'area',
-      groupBy: 'time',
+      groupBy: 'timeRecent',
       mode: 'custom',
       timeBucket: 'month',
       timeRange: '365d',
@@ -659,7 +707,7 @@ const getAnalyticsPresets = (): AnalyticsPreset[] => [
       ...getDefaultAnalyticsQuery(),
       chartType: 'line',
       compareBy: 'mode',
-      groupBy: 'time',
+      groupBy: 'timeRecent',
       mode: 'both',
       timeBucket: 'day',
       timeRange: '30d',
@@ -685,4 +733,5 @@ export {
   generateAnalyticsResult,
   getAnalyticsPresets,
   getDefaultAnalyticsQuery,
+  normalizeAnalyticsQuery,
 }
