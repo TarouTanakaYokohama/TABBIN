@@ -1,14 +1,13 @@
+import '../assets/global.css'
 import type { Preview } from '@storybook/react'
+import {
+  previewDecorators,
+  previewGlobalTypes,
+  previewParameters,
+} from '../lib/storybook/preview'
 
-const preview: Preview = {
-  parameters: {
-    controls: {
-      matchers: {
-        color: /(background|color)$/i,
-        date: /Date$/i,
-      },
-    },
-  },
-}
-
-export default preview
+export default {
+  decorators: previewDecorators,
+  globalTypes: previewGlobalTypes,
+  parameters: previewParameters,
+} satisfies Preview
