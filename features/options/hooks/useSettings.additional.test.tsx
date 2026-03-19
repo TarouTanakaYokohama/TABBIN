@@ -166,6 +166,59 @@ describe('useSettings の追加分岐', () => {
     })
   })
 
+  it('addExcludePattern は trim 後に重複する値を追加しない', async () => {
+    vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
+    vi.mocked(saveUserSettings).mockResolvedValue(undefined)
+
+    const { result } = renderHook(() => useSettings())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    act(() => {
+      result.current.handleExcludePatternInputChange({
+        target: { value: ' chrome:// ' },
+      } as ChangeEvent<HTMLInputElement>)
+    })
+
+    let success = true
+    await act(async () => {
+      success = await result.current.addExcludePattern()
+    })
+
+    expect(success).toBe(false)
+    expect(result.current.excludePatternInput).toBe(' chrome:// ')
+    expect(result.current.settings.excludePatterns).toEqual(
+      defaultSettings.excludePatterns,
+    )
+    expect(saveUserSettings).not.toHaveBeenCalled()
+  })
+
+  it('removeExcludePattern は対象のみ削除して保存する', async () => {
+    vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
+    vi.mocked(saveUserSettings).mockResolvedValue(undefined)
+
+    const { result } = renderHook(() => useSettings())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    await act(async () => {
+      await result.current.removeExcludePattern('chrome://')
+    })
+
+    expect(result.current.settings.excludePatterns).toEqual([
+      'chrome-extension://',
+    ])
+    expect(saveUserSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        excludePatterns: ['chrome-extension://'],
+      }),
+    )
+  })
+
   it('local 以外の領域からのストレージ更新を無視する', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
 

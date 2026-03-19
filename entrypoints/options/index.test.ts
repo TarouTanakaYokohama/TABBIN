@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/features/options/hooks/useSettings', () => ({
   useSettings: () => ({
+    addExcludePattern: vi.fn(),
+    excludePatternInput: '',
+    handleExcludePatternInputChange: vi.fn(),
     settings: {
       aiChatEnabled: false,
       aiProvider: 'none',
@@ -22,11 +25,11 @@ vi.mock('@/features/options/hooks/useSettings', () => ({
       removeTabAfterOpen: true,
       showSavedTime: false,
     },
+    removeExcludePattern: vi.fn(),
     setSettings: vi.fn(),
+    setExcludePatternInput: vi.fn(),
     isLoading: false,
     updateSetting: vi.fn(),
-    handleExcludePatternsChange: vi.fn(),
-    handleExcludePatternsBlur: vi.fn(),
   }),
 }))
 
