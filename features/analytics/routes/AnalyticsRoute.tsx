@@ -50,7 +50,7 @@ const defaultAnalyticsQuery = getDefaultAnalyticsQuery()
 const analyticsGroupByOptions = [
   { label: 'ドメイン', value: 'domain' },
   { label: '時系列（直近）', value: 'timeRecent' },
-  { label: '時系列（件数順）', value: 'timeTop' },
+  { label: '時系列（件数）', value: 'timeTop' },
   { label: '親カテゴリ', value: 'parentCategory' },
   { label: '子カテゴリ', value: 'subCategory' },
   { label: 'プロジェクト', value: 'project' },

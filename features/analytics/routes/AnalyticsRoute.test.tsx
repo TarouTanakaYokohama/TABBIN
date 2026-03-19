@@ -434,9 +434,7 @@ describe('AnalyticsRoute', () => {
     await screen.findByText('分析条件')
 
     expect(screen.getByRole('option', { name: '時系列（直近）' })).toBeTruthy()
-    expect(
-      screen.getByRole('option', { name: '時系列（件数順）' }),
-    ).toBeTruthy()
+    expect(screen.getByRole('option', { name: '時系列（件数）' })).toBeTruthy()
   })
 
   it('保存済みビューの旧 time は時系列（直近）として読み込む', async () => {
