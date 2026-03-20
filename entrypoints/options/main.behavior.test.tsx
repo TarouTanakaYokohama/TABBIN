@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createElement } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { OptionsPage } from '@/features/options/routes/OptionsRoute'
 import type { UserSettings } from '@/types/storage'
 
 const mocked = vi.hoisted(() => ({
   addExcludePattern: vi.fn(),
   confirmationConfirm: vi.fn(),
-  createRoot: vi.fn(),
   handleCategoryKeyDown: vi.fn(),
   handleColorChange: vi.fn(),
   handleExcludePatternInputChange: vi.fn(),
@@ -17,9 +17,8 @@ const mocked = vi.hoisted(() => ({
   hideConfirmation: vi.fn(),
   inputProps: [] as Record<string, unknown>[],
   removeExcludePattern: vi.fn(),
-  renderRoot: vi.fn(),
-  setExcludePatternInput: vi.fn(),
   selectContentProps: [] as Record<string, unknown>[],
+  setExcludePatternInput: vi.fn(),
   setSettings: vi.fn(),
   settings: {
     aiChatEnabled: true,
@@ -64,18 +63,8 @@ const mocked = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('react-dom/client', () => ({
-  createRoot: mocked.createRoot,
-}))
-
 vi.mock('@/components/mode-toggle', () => ({
   ModeToggle: () => createElement('div', null, 'ModeToggle'),
-}))
-
-vi.mock('@/components/theme-provider', () => ({
-  ThemeProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
 }))
 
 vi.mock('@/components/ui/button', () => ({
@@ -134,15 +123,6 @@ vi.mock('@/components/ui/label', () => ({
       {children}
     </label>
   ),
-}))
-
-vi.mock('@/components/ui/scroll-area', () => ({
-  ScrollArea: ({
-    children,
-    ...props
-  }: {
-    children: React.ReactNode
-  } & Record<string, unknown>) => <div {...props}>{children}</div>,
 }))
 
 vi.mock('@/components/ui/select', () => ({
@@ -225,11 +205,8 @@ vi.mock('@/features/options/hooks/useAutoDeletePeriod', () => ({
   useAutoDeletePeriod: () => mocked.useAutoDeletePeriodResult,
 }))
 
-const importModule = async () => {
+const importBootstrapModule = async () => {
   vi.resetModules()
-  mocked.createRoot.mockReturnValue({
-    render: mocked.renderRoot,
-  })
   return import('./main')
 }
 
@@ -239,7 +216,6 @@ const resetHookState = () => {
   mocked.handleResetColors.mockReset()
   mocked.hideConfirmation.mockReset()
   mocked.inputProps = []
-  mocked.renderRoot.mockReset()
   mocked.selectContentProps = []
   mocked.addExcludePattern.mockResolvedValue(true)
   mocked.removeExcludePattern.mockResolvedValue(undefined)
@@ -267,11 +243,10 @@ const resetHookState = () => {
   }
 }
 
-describe('options main behavior', () => {
+describe('options route behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     resetHookState()
-    document.body.innerHTML = ''
     const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
     chromeGlobal.chrome = {
       runtime: {
@@ -281,23 +256,15 @@ describe('options main behavior', () => {
     vi.spyOn(window, 'open').mockImplementation(vi.fn() as never)
   })
 
-  afterEach(() => {
-    vi.unstubAllEnvs()
-    vi.restoreAllMocks()
-  })
-
-  it('loading 中はローディング表示を返す', async () => {
+  it('loading 中はローディング表示を返す', () => {
     mocked.useSettingsResult.isLoading = true
-    const { OptionsPage } = await importModule()
 
     render(createElement(OptionsPage))
 
     expect(screen.getByText('読み込み中...')).toBeTruthy()
   })
 
-  it('各種ハンドラを UI から呼び出す', async () => {
-    const { OptionsPage } = await importModule()
-
+  it('各種ハンドラを UI から呼び出す', () => {
     render(createElement(OptionsPage))
 
     fireEvent.click(
@@ -348,8 +315,6 @@ describe('options main behavior', () => {
     expect(mocked.updateSetting).toHaveBeenCalledWith('confirmDeleteEach', true)
     expect(mocked.updateSetting).toHaveBeenCalledWith('confirmDeleteAll', true)
 
-    expect(screen.queryByText('タブの自動削除期間')).toBeNull()
-
     const excludeInput = screen.getByPlaceholderText('例: chrome-extension://')
     fireEvent.change(excludeInput, {
       target: { value: 'https://example.com' },
@@ -394,37 +359,40 @@ describe('options main behavior', () => {
       'chrome-extension://id/changelog.html',
       '_blank',
     )
-  }, 10000)
-
-  it('production import で console を抑制し、DOMContentLoaded で mount する', async () => {
-    let domReadyHandler: EventListener | undefined
-    const originalLog = console.log
-    const originalDebug = console.debug
-
-    vi.stubEnv('DEV', false)
-    vi.spyOn(document, 'addEventListener').mockImplementation(((
-      type: string,
-      callback: EventListenerOrEventListenerObject | null,
-    ) => {
-      if (type === 'DOMContentLoaded' && typeof callback === 'function') {
-        domReadyHandler = callback
-      }
-    }) as typeof document.addEventListener)
-
-    await importModule()
-    expect(console.log).not.toBe(originalLog)
-    expect(console.debug).not.toBe(originalDebug)
-
-    document.body.innerHTML = '<div id="options-app"></div>'
-    domReadyHandler?.(new Event('DOMContentLoaded'))
-
-    expect(mocked.createRoot).toHaveBeenCalledWith(
-      document.getElementById('options-app'),
-    )
-    expect(mocked.renderRoot).toHaveBeenCalledTimes(1)
   })
 
-  it('options-app 要素が無ければ例外を投げる', async () => {
+  it('Enter 以外のキー入力では除外パターンを追加しない', () => {
+    render(createElement(OptionsPage))
+
+    fireEvent.keyDown(
+      screen.getAllByPlaceholderText(
+        '例: chrome-extension://',
+      )[0] as HTMLElement,
+      {
+        key: 'Escape',
+      },
+    )
+
+    expect(mocked.addExcludePattern).not.toHaveBeenCalled()
+  })
+})
+
+describe('options bootstrap redirect', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('redirect helper は options entrypoint を app route へ変換する', async () => {
+    const { redirectToApp } = await importBootstrapModule()
+    const replace = vi.fn()
+
+    expect(redirectToApp('/options.html', '', replace)).toBe(
+      'app.html#/options',
+    )
+    expect(replace).toHaveBeenCalledWith('app.html#/options')
+  })
+
+  it('DOMContentLoaded の redirect handler を登録する', async () => {
     let domReadyHandler: EventListener | undefined
 
     vi.spyOn(document, 'addEventListener').mockImplementation(((
@@ -436,10 +404,8 @@ describe('options main behavior', () => {
       }
     }) as typeof document.addEventListener)
 
-    await importModule()
+    await importBootstrapModule()
 
-    expect(() => domReadyHandler?.(new Event('DOMContentLoaded'))).toThrow(
-      'Failed to find the options app container',
-    )
+    expect(domReadyHandler).toBeTypeOf('function')
   })
 })

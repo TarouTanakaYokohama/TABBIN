@@ -244,13 +244,10 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
       to: getAppRoute(item.id),
     })),
   ]
-  const optionItem: RailItem = {
-    href: 'options.html',
+  const optionItem = {
     icon: Wrench,
-    isActive: false,
+    id: 'options' as const,
     label: 'オプション',
-    rel: 'noreferrer',
-    target: '_blank',
   }
 
   return (
@@ -395,7 +392,12 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
         )}
       >
         {isIconCollapsed ? (
-          <IconRailLink {...optionItem} />
+          <IconRailLink
+            icon={optionItem.icon}
+            isActive={state.item === optionItem.id}
+            label={optionItem.label}
+            to={getAppRoute(optionItem.id)}
+          />
         ) : (
           <SidebarMenu>
             <SidebarMenuItem>
@@ -404,18 +406,16 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
                 tooltip='オプション'
                 asChild
               >
-                <a
-                  aria-label='オプション'
-                  className={expandedNavLinkClass}
-                  href='options.html'
-                  target='_blank'
-                  rel='noreferrer'
+                <LinkLabel
+                  to={getAppRoute(optionItem.id)}
+                  isActive={state.item === optionItem.id}
+                  label={optionItem.label}
                 >
-                  <Wrench className='size-5 shrink-0' />
+                  <optionItem.icon className='size-5 shrink-0' />
                   <span className='group-data-[collapsible=icon]:hidden'>
-                    オプション
+                    {optionItem.label}
                   </span>
-                </a>
+                </LinkLabel>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

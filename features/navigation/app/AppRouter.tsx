@@ -14,6 +14,7 @@ import {
   getSavedTabsEntryRoute,
   getSavedTabsHrefForMode,
 } from '@/features/navigation/lib/pageNavigation'
+import { OptionsRoute } from '@/features/options/routes/OptionsRoute'
 import { PeriodicExecutionRoute } from '@/features/periodic-execution/routes/PeriodicExecutionRoute'
 import { SavedTabsRoute } from '@/features/saved-tabs/routes/SavedTabsRoute'
 import { getViewMode } from '@/lib/storage/projects'
@@ -88,6 +89,7 @@ const AppRoutes = () => (
       <Route path='/saved-tabs' element={<SavedTabsRoutePage />} />
       <Route path='/ai-chat' element={<AiChatRoute />} />
       <Route path='/analytics' element={<AnalyticsRoute />} />
+      <Route path='/options' element={<OptionsRoute />} />
       <Route path='/periodic-execution' element={<PeriodicExecutionRoute />} />
       <Route
         path='*'
