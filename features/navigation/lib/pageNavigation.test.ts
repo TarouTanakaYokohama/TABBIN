@@ -57,11 +57,22 @@ describe('pageNavigation', () => {
       expandedGroup: 'tab-list',
       item: 'analytics',
     })
+
+    expect(getSidebarStateFromLocation('/options.html', '')).toEqual({
+      expandedGroup: 'tab-list',
+      item: 'options',
+    })
+
+    expect(getSidebarStateFromLocation('/options', '')).toEqual({
+      expandedGroup: 'tab-list',
+      item: 'options',
+    })
   })
 
   it('SPA 内部ルートを組み立てる', () => {
     expect(getAppRoute('ai-chat')).toBe('/ai-chat')
     expect(getAppRoute('analytics')).toBe('/analytics')
+    expect(getAppRoute('options')).toBe('/options')
     expect(getAppRoute('periodic-execution')).toBe('/periodic-execution')
     expect(getAppRoute('saved-tabs-domain')).toBe('/saved-tabs?mode=domain')
     expect(getAppRoute('saved-tabs-custom')).toBe('/saved-tabs?mode=custom')
@@ -71,6 +82,7 @@ describe('pageNavigation', () => {
   it('各ページへの href を組み立てる', () => {
     expect(getPageHref('ai-chat')).toBe('ai-chat.html')
     expect(getPageHref('analytics')).toBe('analytics.html')
+    expect(getPageHref('options')).toBe('options.html')
     expect(getPageHref('periodic-execution')).toBe('periodic-execution.html')
     expect(getPageHref('saved-tabs-domain')).toBe('saved-tabs.html?mode=domain')
     expect(getPageHref('saved-tabs-custom')).toBe('saved-tabs.html?mode=custom')
@@ -99,6 +111,7 @@ describe('pageNavigation', () => {
     expect(getLegacyRedirectHref('/analytics.html', '')).toBe(
       'app.html#/analytics',
     )
+    expect(getLegacyRedirectHref('/options.html', '')).toBe('app.html#/options')
     expect(getLegacyRedirectHref('/periodic-execution.html', '')).toBe(
       'app.html#/periodic-execution',
     )

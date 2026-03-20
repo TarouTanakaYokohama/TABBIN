@@ -107,7 +107,7 @@ describe('ExtensionSidebar', () => {
     expect(source).not.toContain('<button')
   })
 
-  it('タブ一覧を先頭に表示し、オプションをフッター最下部に表示する', () => {
+  it('タブ一覧を先頭に表示し、オプションをフッター最下部の内部ナビとして表示する', () => {
     render(
       <ExtensionSidebar
         state={{
@@ -128,7 +128,27 @@ describe('ExtensionSidebar', () => {
     expect(footer.textContent).toContain('オプション')
     expect(
       screen.getByRole('link', { name: 'オプション' }).getAttribute('href'),
-    ).toBe('options.html')
+    ).toBe('app.html#/options')
+  })
+
+  it('options が active のときオプションだけを current page にする', () => {
+    render(
+      <ExtensionSidebar
+        state={{
+          expandedGroup: 'tab-list',
+          item: 'options',
+        }}
+      />,
+    )
+
+    expect(
+      screen
+        .getByRole('link', { name: 'オプション' })
+        .getAttribute('aria-current'),
+    ).toBe('page')
+    expect(
+      screen.getByRole('link', { name: '分析' }).getAttribute('aria-current'),
+    ).toBeNull()
   })
 
   it('タブ一覧の親アイコンは共通入口へ飛ぶ', () => {

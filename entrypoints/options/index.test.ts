@@ -71,7 +71,7 @@ vi.mock('@/components/ui/sonner', () => ({
   Toaster: () => createElement('div', null, 'Toaster'),
 }))
 
-import { OptionsPage } from './main'
+import { OptionsPage } from '@/features/options/routes/OptionsRoute'
 
 describe('オプションページ', () => {
   it('AI チャット設定セクションを表示しない', () => {
