@@ -4,6 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CustomProjectCardProps } from '@/features/saved-tabs/types/CustomProjectCard.types'
 import type { UserSettings } from '@/types/storage'
 
+const projectCardRootI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 const {
   useSortableMock,
   useDroppableMock,
@@ -93,6 +97,27 @@ vi.mock('../../contexts/DragHandlersContext', () => ({
   }),
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: projectCardRootI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(projectCardRootI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
+
 import { ProjectCardRoot } from './ProjectCardRoot'
 
 const defaultSettings: UserSettings = {
@@ -179,6 +204,7 @@ const createHookState = (params?: {
 describe('ProjectCardRoot', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    projectCardRootI18nState.language = 'ja'
 
     useSortableMock.mockReturnValue({
       setNodeRef: vi.fn(),
@@ -308,6 +334,44 @@ describe('ProjectCardRoot', () => {
     expect(
       screen.getByTestId('card').className.includes('border-primary'),
     ).toBe(true)
+  })
+
+  it('renders English loading and empty copy when the display language is en', () => {
+    projectCardRootI18nState.language = 'en'
+    useCustomProjectCardMock.mockReturnValue(
+      createHookState({
+        isLoadingUrls: true,
+      }),
+    )
+
+    const { rerender } = render(
+      <ProjectCardRoot {...createProps()}>
+        <div>children</div>
+      </ProjectCardRoot>,
+    )
+
+    expect(screen.getByText('Loading tabs...')).toBeTruthy()
+
+    useCustomProjectCardMock.mockReturnValue(
+      createHookState({
+        isLoadingUrls: false,
+        projectUrlsLength: 0,
+      }),
+    )
+
+    rerender(
+      <ProjectCardRoot {...createProps()}>
+        <div>children</div>
+      </ProjectCardRoot>,
+    )
+
+    const description = screen
+      .getByTestId('card-content')
+      .querySelector('.py-4.text-center.text-muted-foreground')
+    expect(description?.textContent).toContain('This project has no tabs.')
+    expect(description?.textContent).toContain(
+      'Save tabs from the extension icon or add them from the context menu.',
+    )
   })
 
   it('ドラッグ中スタイルと外部ドロップ誘導のタイトルfallbackを表示する', () => {

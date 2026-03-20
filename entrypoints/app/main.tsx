@@ -1,14 +1,17 @@
 import '@/assets/global.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { I18nProvider } from '@/features/i18n/context/I18nProvider'
 import { AppRouter } from '@/features/navigation/app/AppRouter'
 import { mountToElement } from '@/lib/react/render-root'
 
 const AppPage = () => {
   return (
-    <TooltipProvider>
-      <AppRouter />
-    </TooltipProvider>
+    <I18nProvider>
+      <TooltipProvider>
+        <AppRouter />
+      </TooltipProvider>
+    </I18nProvider>
   )
 }
 

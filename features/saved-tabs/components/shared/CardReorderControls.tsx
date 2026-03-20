@@ -1,6 +1,7 @@
 import { Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { cn } from '@/lib/utils'
 import {
   SavedTabsResponsiveLabel,
@@ -32,12 +33,16 @@ export const CardReorderControls = ({
   onCancel,
   onConfirm,
   className,
-  cancelLabel = '並び替えをキャンセル',
-  confirmLabel = '並び替えを確定',
+  cancelLabel,
+  confirmLabel,
 }: CardReorderControlsProps) => {
+  const { t } = useI18n()
   if (!isReorderMode) {
     return null
   }
+  const resolvedCancelLabel = cancelLabel ?? t('savedTabs.reorder.cancelAria')
+  const resolvedConfirmLabel =
+    confirmLabel ?? t('savedTabs.reorder.confirmAria')
 
   return (
     <div className={cn('flex shrink-0 items-center gap-2', className)}>
@@ -48,14 +53,16 @@ export const CardReorderControls = ({
             size='sm'
             onClick={onCancel}
             className='flex cursor-pointer items-center gap-1'
-            aria-label={cancelLabel}
+            aria-label={resolvedCancelLabel}
           >
             <X size={14} />
-            <SavedTabsResponsiveLabel>キャンセル</SavedTabsResponsiveLabel>
+            <SavedTabsResponsiveLabel>
+              {t('savedTabs.reorder.cancel')}
+            </SavedTabsResponsiveLabel>
           </Button>
         </TooltipTrigger>
         <SavedTabsResponsiveTooltipContent side='top'>
-          並び替えをキャンセル
+          {resolvedCancelLabel}
         </SavedTabsResponsiveTooltipContent>
       </Tooltip>
 
@@ -66,14 +73,16 @@ export const CardReorderControls = ({
             size='sm'
             onClick={onConfirm}
             className='flex cursor-pointer items-center gap-1'
-            aria-label={confirmLabel}
+            aria-label={resolvedConfirmLabel}
           >
             <Check size={14} />
-            <SavedTabsResponsiveLabel>確定</SavedTabsResponsiveLabel>
+            <SavedTabsResponsiveLabel>
+              {t('savedTabs.reorder.confirm')}
+            </SavedTabsResponsiveLabel>
           </Button>
         </TooltipTrigger>
         <SavedTabsResponsiveTooltipContent side='top'>
-          並び替えを確定
+          {resolvedConfirmLabel}
         </SavedTabsResponsiveTooltipContent>
       </Tooltip>
     </div>

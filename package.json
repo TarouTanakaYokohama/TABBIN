@@ -59,6 +59,7 @@
     "@streamdown/mermaid": "^1.0.2",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-virtual": "^3.13.23",
+    "@wxt-dev/i18n": "^0.2.5",
     "@xyflow/react": "^12.10.1",
     "ai": "^6.0.116",
     "ai-sdk-ollama": "^3.8.1",

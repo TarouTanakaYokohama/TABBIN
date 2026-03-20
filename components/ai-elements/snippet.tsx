@@ -17,6 +17,7 @@ import {
   InputGroupInput,
   InputGroupText,
 } from '@/components/ui/input-group'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 interface SnippetContextType {
@@ -91,6 +92,7 @@ export const SnippetCopyButton = ({
   className,
   ...props
 }: SnippetCopyButtonProps) => {
+  const t = useI18nText()
   const [isCopied, setIsCopied] = useState(false)
   const timeoutRef = useRef<number>(0)
   const { code } = useContext(SnippetContext)
@@ -127,11 +129,11 @@ export const SnippetCopyButton = ({
 
   return (
     <InputGroupButton
-      aria-label='Copy'
+      aria-label={t('common.copy')}
       className={className}
       onClick={copyToClipboard}
       size='icon-sm'
-      title='Copy'
+      title={t('common.copy')}
       {...props}
     >
       {children ?? <Icon className='size-3.5' size={14} />}

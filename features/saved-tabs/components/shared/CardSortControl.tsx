@@ -1,6 +1,7 @@
 import { ArrowUpDown, ArrowUpNarrowWide, ArrowUpWideNarrow } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { SortOrder } from '../../hooks/useSortOrder'
 import { SavedTabsResponsiveTooltipContent } from './SavedTabsResponsive'
 
@@ -24,11 +25,12 @@ export const CardSortControl = ({
   setSortOrder,
   onPointerDown,
 }: CardSortControlProps) => {
-  let label = '保存日時の降順'
+  const { t } = useI18n()
+  let label = t('savedTabs.sort.desc')
   if (sortOrder === 'default') {
-    label = 'デフォルト'
+    label = t('savedTabs.sort.default')
   } else if (sortOrder === 'asc') {
-    label = '保存日時の昇順'
+    label = t('savedTabs.sort.asc')
   }
 
   let icon = <ArrowUpWideNarrow size={14} />

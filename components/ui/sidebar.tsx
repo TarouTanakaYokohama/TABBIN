@@ -12,6 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 
@@ -239,6 +240,8 @@ const Sidebar = React.forwardRef<
     ref,
   ) => {
     const { open, setSidebarWidth, sidebarWidth } = useSidebar()
+    const t = useI18nText()
+    const sidebarResizeLabel = t('sidebar.resize')
     const resizeCleanupRef = React.useRef<(() => void) | null>(null)
     const sidebarWidthRef = React.useRef(sidebarWidth)
     const isIconCollapsed = open && sidebarWidth <= SIDEBAR_WIDTH_ICON_PX
@@ -350,7 +353,7 @@ const Sidebar = React.forwardRef<
         </div>
         <button
           type='button'
-          aria-label='サイドバーの幅を調整'
+          aria-label={sidebarResizeLabel}
           className={cn(
             'relative w-4 shrink-0 touch-none',
             side === 'left' ? 'cursor-col-resize' : 'cursor-col-resize',
@@ -371,6 +374,8 @@ const SidebarTrigger = React.forwardRef<
   React.ComponentProps<typeof Button>
 >(({ className, onClick, ...props }, ref) => {
   const { toggleSidebar } = useSidebar()
+  const t = useI18nText()
+  const sidebarToggleLabel = t('common.toggleSidebar')
 
   return (
     <Button
@@ -386,7 +391,7 @@ const SidebarTrigger = React.forwardRef<
       {...props}
     >
       <PanelLeft />
-      <span className='sr-only'>Toggle Sidebar</span>
+      <span className='sr-only'>{sidebarToggleLabel}</span>
     </Button>
   )
 })
@@ -397,15 +402,17 @@ const SidebarRail = React.forwardRef<
   React.ComponentProps<'button'>
 >(({ className, ...props }, ref) => {
   const { toggleSidebar } = useSidebar()
+  const t = useI18nText()
+  const sidebarToggleLabel = t('common.toggleSidebar')
 
   return (
     <button
       ref={ref}
       data-sidebar='rail'
-      aria-label='Toggle Sidebar'
+      aria-label={sidebarToggleLabel}
       tabIndex={-1}
       onClick={toggleSidebar}
-      title='Toggle Sidebar'
+      title={sidebarToggleLabel}
       className={cn(
         'absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border group-data-[side=left]:-right-4 group-data-[side=right]:left-0 sm:flex',
         'in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize',

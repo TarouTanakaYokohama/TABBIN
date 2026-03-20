@@ -1,4 +1,5 @@
 import { DragOverlay } from '@dnd-kit/core'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { useProjectCard } from './ProjectCardContext'
 
 /**
@@ -6,6 +7,7 @@ import { useProjectCard } from './ProjectCardContext'
  * ドラッグ中のアイテムを半透明で表示する
  */
 export const ProjectCardDragOverlay = () => {
+  const { t } = useI18n()
   const { hookState } = useProjectCard()
   const { urls, dnd } = hookState
 
@@ -25,7 +27,7 @@ export const ProjectCardDragOverlay = () => {
   return (
     <DragOverlay style={{ pointerEvents: 'none' }}>
       <div className='rounded border bg-secondary p-2'>
-        {activeUrl.title || 'タブ'}
+        {activeUrl.title || t('sidebar.tabList')}
       </div>
     </DragOverlay>
   )

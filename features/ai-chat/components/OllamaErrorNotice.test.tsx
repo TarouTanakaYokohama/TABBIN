@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OllamaErrorNotice } from './OllamaErrorNotice'
 
 const mocked = vi.hoisted(() => ({
+  language: 'en' as 'en' | 'ja',
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   writeClipboardText: vi.fn(),
@@ -24,6 +25,27 @@ vi.mock('sonner', () => ({
   },
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: mocked.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(mocked.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
+
 const baseError = {
   allowedOrigins: 'chrome-extension://test-extension-id',
   baseUrl: 'http://localhost:11434',
@@ -34,6 +56,7 @@ const baseError = {
 
 describe('OllamaErrorNotice', () => {
   beforeEach(() => {
+    mocked.language = 'en'
     mocked.toastError.mockReset()
     mocked.toastSuccess.mockReset()
     mocked.writeClipboardText.mockReset()
@@ -51,7 +74,7 @@ describe('OllamaErrorNotice', () => {
     vi.unstubAllGlobals()
   })
 
-  it('copy row に shared ui input を使い、生の input 要素を残さない', () => {
+  it('uses the shared ui input in the copy row and does not leave a raw input element', () => {
     const source = readFileSync(
       resolve(
         dirname(fileURLToPath(import.meta.url)),
@@ -64,7 +87,7 @@ describe('OllamaErrorNotice', () => {
     expect(source).not.toContain('<input')
   })
 
-  it('Windows ではユーザー環境変数ベースの手順を表示する', () => {
+  it('shows the Windows user-environment-variable setup steps', () => {
     render(
       <OllamaErrorNotice
         error={{
@@ -76,23 +99,21 @@ describe('OllamaErrorNotice', () => {
     )
 
     expect(
-      screen.getByText('「システム環境変数の編集」を開きます。'),
+      screen.getByText('Open Edit the system environment variables.'),
     ).toBeTruthy()
     expect(
-      screen.getByText('表示された画面で「環境変数」を押します。'),
+      screen.getByText(
+        'In the window that appears, select Environment Variables.',
+      ),
     ).toBeTruthy()
+    expect(screen.getByText('Under User variables, select New.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Copy value' })).toBeTruthy()
     expect(
-      screen.getByText('「ユーザー環境変数」の「新規」を押します。'),
-    ).toBeTruthy()
-    expect(screen.getByRole('button', { name: '入力値をコピー' })).toBeTruthy()
-    expect(
-      screen
-        .getByRole('button', { name: '入力値をコピー' })
-        .getAttribute('title'),
-    ).toBe('コピー')
+      screen.getByRole('button', { name: 'Copy value' }).getAttribute('title'),
+    ).toBe('Copy')
   })
 
-  it('長文の折り返しとスクロール用 class を持つ', () => {
+  it('has wrapping and scroll classes for long content', () => {
     render(
       <OllamaErrorNotice
         error={{
@@ -104,7 +125,7 @@ describe('OllamaErrorNotice', () => {
     )
 
     const root = screen.getByText(
-      'Ollama が拡張機能からのアクセスを拒否しました (403 Forbidden)。',
+      'Ollama denied access from the extension (403 Forbidden).',
     ).parentElement
 
     expect(root?.className).toContain('max-h-')
@@ -114,7 +135,7 @@ describe('OllamaErrorNotice', () => {
     expect(root?.className).toContain('[&_code]:break-all')
   })
 
-  it('macOS の command row をコピーできる', async () => {
+  it('can copy the macOS command row', async () => {
     render(
       <OllamaErrorNotice
         error={{
@@ -125,7 +146,7 @@ describe('OllamaErrorNotice', () => {
       />,
     )
 
-    const copyButton = screen.getByRole('button', { name: 'コマンドをコピー' })
+    const copyButton = screen.getByRole('button', { name: 'Copy command' })
 
     fireEvent.click(copyButton)
     await Promise.resolve()
@@ -133,11 +154,11 @@ describe('OllamaErrorNotice', () => {
     expect(mocked.writeClipboardText).toHaveBeenCalledWith(
       'launchctl setenv OLLAMA_ORIGINS "chrome-extension://test-extension-id"',
     )
-    expect(mocked.toastSuccess).toHaveBeenCalledWith('コマンドをコピーしました')
+    expect(mocked.toastSuccess).toHaveBeenCalledWith('Copied Copy command')
     await waitFor(() => {
       expect(copyButton.getAttribute('data-state')).toBe('copied')
     })
-    expect(copyButton.getAttribute('title')).toBe('コピーしました')
+    expect(copyButton.getAttribute('title')).toBe('Copied')
 
     await new Promise(resolve => {
       setTimeout(resolve, 2100)
@@ -146,10 +167,10 @@ describe('OllamaErrorNotice', () => {
     await waitFor(() => {
       expect(copyButton.getAttribute('data-state')).toBe('idle')
     })
-    expect(copyButton.getAttribute('title')).toBe('コピー')
+    expect(copyButton.getAttribute('title')).toBe('Copy')
   })
 
-  it('Windows の value row をコピーできる', async () => {
+  it('can copy the Windows value row', async () => {
     render(
       <OllamaErrorNotice
         error={{
@@ -160,7 +181,7 @@ describe('OllamaErrorNotice', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: '入力値をコピー' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy value' }))
 
     await waitFor(() => {
       expect(mocked.writeClipboardText).toHaveBeenCalledWith(
@@ -169,7 +190,7 @@ describe('OllamaErrorNotice', () => {
     })
   })
 
-  it('確認コマンド row をコピーできる', async () => {
+  it('can copy the check command row', async () => {
     render(
       <OllamaErrorNotice
         error={{
@@ -180,9 +201,7 @@ describe('OllamaErrorNotice', () => {
       />,
     )
 
-    fireEvent.click(
-      screen.getByRole('button', { name: '確認コマンドをコピー' }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: 'Copy check command' }))
 
     await waitFor(() => {
       expect(mocked.writeClipboardText).toHaveBeenCalledWith(
@@ -191,7 +210,7 @@ describe('OllamaErrorNotice', () => {
     })
   })
 
-  it('clipboard API がないと error toast を出す', async () => {
+  it('shows an error toast when the clipboard API is unavailable', async () => {
     render(
       <OllamaErrorNotice
         error={{
@@ -207,16 +226,16 @@ describe('OllamaErrorNotice', () => {
       value: undefined,
     })
 
-    fireEvent.click(screen.getByRole('button', { name: '入力値をコピー' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy value' }))
 
     await waitFor(() => {
       expect(mocked.toastError).toHaveBeenCalledWith(
-        '入力値をコピーできませんでした',
+        'Could not copy Copy value',
       )
     })
   })
 
-  it('clipboard 書き込みが失敗すると error toast を出す', async () => {
+  it('shows an error toast when clipboard write fails', async () => {
     mocked.writeClipboardText.mockRejectedValueOnce(new Error('failed'))
 
     render(
@@ -229,13 +248,11 @@ describe('OllamaErrorNotice', () => {
       />,
     )
 
-    fireEvent.click(
-      screen.getByRole('button', { name: '確認コマンドをコピー' }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: 'Copy check command' }))
 
     await waitFor(() => {
       expect(mocked.toastError).toHaveBeenCalledWith(
-        '確認コマンドをコピーできませんでした',
+        'Could not copy Copy check command',
       )
     })
   })

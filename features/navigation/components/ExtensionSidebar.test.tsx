@@ -84,6 +84,25 @@ vi.mock('@/components/ui/tooltip', () => ({
   ),
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    t: (key: string) =>
+      (
+        ({
+          'savedTabs.viewMode.custom': 'Custom mode',
+          'savedTabs.viewMode.domain': 'Domain mode',
+          'sidebar.analytics': '分析',
+          'sidebar.chat': 'チャット',
+          'sidebar.collapse': 'サイドバーを小さくする',
+          'sidebar.open': 'サイドバーを開く',
+          'sidebar.options': 'オプション',
+          'sidebar.periodicExecution': '定期実行',
+          'sidebar.tabList': 'タブ一覧',
+        }) satisfies Record<string, string>
+      )[key] ?? key,
+  }),
+}))
+
 import { ExtensionSidebar } from './ExtensionSidebar'
 
 describe('ExtensionSidebar', () => {
@@ -164,6 +183,20 @@ describe('ExtensionSidebar', () => {
     const tabListLinks = container.querySelectorAll('a[href^="app.html#"]')
 
     expect(tabListLinks[0]?.getAttribute('href')).toBe('app.html#/saved-tabs')
+  })
+
+  it('saved tabs submenu labels also come from i18n keys', () => {
+    render(
+      <ExtensionSidebar
+        state={{
+          expandedGroup: 'tab-list',
+          item: 'saved-tabs-domain',
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: 'Domain mode' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Custom mode' })).toBeTruthy()
   })
 
   it('縮小時は専用 icon rail として同一サイズのボタンを表示する', () => {

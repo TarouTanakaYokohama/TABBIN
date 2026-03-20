@@ -7,6 +7,19 @@ const mocked = vi.hoisted(() => ({
   saveConversationHistory: vi.fn(),
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    language: 'ja',
+    t: (key: string) =>
+      (
+        ({
+          'aiChat.history.startPrompt': '新しい会話を始めてください',
+          'aiChat.newConversation': '新しい会話',
+        }) satisfies Record<string, string>
+      )[key] ?? key,
+  }),
+}))
+
 vi.mock('@/features/ai-chat/lib/conversation-history', () => ({
   buildConversationTitle: (
     messages: Array<{ content: string; role: 'assistant' | 'user' }>,
@@ -137,6 +150,9 @@ describe('useSharedAiChatHistory', () => {
         ]),
       })
     })
+    await waitFor(() => {
+      expect(result.current.activeConversation?.id).toBe('conversation-2')
+    })
 
     act(() => {
       result.current.updateMessages([
@@ -194,6 +210,9 @@ describe('useSharedAiChatHistory', () => {
     act(() => {
       result.current.selectConversation('conversation-1')
     })
+    await waitFor(() => {
+      expect(result.current.activeConversation?.id).toBe('conversation-1')
+    })
 
     act(() => {
       result.current.updateMessages([
@@ -237,6 +256,9 @@ describe('useSharedAiChatHistory', () => {
     act(() => {
       result.current.selectConversation('conversation-2')
     })
+    await waitFor(() => {
+      expect(result.current.activeConversation?.id).toBe('conversation-2')
+    })
 
     act(() => {
       result.current.deleteConversation('conversation-2')
@@ -254,10 +276,12 @@ describe('useSharedAiChatHistory', () => {
       })
     })
 
-    expect(result.current.historyItems.map(item => item.id)).toEqual([
-      'conversation-1',
-    ])
-    expect(result.current.activeConversation?.id).toBe('conversation-1')
+    await waitFor(() => {
+      expect(result.current.historyItems.map(item => item.id)).toEqual([
+        'conversation-1',
+      ])
+      expect(result.current.activeConversation?.id).toBe('conversation-1')
+    })
   })
 
   it('最後の会話を削除すると履歴を空にして新しい会話へ戻す', async () => {
@@ -297,8 +321,10 @@ describe('useSharedAiChatHistory', () => {
       })
     })
 
-    expect(result.current.historyItems).toEqual([])
-    expect(result.current.activeConversation?.id).toBe('new-conversation')
-    expect(result.current.activeConversation?.title).toBe('新しい会話')
+    await waitFor(() => {
+      expect(result.current.historyItems).toEqual([])
+      expect(result.current.activeConversation?.id).toBe('new-conversation')
+      expect(result.current.activeConversation?.title).toBe('新しい会話')
+    })
   })
 })

@@ -18,6 +18,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 import { Shimmer } from './shimmer'
 
@@ -126,17 +127,21 @@ export const PlanFooter = (props: PlanFooterProps) => (
 
 export type PlanTriggerProps = ComponentProps<typeof CollapsibleTrigger>
 
-export const PlanTrigger = ({ className, ...props }: PlanTriggerProps) => (
-  <CollapsibleTrigger asChild>
-    <Button
-      className={cn('size-8', className)}
-      data-slot='plan-trigger'
-      size='icon'
-      variant='ghost'
-      {...props}
-    >
-      <ChevronsUpDownIcon className='size-4' />
-      <span className='sr-only'>Toggle plan</span>
-    </Button>
-  </CollapsibleTrigger>
-)
+export const PlanTrigger = ({ className, ...props }: PlanTriggerProps) => {
+  const t = useI18nText()
+
+  return (
+    <CollapsibleTrigger asChild>
+      <Button
+        className={cn('size-8', className)}
+        data-slot='plan-trigger'
+        size='icon'
+        variant='ghost'
+        {...props}
+      >
+        <ChevronsUpDownIcon className='size-4' />
+        <span className='sr-only'>{t('common.togglePlan')}</span>
+      </Button>
+    </CollapsibleTrigger>
+  )
+}

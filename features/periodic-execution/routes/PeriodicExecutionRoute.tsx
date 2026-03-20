@@ -1,10 +1,12 @@
 import { Toaster } from '@/components/ui/sonner'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { ExtensionPageHeader } from '@/features/navigation/components/ExtensionPageHeader'
 import { useAutoDeletePeriod } from '@/features/options/hooks/useAutoDeletePeriod'
 import { useSettings } from '@/features/options/hooks/useSettings'
 import { AutoDeleteSettingsCard } from '@/features/periodic-execution/components/AutoDeleteSettingsCard'
 
 export const PeriodicExecutionRoute = () => {
+  const { t } = useI18n()
   const { settings, setSettings, isLoading } = useSettings()
   const {
     pendingAutoDeletePeriod,
@@ -17,7 +19,7 @@ export const PeriodicExecutionRoute = () => {
   if (isLoading) {
     return (
       <div className='flex min-h-[300px] items-center justify-center'>
-        <div className='text-foreground text-xl'>読み込み中...</div>
+        <div className='text-foreground text-xl'>{t('common.loading')}</div>
       </div>
     )
   }
@@ -26,7 +28,7 @@ export const PeriodicExecutionRoute = () => {
     <>
       <Toaster position='top-right' />
       <div className='min-h-screen px-6 py-8'>
-        <ExtensionPageHeader title='定期実行' />
+        <ExtensionPageHeader title={t('periodicExecution.title')} />
 
         <AutoDeleteSettingsCard
           confirmationState={confirmationState}

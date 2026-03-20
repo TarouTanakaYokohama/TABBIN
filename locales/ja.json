@@ -1,0 +1,10 @@
+{
+  "extensionName": {
+    "message": "TABBIN",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "ブラウザのタブを整理・分類する拡張機能です。散らかりがちなタブを管理できます。",
+    "description": "Extension description"
+  }
+}

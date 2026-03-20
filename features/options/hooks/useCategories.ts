@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { z } from 'zod'
+import { getMessage, resolveLanguage } from '@/features/i18n/lib/language'
+import type { AppLanguage } from '@/features/i18n/messages'
 import {
   getChromeStorageOnChanged,
   warnMissingChromeStorage,
@@ -8,23 +10,31 @@ import {
   createParentCategory,
   getParentCategories,
 } from '@/lib/storage/categories'
+import { getUserSettings } from '@/lib/storage/settings'
 import type { ParentCategory } from '@/types/storage'
 
-// Zodによるカテゴリ名のバリデーションスキーマを定義
-const categoryNameSchema = z
-  .string()
-  .max(25, 'カテゴリ名は25文字以下にしてください')
+const getUiLocale = () => chrome.i18n?.getUILanguage?.() ?? 'ja'
 
 export const useCategories = () => {
   const [parentCategories, setParentCategories] = useState<ParentCategory[]>([])
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryError, setCategoryError] = useState<string | null>(null) // エラーメッセージ用の状態変数
+  const [language, setLanguage] = useState<AppLanguage>('ja')
+
+  const t = (key: string, fallback?: string) =>
+    getMessage(language, key, fallback)
 
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        const categories = await getParentCategories()
+        const [categories, settings] = await Promise.all([
+          getParentCategories(),
+          getUserSettings(),
+        ])
         setParentCategories(categories)
+        setLanguage(
+          resolveLanguage(settings.language ?? 'system', getUiLocale()),
+        )
       } catch (error) {
         console.error('カテゴリの読み込みエラー:', error)
       }
@@ -43,6 +53,15 @@ export const useCategories = () => {
           ? (changes.parentCategories.newValue as ParentCategory[])
           : []
         setParentCategories(nextParentCategories)
+      }
+
+      if (areaName === 'local' && changes.userSettings?.newValue) {
+        const nextSettings = changes.userSettings.newValue as {
+          language?: 'en' | 'ja' | 'system'
+        }
+        setLanguage(
+          resolveLanguage(nextSettings.language ?? 'system', getUiLocale()),
+        )
       }
     }
 
@@ -63,9 +82,10 @@ export const useCategories = () => {
   const handleAddCategory = async () => {
     if (newCategoryName.trim()) {
       // バリデーションチェック
-      const validationResult = categoryNameSchema.safeParse(
-        newCategoryName.trim(),
-      )
+      const validationResult = z
+        .string()
+        .max(25, t('options.categories.validation.maxLength'))
+        .safeParse(newCategoryName.trim())
       if (!validationResult.success) {
         const message = validationResult.error.issues[0].message
         setCategoryError(message)
@@ -79,7 +99,7 @@ export const useCategories = () => {
       )
 
       if (isDuplicate) {
-        setCategoryError('同じ名前のカテゴリがすでに存在します。')
+        setCategoryError(t('options.categories.duplicate'))
         setTimeout(() => setCategoryError(null), 3000) // 3秒後にエラーメッセージを消す
         return false
       }
@@ -91,7 +111,7 @@ export const useCategories = () => {
         return true
       } catch (error) {
         console.error('カテゴリ追加エラー:', error)
-        setCategoryError('カテゴリの追加に失敗しました。')
+        setCategoryError(t('options.categories.addError'))
         setTimeout(() => setCategoryError(null), 3000)
         return false
       }

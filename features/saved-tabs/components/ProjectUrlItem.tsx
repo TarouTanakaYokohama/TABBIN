@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { CustomProject, UserSettings } from '@/types/storage'
 
 // グローバルのドロップ状態を追跡（ウィンドウ内でのドロップか外部へのドロップかを判定するため）
@@ -68,6 +69,7 @@ const ProjectUrlItemComponent = ({
   parentType,
   settings,
 }: ProjectUrlItemProps) => {
+  const { t } = useI18n()
   // 実際のURLを保存（元のURL）
   const originalUrl = item.url
 
@@ -261,8 +263,8 @@ const ProjectUrlItemComponent = ({
               }
             }}
             className='h-8 w-8 cursor-pointer p-0'
-            title='タブを削除'
-            aria-label='タブを削除'
+            title={t('savedTabs.url.deleteAria')}
+            aria-label={t('savedTabs.url.deleteAria')}
           >
             <X size={14} />
           </Button>
@@ -275,17 +277,19 @@ const ProjectUrlItemComponent = ({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>タブを削除しますか？</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('savedTabs.url.deleteConfirmTitle')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              このタブを削除します。この操作は元に戻せません。
+              {t('savedTabs.url.deleteConfirmDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => handleDeleteUrl(projectId, item.url)}
             >
-              削除する
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

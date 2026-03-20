@@ -25,6 +25,10 @@ const { dndContextPropsRef, projectHandlerSpies } = vi.hoisted(() => ({
   >,
 }))
 
+const customProjectSectionAdditionalI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 vi.mock('@dnd-kit/core', () => ({
   closestCenter: 'closestCenter',
   DndContext: ({
@@ -112,6 +116,29 @@ vi.mock('@/components/ui/tooltip', () => ({
     <div>{children}</div>
   ),
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: customProjectSectionAdditionalI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(
+          customProjectSectionAdditionalI18nState.language,
+        )
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 vi.mock('./CustomProjectCard', async () => {
   const React = await vi.importActual<typeof import('react')>('react')

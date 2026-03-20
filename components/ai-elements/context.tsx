@@ -11,6 +11,7 @@ import {
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
 import { Progress } from '@/components/ui/progress'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 const PERCENT_MAX = 100
@@ -63,13 +64,14 @@ export const Context = ({
 
 const ContextIcon = () => {
   const { usedTokens, maxTokens } = useContextValue()
+  const t = useI18nText()
   const circumference = 2 * Math.PI * ICON_RADIUS
   const usedPercent = usedTokens / maxTokens
   const dashOffset = circumference * (1 - usedPercent)
 
   return (
     <svg
-      aria-label='Model context usage'
+      aria-label={t('common.modelContextUsage')}
       height='20'
       role='img'
       style={{ color: 'currentcolor' }}
@@ -197,6 +199,7 @@ export const ContextContentFooter = ({
   ...props
 }: ContextContentFooterProps) => {
   const { modelId, usage } = useContextValue()
+  const t = useI18nText()
   const costUSD = modelId
     ? getUsage({
         modelId,
@@ -221,7 +224,7 @@ export const ContextContentFooter = ({
     >
       {children ?? (
         <>
-          <span className='text-muted-foreground'>Total cost</span>
+          <span className='text-muted-foreground'>{t('common.totalCost')}</span>
           <span>{totalCost}</span>
         </>
       )}
@@ -237,6 +240,7 @@ export const ContextInputUsage = ({
   ...props
 }: ContextInputUsageProps) => {
   const { usage, modelId } = useContextValue()
+  const t = useI18nText()
   const inputTokens = usage?.inputTokens ?? 0
 
   if (children) {
@@ -263,7 +267,7 @@ export const ContextInputUsage = ({
       className={cn('flex items-center justify-between text-xs', className)}
       {...props}
     >
-      <span className='text-muted-foreground'>Input</span>
+      <span className='text-muted-foreground'>{t('common.input')}</span>
       <TokensWithCost costText={inputCostText} tokens={inputTokens} />
     </div>
   )
@@ -277,6 +281,7 @@ export const ContextOutputUsage = ({
   ...props
 }: ContextOutputUsageProps) => {
   const { usage, modelId } = useContextValue()
+  const t = useI18nText()
   const outputTokens = usage?.outputTokens ?? 0
 
   if (children) {
@@ -303,7 +308,7 @@ export const ContextOutputUsage = ({
       className={cn('flex items-center justify-between text-xs', className)}
       {...props}
     >
-      <span className='text-muted-foreground'>Output</span>
+      <span className='text-muted-foreground'>{t('common.output')}</span>
       <TokensWithCost costText={outputCostText} tokens={outputTokens} />
     </div>
   )
@@ -317,6 +322,7 @@ export const ContextReasoningUsage = ({
   ...props
 }: ContextReasoningUsageProps) => {
   const { usage, modelId } = useContextValue()
+  const t = useI18nText()
   const reasoningTokens = usage?.reasoningTokens ?? 0
 
   if (children) {
@@ -343,7 +349,7 @@ export const ContextReasoningUsage = ({
       className={cn('flex items-center justify-between text-xs', className)}
       {...props}
     >
-      <span className='text-muted-foreground'>Reasoning</span>
+      <span className='text-muted-foreground'>{t('common.reasoning')}</span>
       <TokensWithCost costText={reasoningCostText} tokens={reasoningTokens} />
     </div>
   )
@@ -357,6 +363,7 @@ export const ContextCacheUsage = ({
   ...props
 }: ContextCacheUsageProps) => {
   const { usage, modelId } = useContextValue()
+  const t = useI18nText()
   const cacheTokens = usage?.cachedInputTokens ?? 0
 
   if (children) {
@@ -383,7 +390,7 @@ export const ContextCacheUsage = ({
       className={cn('flex items-center justify-between text-xs', className)}
       {...props}
     >
-      <span className='text-muted-foreground'>Cache</span>
+      <span className='text-muted-foreground'>{t('common.cache')}</span>
       <TokensWithCost costText={cacheCostText} tokens={cacheTokens} />
     </div>
   )

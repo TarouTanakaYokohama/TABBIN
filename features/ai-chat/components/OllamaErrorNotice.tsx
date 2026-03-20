@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { cn } from '@/lib/utils'
 import type { OllamaErrorDetails } from '@/types/background'
 
@@ -28,9 +29,9 @@ const CopyableValueRow = ({
   buttonLabel: string
   value: string
 }) => {
+  const { t } = useI18n()
   const [isCopied, setIsCopied] = useState(false)
   const copiedTimeoutRef = useRef<number | null>(null)
-  const copyTargetLabel = buttonLabel.replace(/をコピー$/, '')
 
   useEffect(
     () => () => {
@@ -44,7 +45,11 @@ const CopyableValueRow = ({
 
   const copyToClipboard = async () => {
     if (typeof window === 'undefined' || !navigator?.clipboard?.writeText) {
-      toast.error(`${copyTargetLabel}をコピーできませんでした`)
+      toast.error(
+        t('aiChat.ollama.copyError', undefined, {
+          label: buttonLabel,
+        }),
+      )
       return
     }
 
@@ -54,20 +59,28 @@ const CopyableValueRow = ({
         window.clearTimeout(copiedTimeoutRef.current)
       }
       setIsCopied(true)
-      toast.success(`${copyTargetLabel}をコピーしました`)
+      toast.success(
+        t('aiChat.ollama.copySuccess', undefined, {
+          label: buttonLabel,
+        }),
+      )
       copiedTimeoutRef.current = window.setTimeout(() => {
         setIsCopied(false)
         copiedTimeoutRef.current = null
       }, COPIED_ICON_TIMEOUT)
     } catch {
-      toast.error(`${copyTargetLabel}をコピーできませんでした`)
+      toast.error(
+        t('aiChat.ollama.copyError', undefined, {
+          label: buttonLabel,
+        }),
+      )
     }
   }
 
   return (
     <div className='flex items-center gap-2'>
       <Input
-        aria-label={`${buttonLabel}の内容`}
+        aria-label={`${buttonLabel} value`}
         className={cn(
           'min-w-0 flex-1',
           'px-3 py-2 font-mono text-xs leading-5',
@@ -85,7 +98,9 @@ const CopyableValueRow = ({
               void copyToClipboard()
             }}
             size='icon-sm'
-            title={isCopied ? 'コピーしました' : 'コピー'}
+            title={
+              isCopied ? t('aiChat.ollama.copied') : t('aiChat.ollama.copy')
+            }
             type='button'
             variant='outline'
           >
@@ -94,7 +109,9 @@ const CopyableValueRow = ({
           </Button>
         </TooltipTrigger>
         <TooltipContent side='top'>
-          <p>{isCopied ? 'コピーしました' : 'コピー'}</p>
+          <p>
+            {isCopied ? t('aiChat.ollama.copied') : t('aiChat.ollama.copy')}
+          </p>
         </TooltipContent>
       </Tooltip>
     </div>
@@ -104,22 +121,24 @@ const CopyableValueRow = ({
 const renderPlatformInstructions = ({
   configuredOrigin,
   platform,
+  t,
 }: {
   configuredOrigin: string
   platform: OllamaErrorPlatform
+  t: (key: string, fallback?: string, values?: Record<string, string>) => string
 }) => {
   if (platform === 'mac') {
     return (
       <>
-        <p>Spotlight 検索で「ターミナル」と入力して開きます。</p>
-        <p>次のコマンドをコピーして貼り付けます。</p>
+        <p>{t('aiChat.ollama.mac.step1')}</p>
+        <p>{t('aiChat.ollama.mac.step2')}</p>
         <CopyableValueRow
-          buttonLabel='コマンドをコピー'
+          buttonLabel={t('aiChat.ollama.copyCommand')}
           value={`launchctl setenv OLLAMA_ORIGINS "${configuredOrigin}"`}
         />
-        <p>return キーを押します。</p>
-        <p>Ollama.app を終了します。</p>
-        <p>Ollama.app を起動し直します。</p>
+        <p>{t('aiChat.ollama.mac.step3')}</p>
+        <p>{t('aiChat.ollama.mac.step4')}</p>
+        <p>{t('aiChat.ollama.mac.step5')}</p>
       </>
     )
   }
@@ -127,26 +146,29 @@ const renderPlatformInstructions = ({
   if (platform === 'win') {
     return (
       <>
-        <p>Windows のスタートメニューで「環境変数」と入力します。</p>
-        <p>「システム環境変数の編集」を開きます。</p>
-        <p>表示された画面で「環境変数」を押します。</p>
-        <p>「ユーザー環境変数」の「新規」を押します。</p>
-        <p>変数名に OLLAMA_ORIGINS を入力します。</p>
-        <p>変数値に次の値を入力します。</p>
+        <p>{t('aiChat.ollama.win.step1')}</p>
+        <p>{t('aiChat.ollama.win.step2')}</p>
+        <p>{t('aiChat.ollama.win.step3')}</p>
+        <p>{t('aiChat.ollama.win.step4')}</p>
+        <p>{t('aiChat.ollama.win.step5')}</p>
+        <p>{t('aiChat.ollama.win.step6')}</p>
         <CopyableValueRow
-          buttonLabel='入力値をコピー'
+          buttonLabel={t('aiChat.ollama.copyValue')}
           value={configuredOrigin}
         />
-        <p>保存してから Ollama を再起動します。</p>
+        <p>{t('aiChat.ollama.win.step7')}</p>
       </>
     )
   }
 
   return (
     <>
-      <p>OLLAMA_ORIGINS を設定してから Ollama を再起動してください。</p>
-      <p>設定値は次のとおりです。</p>
-      <CopyableValueRow buttonLabel='入力値をコピー' value={configuredOrigin} />
+      <p>{t('aiChat.ollama.unknown.step1')}</p>
+      <p>{t('aiChat.ollama.unknown.step2')}</p>
+      <CopyableValueRow
+        buttonLabel={t('aiChat.ollama.copyValue')}
+        value={configuredOrigin}
+      />
     </>
   )
 }
@@ -156,6 +178,7 @@ const OllamaErrorNotice = ({
   error,
   platform,
 }: OllamaErrorNoticeProps) => {
+  const { t } = useI18n()
   const isConnectionError = error.kind === 'notInstalledOrNotRunning'
   const configuredOrigin = error.allowedOrigins ?? 'chrome-extension://*'
 
@@ -172,29 +195,27 @@ const OllamaErrorNotice = ({
       >
         <p>
           {isConnectionError
-            ? 'Ollama に接続できませんでした。'
-            : 'Ollama が拡張機能からのアクセスを拒否しました (403 Forbidden)。'}
+            ? t('aiChat.ollama.connectionError')
+            : t('aiChat.ollama.forbiddenError')}
         </p>
 
         {isConnectionError ? (
           <>
-            <p>
-              まだインストールしていない場合は Ollama
-              をダウンロードしてください。
-            </p>
-            <p>インストール済みなら Ollama を起動してください。</p>
+            <p>{t('aiChat.ollama.notInstalledDownload')}</p>
+            <p>{t('aiChat.ollama.notInstalledStart')}</p>
           </>
         ) : (
-          <p>OLLAMA_ORIGINS に次の値を設定してください。</p>
+          <p>{t('aiChat.ollama.setOrigins')}</p>
         )}
 
         {renderPlatformInstructions({
           configuredOrigin,
           platform,
+          t,
         })}
 
         <p>
-          接続先 URL:{' '}
+          {t('aiChat.ollama.connectionUrl')}{' '}
           <a
             className='break-all underline underline-offset-2'
             href={error.baseUrl}
@@ -205,7 +226,7 @@ const OllamaErrorNotice = ({
           </a>
         </p>
         <p>
-          確認 URL:{' '}
+          {t('aiChat.ollama.tagsUrl')}{' '}
           <a
             className='break-all underline underline-offset-2'
             href={error.tagsUrl}
@@ -215,15 +236,15 @@ const OllamaErrorNotice = ({
             {error.tagsUrl}
           </a>
         </p>
-        <p>確認コマンドをコピーして貼り付けると状態を確認できます。</p>
+        <p>{t('aiChat.ollama.checkCommand')}</p>
         <CopyableValueRow
-          buttonLabel='確認コマンドをコピー'
+          buttonLabel={t('aiChat.ollama.copyCheckCommand')}
           value={`curl ${error.tagsUrl}`}
         />
 
         {isConnectionError ? (
           <p>
-            ダウンロード URL:{' '}
+            {t('aiChat.ollama.downloadUrl')}{' '}
             <a
               className='break-all underline underline-offset-2'
               href={error.downloadUrl}
@@ -236,7 +257,7 @@ const OllamaErrorNotice = ({
         ) : null}
 
         <p>
-          FAQ:{' '}
+          {t('aiChat.ollama.faq')}{' '}
           <a
             className='break-all underline underline-offset-2'
             href={error.faqUrl}

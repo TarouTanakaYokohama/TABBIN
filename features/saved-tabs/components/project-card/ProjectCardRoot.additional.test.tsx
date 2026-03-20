@@ -60,6 +60,30 @@ vi.mock('@/components/ui/tooltip', () => ({
   ),
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    language: 'ja',
+    t: (key: string) =>
+      (
+        ({
+          'common.manage': '管理',
+          'savedTabs.collapse': '折りたたむ',
+          'savedTabs.sort.default': 'デフォルト',
+          'savedTabs.openAll': 'すべて開く',
+          'savedTabs.openAllTabs': 'すべてのタブを開く',
+          'savedTabs.deleteAll': 'すべて削除',
+          'savedTabs.project.loadingTabs': 'タブを読み込み中...',
+          'savedTabs.project.emptyTitle':
+            'このプロジェクトにはタブがありません。',
+          'savedTabs.project.emptyDescription':
+            '拡張機能アイコンからタブを保存するか、右クリックメニューから追加できます。',
+          'savedTabs.project.emptyDragHint':
+            '他のプロジェクトからタブをドラッグ&ドロップして追加することもできます。',
+        }) satisfies Record<string, string>
+      )[key] ?? key,
+  }),
+}))
+
 vi.mock('../../hooks/useCustomProjectCard', () => ({
   useCustomProjectCard: useCustomProjectCardMock,
 }))

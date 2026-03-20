@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { SavedTabsResponsiveTooltipContent } from './SavedTabsResponsive'
 
 /** CardCollapseControl の props */
@@ -28,12 +29,15 @@ export const CardCollapseControl = ({
   setIsCollapsed,
   setUserCollapsedState,
   isDisabled = false,
-  disabledMessage = '並び替えモード中',
+  disabledMessage,
   onPointerDown,
 }: CardCollapseControlProps) => {
-  let tooltipLabel = disabledMessage
+  const { t } = useI18n()
+  const resolvedDisabledMessage =
+    disabledMessage ?? t('savedTabs.reorder.disabled')
+  let tooltipLabel = resolvedDisabledMessage
   if (!isDisabled) {
-    tooltipLabel = isCollapsed ? '展開' : '折りたたむ'
+    tooltipLabel = isCollapsed ? t('savedTabs.expand') : t('savedTabs.collapse')
   }
 
   return (
@@ -52,7 +56,9 @@ export const CardCollapseControl = ({
           className={`flex items-center gap-1 ${
             isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
           }`}
-          aria-label={isCollapsed ? '展開' : '折りたたむ'}
+          aria-label={
+            isCollapsed ? t('savedTabs.expand') : t('savedTabs.collapse')
+          }
           disabled={isDisabled}
         >
           {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}

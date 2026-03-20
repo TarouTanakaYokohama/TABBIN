@@ -17,6 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { getFallbackText, useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 import { CodeBlock } from './code-block'
 
@@ -43,15 +44,25 @@ export type ToolHeaderProps = {
     }
 )
 
-const statusLabels: Record<ToolPart['state'], string> = {
-  'approval-requested': 'Awaiting Approval',
-  'approval-responded': 'Responded',
-  'input-available': 'Running',
-  'input-streaming': 'Pending',
-  'output-available': 'Completed',
-  'output-denied': 'Denied',
-  'output-error': 'Error',
-}
+type Translate = (
+  key: string,
+  fallback?: string,
+  values?: Record<string, string>,
+) => string
+
+const getStatusLabel = (status: ToolPart['state'], t: Translate) =>
+  ({
+    'approval-requested': t(
+      'tool.status.approvalRequested',
+      'Awaiting Approval',
+    ),
+    'approval-responded': t('tool.status.approvalResponded', 'Responded'),
+    'input-available': t('tool.status.inputAvailable', 'Running'),
+    'input-streaming': t('tool.status.inputStreaming', 'Pending'),
+    'output-available': t('tool.status.outputAvailable', 'Completed'),
+    'output-denied': t('tool.status.outputDenied', 'Denied'),
+    'output-error': t('tool.status.outputError', 'Error'),
+  })[status]
 
 const statusIcons: Record<ToolPart['state'], ReactNode> = {
   'approval-requested': <ClockIcon className='size-4 text-yellow-600' />,
@@ -63,10 +74,13 @@ const statusIcons: Record<ToolPart['state'], ReactNode> = {
   'output-error': <XCircleIcon className='size-4 text-red-600' />,
 }
 
-export const getStatusBadge = (status: ToolPart['state']) => (
+export const getStatusBadge = (
+  status: ToolPart['state'],
+  t: Translate = getFallbackText,
+) => (
   <Badge className='gap-1.5 rounded-full text-xs' variant='secondary'>
     {statusIcons[status]}
-    {statusLabels[status]}
+    {getStatusLabel(status, t)}
   </Badge>
 )
 
@@ -78,6 +92,7 @@ export const ToolHeader = ({
   toolName,
   ...props
 }: ToolHeaderProps) => {
+  const t = useI18nText()
   const derivedName =
     type === 'dynamic-tool' ? toolName : type.split('-').slice(1).join('-')
 
@@ -92,7 +107,7 @@ export const ToolHeader = ({
       <div className='flex items-center gap-2'>
         <WrenchIcon className='size-4 text-muted-foreground' />
         <span className='font-medium text-sm'>{title ?? derivedName}</span>
-        {getStatusBadge(state)}
+        {getStatusBadge(state, t)}
       </div>
       <ChevronDownIcon className='size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180' />
     </CollapsibleTrigger>
@@ -115,16 +130,20 @@ export type ToolInputProps = ComponentProps<'div'> & {
   input: ToolPart['input']
 }
 
-export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
-  <div className={cn('space-y-2 overflow-hidden', className)} {...props}>
-    <h4 className='font-medium text-muted-foreground text-xs uppercase tracking-wide'>
-      Parameters
-    </h4>
-    <div className='rounded-md bg-muted/50'>
-      <CodeBlock code={JSON.stringify(input, null, 2)} language='json' />
+export const ToolInput = ({ className, input, ...props }: ToolInputProps) => {
+  const t = useI18nText()
+
+  return (
+    <div className={cn('space-y-2 overflow-hidden', className)} {...props}>
+      <h4 className='font-medium text-muted-foreground text-xs uppercase tracking-wide'>
+        {t('common.parameters')}
+      </h4>
+      <div className='rounded-md bg-muted/50'>
+        <CodeBlock code={JSON.stringify(input, null, 2)} language='json' />
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
 export type ToolOutputProps = ComponentProps<'div'> & {
   output: ToolPart['output']
@@ -137,6 +156,8 @@ export const ToolOutput = ({
   errorText,
   ...props
 }: ToolOutputProps) => {
+  const t = useI18nText()
+
   if (!(output || errorText)) {
     return null
   }
@@ -154,7 +175,7 @@ export const ToolOutput = ({
   return (
     <div className={cn('space-y-2', className)} {...props}>
       <h4 className='font-medium text-muted-foreground text-xs uppercase tracking-wide'>
-        {errorText ? 'Error' : 'Result'}
+        {errorText ? t('tool.status.outputError') : t('common.result')}
       </h4>
       <div
         className={cn(

@@ -18,6 +18,15 @@ vi.mock('@/components/theme-provider', () => ({
   ),
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  I18nProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  useI18n: () => ({
+    language: 'ja',
+  }),
+}))
+
 vi.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TooltipContent: ({ children }: { children: React.ReactNode }) => (

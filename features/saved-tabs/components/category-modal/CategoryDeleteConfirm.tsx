@@ -1,5 +1,6 @@
 import { Trash } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { SavedTabsResponsiveLabel } from '../shared/SavedTabsResponsive'
 import { useCategoryModalContext } from './CategoryModalContext'
 
@@ -8,6 +9,7 @@ import { useCategoryModalContext } from './CategoryModalContext'
  * 削除確認モード中のみ表示される
  */
 export const CategoryDeleteConfirm = () => {
+  const { t } = useI18n()
   const { state } = useCategoryModalContext()
   const { deletion, isLoading } = state
 
@@ -18,13 +20,14 @@ export const CategoryDeleteConfirm = () => {
   return (
     <div className='mt-2 mb-3 rounded border p-3'>
       <p className='mb-2 text-gray-700 dark:text-gray-300'>
-        親カテゴリ「{deletion.categoryToDelete.name}
-        」を削除しますか？この操作は取り消せません。
+        {t('savedTabs.categoryModal.deleteConfirmDescription', undefined, {
+          name: deletion.categoryToDelete.name,
+        })}
         {deletion.categoryToDelete.domainNames?.length > 0 ? (
           <span className='mt-1 block text-xs'>
-            このカテゴリには {deletion.categoryToDelete.domainNames.length}
-            件のドメインが関連付けられています。
-            削除すると、ドメインと親カテゴリの関連付けも削除されます。
+            {t('savedTabs.categoryModal.deleteConfirmDomains', undefined, {
+              count: String(deletion.categoryToDelete.domainNames.length),
+            })}
           </span>
         ) : null}
       </p>
@@ -35,7 +38,7 @@ export const CategoryDeleteConfirm = () => {
           onClick={() => deletion.setShowDeleteConfirm(false)}
           disabled={isLoading}
         >
-          キャンセル
+          {t('common.cancel')}
         </Button>
         <Button
           variant='destructive'
@@ -45,7 +48,9 @@ export const CategoryDeleteConfirm = () => {
           className='flex items-center gap-1'
         >
           <Trash size={14} />
-          <SavedTabsResponsiveLabel>削除</SavedTabsResponsiveLabel>
+          <SavedTabsResponsiveLabel>
+            {t('common.delete')}
+          </SavedTabsResponsiveLabel>
         </Button>
       </div>
     </div>

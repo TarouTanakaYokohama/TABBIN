@@ -1,15 +1,15 @@
 /**
- * クリック挙動オプション定義
+ * Click behavior option definitions.
  */
 export const clickBehaviorOptions = [
-  { value: 'saveCurrentTab', label: '現在のタブを保存' },
-  { value: 'saveWindowTabs', label: 'ウィンドウのすべてのタブを保存' },
+  { value: 'saveCurrentTab', labelKey: 'options.clickBehavior.currentTab' },
+  { value: 'saveWindowTabs', labelKey: 'options.clickBehavior.windowTabs' },
   {
     value: 'saveSameDomainTabs',
-    label: '現在開いているドメインのタブをすべて保存',
+    labelKey: 'options.clickBehavior.sameDomain',
   },
   {
     value: 'saveAllWindowsTabs',
-    label: '他のウィンドウを含めすべてのタブを保存',
+    labelKey: 'options.clickBehavior.allWindows',
   },
-]
+] as const

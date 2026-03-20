@@ -21,6 +21,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 export type InlineCitationProps = ComponentProps<'span'>
@@ -197,6 +198,7 @@ export const InlineCitationCarouselPrev = ({
   ...props
 }: InlineCitationCarouselPrevProps) => {
   const api = useCarouselApi()
+  const t = useI18nText()
 
   const handleClick = useCallback(() => {
     if (api) {
@@ -206,7 +208,7 @@ export const InlineCitationCarouselPrev = ({
 
   return (
     <button
-      aria-label='Previous'
+      aria-label={t('common.previous')}
       className={cn('shrink-0 cursor-pointer', className)}
       onClick={handleClick}
       type='button'
@@ -224,6 +226,7 @@ export const InlineCitationCarouselNext = ({
   ...props
 }: InlineCitationCarouselNextProps) => {
   const api = useCarouselApi()
+  const t = useI18nText()
 
   const handleClick = useCallback(() => {
     if (api) {
@@ -233,7 +236,7 @@ export const InlineCitationCarouselNext = ({
 
   return (
     <button
-      aria-label='Next'
+      aria-label={t('common.next')}
       className={cn('shrink-0 cursor-pointer', className)}
       onClick={handleClick}
       type='button'

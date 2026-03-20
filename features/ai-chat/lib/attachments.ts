@@ -1,5 +1,7 @@
 import type { FileUIPart } from 'ai'
 import type { AiChatAttachment } from '@/features/ai-chat/types'
+import { getMessage } from '@/features/i18n/lib/language'
+import type { AppLanguage } from '@/features/i18n/messages'
 
 const TEXT_ATTACHMENT_MEDIA_TYPES = new Set([
   'application/javascript',
@@ -79,10 +81,13 @@ const getAttachmentKind = (
   return null
 }
 
-const decodeTextDataUrl = (dataUrl: string): string => {
+const decodeTextDataUrl = (
+  dataUrl: string,
+  language: AppLanguage = 'ja',
+): string => {
   const parsed = parseDataUrl(dataUrl)
   if (!parsed) {
-    throw new Error('添付ファイルを読み取れませんでした。')
+    throw new Error(getMessage(language, 'aiChat.attachments.readError'))
   }
 
   if (parsed.usesBase64) {
@@ -95,11 +100,19 @@ const decodeTextDataUrl = (dataUrl: string): string => {
 const getAttachmentFilename = (file: Pick<FileUIPart, 'filename'>): string =>
   file.filename?.trim() || AI_CHAT_ATTACHMENT_FALLBACK_FILENAME
 
-const getUnsupportedAttachmentError = (filename: string, mediaType: string) =>
-  `${filename} は現在の AI チャットで扱えません (${mediaType})。`
+const getUnsupportedAttachmentError = (
+  filename: string,
+  mediaType: string,
+  language: AppLanguage = 'ja',
+) =>
+  getMessage(language, 'aiChat.attachments.unsupportedTypeDetail', undefined, {
+    filename,
+    mediaType,
+  })
 
 const convertPromptInputFilesToAiChatAttachments = async (
   files: FileUIPart[],
+  language: AppLanguage = 'ja',
 ): Promise<AiChatAttachment[]> =>
   files.map(file => {
     const filename = getAttachmentFilename(file)
@@ -107,11 +120,14 @@ const convertPromptInputFilesToAiChatAttachments = async (
     const kind = getAttachmentKind(mediaType)
 
     if (!kind) {
-      throw new Error(getUnsupportedAttachmentError(filename, mediaType))
+      throw new Error(
+        getUnsupportedAttachmentError(filename, mediaType, language),
+      )
     }
 
     return {
-      content: kind === 'text' ? decodeTextDataUrl(file.url) : file.url,
+      content:
+        kind === 'text' ? decodeTextDataUrl(file.url, language) : file.url,
       filename,
       kind,
       mediaType,
@@ -120,6 +136,7 @@ const convertPromptInputFilesToAiChatAttachments = async (
 
 const buildTextAttachmentContext = (
   attachments: AiChatAttachment[],
+  language: AppLanguage = 'ja',
 ): string => {
   const textAttachments = attachments.filter(
     attachment =>
@@ -131,7 +148,7 @@ const buildTextAttachmentContext = (
   }
 
   return [
-    '添付ファイルの内容:',
+    getMessage(language, 'aiChat.attachments.contextTitle'),
     ...textAttachments.map((attachment, index) =>
       [
         `[${index + 1}] ${attachment.filename} (${attachment.mediaType})`,

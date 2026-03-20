@@ -1,23 +1,25 @@
 import { Input } from '@/components/ui/input'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { useKeywordModal } from './KeywordModalContext'
 
 /**
  * 新しい子カテゴリを追加するセクション
  */
 export const SubCategoryAddSection = () => {
+  const { t } = useI18n()
   const { state } = useKeywordModal()
   const { subcategory } = state
 
   return (
     <div className='mb-4'>
       <h4 className='mb-2 font-medium text-gray-300 text-md'>
-        新しい子カテゴリを追加
+        {t('savedTabs.subCategory.addTitle')}
       </h4>
       <div className='flex flex-col'>
         <Input
           value={subcategory.newSubCategory}
           onChange={subcategory.handleSubCategoryNameChange}
-          placeholder='例: ニュース、ブログ、コラム'
+          placeholder={t('savedTabs.subCategory.addPlaceholder')}
           className={`grow rounded border p-2 ${subcategory.subCategoryNameError ? 'border-red-500' : ''}`}
           onKeyDown={e => {
             if (e.key === 'Enter') {

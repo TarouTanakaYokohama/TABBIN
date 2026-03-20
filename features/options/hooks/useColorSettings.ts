@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import { useTheme } from '@/components/theme-provider'
 import { colorOptions } from '@/constants/colorOptions'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { saveUserSettings } from '@/lib/storage/settings'
 import type { UserSettings } from '@/types/storage'
 
@@ -9,6 +10,7 @@ export const useColorSettings = (
   setSettings: React.Dispatch<React.SetStateAction<UserSettings>>,
 ) => {
   const { setTheme } = useTheme()
+  const { t } = useI18n()
   // カラー設定ハンドラ
   const handleColorChange = async (key: string, value: string) => {
     try {
@@ -48,11 +50,11 @@ export const useColorSettings = (
       chrome.storage.local.set({ 'tab-manager-theme': 'system' })
 
       // 成功メッセージを表示
-      toast.success('カラー設定をリセットしました')
+      toast.success(t('options.color.resetSuccess'))
       return true
     } catch (error) {
       console.error('カラーリセットエラー:', error)
-      toast.error('カラー設定のリセットに失敗しました')
+      toast.error(t('options.color.resetError'))
       return false
     }
   }

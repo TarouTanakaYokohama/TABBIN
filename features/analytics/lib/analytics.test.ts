@@ -61,7 +61,7 @@ const records: AiSavedUrlRecord[] = [
 ]
 
 describe('analytics', () => {
-  it('ドメインモードのトップドメイン棒グラフを生成する', () => {
+  it('renders a domain-mode top-domain bar chart', () => {
     const result = generateAnalyticsResult(
       records,
       {
@@ -79,10 +79,12 @@ describe('analytics', () => {
     expect(result.filteredRecordCount).toBe(3)
     expect(result.chartSpecs).toHaveLength(1)
     expect(result.chartSpecs[0]).toMatchObject({
-      title: 'ドメイン別の保存数',
+      title: 'Saved count by domain',
       type: 'bar',
       xKey: 'label',
-      series: [{ colorToken: 'chart-1', dataKey: 'count', label: '保存数' }],
+      series: [
+        { colorToken: 'chart-1', dataKey: 'count', label: 'Saved count' },
+      ],
     })
     expect(result.chartSpecs[0]?.data).toEqual([
       { count: 2, label: 'docs.example.com' },
@@ -90,7 +92,7 @@ describe('analytics', () => {
     ])
   })
 
-  it('時系列でモード比較の複数系列チャートを生成する', () => {
+  it('renders a time-series mode comparison chart with multiple series', () => {
     const result = generateAnalyticsResult(
       records,
       {
@@ -108,12 +110,12 @@ describe('analytics', () => {
     )
 
     expect(result.chartSpecs[0]).toMatchObject({
-      title: '日別の保存推移',
+      title: 'Daily saved trend',
       type: 'line',
       xKey: 'label',
       series: [
-        { colorToken: 'chart-1', dataKey: 'domain', label: 'ドメインモード' },
-        { colorToken: 'chart-2', dataKey: 'custom', label: 'カスタムモード' },
+        { colorToken: 'chart-1', dataKey: 'domain', label: 'Domain mode' },
+        { colorToken: 'chart-2', dataKey: 'custom', label: 'Custom mode' },
       ],
     })
     expect(result.chartSpecs[0]?.data).toContainEqual({
@@ -128,7 +130,7 @@ describe('analytics', () => {
     })
   })
 
-  it('時系列（直近）は上位件数ぶんの最新バケットだけを表示する', () => {
+  it('shows only the latest buckets for recent time series', () => {
     const result = generateAnalyticsResult(
       records,
       {
@@ -150,7 +152,7 @@ describe('analytics', () => {
     ])
   })
 
-  it('時系列（件数）は件数上位バケットを選んでから時系列順で表示する', () => {
+  it('sorts time-series buckets by count before restoring chronological order', () => {
     const result = generateAnalyticsResult(
       [
         ...records,
@@ -198,7 +200,7 @@ describe('analytics', () => {
     ])
   })
 
-  it('旧 time クエリは時系列（直近）として扱う', () => {
+  it('treats the legacy time query as recent time series', () => {
     const result = generateAnalyticsResult(
       records,
       {
@@ -219,7 +221,7 @@ describe('analytics', () => {
     ])
   })
 
-  it('include/exclude と percent 正規化を適用できる', () => {
+  it('applies include/exclude filters and percent normalization', () => {
     const result = generateAnalyticsResult(
       records,
       {
@@ -249,11 +251,11 @@ describe('analytics', () => {
     expect(result.chartSpecs[0]?.data).toEqual([{ count: 100, label: 'Work' }])
   })
 
-  it('初期クエリは全期間を選ぶ', () => {
+  it('defaults to the all-time range', () => {
     expect(getDefaultAnalyticsQuery().timeRange).toBe('all')
   })
 
-  it('カスタム期間で絞り込める', () => {
+  it('filters by a custom date range', () => {
     const result = generateAnalyticsResult(
       records,
       {
@@ -278,7 +280,7 @@ describe('analytics', () => {
     ])
   })
 
-  it('カスタム期間はローカル日付ベースで判定する', () => {
+  it('interprets custom date ranges using the local date', () => {
     const localDateRecord: AiSavedUrlRecord = {
       id: 'local-date-1',
       url: 'https://calendar.example.com/a',
@@ -315,7 +317,7 @@ describe('analytics', () => {
     ])
   })
 
-  it('初期プリセットを返す', () => {
+  it('returns analytics presets', () => {
     const presets = getAnalyticsPresets()
 
     expect(presets.length).toBeGreaterThanOrEqual(6)

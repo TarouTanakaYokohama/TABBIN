@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { useDragHandlers } from '../../contexts/DragHandlersContext'
 import { useCustomProjectCard } from '../../hooks/useCustomProjectCard'
 import type { SortOrder } from '../../hooks/useSortOrder'
@@ -81,6 +82,7 @@ export const ProjectCardRoot = ({
   hookHandlers,
   children,
 }: ProjectCardRootProps) => {
+  const { t } = useI18n()
   const hookState = useCustomProjectCard({
     project,
     handleDeleteUrl: hookHandlers.handleDeleteUrl,
@@ -290,8 +292,8 @@ export const ProjectCardRoot = ({
             onConfirmOpenAll={projectUrlCount >= 10}
             onConfirmDeleteAll={settings.confirmDeleteAll}
             openAllThreshold={10}
-            itemName='すべてのタブ'
-            warningMessage='プロジェクト内のすべてのタブを削除します。この操作は元に戻せません。'
+            itemName={t('savedTabs.project.deleteAllItemName')}
+            warningMessage={t('savedTabs.project.deleteAllWarning')}
           />
         </CardHeader>
         <CardContent className='overflow-x-hidden'>
@@ -302,7 +304,7 @@ export const ProjectCardRoot = ({
               {/* ローディング状態 */}
               {urls.isLoadingUrls && (
                 <div className='py-4 text-center text-muted-foreground'>
-                  タブを読み込み中...
+                  {t('savedTabs.project.loadingTabs')}
                 </div>
               )}
 
@@ -311,11 +313,11 @@ export const ProjectCardRoot = ({
                 !isExternalItemOver &&
                 !urls.isLoadingUrls && (
                   <div className='py-4 text-center text-muted-foreground'>
-                    このプロジェクトにはタブがありません。
+                    {t('savedTabs.project.emptyTitle')}
                     <br />
-                    拡張機能アイコンからタブを保存するか、右クリックメニューから追加できます。
+                    {t('savedTabs.project.emptyDescription')}
                     <br />
-                    他のプロジェクトからタブをドラッグ&ドロップして追加することもできます。
+                    {t('savedTabs.project.emptyDragHint')}
                   </div>
                 )}
             </>

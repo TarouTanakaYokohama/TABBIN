@@ -12,6 +12,10 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CustomProject } from '@/types/storage'
 
+const projectManagementModalI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 vi.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TooltipTrigger: ({ children }: { children: React.ReactNode }) => (
@@ -49,6 +53,27 @@ vi.mock('@/components/ui/dialog', () => ({
     <h2>{children}</h2>
   ),
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: projectManagementModalI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(projectManagementModalI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 import { ProjectManagementModal } from './ProjectManagementModal'
 
@@ -90,6 +115,7 @@ describe('ProjectManagementModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    projectManagementModalI18nState.language = 'ja'
     requestAnimationFrameCallbacks.length = 0
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {})
@@ -319,9 +345,9 @@ describe('ProjectManagementModal', () => {
       />,
     )
 
-    const titleInput = screen.getByLabelText('タイトルキーワード入力')
-    const urlInput = screen.getByLabelText('URLキーワード入力')
-    const domainInput = screen.getByLabelText('ドメインキーワード入力')
+    const titleInput = screen.getByLabelText('タイトルキーワード')
+    const urlInput = screen.getByLabelText('URLキーワード')
+    const domainInput = screen.getByLabelText('ドメインキーワード')
 
     fireEvent.change(titleInput, {
       target: { value: 'release' },

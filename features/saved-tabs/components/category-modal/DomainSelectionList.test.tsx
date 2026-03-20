@@ -13,6 +13,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { TabGroup } from '@/types/storage'
 import { DomainSelectionList } from './DomainSelectionList'
 
+const domainSelectionI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 const { useCategoryModalContextMock } = vi.hoisted(() => ({
   useCategoryModalContextMock: vi.fn(),
 }))
@@ -21,9 +25,31 @@ vi.mock('./CategoryModalContext', () => ({
   useCategoryModalContext: useCategoryModalContextMock,
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: domainSelectionI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(domainSelectionI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
+
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  domainSelectionI18nState.language = 'ja'
 })
 
 const createTabGroups = (count: number): TabGroup[] =>
@@ -123,6 +149,21 @@ describe('DomainSelectionList', () => {
     render(<DomainSelectionList />)
 
     expect(screen.getByText('保存されたドメインがありません')).toBeTruthy()
+  })
+
+  it('renders English domain selection copy when the display language is en', () => {
+    domainSelectionI18nState.language = 'en'
+
+    setCategoryModalContext({
+      tabGroups: [],
+      selectedCategoryId: 'cat-1',
+      domainCategories: {},
+    })
+
+    render(<DomainSelectionList />)
+
+    expect(screen.getByText('Domain selection')).toBeTruthy()
+    expect(screen.getByText('There are no saved domains')).toBeTruthy()
   })
 
   it('未分類選択で全ドメインが分類済みなら分類済みメッセージを表示する', () => {

@@ -4,6 +4,8 @@ import type {
   InterestEvidenceEntry,
   InterestInferenceResult,
 } from '@/features/ai-chat/types'
+import { getMessage } from '@/features/i18n/lib/language'
+import type { AppLanguage } from '@/features/i18n/messages'
 
 const countValues = (values: string[]): InterestEvidenceEntry[] => {
   const counts = new Map<string, number>()
@@ -26,19 +28,19 @@ const countValues = (values: string[]): InterestEvidenceEntry[] => {
     )
 }
 
-const CATEGORY_CHART_SERIES = [
+const createCategoryChartSeries = (language: AppLanguage) => [
   {
     colorToken: 'chart-1',
     dataKey: 'count',
-    label: '保存数',
+    label: getMessage(language, 'aiChat.interests.savedCountLabel'),
   },
 ]
 
-const DOMAIN_CHART_SERIES = [
+const createDomainChartSeries = (language: AppLanguage) => [
   {
     colorToken: 'chart-2',
     dataKey: 'count',
-    label: '保存数',
+    label: getMessage(language, 'aiChat.interests.savedCountLabel'),
   },
 ]
 
@@ -49,9 +51,12 @@ const toChartData = (entries: InterestEvidenceEntry[]) =>
   }))
 
 const buildChartSpecs = ({
+  language,
   topCategories,
   topDomains,
-}: InterestInferenceResult['evidence']): AiChartSpec[] => {
+}: InterestInferenceResult['evidence'] & {
+  language: AppLanguage
+}): AiChartSpec[] => {
   const chartSpecs: AiChartSpec[] = []
 
   if (topCategories.length > 0) {
@@ -60,17 +65,23 @@ const buildChartSpecs = ({
     chartSpecs.push({
       categoryKey: 'label',
       data: categoryData,
-      description: '最近保存したカテゴリ比率',
-      series: CATEGORY_CHART_SERIES,
-      title: 'よく保存しているジャンル',
+      description: getMessage(
+        language,
+        'aiChat.interests.categoryShareDescription',
+      ),
+      series: createCategoryChartSeries(language),
+      title: getMessage(language, 'aiChat.interests.topCategoriesTitle'),
       type: 'pie',
       valueFormat: 'count',
     })
     chartSpecs.push({
       data: categoryData,
-      description: '最近保存したカテゴリ件数',
-      series: CATEGORY_CHART_SERIES,
-      title: 'ジャンル別の保存数',
+      description: getMessage(
+        language,
+        'aiChat.interests.categoryCountDescription',
+      ),
+      series: createCategoryChartSeries(language),
+      title: getMessage(language, 'aiChat.interests.categoryCountTitle'),
       type: 'bar',
       valueFormat: 'count',
       xKey: 'label',
@@ -80,9 +91,12 @@ const buildChartSpecs = ({
   if (topDomains.length > 0) {
     chartSpecs.push({
       data: toChartData(topDomains),
-      description: '最近保存したドメイン件数',
-      series: DOMAIN_CHART_SERIES,
-      title: 'よく保存しているドメイン',
+      description: getMessage(
+        language,
+        'aiChat.interests.domainCountDescription',
+      ),
+      series: createDomainChartSeries(language),
+      title: getMessage(language, 'aiChat.interests.topDomainsTitle'),
       type: 'bar',
       valueFormat: 'count',
       xKey: 'label',
@@ -94,6 +108,7 @@ const buildChartSpecs = ({
 
 export const inferUserInterests = (
   records: AiSavedUrlRecord[],
+  language: AppLanguage = 'ja',
 ): InterestInferenceResult => {
   const topDomains = countValues(records.map(record => record.domain)).slice(
     0,
@@ -113,7 +128,7 @@ export const inferUserInterests = (
   if (records.length === 0) {
     return {
       chartSpecs: [],
-      summary: 'まだ保存データがないため、興味の傾向は判断できません。',
+      summary: getMessage(language, 'aiChat.interests.noDataSummary'),
       isTentative: true,
       evidence: {
         topDomains: [],
@@ -125,11 +140,11 @@ export const inferUserInterests = (
   if (isTentative) {
     return {
       chartSpecs: buildChartSpecs({
+        language,
         topDomains,
         topCategories,
       }),
-      summary:
-        '保存件数が少なく判断材料が限られるため、まだ強い傾向は読み取りにくいです。',
+      summary: getMessage(language, 'aiChat.interests.tentativeSummary'),
       isTentative: true,
       evidence: {
         topDomains,
@@ -143,15 +158,23 @@ export const inferUserInterests = (
     .join(' / ')
   const categorySummary =
     topCategories.length > 0
-      ? `カテゴリでは ${topCategories.map(entry => entry.value).join('、')} が目立ちます。`
-      : 'カテゴリ偏りはまだ弱めです。'
+      ? getMessage(language, 'aiChat.interests.categoryBias', undefined, {
+          categories: topCategories
+            .map(entry => entry.value)
+            .join(language === 'ja' ? '、' : ', '),
+        })
+      : getMessage(language, 'aiChat.interests.categoryWeak')
 
   return {
     chartSpecs: buildChartSpecs({
+      language,
       topDomains,
       topCategories,
     }),
-    summary: `保存傾向から見ると ${domainSummary} 周辺への関心が強く、${categorySummary}`,
+    summary: getMessage(language, 'aiChat.interests.summary', undefined, {
+      categorySummary,
+      domainSummary,
+    }),
     isTentative: false,
     evidence: {
       topDomains,

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { ParentCategory, TabGroup } from '@/types/storage'
 
 /** カテゴリ名のバリデーションスキーマ */
@@ -100,6 +101,7 @@ export const useCategoryKeywordModal = ({
   initialParentCategories,
   onUpdateParentCategories,
 }: UseCategoryKeywordModalParams) => {
+  const { t } = useI18n()
   // --- サブカテゴリ選択状態 ---
   const [activeCategory, setActiveCategory] = useState<string>(
     group.subCategories && group.subCategories.length > 0
@@ -188,7 +190,7 @@ export const useCategoryKeywordModal = ({
       }
     } catch (error) {
       console.error('親カテゴリの読み込みに失敗:', error)
-      toast.error('親カテゴリの読み込みに失敗しました。再度お試しください。')
+      toast.error(t('savedTabs.categoryModal.loadError'))
     }
   }, [
     isOpen,
@@ -197,6 +199,7 @@ export const useCategoryKeywordModal = ({
     group.domain,
     onUpdateParentCategories,
     selectedParentCategory,
+    t,
   ])
 
   // --- モーダル開閉時の初期化 ---
@@ -248,14 +251,14 @@ export const useCategoryKeywordModal = ({
       keyword => keyword.toLowerCase() === trimmedKeyword.toLowerCase(),
     )
     if (isDuplicate) {
-      toast.error('このキーワードは既に追加されています')
+      toast.error(t('savedTabs.keywords.duplicate'))
       return
     }
     const updatedKeywords = [...keywords, trimmedKeyword]
     setKeywords(updatedKeywords)
     setNewKeyword('')
     onSave(group.id, activeCategory, updatedKeywords)
-  }, [newKeyword, keywords, group.id, activeCategory, onSave])
+  }, [newKeyword, keywords, group.id, activeCategory, onSave, t])
 
   // --- キーワード削除 ---
   const handleRemoveKeyword = useCallback(
@@ -328,8 +331,9 @@ export const useCategoryKeywordModal = ({
       return
     }
     if (group.subCategories?.includes(newSubCategory.trim())) {
-      setSubCategoryNameError('このカテゴリ名は既に存在しています')
-      toast.error('このカテゴリ名は既に存在しています')
+      const duplicateMessage = t('savedTabs.subCategory.duplicateName')
+      setSubCategoryNameError(duplicateMessage)
+      toast.error(duplicateMessage)
       return
     }
     setIsProcessing(true)
@@ -353,10 +357,14 @@ export const useCategoryKeywordModal = ({
       setActiveCategory(validName)
       setNewSubCategory('')
       setSubCategoryNameError(null)
-      toast.success(`新しいカテゴリ「${validName}」を追加しました`)
+      toast.success(
+        t('savedTabs.subCategory.created', undefined, {
+          name: validName,
+        }),
+      )
     } catch (error) {
       console.error('子カテゴリ追加エラー:', error)
-      toast.error('カテゴリの追加に失敗しました')
+      toast.error(t('savedTabs.subCategory.createError'))
     } finally {
       setIsProcessing(false)
     }
@@ -366,6 +374,7 @@ export const useCategoryKeywordModal = ({
     group.subCategories,
     group.id,
     validateCategoryName,
+    t,
   ])
 
   // --- カテゴリ削除 ---
@@ -442,8 +451,9 @@ export const useCategoryKeywordModal = ({
       return
     }
     if (group.subCategories?.includes(newCategoryName.trim())) {
-      setCategoryRenameError('このカテゴリ名は既に存在しています')
-      toast.error('このカテゴリ名は既に存在しています')
+      const duplicateMessage = t('savedTabs.subCategory.duplicateName')
+      setCategoryRenameError(duplicateMessage)
+      toast.error(duplicateMessage)
       requestAnimationFrame(() => {
         const inputElement = document.querySelector(
           'input[data-rename-input]',
@@ -471,11 +481,14 @@ export const useCategoryKeywordModal = ({
       setNewCategoryName('')
       setCategoryRenameError(null)
       toast.success(
-        `カテゴリ名を「${activeCategory}」から「${validName}」に変更しました`,
+        t('savedTabs.subCategory.renamed', undefined, {
+          before: activeCategory,
+          after: validName,
+        }),
       )
     } catch (error) {
       console.error('カテゴリ名の変更中にエラーが発生しました:', error)
-      toast.error('カテゴリ名の変更に失敗しました')
+      toast.error(t('savedTabs.subCategory.renameError'))
     } finally {
       setIsProcessing(false)
     }
@@ -486,6 +499,7 @@ export const useCategoryKeywordModal = ({
     group.subCategories,
     group.id,
     validateCategoryName,
+    t,
   ])
   return {
     /** サブカテゴリ関連 */

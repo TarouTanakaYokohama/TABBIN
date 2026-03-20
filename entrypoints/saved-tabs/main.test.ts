@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
-import { redirectToApp } from './main'
+import { redirectToApp, syncDocumentTitle } from './main'
 
 describe('saved-tabs legacy redirect', () => {
   it('saved-tabs.html から mode を維持して app.html へ redirect する', () => {
@@ -28,5 +28,12 @@ describe('saved-tabs legacy redirect', () => {
       'app.html#/saved-tabs?mode=domain',
     )
     expect(replace).toHaveBeenCalledWith('app.html#/saved-tabs?mode=domain')
+  })
+
+  it('saved-tabs.html の document title を同期する', () => {
+    expect(syncDocumentTitle('/saved-tabs.html', 'en-US')).toBe(
+      'Saved tabs - TABBIN',
+    )
+    expect(document.title).toBe('Saved tabs - TABBIN')
   })
 })

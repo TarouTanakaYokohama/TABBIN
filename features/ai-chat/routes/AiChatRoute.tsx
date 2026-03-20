@@ -13,10 +13,12 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { SavedTabsChatWidget } from '@/features/ai-chat/components/SavedTabsChatWidget'
 import { useSharedAiChatHistory } from '@/features/ai-chat/hooks/useSharedAiChatHistory'
 import type { AiChatHistoryItem } from '@/features/ai-chat/types'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 
 const AI_CHAT_HISTORY_BREAKPOINT = 1024
 
 export const AiChatRoute = () => {
+  const { t } = useI18n()
   const {
     activeConversation,
     createConversation,
@@ -55,7 +57,7 @@ export const AiChatRoute = () => {
   if (isLoading || !activeConversation) {
     return (
       <div className='flex min-h-[300px] items-center justify-center'>
-        <div className='text-foreground text-xl'>読み込み中...</div>
+        <div className='text-foreground text-xl'>{t('common.loading')}</div>
       </div>
     )
   }
@@ -68,10 +70,10 @@ export const AiChatRoute = () => {
             <div className='flex items-center justify-between px-4 pt-4 pb-3'>
               <div>
                 <p className='font-medium text-foreground text-sm'>
-                  最近の会話
+                  {t('aiChat.historyTitle')}
                 </p>
                 <p className='text-muted-foreground text-xs'>
-                  クリックして続きを開く
+                  {t('aiChat.historyHint')}
                 </p>
               </div>
               <div className='rounded-full border border-border bg-background px-2.5 py-1 text-muted-foreground text-xs'>
@@ -108,7 +110,11 @@ export const AiChatRoute = () => {
                         type='button'
                         variant='ghost'
                         size='icon-sm'
-                        aria-label={`${historyItem.title}を削除`}
+                        aria-label={t(
+                          'aiChat.deleteConversationAria',
+                          undefined,
+                          { title: historyItem.title },
+                        )}
                         className='shrink-0 text-muted-foreground hover:text-destructive'
                         onClick={event => {
                           event.stopPropagation()
@@ -158,8 +164,10 @@ export const AiChatRoute = () => {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>この会話を削除しますか？</DialogTitle>
-            <DialogDescription>削除すると元に戻せません。</DialogDescription>
+            <DialogTitle>{t('aiChat.deleteTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('aiChat.deleteDescription')}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
@@ -169,7 +177,7 @@ export const AiChatRoute = () => {
                 setPendingDeleteHistoryItem(null)
               }}
             >
-              キャンセル
+              {t('common.cancel')}
             </Button>
             <Button
               type='button'
@@ -183,7 +191,7 @@ export const AiChatRoute = () => {
                 setPendingDeleteHistoryItem(null)
               }}
             >
-              削除
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

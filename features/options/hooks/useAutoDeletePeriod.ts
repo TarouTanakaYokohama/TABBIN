@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { autoDeleteOptions } from '@/constants/autoDeleteOptions'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { UserSettings } from '@/types/storage'
 import { isPeriodShortening } from '@/utils/isPeriodShortening'
 
@@ -15,6 +16,7 @@ export const useAutoDeletePeriod = (
   settings: UserSettings,
   setSettings: React.Dispatch<React.SetStateAction<UserSettings>>,
 ) => {
+  const { t } = useI18n()
   const [pendingAutoDeletePeriod, setPendingAutoDeletePeriod] = useState<
     string | undefined
   >(undefined)
@@ -81,17 +83,22 @@ export const useAutoDeletePeriod = (
     const selectedOption = autoDeleteOptions.find(
       opt => opt.value === periodToApply,
     )
-    const periodLabel = selectedOption ? selectedOption.label : periodToApply
+    const periodLabel = selectedOption
+      ? t(selectedOption.labelKey)
+      : periodToApply
 
     // 警告メッセージを作成
     const currentPeriod = settings.autoDeletePeriod || 'never'
     const isShortening = isPeriodShortening(currentPeriod, periodToApply)
     const warningMessage = isShortening
-      ? '警告: 現在よりも短い期間に設定するため、一部のタブがすぐに削除される可能性があります！'
-      : '注意: 設定した期間より古いタブはすぐに削除される可能性があります。'
+      ? t('options.autoDelete.shorterWarning')
+      : t('options.autoDelete.validateWarning')
 
     // 確認メッセージを表示
-    const message = `自動削除期間を「${periodLabel}」に設定します。\n\n${warningMessage}\n\n続行しますか？`
+    const message = t('options.autoDelete.confirmMessage', undefined, {
+      periodLabel,
+      warningMessage,
+    })
 
     // 確認を表示
     showConfirmation(message, applyAutoDeletePeriod, periodToApply)
@@ -122,15 +129,19 @@ export const useAutoDeletePeriod = (
 
         // トースト通知を表示
         if (periodToApply === 'never') {
-          toast.success('自動削除を無効にしました')
+          toast.success(t('options.autoDelete.disabled'))
         } else {
           const selectedOption = autoDeleteOptions.find(
             opt => opt.value === periodToApply,
           )
           const periodLabel = selectedOption
-            ? selectedOption.label
+            ? t(selectedOption.labelKey)
             : periodToApply
-          toast.success(`自動削除期間を「${periodLabel}」に設定しました`)
+          toast.success(
+            t('options.autoDelete.enabled', undefined, {
+              periodLabel,
+            }),
+          )
         }
 
         // バックグラウンドに通知
@@ -155,7 +166,7 @@ export const useAutoDeletePeriod = (
     } catch (error) {
       console.error('自動削除期間の保存エラー:', error)
       // エラー時のトースト通知
-      toast.error('設定の保存に失敗しました')
+      toast.error(t('options.autoDelete.saveError'))
     }
   }
 

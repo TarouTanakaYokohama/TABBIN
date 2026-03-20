@@ -2,6 +2,7 @@ import { useDndMonitor } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useMemo } from 'react'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { CategoryManagementModal } from '@/features/saved-tabs/components/CategoryManagementModal'
 import { useCategoryGroupState } from '@/features/saved-tabs/hooks/useCategoryGroupState'
 import type { CategoryGroupProps } from '@/types/saved-tabs'
@@ -43,6 +44,7 @@ export const CategoryGroupRoot = ({
   handlers,
   children,
 }: CategoryGroupRootProps) => {
+  const { t } = useI18n()
   const state = useCategoryGroupState({
     category,
     domains,
@@ -115,7 +117,9 @@ export const CategoryGroupRoot = ({
         ref={setNodeRef}
         style={style}
         className='m-0 min-w-0 border-0 p-0'
-        aria-label={`${category.name} カテゴリグループ`}
+        aria-label={t('savedTabs.categoryGroupAria', undefined, {
+          name: category.name,
+        })}
         onDragOver={state.nativeDnD.handleDragOver}
         onDragLeave={state.nativeDnD.handleDragLeave}
         onDrop={e =>

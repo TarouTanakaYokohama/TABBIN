@@ -10,6 +10,8 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
+import { getMessage } from '@/features/i18n/lib/language'
 import { getProjectUrls } from '@/lib/storage/projects'
 import type { CustomProject, UrlRecord } from '@/types/storage'
 import { useCategoryDnD } from './useCategoryDnD'
@@ -158,6 +160,7 @@ const handleProcessedUrlDrop = (params: {
   handleReorderUrls: (projectId: string, urls: CustomProject['urls']) => void
   setProjectUrls: Dispatch<SetStateAction<ProjectUrlItem[]>>
   clearDragState: () => void
+  language: 'ja' | 'en'
 }): void => {
   const {
     projectId,
@@ -171,10 +174,11 @@ const handleProcessedUrlDrop = (params: {
     handleReorderUrls,
     setProjectUrls,
     clearDragState,
+    language,
   } = params
   const moveToUncategorized = () => {
     handleSetUrlCategory(projectId, actualUrl, undefined)
-    toast.success('タブを未分類に移動しました')
+    toast.success(getMessage(language, 'savedTabs.tab.movedToUncategorized'))
     clearDragState()
   }
   if (
@@ -199,7 +203,7 @@ const handleProcessedUrlDrop = (params: {
   if (urlToUrlDropResult.kind === 'reordered') {
     handleReorderUrls(projectId, urlToUrlDropResult.reorderedUrls)
     setProjectUrls(urlToUrlDropResult.reorderedUrls)
-    toast.success('タブの順序を変更しました')
+    toast.success(getMessage(language, 'savedTabs.tab.orderUpdated'))
     clearDragState()
     return
   }
@@ -214,8 +218,10 @@ const handleProcessedUrlDrop = (params: {
     )
     toast.success(
       urlToUrlDropResult.overCategory
-        ? `タブを「${urlToUrlDropResult.overCategory}」に移動しました`
-        : 'タブを未分類に移動しました',
+        ? getMessage(language, 'savedTabs.tab.movedToCategory', undefined, {
+            name: urlToUrlDropResult.overCategory,
+          })
+        : getMessage(language, 'savedTabs.tab.movedToUncategorized'),
     )
     clearDragState()
     return
@@ -224,7 +230,11 @@ const handleProcessedUrlDrop = (params: {
     const targetCategory = over.data.current.categoryName
     if (targetCategory && targetCategory !== dragSourceCategory) {
       handleSetUrlCategory(projectId, actualUrl, targetCategory)
-      toast.success(`タブを「${targetCategory}」に移動しました`)
+      toast.success(
+        getMessage(language, 'savedTabs.tab.movedToCategory', undefined, {
+          name: targetCategory,
+        }),
+      )
       clearDragState()
       return
     }
@@ -284,6 +294,7 @@ export const useCustomProjectCard = ({
   handleUpdateCategoryOrder,
   handleReorderUrls,
 }: UseCustomProjectCardParams) => {
+  const { t, language } = useI18n()
   // --- プロジェクトURL状態 ---
   const [projectUrls, setProjectUrls] = useState<ProjectUrlItem[]>([])
   const [isLoadingUrls, setIsLoadingUrls] = useState(true)
@@ -356,6 +367,7 @@ export const useCustomProjectCard = ({
         handleReorderUrls,
         setProjectUrls,
         clearDragState,
+        language,
       })
     },
     [
@@ -365,6 +377,7 @@ export const useCustomProjectCard = ({
       handleReorderUrls,
       setActiveId,
       setDraggedOverCategory,
+      language,
     ],
   )
 
@@ -390,7 +403,7 @@ export const useCustomProjectCard = ({
             newIndex,
           )
           handleUpdateCategoryOrder(project.id, newOrder)
-          toast.success('カテゴリの順序を変更しました')
+          toast.success(t('savedTabs.projectCategory.orderUpdated'))
         }
       }
     },
@@ -402,6 +415,7 @@ export const useCustomProjectCard = ({
       project.id,
       handleUpdateCategoryOrder,
       resetDnD,
+      t,
     ],
   )
 
@@ -419,7 +433,7 @@ export const useCustomProjectCard = ({
             targetElement.closest('[data-url]')?.getAttribute('data-url')
           if (urlAttr && projectUrlsRef.current.some(u => u.url === urlAttr)) {
             handleSetUrlCategoryRef.current(project.id, urlAttr, undefined)
-            toast.success('タブのカテゴリを解除しました（Alt+クリック）')
+            toast.success(t('savedTabs.tab.categoryClearedAlt'))
           }
         }
       }
@@ -427,7 +441,7 @@ export const useCustomProjectCard = ({
     document.addEventListener('click', handleManualCategoryReset)
     return () =>
       document.removeEventListener('click', handleManualCategoryReset)
-  }, [project.id])
+  }, [project.id, t])
 
   // --- 計算済みデータ ---
   const uncategorizedUrls = projectUrls.filter(url => !url.category)

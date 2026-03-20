@@ -15,6 +15,10 @@ const { useSortableMock, removeUrlFromTabGroupMock } = vi.hoisted(() => ({
   removeUrlFromTabGroupMock: vi.fn(),
 }))
 
+const savedTabsContentI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: useSortableMock,
 }))
@@ -30,6 +34,27 @@ vi.mock('@dnd-kit/utilities', () => ({
 vi.mock('@/lib/storage/tabs', () => ({
   removeUrlFromTabGroup: removeUrlFromTabGroupMock,
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: savedTabsContentI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(savedTabsContentI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 vi.mock('./TimeRemaining', () => ({
   CategorySection: (props: {
@@ -143,6 +168,7 @@ const createProps = (
 describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    savedTabsContentI18nState.language = 'ja'
     useSortableMock.mockReturnValue({
       attributes: {},
       listeners: {},
@@ -193,6 +219,24 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     expect(screen.getByTestId('category-section').textContent).toContain(
       'section:__uncategorized:2',
     )
+  })
+
+  it('renders English category controls when the display language is en', async () => {
+    savedTabsContentI18nState.language = 'en'
+
+    render(
+      <SavedTabsContentComponent
+        {...createProps({
+          categoryName: '__uncategorized',
+          handleDeleteAllTabs: vi.fn(),
+        })}
+      />,
+    )
+
+    expect(screen.getByText(/Uncategorized/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Open all/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Delete all/ }))
+    expect(await screen.findByText('Delete all tabs?')).toBeTruthy()
   })
 
   it('isDragging スタイルと urls 未指定時のフォールバックを処理する', () => {
@@ -275,7 +319,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /すべて削除/ }))
-    expect(await screen.findByRole('button', { name: '削除する' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: '削除' })).toBeTruthy()
   })
 
   it('カテゴリ全削除確認で handleDeleteAllTabs を 1 回だけ呼ぶ', async () => {
@@ -290,7 +334,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /すべて削除/ }))
-    fireEvent.click(await screen.findByRole('button', { name: '削除する' }))
+    fireEvent.click(await screen.findByRole('button', { name: '削除' }))
 
     await waitFor(() => {
       expect(handleDeleteAllTabs).toHaveBeenCalledWith([
@@ -315,7 +359,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /すべて削除/ }))
-    fireEvent.click(await screen.findByRole('button', { name: '削除する' }))
+    fireEvent.click(await screen.findByRole('button', { name: '削除' }))
 
     await screen.findByRole('button', { name: /すべて削除/ })
 
@@ -329,7 +373,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /すべて削除/ }))
-    fireEvent.click(await screen.findByRole('button', { name: '削除する' }))
+    fireEvent.click(await screen.findByRole('button', { name: '削除' }))
 
     await waitFor(() => {
       expect(console.error).toHaveBeenCalled()
@@ -355,7 +399,7 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /すべて削除/ }))
     const confirmButton = await screen.findByRole('button', {
-      name: '削除する',
+      name: '削除',
     })
     fireEvent.click(confirmButton)
     await waitFor(() => {

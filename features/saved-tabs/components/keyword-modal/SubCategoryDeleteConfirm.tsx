@@ -1,5 +1,6 @@
 import { Trash } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { SavedTabsResponsiveLabel } from '../shared/SavedTabsResponsive'
 import { useKeywordModal } from './KeywordModalContext'
 
@@ -8,6 +9,7 @@ import { useKeywordModal } from './KeywordModalContext'
  * 削除確認モード中のみ表示される
  */
 export const SubCategoryDeleteConfirm = () => {
+  const { t } = useI18n()
   const { state } = useKeywordModal()
   const { subcategory, deletion } = state
 
@@ -18,10 +20,12 @@ export const SubCategoryDeleteConfirm = () => {
   return (
     <div className='mt-2 mb-3 rounded border p-3'>
       <p className='mb-2 text-gray-300'>
-        「{subcategory.activeCategory}」子カテゴリを削除しますか？
+        {t('savedTabs.subCategory.deleteConfirmTitle', undefined, {
+          name: subcategory.activeCategory,
+        })}
         <br />
         <span className='text-xs'>
-          この子カテゴリに属するすべてのタブは未分類になります
+          {t('savedTabs.subCategory.deleteConfirmHint')}
         </span>
       </p>
       <div className='flex justify-end gap-2'>
@@ -31,7 +35,7 @@ export const SubCategoryDeleteConfirm = () => {
           onClick={() => deletion.setShowDeleteConfirm(false)}
           className='cursor-pointer rounded px-2 py-1'
         >
-          キャンセル
+          {t('common.cancel')}
         </Button>
         <Button
           variant='destructive'
@@ -40,7 +44,9 @@ export const SubCategoryDeleteConfirm = () => {
           className='flex cursor-pointer items-center gap-1'
         >
           <Trash size={14} />
-          <SavedTabsResponsiveLabel>削除</SavedTabsResponsiveLabel>
+          <SavedTabsResponsiveLabel>
+            {t('common.delete')}
+          </SavedTabsResponsiveLabel>
         </Button>
       </div>
     </div>

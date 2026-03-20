@@ -26,6 +26,58 @@ vi.mock('@/lib/browser/runtime', () => ({
   sendRuntimeMessage: vi.fn(),
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    t: (key: string, fallback?: string, values?: Record<string, string>) => {
+      const messages: Record<string, string> = {
+        'options.importExport.cancel': 'Cancel',
+        'options.importExport.dialogDescription':
+          'Restore settings and tab data from a backup file exported earlier.',
+        'options.importExport.dialogTitle': 'Import settings and tab data',
+        'options.importExport.dropActive': 'Drop the file here',
+        'options.importExport.dropIdle': 'Drag and drop a JSON file',
+        'options.importExport.export': 'Export settings and tab data',
+        'options.importExport.exporting': 'Exporting...',
+        'options.importExport.exportError': 'An error occurred while exporting',
+        'options.importExport.exportSuccess': 'Exported settings and tab data',
+        'options.importExport.import': 'Import settings and tab data',
+        'options.importExport.importError':
+          'Failed to import settings and tab data',
+        'options.importExport.importFormatError':
+          'The imported data format is invalid',
+        'options.importExport.importing': 'Importing...',
+        'options.importExport.invalidJson': 'Please select a JSON file',
+        'options.importExport.merge': 'Merge with existing data (recommended)',
+        'options.importExport.mergeDescription':
+          'Keeps existing data while adding and updating new data.',
+        'options.importExport.mergeLabel': 'Note',
+        'options.importExport.mergeWarning':
+          'During merge, items with the same ID are updated.',
+        'options.importExport.mergeSuccess':
+          'Merged {{categories}} categories and {{domains}} domains{{unresolved}}',
+        'options.importExport.replaceDescription':
+          'Warning: all existing data will be replaced.',
+        'options.importExport.replaceLabel': 'Warning',
+        'options.importExport.replaceWarning':
+          'Importing will overwrite all current settings and tab data. This cannot be undone.',
+        'options.importExport.replaceSuccess':
+          'Replaced settings and tab data (version: {{version}}, created: {{timestamp}}){{unresolved}}',
+        'options.importExport.readError': 'Failed to read the file',
+        'options.importExport.selectFile': 'Click to choose a file',
+        'options.importExport.unresolvedWarning':
+          ' ({{count}} unresolved, {{placeholderCount}} placeholders)',
+      }
+
+      const template = messages[key] ?? fallback ?? key
+
+      return template.replaceAll(
+        /\{\{(\w+)\}\}/g,
+        (_: string, token: string) => values?.[token] ?? '',
+      )
+    },
+  }),
+}))
+
 import { toast } from 'sonner'
 import {
   downloadAsJson,
@@ -133,7 +185,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     render(<ImportExportSettings />)
 
     fireEvent.click(
-      screen.getByRole('button', { name: '設定とタブデータをエクスポート' }),
+      screen.getByRole('button', { name: 'Export settings and tab data' }),
     )
 
     await waitFor(() => {
@@ -144,9 +196,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     expect(vi.mocked(downloadAsJson).mock.calls[0]?.[1]).toMatch(
       /^tab-manager-backup-\d{4}-\d{2}-\d{2}\.json$/,
     )
-    expect(toast.success).toHaveBeenCalledWith(
-      '設定とタブデータをエクスポートしました',
-    )
+    expect(toast.success).toHaveBeenCalledWith('Exported settings and tab data')
   })
 
   it('エクスポート失敗時にエラートーストを表示する', async () => {
@@ -155,12 +205,12 @@ describe('ImportExportSettingsコンポーネント', () => {
     render(<ImportExportSettings />)
 
     fireEvent.click(
-      screen.getByRole('button', { name: '設定とタブデータをエクスポート' }),
+      screen.getByRole('button', { name: 'Export settings and tab data' }),
     )
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
-        'エクスポート中にエラーが発生しました',
+        'An error occurred while exporting',
       )
     })
   })
@@ -174,17 +224,17 @@ describe('ImportExportSettingsコンポーネント', () => {
     const { container } = render(<ImportExportSettings />)
 
     fireEvent.click(
-      screen.getByRole('button', { name: '設定とタブデータをインポート' }),
+      screen.getByRole('button', { name: 'Import settings and tab data' }),
     )
 
     fireEvent.click(
       screen.getByRole('checkbox', {
-        name: '既存データとマージする（推奨）',
+        name: 'Merge with existing data (recommended)',
       }),
     )
 
     expect(
-      screen.getByText('警告：既存のデータをすべて置き換えます。'),
+      screen.getByText('Warning: all existing data will be replaced.'),
     ).toBeTruthy()
 
     fireEvent.change(getHiddenFileInput(container), {
@@ -196,7 +246,11 @@ describe('ImportExportSettingsコンポーネント', () => {
     })
 
     await waitFor(() => {
-      expect(importSettings).toHaveBeenCalledWith(readerContent, false)
+      expect(importSettings).toHaveBeenCalledWith(
+        readerContent,
+        false,
+        expect.any(Function),
+      )
     })
   })
 
@@ -221,7 +275,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     const { container } = render(<ImportExportSettings />)
 
     fireEvent.click(
-      screen.getByRole('button', { name: '設定とタブデータをインポート' }),
+      screen.getByRole('button', { name: 'Import settings and tab data' }),
     )
 
     fireEvent.change(getDropzoneFileInput(container), {
@@ -233,7 +287,11 @@ describe('ImportExportSettingsコンポーネント', () => {
     })
 
     await waitFor(() => {
-      expect(importSettings).toHaveBeenCalledWith(readerContent, true)
+      expect(importSettings).toHaveBeenCalledWith(
+        readerContent,
+        true,
+        expect.any(Function),
+      )
     })
   })
 
@@ -241,7 +299,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     const { container } = render(<ImportExportSettings />)
 
     fireEvent.click(
-      screen.getByRole('button', { name: '設定とタブデータをインポート' }),
+      screen.getByRole('button', { name: 'Import settings and tab data' }),
     )
 
     const dropzone = getDropzoneFileInput(container).parentElement
@@ -258,7 +316,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('ファイルをドロップ')).toBeTruthy()
+      expect(screen.getByText('Drop the file here')).toBeTruthy()
     })
   })
 
@@ -266,7 +324,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     const { container } = render(<ImportExportSettings />)
 
     fireEvent.click(
-      screen.getByRole('button', { name: '設定とタブデータをインポート' }),
+      screen.getByRole('button', { name: 'Import settings and tab data' }),
     )
 
     const dropzone = getDropzoneFileInput(container).parentElement
@@ -291,14 +349,16 @@ describe('ImportExportSettingsコンポーネント', () => {
     render(<ImportExportSettings />)
 
     fireEvent.click(
-      screen.getByRole('button', { name: '設定とタブデータをインポート' }),
+      screen.getByRole('button', { name: 'Import settings and tab data' }),
     )
-    expect(screen.getByText('設定とタブデータのインポート')).toBeTruthy()
+    expect(screen.getByRole('dialog').textContent).toContain(
+      'Import settings and tab data',
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     await waitFor(() => {
-      expect(screen.queryByText('設定とタブデータのインポート')).toBeNull()
+      expect(screen.queryByRole('dialog')).toBeNull()
     })
   })
 
@@ -312,7 +372,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     })
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('JSONファイルを選択してください')
+      expect(toast.error).toHaveBeenCalledWith('Please select a JSON file')
     })
     expect(importSettings).not.toHaveBeenCalled()
   })
@@ -320,7 +380,7 @@ describe('ImportExportSettingsコンポーネント', () => {
   it('JSON ファイルを正常にインポートして background に通知する', async () => {
     vi.mocked(importSettings).mockResolvedValue({
       success: true,
-      message: 'インポート成功',
+      message: 'Import successful',
     })
 
     const { container } = render(<ImportExportSettings />)
@@ -334,10 +394,14 @@ describe('ImportExportSettingsコンポーネント', () => {
     })
 
     await waitFor(() => {
-      expect(importSettings).toHaveBeenCalledWith(readerContent, true)
+      expect(importSettings).toHaveBeenCalledWith(
+        readerContent,
+        true,
+        expect.any(Function),
+      )
     })
 
-    expect(toast.success).toHaveBeenCalledWith('インポート成功')
+    expect(toast.success).toHaveBeenCalledWith('Import successful')
     expect(sendRuntimeMessage).toHaveBeenCalledWith({
       action: 'settingsImported',
     })
@@ -346,7 +410,7 @@ describe('ImportExportSettingsコンポーネント', () => {
   it('インポート結果が失敗時は importSettings の失敗メッセージを表示する', async () => {
     vi.mocked(importSettings).mockResolvedValue({
       success: false,
-      message: 'バリデーションエラー',
+      message: 'Validation error',
     })
 
     const { container } = render(<ImportExportSettings />)
@@ -360,7 +424,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     })
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('バリデーションエラー')
+      expect(toast.error).toHaveBeenCalledWith('Validation error')
     })
 
     expect(sendRuntimeMessage).not.toHaveBeenCalled()
@@ -380,7 +444,9 @@ describe('ImportExportSettingsコンポーネント', () => {
     })
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('インポートに失敗しました')
+      expect(toast.error).toHaveBeenCalledWith(
+        'Failed to import settings and tab data',
+      )
     })
   })
 
@@ -398,9 +464,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     })
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
-        'ファイルの読み込みに失敗しました',
-      )
+      expect(toast.error).toHaveBeenCalledWith('Failed to read the file')
     })
     expect(importSettings).not.toHaveBeenCalled()
   })
@@ -419,9 +483,7 @@ describe('ImportExportSettingsコンポーネント', () => {
     })
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
-        'ファイルの読み込みに失敗しました',
-      )
+      expect(toast.error).toHaveBeenCalledWith('Failed to read the file')
     })
     expect(importSettings).not.toHaveBeenCalled()
   })
@@ -447,7 +509,11 @@ describe('ImportExportSettingsコンポーネント', () => {
     unmount()
 
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(importSettings).toHaveBeenCalledWith(readerContent, true)
+    expect(importSettings).toHaveBeenCalledWith(
+      readerContent,
+      true,
+      expect.any(Function),
+    )
   })
 
   it('アンマウント後の非同期 onerror を null の file input ref に触れず処理する', async () => {
@@ -467,6 +533,6 @@ describe('ImportExportSettingsコンポーネント', () => {
     unmount()
 
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(toast.error).toHaveBeenCalledWith('ファイルの読み込みに失敗しました')
+    expect(toast.error).toHaveBeenCalledWith('Failed to read the file')
   })
 })

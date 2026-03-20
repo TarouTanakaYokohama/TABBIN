@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { ViewMode } from '@/types/storage'
 import {
   SavedTabsResponsiveLabel,
@@ -22,12 +23,15 @@ export const ViewModeToggle = ({
   currentMode,
   onChange,
 }: ViewModeToggleProps) => {
+  const { t } = useI18n()
   const renderSelectedValue = () => {
     if (currentMode === 'domain') {
       return (
         <div className='flex items-center gap-2'>
           <Globe size={16} />
-          <SavedTabsResponsiveLabel>ドメインモード</SavedTabsResponsiveLabel>
+          <SavedTabsResponsiveLabel>
+            {t('savedTabs.viewMode.domain')}
+          </SavedTabsResponsiveLabel>
         </div>
       )
     }
@@ -35,11 +39,13 @@ export const ViewModeToggle = ({
       return (
         <div className='flex items-center gap-2'>
           <Folder size={16} />
-          <SavedTabsResponsiveLabel>カスタムモード</SavedTabsResponsiveLabel>
+          <SavedTabsResponsiveLabel>
+            {t('savedTabs.viewMode.custom')}
+          </SavedTabsResponsiveLabel>
         </div>
       )
     }
-    return '表示モード'
+    return t('savedTabs.viewMode.placeholder')
   }
 
   return (
@@ -47,8 +53,13 @@ export const ViewModeToggle = ({
       <TooltipTrigger asChild={true}>
         <div>
           <Select value={currentMode} onValueChange={onChange}>
-            <SelectTrigger className='flex h-9 items-center gap-2'>
-              <SelectValue placeholder='ドメインまたはカスタムモードを選択'>
+            <SelectTrigger
+              aria-label={t('savedTabs.viewMode.tooltip')}
+              className='flex h-9 items-center gap-2'
+            >
+              <SelectValue
+                placeholder={t('savedTabs.viewMode.selectPlaceholder')}
+              >
                 {renderSelectedValue()}
               </SelectValue>
             </SelectTrigger>
@@ -56,13 +67,13 @@ export const ViewModeToggle = ({
               <SelectItem value='domain'>
                 <div className='flex items-center gap-2'>
                   <Globe size={16} />
-                  <span>ドメインモード</span>
+                  <span>{t('savedTabs.viewMode.domain')}</span>
                 </div>
               </SelectItem>
               <SelectItem value='custom'>
                 <div className='flex items-center gap-2'>
                   <Folder size={16} />
-                  <span>カスタムモード</span>
+                  <span>{t('savedTabs.viewMode.custom')}</span>
                 </div>
               </SelectItem>
             </SelectContent>
@@ -70,7 +81,7 @@ export const ViewModeToggle = ({
         </div>
       </TooltipTrigger>
       <SavedTabsResponsiveTooltipContent side='top'>
-        表示モード切り替え
+        {t('savedTabs.viewMode.tooltip')}
       </SavedTabsResponsiveTooltipContent>
     </Tooltip>
   )

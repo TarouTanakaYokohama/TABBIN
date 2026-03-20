@@ -3,6 +3,7 @@ import {
   type Dispatch,
   type SetStateAction,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -18,23 +19,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   SavedTabsResponsiveLabel,
   SavedTabsResponsiveTooltipContent,
 } from '@/features/saved-tabs/components/shared/SavedTabsResponsive'
 import { CUSTOM_UNCATEGORIZED_PROJECT_ID } from '@/lib/storage/projects'
 import type { CustomProject, ProjectKeywordSettings } from '@/types/storage'
-
-// プロジェクト名のバリデーションスキーマ
-const projectNameSchema = z
-  .string()
-  .trim()
-  .min(1, {
-    message: 'プロジェクト名を入力してください',
-  })
-  .max(50, {
-    message: 'プロジェクト名は50文字以下にしてください',
-  })
 
 interface ProjectManagementModalProps {
   isOpen: boolean
@@ -46,6 +37,29 @@ interface ProjectManagementModalProps {
     projectKeywords: ProjectKeywordSettings,
   ) => Promise<void> | void
   onDeleteProject?: (projectId: string) => Promise<void> | void
+}
+
+const createProjectNameSchema = (
+  validationMessages: { empty: string; maxLength: string } = {
+    empty: 'プロジェクト名を入力してください',
+    maxLength: 'プロジェクト名は50文字以下で入力してください',
+  },
+) =>
+  z
+    .string()
+    .trim()
+    .min(1, {
+      message: validationMessages.empty,
+    })
+    .max(50, {
+      message: validationMessages.maxLength,
+    })
+
+const projectNameSchema = {
+  schema: createProjectNameSchema(),
+  safeParse(value: string) {
+    return this.schema.safeParse(value)
+  },
 }
 
 const normalizeKeyword = (value: string): string => value.trim()
@@ -84,58 +98,64 @@ const ProjectKeywordSection = ({
   onAddKeyword,
   onBlurKeyword,
   onRemoveKeyword,
-}: ProjectKeywordSectionProps) => (
-  <div className='space-y-2'>
-    <Label htmlFor={inputId}>{label}</Label>
-    <p className='text-muted-foreground text-xs'>{description}</p>
-    <Input
-      id={inputId}
-      aria-label={`${label}入力`}
-      value={newKeyword}
-      onChange={e => onKeywordChange(e.target.value)}
-      placeholder={placeholder}
-      disabled={disabled}
-      onKeyDown={e => {
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          onAddKeyword()
-        }
-      }}
-      onBlur={() => {
-        if (newKeyword.trim()) {
-          onBlurKeyword()
-        }
-      }}
-    />
+}: ProjectKeywordSectionProps) => {
+  const { t } = useI18n()
 
-    <div className='flex min-h-12 flex-wrap gap-2 rounded border p-2'>
-      {keywords.length === 0 ? (
-        <p className='text-muted-foreground text-sm'>キーワードがありません</p>
-      ) : (
-        keywords.map(keyword => (
-          <Badge
-            key={keyword}
-            variant='outline'
-            className='flex items-center gap-1 rounded px-2 py-1'
-          >
-            {keyword}
-            <Button
-              type='button'
-              variant='ghost'
-              size='sm'
-              onClick={() => onRemoveKeyword(keyword)}
-              className='h-5 px-1'
-              aria-label='キーワードを削除'
-              disabled={disabled}
+  return (
+    <div className='space-y-2'>
+      <Label htmlFor={inputId}>{label}</Label>
+      <p className='text-muted-foreground text-xs'>{description}</p>
+      <Input
+        id={inputId}
+        aria-label={label}
+        value={newKeyword}
+        onChange={e => onKeywordChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        onKeyDown={e => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            onAddKeyword()
+          }
+        }}
+        onBlur={() => {
+          if (newKeyword.trim()) {
+            onBlurKeyword()
+          }
+        }}
+      />
+
+      <div className='flex min-h-12 flex-wrap gap-2 rounded border p-2'>
+        {keywords.length === 0 ? (
+          <p className='text-muted-foreground text-sm'>
+            {t('savedTabs.keywords.empty')}
+          </p>
+        ) : (
+          keywords.map(keyword => (
+            <Badge
+              key={keyword}
+              variant='outline'
+              className='flex items-center gap-1 rounded px-2 py-1'
             >
-              <X size={14} />
-            </Button>
-          </Badge>
-        ))
-      )}
+              {keyword}
+              <Button
+                type='button'
+                variant='ghost'
+                size='sm'
+                onClick={() => onRemoveKeyword(keyword)}
+                className='h-5 px-1'
+                aria-label={t('savedTabs.keywords.deleteAria')}
+                disabled={disabled}
+              >
+                <X size={14} />
+              </Button>
+            </Badge>
+          ))
+        )}
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
 export const ProjectManagementModal = ({
   isOpen,
@@ -145,6 +165,15 @@ export const ProjectManagementModal = ({
   onUpdateProjectKeywords,
   onDeleteProject,
 }: ProjectManagementModalProps) => {
+  const { t } = useI18n()
+  const localizedProjectNameSchema = useMemo(
+    () =>
+      createProjectNameSchema({
+        empty: t('savedTabs.projectNameRequired'),
+        maxLength: t('savedTabs.projectNameMaxLength'),
+      }),
+    [t],
+  )
   const isUncategorizedProject = project.id === CUSTOM_UNCATEGORIZED_PROJECT_ID
   const [isRenaming, setIsRenaming] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
@@ -182,14 +211,17 @@ export const ProjectManagementModal = ({
 
   // 入力値バリデーション関数
   const validateProjectName = (name: string) => {
+    projectNameSchema.schema = localizedProjectNameSchema
     const result = projectNameSchema.safeParse(name)
     if (!result.success) {
-      const [
-        { message } = {
-          message: 'プロジェクト名が無効です',
-        },
-      ] = result.error.issues
-      setProjectNameError(message)
+      const issue = result.error.issues[0]
+      if (issue?.code === 'too_small') {
+        setProjectNameError(t('savedTabs.projectNameRequired'))
+      } else if (issue?.code === 'too_big') {
+        setProjectNameError(t('savedTabs.projectNameMaxLength'))
+      } else {
+        setProjectNameError(t('savedTabs.projectNameRequired'))
+      }
       return false
     }
     setProjectNameError(null)
@@ -358,14 +390,18 @@ export const ProjectManagementModal = ({
     >
       <DialogContent className='max-h-[90vh] overflow-y-auto'>
         <DialogHeader className='text-left'>
-          <DialogTitle>「{localProjectName}」の設定</DialogTitle>
+          <DialogTitle>
+            {t('savedTabs.projectManagement.title', undefined, {
+              name: localProjectName,
+            })}
+          </DialogTitle>
         </DialogHeader>
 
         <div className='space-y-4'>
           {/* プロジェクト名変更セクション */}
           <div className='mb-4'>
             <div className='mb-2 flex items-center justify-between'>
-              <Label>プロジェクト名</Label>
+              <Label>{t('savedTabs.projectManagement.nameLabel')}</Label>
               {!isRenaming && !isUncategorizedProject && (
                 <div className='flex items-center gap-2'>
                   <Tooltip>
@@ -378,12 +414,12 @@ export const ProjectManagementModal = ({
                       >
                         <Edit size={14} />
                         <SavedTabsResponsiveLabel>
-                          名前を変更
+                          {t('savedTabs.projectManagement.renameAction')}
                         </SavedTabsResponsiveLabel>
                       </Button>
                     </TooltipTrigger>
                     <SavedTabsResponsiveTooltipContent side='top'>
-                      名前を変更
+                      {t('savedTabs.projectManagement.renameAction')}
                     </SavedTabsResponsiveTooltipContent>
                   </Tooltip>
                   <Tooltip>
@@ -397,12 +433,12 @@ export const ProjectManagementModal = ({
                       >
                         <Trash2 size={14} />
                         <SavedTabsResponsiveLabel>
-                          プロジェクトを削除
+                          {t('savedTabs.projectManagement.deleteAction')}
                         </SavedTabsResponsiveLabel>
                       </Button>
                     </TooltipTrigger>
                     <SavedTabsResponsiveTooltipContent side='top'>
-                      プロジェクトを削除
+                      {t('savedTabs.projectManagement.deleteAction')}
                     </SavedTabsResponsiveTooltipContent>
                   </Tooltip>
                 </div>
@@ -412,13 +448,15 @@ export const ProjectManagementModal = ({
             {isRenaming ? (
               <div className='mt-2 w-full rounded border p-3'>
                 <div className='mb-2 text-gray-300 text-sm'>
-                  新しいプロジェクト名を入力してください
+                  {t('savedTabs.projectManagement.renamePrompt')}
                 </div>
                 <Input
                   ref={inputRef}
                   value={newProjectName}
                   onChange={handleProjectNameChange}
-                  placeholder='例: ウェブサイトリニューアル'
+                  placeholder={t(
+                    'savedTabs.projectManagement.renamePlaceholder',
+                  )}
                   className={`w-full flex-1 rounded border p-2 ${projectNameError ? 'border-red-500' : ''}`}
                   onBlur={() => {
                     if (isProcessing) {
@@ -481,18 +519,22 @@ export const ProjectManagementModal = ({
 
           <div className='rounded border p-3'>
             <div className='mb-3 space-y-1'>
-              <Label>自動振り分けキーワード</Label>
+              <Label>{t('savedTabs.projectManagement.autoAssignLabel')}</Label>
               <p className='text-muted-foreground text-xs'>
-                新規保存されたタブが対象です。
+                {t('savedTabs.projectManagement.autoAssignDescription')}
               </p>
             </div>
 
             <div className='space-y-3'>
               <ProjectKeywordSection
-                label='タイトルキーワード'
-                description='タイトルにキーワードが含まれていると、このプロジェクトに振り分けます'
+                label={t('savedTabs.projectManagement.keywordTitleLabel')}
+                description={t(
+                  'savedTabs.projectManagement.keywordTitleDescription',
+                )}
                 inputId='project-title-keywords'
-                placeholder='例: release'
+                placeholder={t(
+                  'savedTabs.projectManagement.keywordTitlePlaceholder',
+                )}
                 keywords={titleKeywords}
                 newKeyword={newTitleKeyword}
                 disabled={isProcessing}
@@ -526,10 +568,14 @@ export const ProjectManagementModal = ({
               />
 
               <ProjectKeywordSection
-                label='URLキーワード'
-                description='URL にキーワードが含まれていると、このプロジェクトに振り分けます'
+                label={t('savedTabs.projectManagement.keywordUrlLabel')}
+                description={t(
+                  'savedTabs.projectManagement.keywordUrlDescription',
+                )}
                 inputId='project-url-keywords'
-                placeholder='例: docs'
+                placeholder={t(
+                  'savedTabs.projectManagement.keywordUrlPlaceholder',
+                )}
                 keywords={urlKeywords}
                 newKeyword={newUrlKeyword}
                 disabled={isProcessing}
@@ -563,10 +609,14 @@ export const ProjectManagementModal = ({
               />
 
               <ProjectKeywordSection
-                label='ドメインキーワード'
-                description='ドメインにキーワードが含まれていると、このプロジェクトに振り分けます'
+                label={t('savedTabs.projectManagement.keywordDomainLabel')}
+                description={t(
+                  'savedTabs.projectManagement.keywordDomainDescription',
+                )}
                 inputId='project-domain-keywords'
-                placeholder='例: github.com'
+                placeholder={t(
+                  'savedTabs.projectManagement.keywordDomainPlaceholder',
+                )}
                 keywords={domainKeywords}
                 newKeyword={newDomainKeyword}
                 disabled={isProcessing}
@@ -604,10 +654,15 @@ export const ProjectManagementModal = ({
           {showDeleteConfirm && (
             <div className='mt-1 mb-3 rounded border p-3'>
               <p className='mb-2 text-gray-700 dark:text-gray-300'>
-                プロジェクト「{localProjectName}
-                」を削除しますか？この操作は取り消せません。
+                {t(
+                  'savedTabs.projectManagement.deleteConfirmDescription',
+                  undefined,
+                  {
+                    name: localProjectName,
+                  },
+                )}
                 <span className='mt-1 block max-w-full truncate text-xs'>
-                  このプロジェクトに含まれるすべてのタブとの紐付けも解除されます。
+                  {t('savedTabs.projectManagement.deleteConfirmHint')}
                 </span>
               </p>
               <div className='flex justify-end gap-2'>
@@ -619,11 +674,11 @@ export const ProjectManagementModal = ({
                       onClick={() => setShowDeleteConfirm(false)}
                       disabled={isProcessing}
                     >
-                      キャンセル
+                      {t('common.cancel')}
                     </Button>
                   </TooltipTrigger>
                   <SavedTabsResponsiveTooltipContent side='top'>
-                    キャンセル
+                    {t('common.cancel')}
                   </SavedTabsResponsiveTooltipContent>
                 </Tooltip>
                 <Tooltip>
@@ -635,11 +690,13 @@ export const ProjectManagementModal = ({
                       disabled={isProcessing}
                     >
                       <Trash size={14} />
-                      <SavedTabsResponsiveLabel>削除</SavedTabsResponsiveLabel>
+                      <SavedTabsResponsiveLabel>
+                        {t('common.delete')}
+                      </SavedTabsResponsiveLabel>
                     </Button>
                   </TooltipTrigger>
                   <SavedTabsResponsiveTooltipContent side='top'>
-                    プロジェクトを削除
+                    {t('savedTabs.projectManagement.deleteAction')}
                   </SavedTabsResponsiveTooltipContent>
                 </Tooltip>
               </div>

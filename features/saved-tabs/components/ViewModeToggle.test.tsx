@@ -9,6 +9,31 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ViewMode } from '@/types/storage'
 
+const viewModeI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: viewModeI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(viewModeI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
+
 vi.mock('@/components/ui/select', () => ({
   Select: ({
     value,
@@ -75,6 +100,7 @@ describe('ViewModeToggle', () => {
   afterEach(() => {
     cleanup()
     vi.clearAllMocks()
+    viewModeI18nState.language = 'ja'
   })
 
   it('domain モードの選択表示と tooltip/menu を描画し onChange を呼ぶ', () => {
@@ -109,6 +135,18 @@ describe('ViewModeToggle', () => {
     )
 
     expect(screen.getByTestId('select-value').textContent).toBe('表示モード')
+  })
+
+  it('renders English view mode labels when the display language is en', () => {
+    viewModeI18nState.language = 'en'
+
+    render(<ViewModeToggle currentMode='domain' onChange={vi.fn()} />)
+
+    const value = within(screen.getByTestId('select-value'))
+    expect(value.getByText('Domain mode')).toBeTruthy()
+    expect(screen.getByTestId('tooltip-content').textContent).toBe(
+      'Switch view mode',
+    )
   })
 
   it('compact layout ではラベルを隠して tooltip を表示対象にする', () => {

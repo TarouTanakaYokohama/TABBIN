@@ -8,9 +8,9 @@ const vitePlugins = tailwindcss() as unknown as NonNullable<
 
 export default defineConfig({
   manifest: {
-    name: 'TABBIN',
-    description:
-      'ブラウザのタブを整理・分類する拡張機能です。散らかりがちなタブを管理できます。',
+    default_locale: 'ja',
+    name: '__MSG_extensionName__',
+    description: '__MSG_extensionDescription__',
     version: '2.0.2',
     host_permissions: [
       'http://localhost:11434/*',
@@ -18,14 +18,14 @@ export default defineConfig({
     ],
     permissions: ['alarms', 'tabs', 'storage', 'contextMenus', 'notifications'],
     action: {
-      default_title: 'TABBIN',
+      default_title: '__MSG_extensionName__',
     },
     options_ui: {
       page: 'options.html',
       open_in_tab: true,
     },
   },
-  modules: ['@wxt-dev/module-react'],
+  modules: ['@wxt-dev/module-react', '@wxt-dev/i18n/module'],
   vite: () => ({
     plugins: vitePlugins,
   }),

@@ -25,6 +25,44 @@ const { useSortableMock, dndMonitorHandlers, categorySectionSpy } = vi.hoisted(
   }),
 )
 
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    language: 'ja',
+    t: (key: string, _fallback?: string, values?: Record<string, string>) => {
+      const messages = {
+        'common.cancel': 'キャンセル',
+        'common.confirm': '確定',
+        'common.delete': '削除',
+        'common.open': '開く',
+        'savedTabs.uncategorized': '未分類',
+        'savedTabs.collapse': '折りたたむ',
+        'savedTabs.expand': '展開',
+        'savedTabs.reorder.disabled': '並び替えモード中',
+        'savedTabs.sort.default': 'デフォルト',
+        'savedTabs.sort.asc': '保存日時の昇順',
+        'savedTabs.sort.desc': '保存日時の降順',
+        'savedTabs.openAll': 'すべて開く',
+        'savedTabs.openAllTabs': 'すべてのタブを開く',
+        'savedTabs.openAllConfirmDescription':
+          '10件以上のタブを開こうとしています。続行しますか？',
+        'savedTabs.deleteAll': 'すべて削除',
+        'savedTabs.deleteAllTabs': 'すべてのタブを削除',
+        'savedTabs.deletingAll': '削除中...',
+        'savedTabs.sortableCategory.bulkOpenTitle': '複数タブを開く',
+        'savedTabs.sortableCategory.bulkDeleteTitle': 'タブを削除',
+        'savedTabs.sortableCategory.bulkDeleteDescription':
+          '「{{name}}」のタブをすべて削除しますか？',
+        'savedTabs.sortableCategory.tabCountLabel': 'タブ数',
+      } satisfies Record<string, string>
+      const template = messages[key as keyof typeof messages] ?? key
+      return template.replaceAll(
+        /\{\{(\w+)\}\}/g,
+        (_, token) => values?.[token] ?? '',
+      )
+    },
+  }),
+}))
+
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: useSortableMock,
 }))

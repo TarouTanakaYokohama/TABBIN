@@ -1513,7 +1513,7 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), true)
 
     expect(result.success).toBe(true)
-    expect(result.message).toContain('代替URLを生成しました')
+    expect(result.message).toContain('データをマージしました')
     expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
     expect(saveUserSettings).toHaveBeenCalledTimes(1)
     expect(saveParentCategories).toHaveBeenCalledTimes(1)
@@ -1586,7 +1586,7 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), false)
 
     expect(result.success).toBe(true)
-    expect(result.message).toContain('代替URLを生成しました')
+    expect(result.message).toContain('設定とタブデータを置き換えました')
     expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
     expect(set).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1715,7 +1715,7 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), false)
 
     expect(result.success).toBe(true)
-    expect(result.message).toContain('0件の代替URLを生成しました')
+    expect(result.message).toContain('設定とタブデータを置き換えました')
     expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
 
     const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
@@ -1828,7 +1828,7 @@ describe('import-export ユーティリティ', () => {
     const result = await importSettings(JSON.stringify(imported), false)
 
     expect(result.success).toBe(true)
-    expect(result.message).toContain('1件の代替URLを生成しました')
+    expect(result.message).toContain('設定とタブデータを置き換えました')
     expect(set).toHaveBeenCalledWith({
       urls: [
         expect.objectContaining({

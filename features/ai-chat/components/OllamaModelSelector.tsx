@@ -11,6 +11,7 @@ import {
   OllamaErrorNotice,
   type OllamaErrorPlatform,
 } from '@/features/ai-chat/components/OllamaErrorNotice'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { cn } from '@/lib/utils'
 import type { OllamaErrorDetails } from '@/types/background'
 
@@ -59,9 +60,6 @@ const getSelectableModels = (
   ]
 }
 
-const getEmptyStateLabel = (isLoading: boolean): string =>
-  isLoading ? 'モデル一覧を取得しています...' : 'モデルが見つかりませんでした'
-
 const getTriggerDisabled = ({
   fetchOnOpen,
   isLoading,
@@ -74,6 +72,104 @@ const getTriggerDisabled = ({
   selectableModels: OllamaModelOption[]
 }): boolean =>
   isSaving || (!fetchOnOpen && (isLoading || selectableModels.length === 0))
+
+const renderFetchButton = ({
+  hideFetchButton,
+  isCompactLayout,
+  isLoading,
+  isSaving,
+  onFetchModels,
+  t,
+}: {
+  hideFetchButton: boolean
+  isCompactLayout: boolean
+  isLoading: boolean
+  isSaving: boolean
+  onFetchModels: () => void
+  t: (key: string) => string
+}) => {
+  if (hideFetchButton) {
+    return null
+  }
+
+  return (
+    <Button
+      type='button'
+      variant='outline'
+      onClick={onFetchModels}
+      disabled={isLoading || isSaving}
+      className={cn('w-full cursor-pointer', !isCompactLayout && 'sm:w-auto')}
+    >
+      {isLoading ? t('aiChat.ollama.loading') : t('aiChat.ollama.loadModels')}
+    </Button>
+  )
+}
+
+const renderModelOptions = ({
+  isLoading,
+  selectableModels,
+  t,
+}: {
+  isLoading: boolean
+  selectableModels: OllamaModelOption[]
+  t: (key: string) => string
+}) => {
+  if (selectableModels.length > 0) {
+    return selectableModels.map(model => (
+      <PromptInputSelectItem key={model.name} value={model.name}>
+        {model.label}
+      </PromptInputSelectItem>
+    ))
+  }
+
+  return (
+    <PromptInputSelectItem disabled value={EMPTY_MODEL_VALUE}>
+      {isLoading
+        ? t('aiChat.ollama.loadingModelList')
+        : t('aiChat.ollama.noModelsFound')}
+    </PromptInputSelectItem>
+  )
+}
+
+const renderSelectorMessage = ({
+  errorMessage,
+  helperText,
+  ollamaError,
+  platform,
+}: {
+  errorMessage?: string
+  helperText?: string
+  ollamaError?: OllamaErrorDetails
+  platform: OllamaErrorPlatform
+}) => {
+  if (ollamaError) {
+    return (
+      <OllamaErrorNotice
+        className='text-destructive text-sm'
+        error={ollamaError}
+        platform={platform}
+      />
+    )
+  }
+
+  if (errorMessage) {
+    return (
+      <p className='wrap-break-word whitespace-pre-line text-destructive text-sm'>
+        {errorMessage}
+      </p>
+    )
+  }
+
+  if (!helperText) {
+    return null
+  }
+
+  return (
+    <p className='wrap-break-word whitespace-pre-line text-muted-foreground text-sm'>
+      {helperText}
+    </p>
+  )
+}
 
 const OllamaModelSelector = ({
   errorMessage,
@@ -90,6 +186,7 @@ const OllamaModelSelector = ({
   platform = 'unknown',
   selectedModel,
 }: OllamaModelSelectorProps) => {
+  const { t } = useI18n()
   const selectableModels = useMemo(
     () => getSelectableModels(models, selectedModel),
     [models, selectedModel],
@@ -132,20 +229,14 @@ const OllamaModelSelector = ({
           isCompactLayout ? 'flex-col' : 'flex-col sm:flex-row',
         )}
       >
-        {!hideFetchButton ? (
-          <Button
-            type='button'
-            variant='outline'
-            onClick={onFetchModels}
-            disabled={isLoading || isSaving}
-            className={cn(
-              'w-full cursor-pointer',
-              !isCompactLayout && 'sm:w-auto',
-            )}
-          >
-            {isLoading ? '取得中...' : 'モデル一覧を取得'}
-          </Button>
-        ) : null}
+        {renderFetchButton({
+          hideFetchButton,
+          isCompactLayout,
+          isLoading,
+          isSaving,
+          onFetchModels,
+          t,
+        })}
 
         <PromptInputSelect
           defaultValue={selectedModel}
@@ -155,50 +246,33 @@ const OllamaModelSelector = ({
           key={selectedModel || 'no-model-selected'}
         >
           <PromptInputSelectTrigger
-            aria-label={selectedModel || 'モデルを選択'}
+            aria-label={selectedModel || t('aiChat.ollama.selectModel')}
             disabled={isTriggerDisabled}
             className={cn(
               'w-full border border-input bg-background px-3 py-2 text-sm shadow-sm',
               !hideFetchButton && !isCompactLayout && 'sm:w-[220px]',
             )}
           >
-            <PromptInputSelectValue placeholder='モデルを選択' />
+            <PromptInputSelectValue
+              placeholder={t('aiChat.ollama.selectModel')}
+            />
           </PromptInputSelectTrigger>
           <PromptInputSelectContent>
-            {selectableModels.length > 0 ? (
-              selectableModels.map(model => (
-                <PromptInputSelectItem key={model.name} value={model.name}>
-                  {model.label}
-                </PromptInputSelectItem>
-              ))
-            ) : (
-              <PromptInputSelectItem disabled value={EMPTY_MODEL_VALUE}>
-                {getEmptyStateLabel(isLoading)}
-              </PromptInputSelectItem>
-            )}
+            {renderModelOptions({
+              isLoading,
+              selectableModels,
+              t,
+            })}
           </PromptInputSelectContent>
         </PromptInputSelect>
       </div>
 
-      {helperText ? (
-        <p className='wrap-break-word whitespace-pre-line text-muted-foreground text-sm'>
-          {helperText}
-        </p>
-      ) : null}
-
-      {ollamaError ? (
-        <OllamaErrorNotice
-          className='text-destructive text-sm'
-          error={ollamaError}
-          platform={platform}
-        />
-      ) : null}
-
-      {!ollamaError && errorMessage ? (
-        <p className='wrap-break-word whitespace-pre-line text-destructive text-sm'>
-          {errorMessage}
-        </p>
-      ) : null}
+      {renderSelectorMessage({
+        errorMessage,
+        helperText,
+        ollamaError,
+        platform,
+      })}
     </div>
   )
 }

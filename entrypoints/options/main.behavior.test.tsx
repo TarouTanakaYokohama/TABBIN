@@ -67,6 +67,10 @@ vi.mock('@/components/mode-toggle', () => ({
   ModeToggle: () => createElement('div', null, 'ModeToggle'),
 }))
 
+vi.mock('@/features/i18n/components/LanguageSelect', () => ({
+  LanguageSelect: () => createElement('div', null, 'LanguageSelect'),
+}))
+
 vi.mock('@/components/ui/button', () => ({
   Button: ({
     children,
@@ -205,6 +209,124 @@ vi.mock('@/features/options/hooks/useAutoDeletePeriod', () => ({
   useAutoDeletePeriod: () => mocked.useAutoDeletePeriodResult,
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    t: (key: string, fallback?: string, values?: Record<string, string>) => {
+      const messages: Record<string, string> = {
+        'common.reset': 'Reset',
+        'common.loading': 'Loading...',
+        'options.autoDelete.allWindows': 'Open all tabs in a new window',
+        'options.autoDelete.allWindowsDescription':
+          'When enabled, the "Open all" button opens tabs in a new window.',
+        'options.autoDelete.background': 'Open in background tabs',
+        'options.autoDelete.confirmDeleteAll': 'Confirm before deleting all',
+        'options.autoDelete.confirmDeleteAllDescription':
+          'When enabled, a confirmation dialog appears before deleting all tabs in a category.',
+        'options.autoDelete.confirmDeleteEach': 'Confirm before deleting tabs',
+        'options.autoDelete.confirmDeleteEachDescription':
+          'When enabled, a confirmation dialog appears before deleting a tab.',
+        'options.autoDelete.description':
+          'Saved tabs are deleted automatically after the selected period.',
+        'options.autoDelete.externalDrop':
+          'Delete automatically after dropping into another browser',
+        'options.autoDelete.externalDropDescription':
+          'When enabled, saved tabs are removed after you drag and drop them into another browser.',
+        'options.autoDelete.excludePinned': 'Exclude pinned tabs',
+        'options.autoDelete.excludePinnedDescription':
+          'When enabled, pinned tabs are excluded from saved tabs.',
+        'options.autoDelete.openAfter':
+          'Delete automatically after opening a saved tab',
+        'options.autoDelete.openAfterDescription':
+          'When enabled, a saved tab is removed from the list after you open it. When disabled, the tab stays in the list.',
+        'options.autoDelete.periodLabel': 'Auto-delete period for tabs',
+        'options.autoDelete.savedTime': 'Show saved time',
+        'options.autoDelete.savedTimeDescription':
+          'When enabled, the saved date is shown in the saved tabs list.',
+        'options.autoDelete.saveInBackground': 'Open in background tabs',
+        'options.autoDelete.saveInBackgroundDescription':
+          'When enabled, saved tabs open in the background.',
+        'options.autoDelete.selectPlaceholder': 'Select an auto-delete period',
+        'options.autoDelete.shorterWarning':
+          'Warning: This shortens the current period, so some tabs may be deleted immediately!',
+        'options.autoDelete.validateWarning':
+          'Note: Tabs older than the selected period may be deleted immediately.',
+        'options.autoDelete.periodDescription':
+          'Saved tabs are deleted automatically when they exceed the selected period. Applying the setting deletes tabs that have already expired.',
+        'options.autoDelete.zero': 'Do not auto delete',
+        'options.backupRestore': 'Backup & Restore',
+        'options.behavior.description':
+          'When enabled, tabs are opened in a new window.',
+        'options.behaviorSettings': 'Tab behavior',
+        'options.clickBehavior.allWindows':
+          'Save all tabs including other windows',
+        'options.clickBehavior.currentTab': 'Save current tab',
+        'options.clickBehavior.sameDomain':
+          'Save all tabs from the current domain',
+        'options.clickBehavior.windowTabs': 'Save all tabs in the window',
+        'options.clickBehaviorLabel': 'Click action',
+        'options.clickBehaviorPlaceholder': 'Select click action',
+        'options.color.background': 'Background',
+        'options.color.border': 'Border',
+        'options.color.card': 'Card background',
+        'options.color.cardForeground': 'Card text',
+        'options.color.chart1': 'Chart 1',
+        'options.color.chart2': 'Chart 2',
+        'options.color.chart3': 'Chart 3',
+        'options.color.chart4': 'Chart 4',
+        'options.color.chart5': 'Chart 5',
+        'options.color.destructive': 'Destructive background',
+        'options.color.destructiveForeground': 'Destructive text',
+        'options.color.foreground': 'Text',
+        'options.color.hexPlaceholder': 'e.g. #FF5733, #3366CC',
+        'options.color.input': 'Input background',
+        'options.color.muted': 'Muted background',
+        'options.color.mutedForeground': 'Sub text',
+        'options.color.popover': 'Popover',
+        'options.color.popoverForeground': 'Popover text',
+        'options.color.primary': 'Primary background',
+        'options.color.primaryForeground': 'Primary text',
+        'options.color.ring': 'Ring',
+        'options.color.secondary': 'Secondary background',
+        'options.color.secondaryForeground': 'Secondary text',
+        'options.color.sidebar': 'Sidebar background',
+        'options.color.sidebarAccent': 'Sidebar accent background',
+        'options.color.sidebarAccentForeground': 'Sidebar accent text',
+        'options.color.sidebarBorder': 'Sidebar border',
+        'options.color.sidebarForeground': 'Sidebar text',
+        'options.color.sidebarPrimary': 'Sidebar primary background',
+        'options.color.sidebarPrimaryForeground': 'Sidebar primary text',
+        'options.color.sidebarRing': 'Sidebar ring',
+        'options.contact': 'Contact',
+        'options.contactDescription':
+          'Google Forms is used. A Google account is required because image uploads are enabled.',
+        'options.excludePatterns.add': 'Add',
+        'options.excludePatterns.empty': 'No exclude patterns',
+        'options.excludePatterns.help':
+          'Matching URLs are not saved and tabs are not closed.',
+        'options.excludePatterns.label':
+          'URLs that should not be saved or closed',
+        'options.excludePatterns.placeholder': 'e.g. chrome-extension://',
+        'options.excludePatterns.title': 'Exclude settings',
+        'options.excludePatterns.removeAria':
+          'Remove exclude pattern {{pattern}}',
+        'options.previewColorCustomization': '(preview) Color customization',
+        'options.previewColorCustomizationReset': 'Reset',
+        'options.releaseNotes': 'Release Notes',
+        'options.showSavedTimeDescription':
+          'When enabled, the saved date is shown in the saved tabs list.',
+        'options.title': 'Options',
+      }
+
+      const template = messages[key] ?? fallback ?? key
+
+      return template.replaceAll(
+        /\{\{(\w+)\}\}/g,
+        (_match: string, token: string) => values?.[token] ?? '',
+      )
+    },
+  }),
+}))
+
 const importBootstrapModule = async () => {
   vi.resetModules()
   return import('./main')
@@ -261,7 +383,7 @@ describe('options route behavior', () => {
 
     render(createElement(OptionsPage))
 
-    expect(screen.getByText('読み込み中...')).toBeTruthy()
+    expect(screen.getByText('Loading...')).toBeTruthy()
   })
 
   it('各種ハンドラを UI から呼び出す', () => {
@@ -276,23 +398,19 @@ describe('options route behavior', () => {
     )
 
     fireEvent.click(
-      screen.getByLabelText(
-        '保存したタブを開いた後、リストから自動的に削除する',
-      ),
+      screen.getByLabelText('Delete automatically after opening a saved tab'),
     )
     fireEvent.click(
       screen.getByLabelText(
-        '別ブラウザへドラッグ&ドロップした後、リストから自動的に削除する',
+        'Delete automatically after dropping into another browser',
       ),
     )
-    fireEvent.click(screen.getByLabelText('固定タブ（ピン留め）を除外する'))
-    fireEvent.click(screen.getByLabelText('バックグラウンドタブで開く'))
-    fireEvent.click(
-      screen.getByLabelText('すべてのタブを新しいウィンドウで開く'),
-    )
-    fireEvent.click(screen.getByLabelText('保存日時を表示する'))
-    fireEvent.click(screen.getByLabelText('タブ削除前に確認する'))
-    fireEvent.click(screen.getByLabelText('すべて削除前に確認する'))
+    fireEvent.click(screen.getByLabelText('Exclude pinned tabs'))
+    fireEvent.click(screen.getByLabelText('Open in background tabs'))
+    fireEvent.click(screen.getByLabelText('Open all tabs in a new window'))
+    fireEvent.click(screen.getByLabelText('Show saved time'))
+    fireEvent.click(screen.getByLabelText('Confirm before deleting tabs'))
+    fireEvent.click(screen.getByLabelText('Confirm before deleting all'))
 
     expect(mocked.updateSetting).toHaveBeenCalledWith(
       'removeTabAfterOpen',
@@ -315,7 +433,7 @@ describe('options route behavior', () => {
     expect(mocked.updateSetting).toHaveBeenCalledWith('confirmDeleteEach', true)
     expect(mocked.updateSetting).toHaveBeenCalledWith('confirmDeleteAll', true)
 
-    const excludeInput = screen.getByPlaceholderText('例: chrome-extension://')
+    const excludeInput = screen.getByPlaceholderText('e.g. chrome-extension://')
     fireEvent.change(excludeInput, {
       target: { value: 'https://example.com' },
     })
@@ -323,22 +441,24 @@ describe('options route behavior', () => {
     fireEvent.blur(excludeInput)
     expect(mocked.addExcludePattern).toHaveBeenCalledTimes(1)
 
-    fireEvent.click(screen.getByRole('button', { name: '除外パターンを追加' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(mocked.addExcludePattern).toHaveBeenCalledTimes(2)
 
     fireEvent.keyDown(excludeInput, { key: 'Enter' })
     expect(mocked.addExcludePattern).toHaveBeenCalledTimes(3)
 
     fireEvent.click(
-      screen.getByRole('button', { name: '除外パターン chrome:// を削除' }),
+      screen.getByRole('button', {
+        name: 'Remove exclude pattern chrome://',
+      }),
     )
     expect(mocked.removeExcludePattern).toHaveBeenCalledWith('chrome://')
 
-    fireEvent.click(screen.getByRole('button', { name: 'リセット' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
     expect(mocked.handleResetColors).toHaveBeenCalledTimes(1)
 
     const colorInput = document.querySelector('input[type="color"]')
-    const hexInput = screen.getAllByPlaceholderText('例: #FF5733, #3366CC')[0]
+    const hexInput = screen.getAllByPlaceholderText('e.g. #FF5733, #3366CC')[0]
     if (!colorInput) {
       throw new Error('color input not found')
     }
@@ -348,8 +468,8 @@ describe('options route behavior', () => {
 
     expect(mocked.handleColorChange).toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'お問い合わせ' }))
-    fireEvent.click(screen.getByRole('button', { name: 'リリースノート' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Contact' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Release Notes' }))
 
     expect(window.open).toHaveBeenCalledWith(
       'https://forms.gle/c9gBiF2TmgXaeU7J6',
@@ -366,7 +486,7 @@ describe('options route behavior', () => {
 
     fireEvent.keyDown(
       screen.getAllByPlaceholderText(
-        '例: chrome-extension://',
+        'e.g. chrome-extension://',
       )[0] as HTMLElement,
       {
         key: 'Escape',
