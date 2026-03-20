@@ -4,6 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TabGroup } from '@/types/storage'
 import { useDomainCardState } from './useDomainCardState'
 
+const useDomainCardStateI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 vi.mock('@/lib/storage/categories', () => ({
   createParentCategory: vi.fn(),
   getParentCategories: vi.fn().mockResolvedValue([]),
@@ -16,6 +20,27 @@ vi.mock('@/lib/storage/migration', () => ({
 vi.mock('@/lib/storage/tabs', () => ({
   removeUrlFromTabGroup: vi.fn().mockResolvedValue(undefined),
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: useDomainCardStateI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(useDomainCardStateI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 import { getParentCategories } from '@/lib/storage/categories'
 import { removeUrlFromTabGroup } from '@/lib/storage/tabs'

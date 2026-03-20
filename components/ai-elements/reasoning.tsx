@@ -23,6 +23,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 import { Shimmer } from './shimmer'
 
@@ -153,24 +154,37 @@ export type ReasoningTriggerProps = ComponentProps<
   getThinkingMessage?: (isStreaming: boolean, duration?: number) => ReactNode
 }
 
-const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number) => {
+const renderDefaultThinkingMessage = (
+  t: (
+    key: string,
+    fallback?: string,
+    values?: Record<string, string>,
+  ) => string,
+  isStreaming: boolean,
+  duration?: number,
+) => {
   if (isStreaming || duration === 0) {
-    return <Shimmer duration={1}>Thinking...</Shimmer>
+    return <Shimmer duration={1}>{t('common.thinking')}</Shimmer>
   }
   if (duration === undefined) {
-    return <p>Thought for a few seconds</p>
+    return <p>{t('common.thoughtForFewSeconds')}</p>
   }
-  return <p>Thought for {duration} seconds</p>
+  return (
+    <p>
+      {t('common.thoughtForSeconds', undefined, { count: String(duration) })}
+    </p>
+  )
 }
 
 export const ReasoningTrigger = memo(
   ({
     className,
     children,
-    getThinkingMessage = defaultGetThinkingMessage,
+    getThinkingMessage,
     ...props
   }: ReasoningTriggerProps) => {
     const { isStreaming, isOpen, duration } = useReasoning()
+    const t = useI18nText()
 
     return (
       <CollapsibleTrigger
@@ -183,7 +197,9 @@ export const ReasoningTrigger = memo(
         {children ?? (
           <>
             <BrainIcon className='size-4' />
-            {getThinkingMessage(isStreaming, duration)}
+            {getThinkingMessage
+              ? getThinkingMessage(isStreaming, duration)
+              : renderDefaultThinkingMessage(t, isStreaming, duration)}
             <ChevronDownIcon
               className={cn(
                 'size-4 transition-transform',

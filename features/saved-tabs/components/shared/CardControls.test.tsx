@@ -17,6 +17,27 @@ vi.mock('@/components/ui/tooltip', () => ({
   ),
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    language: 'ja',
+    t: (key: string) =>
+      (
+        ({
+          'savedTabs.sort.default': 'デフォルト',
+          'savedTabs.sort.asc': '保存日時の昇順',
+          'savedTabs.sort.desc': '保存日時の降順',
+          'savedTabs.collapse': '折りたたむ',
+          'savedTabs.expand': '展開',
+          'savedTabs.reorder.disabled': '並び替えモード中',
+          'savedTabs.reorder.cancel': 'キャンセル',
+          'savedTabs.reorder.cancelAria': '並び替えをキャンセル',
+          'savedTabs.reorder.confirm': '確定',
+          'savedTabs.reorder.confirmAria': '並び替えを確定',
+        }) satisfies Record<string, string>
+      )[key] ?? key,
+  }),
+}))
+
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()

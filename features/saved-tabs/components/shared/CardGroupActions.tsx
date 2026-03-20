@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   SavedTabsResponsiveLabel,
   SavedTabsResponsiveTooltipContent,
@@ -40,12 +41,17 @@ export const CardGroupActions = ({
   onConfirmOpenAll = false,
   onConfirmDeleteAll = false,
   openAllThreshold = 10,
-  itemName = 'アイテム',
-  warningMessage = 'すべてのドメインを削除します。この操作は元に戻せません。',
-  manageLabel = '管理',
+  itemName,
+  warningMessage,
+  manageLabel,
 }: CardGroupActionsProps) => {
+  const { t } = useI18n()
   const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
   const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false)
+  const resolvedManageLabel = manageLabel ?? t('common.manage')
+  const resolvedItemName = itemName ?? t('savedTabs.openAllTabs')
+  const resolvedWarningMessage =
+    warningMessage ?? t('savedTabs.deleteAllDefaultWarning')
 
   return (
     <>
@@ -59,16 +65,16 @@ export const CardGroupActions = ({
                 size='sm'
                 onClick={onManage}
                 className='flex cursor-pointer items-center gap-1'
-                aria-label={manageLabel}
+                aria-label={resolvedManageLabel}
               >
                 <Settings size={14} />
                 <SavedTabsResponsiveLabel>
-                  {manageLabel}
+                  {resolvedManageLabel}
                 </SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
             <SavedTabsResponsiveTooltipContent side='top'>
-              {manageLabel}
+              {resolvedManageLabel}
             </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         )}
@@ -88,14 +94,16 @@ export const CardGroupActions = ({
                   }
                 }}
                 className='flex cursor-pointer items-center gap-1'
-                aria-label='すべてのタブを開く'
+                aria-label={t('savedTabs.openAllTabs')}
               >
                 <ExternalLink size={14} />
-                <SavedTabsResponsiveLabel>すべて開く</SavedTabsResponsiveLabel>
+                <SavedTabsResponsiveLabel>
+                  {t('savedTabs.openAll')}
+                </SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
             <SavedTabsResponsiveTooltipContent side='top'>
-              すべてのタブを開く
+              {t('savedTabs.openAllTabs')}
             </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         )}
@@ -117,14 +125,16 @@ export const CardGroupActions = ({
                   }
                 }}
                 className='flex cursor-pointer items-center gap-1'
-                aria-label='すべて削除'
+                aria-label={t('savedTabs.deleteAll')}
               >
                 <Trash size={14} />
-                <SavedTabsResponsiveLabel>すべて削除</SavedTabsResponsiveLabel>
+                <SavedTabsResponsiveLabel>
+                  {t('savedTabs.deleteAll')}
+                </SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
             <SavedTabsResponsiveTooltipContent side='top'>
-              すべて削除
+              {t('savedTabs.deleteAll')}
             </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         )}
@@ -138,20 +148,23 @@ export const CardGroupActions = ({
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>タブをすべて開きますか？</AlertDialogTitle>
+              <AlertDialogTitle>
+                {t('savedTabs.openAllConfirmTitle')}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                {openAllThreshold}
-                個以上のタブを開こうとしています。続行しますか？
+                {t('savedTabs.openAllConfirmDescription', undefined, {
+                  count: String(openAllThreshold),
+                })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>キャンセル</AlertDialogCancel>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
                   onOpenAll()
                 }}
               >
-                開く
+                {t('common.open')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -167,14 +180,18 @@ export const CardGroupActions = ({
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>
-                {itemName}をすべて削除しますか？
+                {t('savedTabs.deleteAllTitle', undefined, {
+                  itemName: resolvedItemName,
+                })}
               </AlertDialogTitle>
-              <AlertDialogDescription>{warningMessage}</AlertDialogDescription>
+              <AlertDialogDescription>
+                {resolvedWarningMessage}
+              </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>キャンセル</AlertDialogCancel>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
               <AlertDialogAction onClick={onDeleteAll}>
-                削除する
+                {t('common.delete')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

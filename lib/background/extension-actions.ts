@@ -2,11 +2,23 @@
  * 拡張機能アクション管理モジュール
  */
 
+import { getMessage } from '@/features/i18n/lib/language'
 import { saveTabsWithAutoCategory } from '@/lib/storage/migration'
 import { saveUrlsToCustomProjects } from '@/lib/storage/projects'
 import { getUserSettings } from '@/lib/storage/settings'
+import { getBackgroundLanguage } from './i18n'
 import { openSavedTabsPage } from './saved-tabs-page'
 import { filterTabsByUserSettings, showNotification } from './utils'
+
+const getBackgroundText = async (
+  key: string,
+  fallback?: string,
+  values?: Record<string, string>,
+) => {
+  const language = await getBackgroundLanguage()
+
+  return getMessage(language, key, fallback, values)
+}
 
 const getAllTabsAcrossWindows = async (): Promise<chrome.tabs.Tab[]> => {
   if (!chrome.windows?.getAll) {
@@ -132,7 +144,10 @@ export const handleSaveCurrentTab = async (): Promise<
   await syncSavedTabsToCustomMode([activeTab])
 
   // 通知表示
-  await showNotification('タブ保存', '現在のタブを保存しました')
+  await showNotification(
+    await getBackgroundText('background.saveTabs.notificationTitle'),
+    await getBackgroundText('background.saveTabs.currentTabSaved'),
+  )
 
   // タブを閉じる
   if (activeTab.id) {
@@ -202,13 +217,16 @@ export const handleSaveSameDomainTabs = async (): Promise<
     // タブを保存
     await saveTabsWithAutoCategory(filteredTabs)
     await syncSavedTabsToCustomMode(filteredTabs)
-    const [settings] = await Promise.all([
-      getUserSettings(),
-      showNotification(
-        'タブ保存',
-        `${currentDomain}の${filteredTabs.length}個のタブを保存しました`,
-      ),
-    ])
+    const [settings, notificationTitle, notificationMessage] =
+      await Promise.all([
+        getUserSettings(),
+        getBackgroundText('background.saveTabs.notificationTitle'),
+        getBackgroundText('background.saveTabs.sameDomainSaved', undefined, {
+          count: String(filteredTabs.length),
+          domain: currentDomain,
+        }),
+      ])
+    await showNotification(notificationTitle, notificationMessage)
 
     // 保存したタブを閉じる（一括処理）
     const tabIdsToClose = filteredTabs
@@ -264,13 +282,15 @@ export const handleSaveAllWindowsTabs = async (): Promise<
     // タブを保存
     await saveTabsWithAutoCategory(filteredTabs)
     await syncSavedTabsToCustomMode(filteredTabs)
-    const [, savedTabsTabId] = await Promise.all([
-      showNotification(
-        'タブ保存',
-        `すべてのウィンドウから${filteredTabs.length}個のタブを保存しました`,
-      ),
-      openSavedTabsPage(),
-    ])
+    const [notificationTitle, notificationMessage, savedTabsTabId] =
+      await Promise.all([
+        getBackgroundText('background.saveTabs.notificationTitle'),
+        getBackgroundText('background.saveTabs.allWindowsSaved', undefined, {
+          count: String(filteredTabs.length),
+        }),
+        openSavedTabsPage(),
+      ])
+    await showNotification(notificationTitle, notificationMessage)
 
     // タブを閉じる（一括処理）
     const tabIdsToClose = filteredTabs
@@ -323,14 +343,16 @@ export const handleSaveWindowTabs = async (): Promise<
   await saveTabsWithAutoCategory(filteredTabs)
   await syncSavedTabsToCustomMode(filteredTabs)
   console.log('タブの保存と自動カテゴライズが完了しました')
-  const [savedTabsTabId, settings] = await Promise.all([
-    openSavedTabsPage(),
-    getUserSettings(),
-    showNotification(
-      'タブ保存',
-      `${filteredTabs.length}個のタブが保存されました。タブを閉じます。`,
-    ),
-  ])
+  const [savedTabsTabId, settings, notificationTitle, notificationMessage] =
+    await Promise.all([
+      openSavedTabsPage(),
+      getUserSettings(),
+      getBackgroundText('background.saveTabs.notificationTitle'),
+      getBackgroundText('background.saveTabs.windowTabsSaved', undefined, {
+        count: String(filteredTabs.length),
+      }),
+    ])
+  await showNotification(notificationTitle, notificationMessage)
 
   // 閉じるタブを収集
   const tabIdsToClose: number[] = []

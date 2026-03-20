@@ -2,6 +2,7 @@ import type { DragEndEvent } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { ParentCategory, TabGroup } from '@/types/storage'
 import { useSortOrder } from './useSortOrder'
 
@@ -103,6 +104,7 @@ export const useCategoryGroupState = ({
   handleDeleteGroup,
   isCategoryReorderMode,
 }: UseCategoryGroupStateParams) => {
+  const { t } = useI18n()
   // --- 基本状態 ---
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [userCollapsedState, setUserCollapsedState] = useState(false)
@@ -155,10 +157,10 @@ export const useCategoryGroupState = ({
         await confirmCategorySaved(categoryId, newName, updatedGroups)
       } catch (error) {
         console.error('CategoryGroup - カテゴリ名の更新に失敗:', error)
-        toast.error('カテゴリ名の更新に失敗しました')
+        toast.error(t('savedTabs.categoryManagement.renameError'))
       }
     },
-    [category],
+    [category, t],
   )
 
   // --- グローバルドラッグ監視 ---
@@ -299,12 +301,12 @@ export const useCategoryGroupState = ({
       setIsReorderMode(false)
       setOriginalDomainOrder([])
       setTempDomainOrder([])
-      toast.success('ドメインの順序を変更しました')
+      toast.success(t('savedTabs.domainOrder.updated'))
     } catch (error) {
       console.error('ドメイン順序の更新に失敗しました:', error)
-      toast.error('ドメイン順序の更新に失敗しました')
+      toast.error(t('savedTabs.domainOrder.updateError'))
     }
-  }, [isReorderMode, handleUpdateDomainsOrder, category.id, tempDomainOrder])
+  }, [isReorderMode, handleUpdateDomainsOrder, category.id, tempDomainOrder, t])
 
   // --- 並び替えキャンセル ---
   const handleCancelReorder = useCallback(() => {
@@ -314,8 +316,8 @@ export const useCategoryGroupState = ({
     setTempDomainOrder([])
     setIsReorderMode(false)
     setOriginalDomainOrder([])
-    toast.info('並び替えをキャンセルしました')
-  }, [isReorderMode])
+    toast.info(t('savedTabs.domainOrder.canceled'))
+  }, [isReorderMode, t])
 
   // --- 個別ドメイン削除のラッパー ---
   const handleDeleteSingleDomain = useCallback(

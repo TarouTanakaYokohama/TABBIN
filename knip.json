@@ -41,6 +41,7 @@
   "ignoreFiles": ["stories/**", "tests/**"],
   "ignoreDependencies": [
     "@ai-sdk/react",
+    "@wxt-dev/i18n",
     "@storybook/addon-onboarding",
     "@storybook/builder-vite",
     "@testing-library/jest-dom",

@@ -11,6 +11,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 import { CodeBlock } from './code-block'
 
@@ -63,26 +64,36 @@ export type AgentInstructionsProps = ComponentProps<'div'> & {
 }
 
 export const AgentInstructions = memo(
-  ({ className, children, ...props }: AgentInstructionsProps) => (
-    <div className={cn('space-y-2', className)} {...props}>
-      <span className='font-medium text-muted-foreground text-sm'>
-        Instructions
-      </span>
-      <div className='rounded-md bg-muted/50 p-3 text-muted-foreground text-sm'>
-        <p>{children}</p>
+  ({ className, children, ...props }: AgentInstructionsProps) => {
+    const t = useI18nText()
+
+    return (
+      <div className={cn('space-y-2', className)} {...props}>
+        <span className='font-medium text-muted-foreground text-sm'>
+          {t('common.instructions')}
+        </span>
+        <div className='rounded-md bg-muted/50 p-3 text-muted-foreground text-sm'>
+          <p>{children}</p>
+        </div>
       </div>
-    </div>
-  ),
+    )
+  },
 )
 
 export type AgentToolsProps = ComponentProps<typeof Accordion>
 
-export const AgentTools = memo(({ className, ...props }: AgentToolsProps) => (
-  <div className={cn('space-y-2', className)}>
-    <span className='font-medium text-muted-foreground text-sm'>Tools</span>
-    <Accordion className='rounded-md border' {...props} />
-  </div>
-))
+export const AgentTools = memo(({ className, ...props }: AgentToolsProps) => {
+  const t = useI18nText()
+
+  return (
+    <div className={cn('space-y-2', className)}>
+      <span className='font-medium text-muted-foreground text-sm'>
+        {t('common.tools')}
+      </span>
+      <Accordion className='rounded-md border' {...props} />
+    </div>
+  )
+})
 
 export type AgentToolProps = ComponentProps<typeof AccordionItem> & {
   tool: Tool
@@ -90,6 +101,7 @@ export type AgentToolProps = ComponentProps<typeof AccordionItem> & {
 
 export const AgentTool = memo(
   ({ className, tool, value, ...props }: AgentToolProps) => {
+    const t = useI18nText()
     const schema =
       'jsonSchema' in tool && tool.jsonSchema
         ? tool.jsonSchema
@@ -102,7 +114,7 @@ export const AgentTool = memo(
         {...props}
       >
         <AccordionTrigger className='px-3 py-2 text-sm hover:no-underline'>
-          {tool.description ?? 'No description'}
+          {tool.description ?? t('common.noDescription')}
         </AccordionTrigger>
         <AccordionContent className='px-3 pb-3'>
           <div className='rounded-md bg-muted/50'>

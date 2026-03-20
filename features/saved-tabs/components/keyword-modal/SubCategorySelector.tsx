@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   SavedTabsResponsiveLabel,
   SavedTabsResponsiveTooltipContent,
@@ -22,6 +23,7 @@ import { SubCategoryRenameForm } from './SubCategoryRenameForm'
  * セレクタ、リネーム、削除確認を含む
  */
 export const SubCategorySelector = () => {
+  const { t } = useI18n()
   const { state, group } = useKeywordModal()
   const { subcategory, rename, deletion } = state
 
@@ -32,7 +34,9 @@ export const SubCategorySelector = () => {
   return (
     <div className='mb-4'>
       <div className='mb-2 flex items-center justify-between'>
-        <Label htmlFor='category-select'>子カテゴリを選択</Label>
+        <Label htmlFor='category-select'>
+          {t('savedTabs.subCategory.selectLabel')}
+        </Label>
 
         <div className='flex gap-2'>
           {!rename.isRenaming && (
@@ -47,12 +51,12 @@ export const SubCategorySelector = () => {
                 >
                   <Edit size={14} />
                   <SavedTabsResponsiveLabel>
-                    子カテゴリ名を変更
+                    {t('savedTabs.subCategory.rename')}
                   </SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
               <SavedTabsResponsiveTooltipContent side='top'>
-                子カテゴリ名を変更
+                {t('savedTabs.subCategory.rename')}
               </SavedTabsResponsiveTooltipContent>
             </Tooltip>
           )}
@@ -68,12 +72,12 @@ export const SubCategorySelector = () => {
               >
                 <Trash2 size={14} />
                 <SavedTabsResponsiveLabel>
-                  選択中の子カテゴリを削除
+                  {t('savedTabs.subCategory.deleteSelected')}
                 </SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
             <SavedTabsResponsiveTooltipContent side='top'>
-              選択中の子カテゴリを削除
+              {t('savedTabs.subCategory.deleteSelected')}
             </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         </div>
@@ -88,7 +92,9 @@ export const SubCategorySelector = () => {
         disabled={rename.isRenaming}
       >
         <SelectTrigger className='w-full rounded border p-2'>
-          <SelectValue placeholder='管理する子カテゴリを選択' />
+          <SelectValue
+            placeholder={t('savedTabs.subCategory.selectPlaceholder')}
+          />
         </SelectTrigger>
         <SelectContent>
           {group.subCategories.map(cat => (

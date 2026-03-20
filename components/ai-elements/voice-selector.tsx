@@ -33,6 +33,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Spinner } from '@/components/ui/spinner'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 interface VoiceSelectorContextValue {
@@ -490,6 +491,7 @@ export const VoiceSelectorPreview = ({
   onClick,
   ...props
 }: VoiceSelectorPreviewProps) => {
+  const t = useI18nText()
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation()
@@ -509,7 +511,7 @@ export const VoiceSelectorPreview = ({
 
   return (
     <Button
-      aria-label={playing ? 'Pause preview' : 'Play preview'}
+      aria-label={playing ? t('common.pausePreview') : t('common.playPreview')}
       className={cn('size-6', className)}
       disabled={loading}
       onClick={handleClick}

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { getMessage, resolveUiLanguage } from '@/features/i18n/lib/language'
 
 const mocked = vi.hoisted(() => ({
   setTheme: vi.fn(),
@@ -41,9 +42,13 @@ import { ModeToggle } from './mode-toggle'
 describe('ModeToggle', () => {
   it('absolute icon の位置基準になる relative ボタンを使う', () => {
     render(<ModeToggle />)
+    const toggleLabel = getMessage(
+      resolveUiLanguage(window.navigator.language),
+      'theme.toggle',
+    )
 
     expect(
-      screen.getByRole('button', { name: 'テーマの切り替え' }).className,
+      screen.getByRole('button', { name: toggleLabel }).className,
     ).toContain('relative')
   })
 })

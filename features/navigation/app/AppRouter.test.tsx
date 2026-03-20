@@ -23,6 +23,30 @@ vi.mock('@/components/ui/tooltip', () => ({
   ),
 }))
 
+vi.mock('@/features/i18n/components/LanguageSelect', () => ({
+  LanguageSelect: () => <div>表示言語</div>,
+}))
+
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    language: 'ja',
+    t: (key: string) =>
+      (
+        ({
+          'sidebar.analytics': '分析',
+          'sidebar.chat': 'チャット',
+          'sidebar.collapse': 'サイドバーを小さくする',
+          'sidebar.open': 'サイドバーを開く',
+          'sidebar.options': 'オプション',
+          'sidebar.periodicExecution': '定期実行',
+          'sidebar.tabList': 'タブ一覧',
+          'savedTabs.viewMode.custom': 'カスタムモード',
+          'savedTabs.viewMode.domain': 'ドメインモード',
+        }) satisfies Record<string, string>
+      )[key] ?? key,
+  }),
+}))
+
 vi.mock('@/features/saved-tabs/routes/SavedTabsRoute', () => ({
   SavedTabsRoute: ({
     onViewModeNavigate,

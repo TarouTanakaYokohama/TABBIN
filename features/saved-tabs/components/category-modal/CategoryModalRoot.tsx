@@ -4,6 +4,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { TabGroup } from '@/types/storage'
 import { useCategoryModal } from '../../hooks/useCategoryModal'
 import {
@@ -31,6 +32,7 @@ export const CategoryModalRoot = ({
   tabGroups,
   children,
 }: CategoryModalRootProps) => {
+  const { t } = useI18n()
   const state = useCategoryModal({ tabGroups })
 
   const contextValue: CategoryModalContextType = {
@@ -43,7 +45,7 @@ export const CategoryModalRoot = ({
       <Dialog open={true} onOpenChange={() => onClose()}>
         <DialogContent className='flex max-h-[90vh] flex-col overflow-hidden sm:max-w-[500px]'>
           <DialogHeader>
-            <DialogTitle>親カテゴリ管理</DialogTitle>
+            <DialogTitle>{t('savedTabs.categoryModal.title')}</DialogTitle>
           </DialogHeader>
           <div className='grid gap-4 overflow-y-auto py-4 pr-1'>{children}</div>
         </DialogContent>

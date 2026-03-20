@@ -1,5 +1,6 @@
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { ProjectUrlItem } from '@/features/saved-tabs/components/ProjectUrlItem'
 import { useProjectCard } from './ProjectCardContext'
 
@@ -8,6 +9,7 @@ import { useProjectCard } from './ProjectCardContext'
  * 未分類URLの一覧表示と空のドロップゾーンを含む
  */
 export const ProjectCardUncategorizedArea = () => {
+  const { t } = useI18n()
   const {
     hookState,
     project,
@@ -34,7 +36,7 @@ export const ProjectCardUncategorizedArea = () => {
         data-is-drop-area='true'
         data-uncategorized-area='true'
         data-uncategorized-container='true'
-        aria-label='未分類タブエリア'
+        aria-label={t('savedTabs.projectCard.uncategorizedArea')}
       >
         {project.categories.length > 0 && (
           <h3
@@ -42,7 +44,7 @@ export const ProjectCardUncategorizedArea = () => {
             data-type='uncategorized'
             data-uncategorized-area='true'
           >
-            未分類のタブ
+            {t('savedTabs.projectCard.uncategorizedTitle')}
           </h3>
         )}
 
@@ -98,7 +100,7 @@ export const ProjectCardUncategorizedArea = () => {
         data-uncategorized-area='true'
         data-uncategorized-container='true'
         data-empty-container='true'
-        aria-label='タブをここにドロップして未分類に移動'
+        aria-label={t('savedTabs.projectCard.dropToUncategorized')}
         onClick={() => {
           const selectedUrl = window.getSelection()?.toString()
           if (

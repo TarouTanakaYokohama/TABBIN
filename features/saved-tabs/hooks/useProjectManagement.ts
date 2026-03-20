@@ -13,6 +13,7 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   addCategoryToProject,
   addUrlToCustomProject,
@@ -186,6 +187,7 @@ const useProjectManagement = (
   _settings: UserSettings,
   initialViewMode?: ViewMode,
 ): UseProjectManagementReturn => {
+  const { t } = useI18n()
   const [customProjects, setCustomProjects] = useState<CustomProject[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>(
     initialViewMode ?? 'domain',
@@ -237,10 +239,10 @@ const useProjectManagement = (
         await syncDomainDataToCustomProjects()
       } catch (error) {
         console.error('ビューモード変更エラー:', error)
-        toast.error('モードの切り替えに失敗しました')
+        toast.error(t('savedTabs.viewMode.changeError'))
       }
     },
-    [syncDomainDataToCustomProjects],
+    [syncDomainDataToCustomProjects, t],
   )
 
   /** 新しいカスタムプロジェクトを作成する */
@@ -264,7 +266,11 @@ const useProjectManagement = (
           )
           return [newProject, ...withoutCreated]
         })
-        toast.success(`プロジェクト「${normalizedName}」を作成しました`)
+        toast.success(
+          t('savedTabs.projectAdded', undefined, {
+            name: normalizedName,
+          }),
+        )
       } catch (error) {
         console.error('プロジェクト作成エラー:', error)
         if (
@@ -272,16 +278,18 @@ const useProjectManagement = (
           error.message.startsWith('DUPLICATE_PROJECT_NAME:')
         ) {
           toast.error(
-            `プロジェクト名「${normalizedName}」は既に使用されています`,
+            t('savedTabs.projects.duplicateName', undefined, {
+              name: normalizedName,
+            }),
           )
         } else {
-          toast.error('プロジェクトの作成に失敗しました')
+          toast.error(t('savedTabs.projects.createError'))
         }
       } finally {
         creatingProjectNamesRef.current.delete(projectKey)
       }
     },
-    [],
+    [t],
   )
 
   /** カスタムプロジェクトを削除する */
@@ -294,13 +302,17 @@ const useProjectManagement = (
         }
         await deleteCustomProject(projectId)
         setCustomProjects(prev => prev.filter(p => p.id !== projectId))
-        toast.success(`プロジェクト「${project.name}」を削除しました`)
+        toast.success(
+          t('savedTabs.projects.deleted', undefined, {
+            name: project.name,
+          }),
+        )
       } catch (error) {
         console.error('プロジェクト削除エラー:', error)
-        toast.error('プロジェクトの削除に失敗しました')
+        toast.error(t('savedTabs.projects.deleteError'))
       }
     },
-    [],
+    [t],
   )
 
   /** カスタムプロジェクト名を変更する */
@@ -319,20 +331,24 @@ const useProjectManagement = (
               : p,
           ),
         )
-        toast.success('プロジェクト名を変更しました')
+        toast.success(t('savedTabs.projectManagement.renamed'))
       } catch (error) {
         console.error('プロジェクト名変更エラー:', error)
         if (
           error instanceof Error &&
           error.message.startsWith('DUPLICATE_PROJECT_NAME:')
         ) {
-          toast.error(`プロジェクト名「${newName}」は既に使用されています`)
+          toast.error(
+            t('savedTabs.projects.duplicateName', undefined, {
+              name: newName,
+            }),
+          )
         } else {
-          toast.error('プロジェクト名の変更に失敗しました')
+          toast.error(t('savedTabs.projectManagement.renameError'))
         }
       }
     },
-    [],
+    [t],
   )
 
   /** プロジェクトの自動振り分けキーワードを更新する */
@@ -354,13 +370,13 @@ const useProjectManagement = (
               : project,
           ),
         )
-        toast.success('キーワード設定を更新しました')
+        toast.success(t('savedTabs.projects.keywordsUpdated'))
       } catch (error) {
         console.error('キーワード設定更新エラー:', error)
-        toast.error('キーワード設定の更新に失敗しました')
+        toast.error(t('savedTabs.projects.keywordsUpdateError'))
       }
     },
-    [],
+    [t],
   )
 
   /** プロジェクトに URL を追加する */
@@ -370,13 +386,13 @@ const useProjectManagement = (
         await addUrlToCustomProject(projectId, url, title)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        toast.success('タブを追加しました')
+        toast.success(t('savedTabs.tab.added'))
       } catch (error) {
         console.error('URL追加エラー:', error)
-        toast.error('タブの追加に失敗しました')
+        toast.error(t('savedTabs.tab.addError'))
       }
     },
-    [],
+    [t],
   )
 
   /** プロジェクトから URL を削除する */
@@ -386,13 +402,13 @@ const useProjectManagement = (
         await removeUrlFromCustomProject(projectId, url)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        toast.success('タブを削除しました')
+        toast.success(t('savedTabs.tab.deleted'))
       } catch (error) {
         console.error('URL削除エラー:', error)
-        toast.error('タブの削除に失敗しました')
+        toast.error(t('savedTabs.tab.deleteError'))
       }
     },
-    [],
+    [t],
   )
 
   /** プロジェクトから 複数のURL を削除する */
@@ -402,13 +418,17 @@ const useProjectManagement = (
         await removeUrlsFromCustomProject(projectId, urls)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        toast.success(`${urls.length}件のタブを削除しました`)
+        toast.success(
+          t('savedTabs.tabs.deletedCount', undefined, {
+            count: String(urls.length),
+          }),
+        )
       } catch (error) {
         console.error('URL一括削除エラー:', error)
-        toast.error('タブの削除に失敗しました')
+        toast.error(t('savedTabs.tab.deleteError'))
       }
     },
-    [],
+    [t],
   )
 
   /** プロジェクトにカテゴリを追加する */
@@ -437,13 +457,17 @@ const useProjectManagement = (
             }
           }),
         )
-        toast.success(`カテゴリ「${categoryName}」を追加しました`)
+        toast.success(
+          t('savedTabs.projectCategory.added', undefined, {
+            name: categoryName,
+          }),
+        )
       } catch (error) {
         console.error('カテゴリ追加エラー:', error)
-        toast.error('カテゴリの追加に失敗しました')
+        toast.error(t('savedTabs.subCategory.createError'))
       }
     },
-    [],
+    [t],
   )
 
   /** プロジェクトからカテゴリを削除する */
@@ -453,13 +477,17 @@ const useProjectManagement = (
         await removeCategoryFromProject(projectId, categoryName)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
-        toast.success(`カテゴリ「${categoryName}」を削除しました`)
+        toast.success(
+          t('savedTabs.projectCategory.deleted', undefined, {
+            name: categoryName,
+          }),
+        )
       } catch (error) {
         console.error('カテゴリ削除エラー:', error)
-        toast.error('カテゴリの削除に失敗しました')
+        toast.error(t('savedTabs.subCategory.deleteError'))
       }
     },
-    [],
+    [t],
   )
 
   /** プロジェクト内の URL にカテゴリを設定する */
@@ -475,10 +503,10 @@ const useProjectManagement = (
         setCustomProjects(updatedProjects)
       } catch (error) {
         console.error('URL分類エラー:', error)
-        toast.error('タブの分類更新に失敗しました')
+        toast.error(t('savedTabs.tab.moveError'))
       }
     },
-    [],
+    [t],
   )
 
   /** プロジェクト内のカテゴリ順序を更新する */
@@ -500,10 +528,10 @@ const useProjectManagement = (
         )
       } catch (error) {
         console.error('カテゴリ順序更新エラー:', error)
-        toast.error('カテゴリの順序更新に失敗しました')
+        toast.error(t('savedTabs.projectCategory.orderUpdateError'))
       }
     },
-    [],
+    [t],
   )
 
   /** プロジェクト内の URL 順序を更新する */
@@ -524,10 +552,10 @@ const useProjectManagement = (
         )
       } catch (error) {
         console.error('URL順序更新エラー:', error)
-        toast.error('タブの順序更新に失敗しました')
+        toast.error(t('savedTabs.tab.orderUpdateError'))
       }
     },
-    [],
+    [t],
   )
 
   /** プロジェクト自体の表示順序を更新する */
@@ -549,13 +577,13 @@ const useProjectManagement = (
             return indexA - indexB
           }),
         )
-        toast.success('プロジェクトの順序を変更しました')
+        toast.success(t('savedTabs.projects.orderUpdated'))
       } catch (error) {
         console.error('プロジェクト順序更新エラー:', error)
-        toast.error('プロジェクト順序の更新に失敗しました')
+        toast.error(t('savedTabs.projects.orderUpdateError'))
       }
     },
-    [],
+    [t],
   )
 
   /** プロジェクト内のカテゴリ名を変更する */
@@ -595,13 +623,13 @@ const useProjectManagement = (
               : project,
           ),
         )
-        toast.success('カテゴリ名を変更しました')
+        toast.success(t('savedTabs.projectCategory.renamed'))
       } catch (error) {
         console.error('カテゴリ名の変更エラー:', error)
-        toast.error('カテゴリ名の変更に失敗しました')
+        toast.error(t('savedTabs.subCategory.renameError'))
       }
     },
-    [],
+    [t],
   )
 
   // ビューモードと既存のカスタムプロジェクトをロード（初回のみ）

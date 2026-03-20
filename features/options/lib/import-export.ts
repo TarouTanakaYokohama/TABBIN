@@ -4,6 +4,7 @@ import {
   AI_CHAT_CONVERSATIONS_KEY,
 } from '@/features/ai-chat/lib/conversation-history'
 import type { AiChatConversation } from '@/features/ai-chat/types'
+import { getMessage, resolveLanguage } from '@/features/i18n/lib/language'
 import type { SavedAnalyticsView } from '@/lib/storage/analytics'
 import { saveParentCategories } from '@/lib/storage/categories'
 import { migrateToUrlsStorage } from '@/lib/storage/migration'
@@ -40,6 +41,19 @@ interface BackupData {
   savedAnalyticsViews?: SavedAnalyticsView[]
   urls?: UrlRecord[]
 }
+
+const resolveCurrentLanguage = (settings: Pick<UserSettings, 'language'>) =>
+  resolveLanguage(
+    settings.language ?? 'system',
+    chrome.i18n?.getUILanguage?.() ?? 'ja',
+  )
+
+const getPlaceholderUrlTitle = (
+  language: UserSettings['language'] | undefined,
+): string =>
+  resolveCurrentLanguage({ language }) === 'en'
+    ? 'Recovered data (missing original URL)'
+    : '復元データ（元URL欠損）'
 
 // インポート時のURL形式に対応するインターフェース
 interface ImportedUrlData {
@@ -119,7 +133,9 @@ interface ConvertedUrlData {
 }
 const BULK_URL_CONVERSION_THRESHOLD = 100
 const CUSTOM_UNCATEGORIZED_PROJECT_ID = 'custom-uncategorized'
-const CUSTOM_UNCATEGORIZED_PROJECT_NAME = '未分類'
+const getUncategorizedProjectName = (
+  language: UserSettings['language'] | undefined,
+) => getMessage(resolveCurrentLanguage({ language }), 'savedTabs.uncategorized')
 const importedUrlDataSchema = z.object({
   url: z.string(),
   title: z.string().optional(),
@@ -695,6 +711,7 @@ const buildSanitizedCustomProject = (
 
 const buildUncategorizedCustomProject = (
   now: number,
+  language: UserSettings['language'] | undefined,
   project?: CustomProject,
 ): CustomProject => {
   if (project) {
@@ -702,7 +719,7 @@ const buildUncategorizedCustomProject = (
   }
   return {
     id: CUSTOM_UNCATEGORIZED_PROJECT_ID,
-    name: CUSTOM_UNCATEGORIZED_PROJECT_NAME,
+    name: getUncategorizedProjectName(language),
     projectKeywords: normalizeProjectKeywords(undefined),
     urlIds: [],
     categories: [],
@@ -714,10 +731,12 @@ const buildUncategorizedCustomProject = (
 const alignCustomProjectsWithSavedTabs = ({
   customProjectOrder,
   customProjects,
+  language,
   tabGroups,
 }: {
   customProjectOrder: string[] | undefined
   customProjects: CustomProject[]
+  language: UserSettings['language'] | undefined
   tabGroups: TabGroup[]
 }): {
   customProjectOrder: string[]
@@ -764,6 +783,7 @@ const alignCustomProjectsWithSavedTabs = ({
     )
     const uncategorizedProject = buildUncategorizedCustomProject(
       now,
+      language,
       uncategorizedIndex === -1
         ? undefined
         : sanitizedProjects[uncategorizedIndex],
@@ -801,6 +821,7 @@ const convertCustomProjectToExportUrls = (
   project: CustomProject,
   urlRecordMap: Map<string, UrlRecord>,
   placeholderUrlRecordMap: Map<string, UrlRecord>,
+  placeholderUrlTitle: string,
 ): NonNullable<CustomProject['urls']> => {
   if (Array.isArray(project.urls) && project.urls.length > 0) {
     return project.urls.filter(
@@ -821,7 +842,7 @@ const convertCustomProjectToExportUrls = (
     const resolvedUrlRecord = urlRecord || {
       id: urlId,
       url: `https://tabbin.invalid/#tabbin-export-custom-missing-${project.id}-${urlId}`,
-      title: '復元データ（元URL欠損）',
+      title: placeholderUrlTitle,
       savedAt:
         typeof project.updatedAt === 'number'
           ? project.updatedAt + offset
@@ -847,11 +868,13 @@ const toExportCustomProject = (
   project: CustomProject,
   urlRecordMap: Map<string, UrlRecord>,
   placeholderUrlRecordMap: Map<string, UrlRecord>,
+  placeholderUrlTitle: string,
 ): CustomProject => {
   const exportUrls = convertCustomProjectToExportUrls(
     project,
     urlRecordMap,
     placeholderUrlRecordMap,
+    placeholderUrlTitle,
   )
 
   return {
@@ -1164,6 +1187,7 @@ const convertTabGroupToExportUrls = (
   tab: TabGroup,
   urlRecordMap: Map<string, UrlRecord>,
   placeholderUrlRecordMap: Map<string, UrlRecord>,
+  placeholderUrlTitle: string,
 ): NonNullable<TabGroup['urls']> => {
   if (Array.isArray(tab.urls) && tab.urls.length > 0) {
     return tab.urls.filter(
@@ -1183,7 +1207,7 @@ const convertTabGroupToExportUrls = (
     const resolvedUrlRecord = urlRecord || {
       id: urlId,
       url: `${baseDomain}/#tabbin-export-missing-${urlId}`,
-      title: '復元データ（元URL欠損）',
+      title: placeholderUrlTitle,
       savedAt:
         typeof tab.savedAt === 'number'
           ? tab.savedAt + offset
@@ -1338,6 +1362,7 @@ const ensurePlaceholderUrlRecords = async (
     urlIds: string[]
     savedAt?: number
   }>,
+  placeholderUrlTitle: string,
 ): Promise<number> => {
   if (unresolvedTabs.length === 0) {
     return 0
@@ -1362,7 +1387,7 @@ const ensurePlaceholderUrlRecords = async (
         id: urlId,
         // 元URLが欠損しているため、ドメインに一意アンカーを付けて代替URLを生成
         url: `${baseDomain}/#tabbin-restored-${urlId}`,
-        title: '復元データ（元URL欠損）',
+        title: placeholderUrlTitle,
         savedAt: tab.savedAt || Date.now() + offset,
       })
       offset += 1
@@ -1438,16 +1463,25 @@ const exportSettings = async (): Promise<BackupData> => {
       urlRecords.map(urlRecord => [urlRecord.id, urlRecord]),
     )
     const placeholderUrlRecordMap = new Map<string, UrlRecord>()
+    const placeholderUrlTitle = getPlaceholderUrlTitle(
+      resolveCurrentLanguage(userSettings),
+    )
     const normalizedSavedTabs: TabGroup[] = savedTabs.map(tab => ({
       ...tab,
       urls: convertTabGroupToExportUrls(
         tab,
         urlRecordMap,
         placeholderUrlRecordMap,
+        placeholderUrlTitle,
       ),
     }))
     const customProjects = storedCustomProjects.map(project =>
-      toExportCustomProject(project, urlRecordMap, placeholderUrlRecordMap),
+      toExportCustomProject(
+        project,
+        urlRecordMap,
+        placeholderUrlRecordMap,
+        placeholderUrlTitle,
+      ),
     )
     const mergedUrlRecordMap = new Map(urlRecordMap)
     for (const [id, urlRecord] of placeholderUrlRecordMap) {
@@ -1520,6 +1554,11 @@ interface ImportResult {
   success: boolean
   message: string
 }
+type Translate = (
+  key: string,
+  fallback?: string,
+  values?: Record<string, string>,
+) => string
 type NormalizedImportResult = ReturnType<typeof normalizeImportedTabsForImport>
 type NormalizedImportedTab =
   NormalizedImportResult['normalizedImportedTabs'][number]
@@ -1752,12 +1791,24 @@ const buildOverwriteTabs = async (
 }
 const createUnresolvedWarning = async (
   unresolvedTabs: UnresolvedImportTab[],
+  translate?: Translate,
 ): Promise<string> => {
-  const placeholderCount = await ensurePlaceholderUrlRecords(unresolvedTabs)
+  const placeholderUrlTitle = translate
+    ? translate('options.importExport.placeholderUrlTitle')
+    : getPlaceholderUrlTitle(resolveCurrentLanguage(await getUserSettings()))
+  const placeholderCount = await ensurePlaceholderUrlRecords(
+    unresolvedTabs,
+    placeholderUrlTitle,
+  )
   if (unresolvedTabs.length === 0) {
     return ''
   }
-  return `（注意: ${unresolvedTabs.length}個のドメインでURL実体が欠損していたため、${placeholderCount}件の代替URLを生成しました）`
+  return translate
+    ? translate('options.importExport.unresolvedWarning', undefined, {
+        count: String(unresolvedTabs.length),
+        placeholderCount: String(placeholderCount),
+      })
+    : ''
 }
 const countAddedCategories = (
   importedCategories: ParentCategory[],
@@ -1940,7 +1991,10 @@ const importWithMerge = async ({
   unresolvedTabs,
   resolvedImportedCustomProjects,
   bulkUrlRecordMap,
-}: ImportExecutionParams): Promise<ImportResult> => {
+  translate,
+}: ImportExecutionParams & {
+  translate?: Translate
+}): Promise<ImportResult> => {
   const [currentSettings, storageData] = await Promise.all([
     getUserSettings(),
     chrome.storage.local.get<{
@@ -2028,6 +2082,7 @@ const importWithMerge = async ({
           importedData.customProjectOrder,
         ).customProjects
       : currentCustomProjects,
+    language: mergedSettings.language,
     tabGroups: mergedTabs,
   })
   const mergedAiChatHistory = resolveMergedAiChatHistory({
@@ -2064,7 +2119,10 @@ const importWithMerge = async ({
       savedTabs: mergedTabs,
     }),
   ])
-  const unresolvedWarning = await createUnresolvedWarning(unresolvedTabs)
+  const unresolvedWarning = await createUnresolvedWarning(
+    unresolvedTabs,
+    translate,
+  )
   const addedCategories = countAddedCategories(
     importedData.parentCategories,
     currentCategories,
@@ -2073,7 +2131,13 @@ const importWithMerge = async ({
   console.log('マージ完了: 新形式URLデータで保存済み')
   return {
     success: true,
-    message: `データをマージしました (${addedCategories}個のカテゴリと${addedDomains}個のドメインを追加)${unresolvedWarning}`,
+    message: translate
+      ? translate('options.importExport.mergeSuccess', undefined, {
+          categories: String(addedCategories),
+          domains: String(addedDomains),
+          unresolved: unresolvedWarning,
+        })
+      : `データをマージしました (${addedCategories}個のカテゴリと${addedDomains}個のドメインを追加)${unresolvedWarning}`,
   }
 }
 const importWithOverwrite = async ({
@@ -2082,7 +2146,10 @@ const importWithOverwrite = async ({
   unresolvedTabs,
   resolvedImportedCustomProjects,
   bulkUrlRecordMap,
-}: ImportExecutionParams): Promise<ImportResult> => {
+  translate,
+}: ImportExecutionParams & {
+  translate?: Translate
+}): Promise<ImportResult> => {
   const cleanParentCategories = importedData.parentCategories.map(
     normalizeImportedCategory,
   )
@@ -2100,6 +2167,7 @@ const importWithOverwrite = async ({
           importedData.customProjectOrder,
         ).customProjects
       : [],
+    language: importedData.userSettings.language,
     tabGroups: cleanTabGroups,
   })
   const overwriteAiChatHistory = resolveOverwriteAiChatHistory(importedData)
@@ -2132,16 +2200,26 @@ const importWithOverwrite = async ({
       savedTabs: cleanTabGroups,
     }),
   ])
-  const unresolvedWarning = await createUnresolvedWarning(unresolvedTabs)
+  const unresolvedWarning = await createUnresolvedWarning(
+    unresolvedTabs,
+    translate,
+  )
   await migrateToUrlsStorage()
   return {
     success: true,
-    message: `設定とタブデータを置き換えました（バージョン: ${importedData.version}、作成日時: ${new Date(importedData.timestamp).toLocaleString()}）${unresolvedWarning}`,
+    message: translate
+      ? translate('options.importExport.replaceSuccess', undefined, {
+          version: importedData.version,
+          timestamp: new Date(importedData.timestamp).toLocaleString(),
+          unresolved: unresolvedWarning,
+        })
+      : `設定とタブデータを置き換えました（バージョン: ${importedData.version}、作成日時: ${new Date(importedData.timestamp).toLocaleString()}）${unresolvedWarning}`,
   }
 }
 const importSettings = async (
   jsonData: string,
   mergeData = true, // デフォルトでマージを有効に
+  translate?: Translate,
 ): Promise<{
   success: boolean
   message: string
@@ -2152,7 +2230,9 @@ const importSettings = async (
     if (!importedData) {
       return {
         success: false,
-        message: 'インポートされたデータの形式が正しくありません',
+        message: translate
+          ? translate('options.importExport.importFormatError')
+          : 'インポートされたデータの形式が正しくありません',
       }
     }
     const importedUrlRecordMap = createImportedUrlRecordMap(importedData)
@@ -2197,6 +2277,7 @@ const importSettings = async (
         unresolvedTabs,
         resolvedImportedCustomProjects,
         bulkUrlRecordMap,
+        translate,
       })
     }
     return importWithOverwrite({
@@ -2205,12 +2286,15 @@ const importSettings = async (
       unresolvedTabs,
       resolvedImportedCustomProjects,
       bulkUrlRecordMap,
+      translate,
     })
   } catch (error) {
     console.error('インポートエラー:', error)
     return {
       success: false,
-      message: 'データのインポート中にエラーが発生しました',
+      message: translate
+        ? translate('options.importExport.importError')
+        : 'データのインポート中にエラーが発生しました',
     }
   }
 }

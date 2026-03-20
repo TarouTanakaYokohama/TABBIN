@@ -19,6 +19,32 @@ vi.mock('@/features/ai-chat/hooks/useSharedAiChatHistory', () => ({
   useSharedAiChatHistory: mocked.useSharedAiChatHistory,
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    t: (key: string, fallback?: string, values?: Record<string, string>) => {
+      const template =
+        (
+          {
+            'aiChat.deleteConversationAria': 'Delete {{title}}',
+            'aiChat.deleteDescription': 'This action cannot be undone.',
+            'aiChat.deleteTitle': 'Delete this conversation?',
+            'aiChat.historyHint': 'Click to continue',
+            'aiChat.historyTitle': 'Recent conversations',
+            'common.delete': 'Delete',
+            'common.cancel': 'Cancel',
+          } satisfies Record<string, string>
+        )[key] ??
+        fallback ??
+        key
+
+      return template.replaceAll(
+        /\{\{(\w+)\}\}/g,
+        (_, token) => values?.[token] ?? '',
+      )
+    },
+  }),
+}))
+
 vi.mock('@/features/ai-chat/components/SavedTabsChatWidget', () => ({
   SavedTabsChatWidget: ({
     historyVariant,
@@ -101,7 +127,7 @@ describe('AiChatRoute', () => {
   it('広い画面では左履歴を表示し、widget に sidebar-toggle を渡す', () => {
     render(createElement(AiChatRoute))
 
-    expect(screen.getByText('最近の会話')).toBeTruthy()
+    expect(screen.getByText('Recent conversations')).toBeTruthy()
     expect(screen.getAllByText('最初の会話').length).toBeGreaterThan(0)
     expect(screen.getByText('history-variant:sidebar-toggle')).toBeTruthy()
   })
@@ -125,7 +151,7 @@ describe('AiChatRoute', () => {
 
     render(createElement(AiChatRoute))
 
-    expect(screen.queryByText('最近の会話')).toBeNull()
+    expect(screen.queryByText('Recent conversations')).toBeNull()
 
     const widgetShell = screen.getByTestId(
       'saved-tabs-chat-widget',
@@ -142,7 +168,7 @@ describe('AiChatRoute', () => {
 
     fireEvent.click(screen.getByText('toggle-history'))
 
-    expect(screen.getByText('最近の会話')).toBeTruthy()
+    expect(screen.getByText('Recent conversations')).toBeTruthy()
   })
 
   it('履歴削除ボタンから確認モーダルを開き、削除を実行できる', () => {
@@ -150,13 +176,13 @@ describe('AiChatRoute', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: '最初の会話を削除',
+        name: 'Delete 最初の会話',
       }),
     )
 
-    expect(screen.getByText('この会話を削除しますか？')).toBeTruthy()
+    expect(screen.getByText('Delete this conversation?')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '削除' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(mocked.deleteConversation).toHaveBeenCalledWith('conversation-1')
   })

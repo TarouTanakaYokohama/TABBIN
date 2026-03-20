@@ -7,6 +7,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 export type SourcesProps = ComponentProps<'div'>
@@ -27,19 +28,31 @@ export const SourcesTrigger = ({
   count,
   children,
   ...props
-}: SourcesTriggerProps) => (
-  <CollapsibleTrigger
-    className={cn('flex items-center gap-2', className)}
-    {...props}
-  >
-    {children ?? (
-      <>
-        <p className='font-medium'>Used {count} sources</p>
-        <ChevronDownIcon className='h-4 w-4' />
-      </>
-    )}
-  </CollapsibleTrigger>
-)
+}: SourcesTriggerProps) => {
+  const t = useI18nText()
+
+  return (
+    <CollapsibleTrigger
+      className={cn('flex items-center gap-2', className)}
+      {...props}
+    >
+      {children ?? (
+        <>
+          <p className='font-medium'>
+            {t(
+              count === 1
+                ? 'common.usedSources.one'
+                : 'common.usedSources.other',
+              undefined,
+              { count: String(count) },
+            )}
+          </p>
+          <ChevronDownIcon className='h-4 w-4' />
+        </>
+      )}
+    </CollapsibleTrigger>
+  )
+}
 
 export type SourcesContentProps = ComponentProps<typeof CollapsibleContent>
 

@@ -1,6 +1,7 @@
 import { arrayMove } from '@dnd-kit/sortable'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   createParentCategory,
   getParentCategories,
@@ -107,6 +108,7 @@ export const useDomainCardState = ({
   handleDeleteCategory,
   isReorderMode,
 }: UseDomainCardStateParams) => {
+  const { t } = useI18n()
   // --- 基本状態 ---
   const [showKeywordModal, setShowKeywordModal] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -339,16 +341,17 @@ export const useDomainCardState = ({
       setIsCategoryReorderMode(false)
       setOriginalCategoryOrder([])
       setTempCategoryOrder([])
-      toast.success('子カテゴリの順序を変更しました')
+      toast.success(t('savedTabs.subCategory.reorderUpdated'))
     } catch (error) {
       console.error('子カテゴリ順序の更新に失敗しました:', error)
-      toast.error('子カテゴリ順序の更新に失敗しました')
+      toast.error(t('savedTabs.subCategory.reorderUpdateError'))
     }
   }, [
     isCategoryReorderMode,
     tempCategoryOrder,
     group.subCategories,
     handleUpdateCategoryOrder,
+    t,
   ])
 
   // --- 並び替えキャンセル ---
@@ -359,8 +362,8 @@ export const useDomainCardState = ({
     setTempCategoryOrder([])
     setIsCategoryReorderMode(false)
     setOriginalCategoryOrder([])
-    toast.info('子カテゴリの並び替えをキャンセルしました')
-  }, [isCategoryReorderMode])
+    toast.info(t('savedTabs.subCategory.reorderCanceled'))
+  }, [isCategoryReorderMode, t])
 
   // --- キーワードモーダル閉じる ---
   const handleCloseKeywordModal = useCallback(() => {

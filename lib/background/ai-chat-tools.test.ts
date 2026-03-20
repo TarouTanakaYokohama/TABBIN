@@ -74,7 +74,7 @@ describe('createAiChatTools', () => {
 
     expect(result.query.groupBy).toBe('domain')
     expect(result.chartSpecs[0]).toMatchObject({
-      title: 'ドメイン別の保存数',
+      title: 'ドメインごとの保存数',
       type: 'bar',
     })
   })

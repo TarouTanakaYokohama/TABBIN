@@ -2,6 +2,7 @@
  * コンテキストメニュー管理モジュール
  */
 
+import { getBackgroundMessage } from '@/lib/background/i18n'
 import type { ContextMenuId } from '@/types/background'
 import {
   handleSaveAllWindowsTabs,
@@ -28,9 +29,14 @@ const createContextMenus = (): void => {
 
         // メニュー項目を作成
         try {
-          createMenuItems()
-          setupMenuClickHandler()
-          console.log('コンテキストメニューを作成しました')
+          void createMenuItems()
+            .then(() => {
+              setupMenuClickHandler()
+              console.log('コンテキストメニューを作成しました')
+            })
+            .catch(e => {
+              console.error('メニュー作成エラー:', e)
+            })
         } catch (e) {
           console.error('メニュー作成エラー:', e)
         }
@@ -47,7 +53,20 @@ const createContextMenus = (): void => {
 /**
  * メニュー項目を作成
  */
-const createMenuItems = (): void => {
+const createMenuItems = async (): Promise<void> => {
+  const [
+    openSavedTabs,
+    saveCurrentTab,
+    saveAllTabs,
+    saveSameDomainTabs,
+    saveAllWindowsTabs,
+  ] = await Promise.all([
+    getBackgroundMessage('background.contextMenu.openSavedTabs'),
+    getBackgroundMessage('background.contextMenu.saveCurrentTab'),
+    getBackgroundMessage('background.contextMenu.saveAllTabs'),
+    getBackgroundMessage('background.contextMenu.saveSameDomainTabs'),
+    getBackgroundMessage('background.contextMenu.saveAllWindowsTabs'),
+  ])
   const menuItems: Array<{
     id: ContextMenuId
     title: string
@@ -56,7 +75,7 @@ const createMenuItems = (): void => {
   }> = [
     {
       id: 'openSavedTabs',
-      title: '保存したタブを開く',
+      title: openSavedTabs,
       contexts: ['page'],
     },
     {
@@ -67,22 +86,22 @@ const createMenuItems = (): void => {
     },
     {
       id: 'saveCurrentTab',
-      title: '現在のタブを保存',
+      title: saveCurrentTab,
       contexts: ['page'],
     },
     {
       id: 'saveAllTabs',
-      title: 'ウィンドウのすべてのタブを保存',
+      title: saveAllTabs,
       contexts: ['page'],
     },
     {
       id: 'saveSameDomainTabs',
-      title: '現在開いているドメインのタブをすべて保存',
+      title: saveSameDomainTabs,
       contexts: ['page'],
     },
     {
       id: 'saveAllWindowsTabs',
-      title: '他のウィンドウを含めすべてのタブを保存',
+      title: saveAllWindowsTabs,
       contexts: ['page'],
     },
   ]

@@ -1,5 +1,5 @@
 import { Edit, Plus, Trash, Trash2, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
@@ -20,22 +20,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   SavedTabsResponsiveLabel,
   SavedTabsResponsiveTooltipContent,
 } from '@/features/saved-tabs/components/shared/SavedTabsResponsive'
 import type { ParentCategory, TabGroup } from '@/types/storage'
-
-// カテゴリ名のバリデーションスキーマ
-const categoryNameSchema = z
-  .string()
-  .trim()
-  .min(1, {
-    message: 'カテゴリ名を入力してください',
-  })
-  .max(25, {
-    message: 'カテゴリ名は25文字以下にしてください',
-  })
 
 // 型定義
 interface AvailableDomain {
@@ -53,6 +43,29 @@ interface CategoryManagementModalProps {
   }
   domains: TabGroup[]
   onCategoryUpdate?: (categoryId: string, newName: string) => void
+}
+
+const createCategoryNameSchema = (
+  validationMessages: { empty: string; maxLength: string } = {
+    empty: 'カテゴリ名を入力してください',
+    maxLength: '新規親カテゴリ名は25文字以下にしてください',
+  },
+) =>
+  z
+    .string()
+    .trim()
+    .min(1, {
+      message: validationMessages.empty,
+    })
+    .max(25, {
+      message: validationMessages.maxLength,
+    })
+
+const categoryNameSchema = {
+  schema: createCategoryNameSchema(),
+  safeParse(value: string) {
+    return this.schema.safeParse(value)
+  },
 }
 const confirmCategoryNameUpdated = async (
   categoryId: string,
@@ -115,6 +128,15 @@ const CategoryManagementModal = ({
   domains,
   onCategoryUpdate,
 }: CategoryManagementModalProps) => {
+  const { t } = useI18n()
+  const localizedCategoryNameSchema = useMemo(
+    () =>
+      createCategoryNameSchema({
+        empty: t('savedTabs.categoryModal.validation.empty'),
+        maxLength: t('savedTabs.categoryModal.validation.maxLength'),
+      }),
+    [t],
+  )
   const [isRenaming, setIsRenaming] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -133,14 +155,17 @@ const CategoryManagementModal = ({
 
   // 入力値バリデーション関数
   const validateCategoryName = (name: string) => {
+    categoryNameSchema.schema = localizedCategoryNameSchema
     const result = categoryNameSchema.safeParse(name)
     if (!result.success) {
-      const [
-        { message } = {
-          message: 'カテゴリ名が無効です',
-        },
-      ] = result.error.issues
-      setCategoryNameError(message)
+      const issue = result.error.issues[0]
+      if (issue?.code === 'too_small') {
+        setCategoryNameError(t('savedTabs.categoryModal.validation.empty'))
+      } else if (issue?.code === 'too_big') {
+        setCategoryNameError(t('savedTabs.categoryModal.validation.maxLength'))
+      } else {
+        setCategoryNameError(t('savedTabs.categoryModal.invalid'))
+      }
       return false
     }
     setCategoryNameError(null)
@@ -293,7 +318,10 @@ const CategoryManagementModal = ({
       // すべての更新が確認できたら親コンポーネントに通知
       console.log('Modal - カテゴリ更新が完了しました')
       toast.success(
-        `カテゴリ名を「${category.name}」から「${trimmedName}」に変更しました`,
+        t('savedTabs.categoryManagement.renamed', undefined, {
+          before: category.name,
+          after: trimmedName,
+        }),
       )
       setLocalCategoryName(trimmedName)
       setIsRenaming(false)
@@ -306,7 +334,7 @@ const CategoryManagementModal = ({
         isProcessing,
         stack: error instanceof Error ? error.stack : undefined,
       })
-      toast.error('カテゴリ名の更新に失敗しました')
+      toast.error(t('savedTabs.categoryManagement.renameError'))
     } finally {
       console.log('Modal - 処理完了', {
         isProcessing,
@@ -334,11 +362,15 @@ const CategoryManagementModal = ({
       await chrome.storage.local.set({
         parentCategories: updatedCategories,
       })
-      toast.success(`親カテゴリ「${category.name}」を削除しました`)
+      toast.success(
+        t('savedTabs.categoryModal.deleted', undefined, {
+          name: category.name,
+        }),
+      )
       onClose()
     } catch (error) {
       console.error('親カテゴリの削除に失敗しました:', error)
-      toast.error('親カテゴリの削除に失敗しました')
+      toast.error(t('savedTabs.categoryModal.deleteError'))
     } finally {
       setIsProcessing(false)
     }
@@ -363,7 +395,10 @@ const CategoryManagementModal = ({
         selectedDomainInfo,
       )
       toast.success(
-        `ドメイン「${selectedDomainInfo.domain}」をカテゴリ「${category.name}」に追加しました`,
+        t('savedTabs.categoryModal.domainAssigned', undefined, {
+          domain: selectedDomainInfo.domain,
+          categoryName: category.name,
+        }),
       )
 
       // 追加したドメインをリストから削除
@@ -380,7 +415,7 @@ const CategoryManagementModal = ({
       }
     } catch (error) {
       console.error('ドメインの追加に失敗しました:', error)
-      toast.error('ドメインの追加に失敗しました')
+      toast.error(t('savedTabs.categoryModal.toggleError'))
     } finally {
       setIsProcessing(false)
     }
@@ -440,14 +475,17 @@ const CategoryManagementModal = ({
         },
       ])
       toast.success(
-        `ドメイン「${domainInfo.domain}」をカテゴリ「${category.name}」から削除しました`,
+        t('savedTabs.categoryModal.domainRemoved', undefined, {
+          domain: domainInfo.domain,
+          categoryName: category.name,
+        }),
       )
 
       // ドメイン一覧を更新
       await loadAvailableDomains()
     } catch (error) {
       console.error('ドメインの削除に失敗しました:', error)
-      toast.error('ドメインの削除に失敗しました')
+      toast.error(t('savedTabs.categoryModal.deleteError'))
     } finally {
       setIsProcessing(false)
     }
@@ -475,14 +513,18 @@ const CategoryManagementModal = ({
     >
       <DialogContent className='max-h-[90vh] overflow-y-auto'>
         <DialogHeader className='text-left'>
-          <DialogTitle>「{localCategoryName}」の親カテゴリ管理</DialogTitle>
+          <DialogTitle>
+            {t('savedTabs.categoryManagement.title', undefined, {
+              name: localCategoryName,
+            })}
+          </DialogTitle>
         </DialogHeader>
 
         <div ref={modalContentRef} className='space-y-4'>
           {/* カテゴリ名変更セクション */}
           <div className='mb-4'>
             <div className='mb-2 flex items-center justify-between'>
-              <Label>親カテゴリ名</Label>
+              <Label>{t('savedTabs.categoryManagement.nameLabel')}</Label>
               {!isRenaming && (
                 <div className='flex items-center gap-2'>
                   <Tooltip>
@@ -495,12 +537,12 @@ const CategoryManagementModal = ({
                       >
                         <Edit size={14} />
                         <SavedTabsResponsiveLabel>
-                          親カテゴリ名を変更
+                          {t('savedTabs.categoryManagement.renameAction')}
                         </SavedTabsResponsiveLabel>
                       </Button>
                     </TooltipTrigger>
                     <SavedTabsResponsiveTooltipContent side='top'>
-                      親カテゴリ名を変更
+                      {t('savedTabs.categoryManagement.renameAction')}
                     </SavedTabsResponsiveTooltipContent>
                   </Tooltip>
                   <Tooltip>
@@ -514,12 +556,12 @@ const CategoryManagementModal = ({
                       >
                         <Trash2 size={14} />
                         <SavedTabsResponsiveLabel>
-                          親カテゴリを削除
+                          {t('savedTabs.categoryManagement.deleteAction')}
                         </SavedTabsResponsiveLabel>
                       </Button>
                     </TooltipTrigger>
                     <SavedTabsResponsiveTooltipContent side='top'>
-                      親カテゴリを削除
+                      {t('savedTabs.categoryManagement.deleteAction')}
                     </SavedTabsResponsiveTooltipContent>
                   </Tooltip>
                 </div>
@@ -529,13 +571,17 @@ const CategoryManagementModal = ({
             {isRenaming ? (
               <div className='mt-2 w-full rounded border p-3'>
                 <div className='mb-2 text-gray-300 text-sm'>
-                  「{localCategoryName}」の新しい親カテゴリ名を入力してください
+                  {t('savedTabs.categoryManagement.renamePrompt', undefined, {
+                    name: localCategoryName,
+                  })}
                 </div>
                 <Input
                   ref={inputRef}
                   value={newCategoryName}
                   onChange={handleCategoryNameChange}
-                  placeholder='例: ビジネスツール、技術情報'
+                  placeholder={t(
+                    'savedTabs.categoryManagement.renamePlaceholder',
+                  )}
                   className={`w-full flex-1 rounded border p-2 ${categoryNameError ? 'border-red-500' : ''}`}
                   autoFocus={true}
                   onBlur={() => {
@@ -594,13 +640,22 @@ const CategoryManagementModal = ({
           {showDeleteConfirm && (
             <div className='mt-1 mb-3 rounded border p-3'>
               <p className='mb-2 text-gray-700 dark:text-gray-300'>
-                親カテゴリ「{localCategoryName}
-                」を削除しますか？この操作は取り消せません。
+                {t(
+                  'savedTabs.categoryManagement.deleteConfirmDescription',
+                  undefined,
+                  {
+                    name: localCategoryName,
+                  },
+                )}
                 {domains.length > 0 ? (
                   <span className='mt-1 block text-xs'>
-                    このカテゴリには {domains.length}{' '}
-                    件のドメインが関連付けられています。
-                    削除すると、ドメインと親カテゴリの関連付けも削除されます。
+                    {t(
+                      'savedTabs.categoryManagement.deleteConfirmDomains',
+                      undefined,
+                      {
+                        count: String(domains.length),
+                      },
+                    )}
                   </span>
                 ) : null}
               </p>
@@ -613,11 +668,11 @@ const CategoryManagementModal = ({
                       onClick={() => setShowDeleteConfirm(false)}
                       disabled={isProcessing}
                     >
-                      キャンセル
+                      {t('common.cancel')}
                     </Button>
                   </TooltipTrigger>
                   <SavedTabsResponsiveTooltipContent side='top'>
-                    キャンセル
+                    {t('common.cancel')}
                   </SavedTabsResponsiveTooltipContent>
                 </Tooltip>
                 <Tooltip>
@@ -629,11 +684,13 @@ const CategoryManagementModal = ({
                       disabled={isProcessing}
                     >
                       <Trash size={14} />
-                      <SavedTabsResponsiveLabel>削除</SavedTabsResponsiveLabel>
+                      <SavedTabsResponsiveLabel>
+                        {t('common.delete')}
+                      </SavedTabsResponsiveLabel>
                     </Button>
                   </TooltipTrigger>
                   <SavedTabsResponsiveTooltipContent side='top'>
-                    親カテゴリを削除
+                    {t('savedTabs.categoryManagement.deleteAction')}
                   </SavedTabsResponsiveTooltipContent>
                 </Tooltip>
               </div>
@@ -642,11 +699,13 @@ const CategoryManagementModal = ({
 
           {/* 登録済みドメイン一覧 */}
           <div className='mb-4'>
-            <Label className='mb-2 block'>登録済みドメイン</Label>
+            <Label className='mb-2 block'>
+              {t('savedTabs.categoryManagement.registeredDomainsLabel')}
+            </Label>
             <div className='flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded border p-2'>
               {domains.length === 0 ? (
                 <p className='text-gray-500'>
-                  登録されているドメインがありません
+                  {t('savedTabs.categoryManagement.registeredDomainsEmpty')}
                 </p>
               ) : (
                 domains.map(domain => (
@@ -663,14 +722,16 @@ const CategoryManagementModal = ({
                           size='sm'
                           onClick={() => handleRemoveDomain(domain.id)}
                           className='ml-1 cursor-pointer text-gray-400 hover:text-gray-200'
-                          aria-label='ドメインを削除'
+                          aria-label={t(
+                            'savedTabs.categoryManagement.removeDomainAria',
+                          )}
                           disabled={isProcessing}
                         >
                           <X size={14} />
                         </Button>
                       </TooltipTrigger>
                       <SavedTabsResponsiveTooltipContent side='top'>
-                        削除
+                        {t('common.delete')}
                       </SavedTabsResponsiveTooltipContent>
                     </Tooltip>
                   </Badge>
@@ -681,7 +742,9 @@ const CategoryManagementModal = ({
 
           {/* ドメイン追加セクション */}
           <div className='mb-4'>
-            <Label className='mb-2 block'>新しいドメインを追加</Label>
+            <Label className='mb-2 block'>
+              {t('savedTabs.categoryManagement.addDomainLabel')}
+            </Label>
             {availableDomains.length > 0 ? (
               <div className='flex gap-2'>
                 <Select
@@ -690,7 +753,11 @@ const CategoryManagementModal = ({
                   disabled={isProcessing}
                 >
                   <SelectTrigger className='w-full rounded border p-2'>
-                    <SelectValue placeholder='カテゴリに追加するドメインを選択' />
+                    <SelectValue
+                      placeholder={t(
+                        'savedTabs.categoryManagement.addDomainPlaceholder',
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {availableDomains.map(domain => (
@@ -721,12 +788,14 @@ const CategoryManagementModal = ({
                     </Button>
                   </TooltipTrigger>
                   <SavedTabsResponsiveTooltipContent side='top'>
-                    選択したドメインを親カテゴリに追加
+                    {t('savedTabs.categoryManagement.addDomainTooltip')}
                   </SavedTabsResponsiveTooltipContent>
                 </Tooltip>
               </div>
             ) : (
-              <p className='text-gray-500'>追加できるドメインがありません。</p>
+              <p className='text-gray-500'>
+                {t('savedTabs.categoryManagement.noAvailableDomains')}
+              </p>
             )}
           </div>
         </div>

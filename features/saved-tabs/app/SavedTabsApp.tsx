@@ -30,6 +30,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Toaster } from '@/components/ui/sonner'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { getPageHref } from '@/features/navigation/lib/pageNavigation'
 import { CategoryReorderFooter } from '@/features/saved-tabs/components/Footer'
 import { Header } from '@/features/saved-tabs/components/Header' // ヘッダーコンポーネントをインポート
@@ -485,6 +486,7 @@ const SavedTabsApp = ({
   isAiSidebarOpen?: boolean
   onViewModeNavigate?: (mode: ViewMode) => void
 }) => {
+  const { t } = useI18n()
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [newSubCategory, setNewSubCategory] = useState('')
   const [showSubCategoryModal, setShowSubCategoryModal] = useState(false)
@@ -962,8 +964,8 @@ const SavedTabsApp = ({
     // 並び替えモードを終了
     setIsUncategorizedReorderMode(false)
     setOriginalUncategorizedOrder([])
-    toast.info('未分類ドメインの並び替えをキャンセルしました')
-  }, [isUncategorizedReorderMode])
+    toast.info(t('savedTabs.domainOrder.canceled'))
+  }, [isUncategorizedReorderMode, t])
 
   // タブグループをカテゴリごとに整理する関数を強化
   const organizeTabGroups = useCallback(
@@ -1085,16 +1087,17 @@ const SavedTabsApp = ({
       setIsUncategorizedReorderMode(false)
       setOriginalUncategorizedOrder([])
       setTempUncategorizedOrder([])
-      toast.success('未分類ドメインの順序を変更しました')
+      toast.success(t('savedTabs.domainOrder.updated'))
     } catch (error) {
       console.error('未分類ドメイン順序の更新に失敗しました:', error)
-      toast.error('未分類ドメイン順序の更新に失敗しました')
+      toast.error(t('savedTabs.domainOrder.updateError'))
     }
   }, [
     isUncategorizedReorderMode,
     categorized,
     tempUncategorizedOrder,
     refreshTabGroupsWithUrls,
+    t,
   ])
   console.log('表示判定デバッグ:')
   console.log('- categorized:', categorized)
@@ -1195,15 +1198,15 @@ const SavedTabsApp = ({
           getCustomProjects,
           setCustomProjects,
         })
-        toast.success('タブを移動しました')
+        toast.success(t('savedTabs.tab.movedBetweenProjects'))
         return null
       } catch (error) {
         console.error('URL移動エラー:', error)
-        toast.error('タブの移動に失敗しました')
+        toast.error(t('savedTabs.tab.moveBetweenProjectsError'))
         return null
       }
     },
-    [getCustomProjects, moveUrlBetweenCustomProjects, setCustomProjects],
+    [getCustomProjects, moveUrlBetweenCustomProjects, setCustomProjects, t],
   )
 
   // カテゴリ間でURLを移動するハンドラ
@@ -1331,12 +1334,12 @@ const SavedTabsApp = ({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>新しい子カテゴリを追加</DialogTitle>
+            <DialogTitle>{t('savedTabs.subCategory.addTitle')}</DialogTitle>
           </DialogHeader>
           <Input
             value={newSubCategory}
             onChange={e => setNewSubCategory(e.target.value)}
-            placeholder='例: 仕事、プライベート、学習'
+            placeholder={t('savedTabs.subCategory.addPlaceholder')}
             className='mb-4 w-full rounded border p-2 text-foreground'
             ref={inputRef}
           />
@@ -1349,11 +1352,11 @@ const SavedTabsApp = ({
                   onClick={() => setShowSubCategoryModal(false)}
                   className='cursor-pointer rounded px-2 py-1 text-secondary-foreground'
                 >
-                  キャンセル
+                  {t('common.cancel')}
                 </Button>
               </TooltipTrigger>
               <SavedTabsResponsiveTooltipContent side='top'>
-                キャンセル
+                {t('common.cancel')}
               </SavedTabsResponsiveTooltipContent>
             </Tooltip>
 
@@ -1366,11 +1369,13 @@ const SavedTabsApp = ({
                   className='flex cursor-pointer items-center gap-1 rounded text-primary-foreground'
                 >
                   <Plus size={14} />
-                  <SavedTabsResponsiveLabel>追加</SavedTabsResponsiveLabel>
+                  <SavedTabsResponsiveLabel>
+                    {t('common.confirm')}
+                  </SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
               <SavedTabsResponsiveTooltipContent side='top'>
-                追加
+                {t('common.confirm')}
               </SavedTabsResponsiveTooltipContent>
             </Tooltip>
           </DialogFooter>

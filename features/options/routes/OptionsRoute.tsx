@@ -16,6 +16,8 @@ import { Toaster } from '@/components/ui/sonner'
 import { clickBehaviorOptions } from '@/constants/clickBehaviorOptions'
 import { colorOptions } from '@/constants/colorOptions'
 import { getDefaultColor } from '@/constants/defaultColors'
+import { LanguageSelect } from '@/features/i18n/components/LanguageSelect'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { useColorSettings } from '@/features/options/hooks/useColorSettings'
 import { useSettings } from '@/features/options/hooks/useSettings'
 import { ImportExportSettings } from '@/features/options/ImportExportSettings'
@@ -34,6 +36,7 @@ const createThemeColorChangeHandler =
   }
 
 export const OptionsRoute = () => {
+  const { t } = useI18n()
   const {
     addExcludePattern,
     excludePatternInput,
@@ -100,7 +103,7 @@ export const OptionsRoute = () => {
   if (isLoading) {
     return (
       <div className='flex min-h-[300px] items-center justify-center'>
-        <div className='text-foreground text-xl'>読み込み中...</div>
+        <div className='text-foreground text-xl'>{t('common.loading')}</div>
       </div>
     )
   }
@@ -111,22 +114,25 @@ export const OptionsRoute = () => {
         <Toaster position='top-right' />
 
         <header className='mb-8 flex items-center justify-between gap-4'>
-          <h1 className='font-bold text-3xl text-foreground'>オプション</h1>
-          <div className='flex items-center gap-2'>
+          <h1 className='font-bold text-3xl text-foreground'>
+            {t('options.title')}
+          </h1>
+          <div className='flex items-end gap-3'>
+            <LanguageSelect className='w-44' />
             <ModeToggle />
           </div>
         </header>
 
         <div className='mb-8 rounded-lg border border-border bg-card p-6 shadow-md'>
           <h2 className='mb-4 font-semibold text-foreground text-xl'>
-            バックアップと復元
+            {t('options.backupRestore')}
           </h2>
           <ImportExportSettings />
         </div>
 
         <div className='mb-8 rounded-lg border border-border bg-card p-6 shadow-md'>
           <h2 className='mb-4 font-semibold text-foreground text-xl'>
-            タブの挙動設定
+            {t('options.behaviorSettings')}
           </h2>
 
           <div className='mb-6'>
@@ -134,7 +140,7 @@ export const OptionsRoute = () => {
               htmlFor='click-behavior'
               className='mb-2 block font-medium text-foreground'
             >
-              拡張機能ボタンをクリックした時の挙動
+              {t('options.clickBehaviorLabel')}
             </Label>
             <div className='space-y-2'>
               <Select
@@ -145,12 +151,14 @@ export const OptionsRoute = () => {
                   id='click-behavior'
                   className='w-full cursor-pointer bg-background'
                 >
-                  <SelectValue placeholder='クリック時の挙動を選択してください' />
+                  <SelectValue
+                    placeholder={t('options.clickBehaviorPlaceholder')}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {clickBehaviorOptions.map(option => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -169,12 +177,11 @@ export const OptionsRoute = () => {
               htmlFor='remove-after-open'
               className='cursor-pointer text-foreground'
             >
-              保存したタブを開いた後、リストから自動的に削除する
+              {t('options.autoDelete.openAfter')}
             </Label>
           </div>
           <p className='mt-1 ml-7 text-muted-foreground text-sm'>
-            オンにすると、保存したタブを開いた後、そのタブは保存リストから自動的に削除されます。
-            オフにすると、保存したタブを開いても、リストからは削除されません。
+            {t('options.autoDelete.openAfterDescription')}
           </p>
 
           <div className='mt-6 mb-4 flex items-center space-x-2'>
@@ -188,11 +195,11 @@ export const OptionsRoute = () => {
               htmlFor='remove-after-external-drop'
               className='cursor-pointer text-foreground'
             >
-              別ブラウザへドラッグ&ドロップした後、リストから自動的に削除する
+              {t('options.autoDelete.externalDrop')}
             </Label>
           </div>
           <p className='mt-1 ml-7 text-muted-foreground text-sm'>
-            オンにすると、保存したタブを別ブラウザへドラッグ&ドロップした際にリストから削除します。
+            {t('options.autoDelete.externalDropDescription')}
           </p>
 
           <div className='mt-6 mb-4 flex items-center space-x-2'>
@@ -206,11 +213,11 @@ export const OptionsRoute = () => {
               htmlFor='exclude-pinned-tabs'
               className='cursor-pointer text-foreground'
             >
-              固定タブ（ピン留め）を除外する
+              {t('options.autoDelete.excludePinned')}
             </Label>
           </div>
           <p className='mt-1 ml-7 text-muted-foreground text-sm'>
-            オンにすると、ピン留めされたタブは保存対象から除外されます。
+            {t('options.autoDelete.excludePinnedDescription')}
           </p>
 
           <div className='mt-6 mb-4 flex items-center space-x-2'>
@@ -224,11 +231,11 @@ export const OptionsRoute = () => {
               htmlFor='open-url-in-blank'
               className='cursor-pointer text-foreground'
             >
-              バックグラウンドタブで開く
+              {t('options.autoDelete.background')}
             </Label>
           </div>
           <p className='mt-1 ml-7 text-muted-foreground text-sm'>
-            オンにすると、保存したタブをバックグラウンドで開きます。
+            {t('options.autoDelete.saveInBackgroundDescription')}
           </p>
 
           <div className='mt-6 mb-4 flex items-center space-x-2'>
@@ -242,11 +249,11 @@ export const OptionsRoute = () => {
               htmlFor='open-all-in-new-window'
               className='cursor-pointer text-foreground'
             >
-              すべてのタブを新しいウィンドウで開く
+              {t('options.autoDelete.allWindows')}
             </Label>
           </div>
           <p className='mt-1 ml-7 text-muted-foreground text-sm'>
-            オンにすると、「すべて開く」ボタンで新しいウィンドウを作成し、タブを開きます。
+            {t('options.autoDelete.allWindowsDescription')}
           </p>
 
           <div className='mt-6 mb-4 flex items-center space-x-2'>
@@ -260,11 +267,11 @@ export const OptionsRoute = () => {
               htmlFor='show-saved-time'
               className='cursor-pointer text-foreground'
             >
-              保存日時を表示する
+              {t('options.autoDelete.savedTime')}
             </Label>
           </div>
           <p className='mt-1 ml-7 text-muted-foreground text-sm'>
-            オンにすると、保存タブ一覧に保存された日時が表示されます。
+            {t('options.autoDelete.savedTimeDescription')}
           </p>
 
           <div className='mt-6 mb-4 flex items-center space-x-2'>
@@ -278,11 +285,11 @@ export const OptionsRoute = () => {
               htmlFor='confirm-delete-each'
               className='cursor-pointer text-foreground'
             >
-              タブ削除前に確認する
+              {t('options.autoDelete.confirmDeleteEach')}
             </Label>
           </div>
           <p className='mt-1 ml-7 text-muted-foreground text-sm'>
-            オンにすると、タブを削除する前に確認ダイアログを表示します。
+            {t('options.autoDelete.confirmDeleteEachDescription')}
           </p>
 
           <div className='mt-6 mb-4 flex items-center space-x-2'>
@@ -296,24 +303,24 @@ export const OptionsRoute = () => {
               htmlFor='confirm-delete-all'
               className='cursor-pointer text-foreground'
             >
-              すべて削除前に確認する
+              {t('options.autoDelete.confirmDeleteAll')}
             </Label>
           </div>
           <p className='mt-1 ml-7 text-muted-foreground text-sm'>
-            オンにすると、カテゴリごとにすべてのタブを削除する前に確認ダイアログを表示します。
+            {t('options.autoDelete.confirmDeleteAllDescription')}
           </p>
         </div>
 
         <div className='mb-8 rounded-lg border border-border bg-card p-6 shadow-md'>
           <h2 className='mb-4 font-semibold text-foreground text-xl'>
-            除外設定
+            {t('options.excludePatterns.title')}
           </h2>
           <div className='mb-4'>
             <Label
               htmlFor='excludePatterns'
               className='mb-2 block text-foreground'
             >
-              保存・閉じない URL パターン
+              {t('options.excludePatterns.label')}
             </Label>
             <div className='flex gap-2'>
               <Input
@@ -325,7 +332,7 @@ export const OptionsRoute = () => {
                 }}
                 onKeyDown={handleExcludePatternKeyDown}
                 className='bg-background text-foreground'
-                placeholder='例: chrome-extension://'
+                placeholder={t('options.excludePatterns.placeholder')}
               />
               <Button
                 type='button'
@@ -333,17 +340,17 @@ export const OptionsRoute = () => {
                   void addExcludePattern()
                 }}
                 variant='secondary'
-                aria-label='除外パターンを追加'
+                aria-label={t('options.excludePatterns.add')}
               >
                 <Plus size={16} />
-                追加
+                {t('options.excludePatterns.add')}
               </Button>
             </div>
             <div className='mt-3 flex flex-wrap gap-2 rounded-md border border-border bg-background/40 p-3'>
               {settings.excludePatterns.filter(pattern => pattern.trim())
                 .length === 0 ? (
                 <p className='text-muted-foreground text-sm'>
-                  除外パターンはありません
+                  {t('options.excludePatterns.empty')}
                 </p>
               ) : (
                 settings.excludePatterns
@@ -365,7 +372,13 @@ export const OptionsRoute = () => {
                         onClick={() => {
                           void removeExcludePattern(pattern)
                         }}
-                        aria-label={`除外パターン ${pattern} を削除`}
+                        aria-label={t(
+                          'options.excludePatterns.removeAria',
+                          undefined,
+                          {
+                            pattern,
+                          },
+                        )}
                       >
                         <X size={12} />
                       </Button>
@@ -374,7 +387,7 @@ export const OptionsRoute = () => {
               )}
             </div>
             <p className='mt-1 text-muted-foreground text-sm'>
-              これらのパターンに一致するURLは保存されず、タブも閉じられません。
+              {t('options.excludePatterns.help')}
             </p>
           </div>
         </div>
@@ -382,7 +395,7 @@ export const OptionsRoute = () => {
         <div className='mb-8 rounded-lg border border-border bg-card p-6 shadow-md'>
           <div className='mb-4 flex items-center justify-between'>
             <h2 className='font-semibold text-foreground text-xl'>
-              (preview)カラーカスタマイズ
+              {t('options.previewColorCustomization')}
             </h2>
             <Button
               variant='outline'
@@ -391,11 +404,11 @@ export const OptionsRoute = () => {
               className='flex cursor-pointer items-center gap-1'
             >
               <RotateCcw size={16} />
-              リセット
+              {t('common.reset')}
             </Button>
           </div>
           <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-            {colorOptions.map(({ key, label }) => {
+            {colorOptions.map(({ key, labelKey }) => {
               const handleThemeColorChange = createThemeColorChangeHandler(
                 key,
                 handleColorChange,
@@ -407,7 +420,7 @@ export const OptionsRoute = () => {
                     htmlFor={`${key}-picker`}
                     className='mb-2 block whitespace-normal break-all text-foreground'
                   >
-                    {label}
+                    {t(labelKey)}
                   </Label>
                   <div className='flex items-center space-x-4'>
                     <input
@@ -424,7 +437,7 @@ export const OptionsRoute = () => {
                         value={settings.colors?.[key] || getDefaultColor(key)}
                         onChange={handleThemeColorChange}
                         className='w-full bg-background text-foreground'
-                        placeholder='例: #FF5733, #3366CC'
+                        placeholder={t('options.color.hexPlaceholder')}
                       />
                     </div>
                   </div>
@@ -442,13 +455,11 @@ export const OptionsRoute = () => {
             }
             className='w-full cursor-pointer'
           >
-            お問い合わせ
+            {t('options.contact')}
           </Button>
         </div>
         <p className='mt-2 text-muted-foreground text-sm'>
-          Google Formsを使用します。
-          <br />
-          ※画像アップロード可能な設定ですので、Googleアカウントでのログインが必要です。
+          {t('options.contactDescription')}
         </p>
 
         <div className='mt-8 mb-10 text-center'>
@@ -459,7 +470,7 @@ export const OptionsRoute = () => {
               window.open(chrome.runtime.getURL('changelog.html'), '_blank')
             }
           >
-            リリースノート
+            {t('options.releaseNotes')}
           </Button>
         </div>
       </div>

@@ -67,8 +67,29 @@ vi.mock('@/components/mode-toggle', () => ({
   ModeToggle: () => createElement('div', null, 'ModeToggle'),
 }))
 
+vi.mock('@/features/i18n/components/LanguageSelect', () => ({
+  LanguageSelect: () => createElement('div', null, 'LanguageSelect'),
+}))
+
 vi.mock('@/components/ui/sonner', () => ({
   Toaster: () => createElement('div', null, 'Toaster'),
+}))
+
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    t: (key: string) =>
+      (
+        ({
+          'common.loading': 'Loading...',
+          'options.backupRestore': 'Backup & Restore',
+          'options.behaviorSettings': 'Tab behavior',
+          'options.clickBehaviorLabel': 'Click action',
+          'options.clickBehaviorPlaceholder': 'Select click action',
+          'options.excludePatterns.title': 'Exclude settings',
+          'options.title': 'Options',
+        }) satisfies Record<string, string>
+      )[key] ?? key,
+  }),
 }))
 
 import { OptionsPage } from '@/features/options/routes/OptionsRoute'
@@ -78,5 +99,10 @@ describe('オプションページ', () => {
     render(createElement(OptionsPage))
 
     expect(screen.queryByText('AI チャット')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Options' })).toBeTruthy()
+    expect(screen.getByText('LanguageSelect')).toBeTruthy()
+    expect(screen.getByText('ModeToggle')).toBeTruthy()
+    expect(screen.getByText('Backup & Restore')).toBeTruthy()
+    expect(screen.getByText('Exclude settings')).toBeTruthy()
   })
 })

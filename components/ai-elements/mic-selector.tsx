@@ -25,6 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 const deviceIdRegex = /\(([\da-fA-F]{4}:[\da-fA-F]{4})\)$/
@@ -176,9 +177,11 @@ export type MicSelectorInputProps = ComponentProps<typeof CommandInput> & {
   onValueChange?: (value: string) => void
 }
 
-export const MicSelectorInput = ({ ...props }: MicSelectorInputProps) => (
-  <CommandInput placeholder='Search microphones...' {...props} />
-)
+export const MicSelectorInput = ({ ...props }: MicSelectorInputProps) => {
+  const t = useI18nText()
+
+  return <CommandInput placeholder={t('common.searchMicrophones')} {...props} />
+}
 
 export type MicSelectorListProps = Omit<
   ComponentProps<typeof CommandList>,

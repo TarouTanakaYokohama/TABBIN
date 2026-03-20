@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   SavedTabsResponsiveLabel,
   SavedTabsResponsiveTooltipContent,
@@ -21,6 +22,7 @@ import { useCategoryModalContext } from './CategoryModalContext'
  * セレクタと削除確認UIを含む
  */
 export const CategorySelector = () => {
+  const { t } = useI18n()
   const { state } = useCategoryModalContext()
   const { selection, deletion, isLoading } = state
 
@@ -31,7 +33,9 @@ export const CategorySelector = () => {
   return (
     <div>
       <div className='mb-2 flex items-center justify-between'>
-        <Label htmlFor='categorySelect'>親カテゴリ選択</Label>
+        <Label htmlFor='categorySelect'>
+          {t('savedTabs.categoryModal.selectLabel')}
+        </Label>
         {selection.categories.length > 0 &&
           selection.selectedCategoryId &&
           selection.selectedCategoryId !== 'uncategorized' && (
@@ -46,12 +50,12 @@ export const CategorySelector = () => {
                 >
                   <Trash2 size={16} />
                   <SavedTabsResponsiveLabel>
-                    選択中の親カテゴリを削除
+                    {t('savedTabs.categoryModal.deleteSelected')}
                   </SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
               <SavedTabsResponsiveTooltipContent side='top'>
-                選択中の親カテゴリを削除
+                {t('savedTabs.categoryModal.deleteSelected')}
               </SavedTabsResponsiveTooltipContent>
             </Tooltip>
           )}
@@ -61,7 +65,9 @@ export const CategorySelector = () => {
         onValueChange={selection.handleCategoryChange}
       >
         <SelectTrigger className='w-full' id='categorySelect'>
-          <SelectValue placeholder='作成済みのカテゴリを選択してドメインを管理' />
+          <SelectValue
+            placeholder={t('savedTabs.categoryModal.selectPlaceholder')}
+          />
         </SelectTrigger>
         <SelectContent>
           {selection.categories.map(category => (

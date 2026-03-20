@@ -1,3 +1,4 @@
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { CardGroupActions } from '../shared/CardGroupActions'
 import { useCategoryGroup } from './CategoryGroupContext'
 
@@ -6,6 +7,7 @@ import { useCategoryGroup } from './CategoryGroupContext'
  * 親カテゴリ管理、すべて開く、すべて削除を含む
  */
 export const CategoryGroupActions = () => {
+  const { t } = useI18n()
   const { state, category, domains, settings, handlers } = useCategoryGroup()
   const { modal, reorder } = state
 
@@ -44,14 +46,14 @@ export const CategoryGroupActions = () => {
   return (
     <CardGroupActions
       onManage={() => modal.setIsModalOpen(true)}
-      manageLabel='親カテゴリ管理'
+      manageLabel={t('savedTabs.manageParentCategories')}
       onOpenAll={urlsToOpen.length > 0 ? handleOpenAll : undefined}
       onDeleteAll={domainsToUse.length > 0 ? executeDeleteAll : undefined}
       onConfirmOpenAll={urlsToOpen.length >= 10}
       onConfirmDeleteAll={settings.confirmDeleteAll}
       openAllThreshold={10}
-      itemName='すべてのドメイン'
-      warningMessage='カテゴリ内のすべてのドメインを削除します。この操作は元に戻せません。'
+      itemName={t('savedTabs.category.deleteAllItemName')}
+      warningMessage={t('savedTabs.category.deleteAllWarning')}
     />
   )
 }

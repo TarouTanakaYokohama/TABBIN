@@ -14,6 +14,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import type { ParentCategory, TabGroup } from '@/types/storage'
 
+const categoryManagementModalI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 const { toastErrorSpy, toastSuccessSpy, buttonPropsSpy } = vi.hoisted(() => ({
   toastErrorSpy: vi.fn(),
   toastSuccessSpy: vi.fn(),
@@ -124,6 +128,27 @@ vi.mock('@/components/ui/button', () => ({
   },
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: categoryManagementModalI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(categoryManagementModalI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
+
 import {
   CategoryManagementModal,
   categoryNameSchema,
@@ -197,6 +222,7 @@ const createDomains = (): TabGroup[] => [
 describe('CategoryManagementModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    categoryManagementModalI18nState.language = 'ja'
     storageState = {
       savedTabs: createDomains(),
       parentCategories: [
@@ -368,7 +394,7 @@ describe('CategoryManagementModal', () => {
     fireEvent.change(input, { target: { value: '12345678901234567890123456' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(
-      screen.getByText('カテゴリ名は25文字以下にしてください'),
+      screen.getByText('新規親カテゴリ名は25文字以下にしてください'),
     ).toBeTruthy()
 
     // エラーあり blur -> focus 維持
@@ -440,11 +466,11 @@ describe('CategoryManagementModal', () => {
 
     fireEvent.change(input, { target: { value: '' } })
     fireEvent.blur(input)
-    expect(screen.getByText('カテゴリ名を入力してください')).toBeTruthy()
+    expect(screen.getByText('新規親カテゴリ名を入力してください')).toBeTruthy()
 
     fireEvent.change(input, { target: { value: '12345678901234567890123456' } })
     expect(
-      screen.getByText('カテゴリ名は25文字以下にしてください'),
+      screen.getByText('新規親カテゴリ名は25文字以下にしてください'),
     ).toBeTruthy()
 
     fireEvent.change(input, { target: { value: '新しいカテゴリ' } })
@@ -479,7 +505,7 @@ describe('CategoryManagementModal', () => {
 
     await waitFor(() => {
       expect(toastErrorSpy).toHaveBeenCalledWith(
-        'カテゴリ名の更新に失敗しました',
+        '親カテゴリ名の更新に失敗しました',
       )
     })
 
@@ -507,7 +533,7 @@ describe('CategoryManagementModal', () => {
 
     await waitFor(() => {
       expect(toastErrorSpy).toHaveBeenCalledWith(
-        'カテゴリ名の更新に失敗しました',
+        '親カテゴリ名の更新に失敗しました',
       )
     })
   })
@@ -564,7 +590,7 @@ describe('CategoryManagementModal', () => {
 
     await waitFor(() => {
       expect(toastErrorSpy).toHaveBeenCalledWith(
-        'カテゴリ名の更新に失敗しました',
+        '親カテゴリ名の更新に失敗しました',
       )
     })
   })
@@ -638,7 +664,7 @@ describe('CategoryManagementModal', () => {
 
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => {
-      expect(screen.getByText('forced invalid')).toBeTruthy()
+      expect(screen.getByText('カテゴリ名が無効です')).toBeTruthy()
     })
     safeParseSpy.mockRestore()
   })
@@ -660,7 +686,7 @@ describe('CategoryManagementModal', () => {
     await waitFor(() => {
       expect(setMock).toHaveBeenCalled()
       expect(toastSuccessSpy).toHaveBeenCalledWith(
-        '親カテゴリ「仕事」を削除しました',
+        'カテゴリ「仕事」を削除しました',
       )
       expect(onClose).toHaveBeenCalled()
     })
@@ -681,9 +707,7 @@ describe('CategoryManagementModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /^削除$/ }))
 
     await waitFor(() => {
-      expect(toastErrorSpy).toHaveBeenCalledWith(
-        '親カテゴリの削除に失敗しました',
-      )
+      expect(toastErrorSpy).toHaveBeenCalledWith('カテゴリの削除に失敗しました')
     })
   })
 
@@ -766,7 +790,7 @@ describe('CategoryManagementModal', () => {
 
     await waitFor(() => {
       expect(toastSuccessSpy).toHaveBeenCalledWith(
-        'ドメイン「b.com」をカテゴリ「仕事」に追加しました',
+        'ドメイン b.com を「仕事」に追加しました',
       )
     })
 
@@ -802,7 +826,7 @@ describe('CategoryManagementModal', () => {
     fireEvent.click(secondPlusButton)
 
     await waitFor(() => {
-      expect(toastErrorSpy).toHaveBeenCalledWith('ドメインの追加に失敗しました')
+      expect(toastErrorSpy).toHaveBeenCalledWith('カテゴリの設定に失敗しました')
     })
   })
 
@@ -882,7 +906,7 @@ describe('CategoryManagementModal', () => {
 
     await waitFor(() => {
       expect(toastSuccessSpy).toHaveBeenCalledWith(
-        'ドメイン「b.com」をカテゴリ「仕事」に追加しました',
+        'ドメイン b.com を「仕事」に追加しました',
       )
       expect(screen.getByTestId('select-root').getAttribute('data-value')).toBe(
         'g3',
@@ -938,7 +962,7 @@ describe('CategoryManagementModal', () => {
     }
     fireEvent.click(plusButton)
     await waitFor(() => {
-      expect(toastErrorSpy).toHaveBeenCalledWith('ドメインの追加に失敗しました')
+      expect(toastErrorSpy).toHaveBeenCalledWith('カテゴリの設定に失敗しました')
     })
 
     cleanup()
@@ -994,7 +1018,7 @@ describe('CategoryManagementModal', () => {
 
     fireEvent.click(plusButton)
     await waitFor(() => {
-      expect(toastErrorSpy).toHaveBeenCalledWith('ドメインの追加に失敗しました')
+      expect(toastErrorSpy).toHaveBeenCalledWith('カテゴリの設定に失敗しました')
     })
     findSpy.mockRestore()
   })
@@ -1021,7 +1045,7 @@ describe('CategoryManagementModal', () => {
     fireEvent.click(firstRemoveButton)
     await waitFor(() => {
       expect(toastSuccessSpy).toHaveBeenCalledWith(
-        'ドメイン「a.com」をカテゴリ「仕事」から削除しました',
+        'ドメイン a.com を「仕事」から削除しました',
       )
     })
 
@@ -1041,7 +1065,7 @@ describe('CategoryManagementModal', () => {
     }
     fireEvent.click(nextRemoveButton)
     await waitFor(() => {
-      expect(toastErrorSpy).toHaveBeenCalledWith('ドメインの削除に失敗しました')
+      expect(toastErrorSpy).toHaveBeenCalledWith('カテゴリの削除に失敗しました')
     })
 
     Object.defineProperty(document, 'readyState', {
@@ -1115,7 +1139,7 @@ describe('CategoryManagementModal', () => {
 
     await waitFor(() => {
       expect(toastSuccessSpy).toHaveBeenCalledWith(
-        'ドメイン「a.com」をカテゴリ「仕事」から削除しました',
+        'ドメイン a.com を「仕事」から削除しました',
       )
     })
 
@@ -1147,7 +1171,7 @@ describe('CategoryManagementModal', () => {
     removeButtons = screen.getAllByRole('button', { name: 'ドメインを削除' })
     fireEvent.click(removeButtons[0] as HTMLButtonElement)
     await waitFor(() => {
-      expect(toastErrorSpy).toHaveBeenCalledWith('ドメインの削除に失敗しました')
+      expect(toastErrorSpy).toHaveBeenCalledWith('カテゴリの削除に失敗しました')
     })
 
     // ドメイン情報不存在
@@ -1179,7 +1203,7 @@ describe('CategoryManagementModal', () => {
     removeButtons = screen.getAllByRole('button', { name: 'ドメインを削除' })
     fireEvent.click(removeButtons[0] as HTMLButtonElement)
     await waitFor(() => {
-      expect(toastErrorSpy).toHaveBeenCalledWith('ドメインの削除に失敗しました')
+      expect(toastErrorSpy).toHaveBeenCalledWith('カテゴリの削除に失敗しました')
     })
   })
 

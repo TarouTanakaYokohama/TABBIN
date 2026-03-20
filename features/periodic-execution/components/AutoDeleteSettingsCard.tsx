@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { autoDeleteOptions } from '@/constants/autoDeleteOptions'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 
 interface ConfirmationState {
   isVisible: boolean
@@ -34,12 +35,16 @@ export const AutoDeleteSettingsCard = ({
   onAutoDeletePeriodChange,
   onPrepareAutoDeletePeriod,
 }: AutoDeleteSettingsCardProps) => {
+  const { t } = useI18n()
+
   return (
     <section className='rounded-2xl border border-border bg-card p-6 shadow-sm'>
       <div className='mb-5'>
-        <h2 className='font-semibold text-xl'>自動削除</h2>
+        <h2 className='font-semibold text-xl'>
+          {t('options.autoDelete.title')}
+        </h2>
         <p className='mt-2 text-muted-foreground text-sm leading-6'>
-          古い保存タブを自動整理する設定です。
+          {t('options.autoDelete.description')}
         </p>
       </div>
 
@@ -48,7 +53,7 @@ export const AutoDeleteSettingsCard = ({
           htmlFor='auto-delete-period'
           className='mb-2 block font-medium text-foreground'
         >
-          タブの自動削除期間
+          {t('options.autoDelete.periodLabel')}
         </Label>
         <div className='flex items-center gap-2'>
           <Select
@@ -59,7 +64,9 @@ export const AutoDeleteSettingsCard = ({
               id='auto-delete-period'
               className='w-full cursor-pointer'
             >
-              <SelectValue placeholder='自動削除期間を選択' />
+              <SelectValue
+                placeholder={t('options.autoDelete.selectPlaceholder')}
+              />
             </SelectTrigger>
             <SelectContent
               onPointerDownOutside={event => {
@@ -71,7 +78,7 @@ export const AutoDeleteSettingsCard = ({
                 <div className='p-1'>
                   {autoDeleteOptions.map(option => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.labelKey)}
                     </SelectItem>
                   ))}
                 </div>
@@ -85,7 +92,7 @@ export const AutoDeleteSettingsCard = ({
             onClick={onPrepareAutoDeletePeriod}
             className='cursor-pointer'
           >
-            設定する
+            {t('options.autoDelete.apply')}
           </Button>
         </div>
 
@@ -107,14 +114,14 @@ export const AutoDeleteSettingsCard = ({
                   variant='ghost'
                   onClick={hideConfirmation}
                 >
-                  キャンセル
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   type='button'
                   variant='default'
                   onClick={confirmationState.onConfirm}
                 >
-                  確定
+                  {t('common.confirm')}
                 </Button>
               </div>
             </div>
@@ -122,8 +129,7 @@ export const AutoDeleteSettingsCard = ({
         )}
 
         <p className='mt-2 text-muted-foreground text-sm'>
-          保存されたタブが指定した期間を超えると自動的に削除されます。
-          設定を適用すると、その時点で期限切れのタブは削除されます。
+          {t('options.autoDelete.periodDescription')}
         </p>
       </div>
     </section>

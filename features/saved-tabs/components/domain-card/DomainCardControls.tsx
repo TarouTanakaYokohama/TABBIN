@@ -1,3 +1,4 @@
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { CardCollapseControl } from '../shared/CardCollapseControl'
 import { CardReorderControls } from '../shared/CardReorderControls'
 import { CardSortControl } from '../shared/CardSortControl'
@@ -5,6 +6,7 @@ import { useDomainCard } from './DomainCardContext'
 
 /** DomainCard の折りたたみ切り替えボタン */
 export const DomainCardCollapseControl = () => {
+  const { t } = useI18n()
   const { state, isReorderMode } = useDomainCard()
   const { collapse } = state
 
@@ -14,7 +16,7 @@ export const DomainCardCollapseControl = () => {
       setIsCollapsed={collapse.setIsCollapsed}
       setUserCollapsedState={collapse.setUserCollapsedState}
       isDisabled={isReorderMode}
-      disabledMessage='並び替えモード中'
+      disabledMessage={t('savedTabs.reorder.disabled')}
     />
   )
 }

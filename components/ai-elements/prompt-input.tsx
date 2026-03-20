@@ -71,6 +71,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 // ============================================================================
@@ -399,6 +400,7 @@ export const PromptInput = ({
   children,
   ...props
 }: PromptInputProps) => {
+  const t = useI18nText()
   // Try to use a provider controller if present
   const controller = useOptionalPromptInputController()
   const usingProvider = !!controller
@@ -780,12 +782,12 @@ export const PromptInput = ({
     <>
       <input
         accept={accept}
-        aria-label='Upload files'
+        aria-label={t('common.uploadFiles')}
         className='hidden'
         multiple={multiple}
         onChange={handleChange}
         ref={inputRef}
-        title='Upload files'
+        title={t('common.uploadFiles')}
         type='file'
       />
       <form
@@ -1093,6 +1095,7 @@ export const PromptInputSubmit = ({
   children,
   ...props
 }: PromptInputSubmitProps) => {
+  const t = useI18nText()
   const isGenerating = status === 'submitted' || status === 'streaming'
 
   let Icon = <CornerDownLeftIcon className='size-4' />
@@ -1119,7 +1122,7 @@ export const PromptInputSubmit = ({
 
   return (
     <InputGroupButton
-      aria-label={isGenerating ? 'Stop' : 'Submit'}
+      aria-label={isGenerating ? t('common.stop') : t('common.submit')}
       className={cn(className)}
       onClick={handleClick}
       size={size}

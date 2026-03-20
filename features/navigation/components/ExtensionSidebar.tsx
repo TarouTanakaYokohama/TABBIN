@@ -30,6 +30,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   type SidebarItemId,
   type SidebarState,
@@ -90,39 +91,39 @@ const LinkLabel = ({
 const topLevelItems: Array<{
   icon: React.ComponentType<{ className?: string }>
   id: SidebarItemId
-  label: string
+  labelKey: string
 }> = [
   {
     icon: MessageCircleMore,
     id: 'ai-chat',
-    label: 'チャット',
+    labelKey: 'sidebar.chat',
   },
   {
     icon: BarChart3,
     id: 'analytics',
-    label: '分析',
+    labelKey: 'sidebar.analytics',
   },
   {
     icon: Clock3,
     id: 'periodic-execution',
-    label: '定期実行',
+    labelKey: 'sidebar.periodicExecution',
   },
 ]
 
 const tabListItems: Array<{
   icon: React.ComponentType<{ className?: string }>
   id: SidebarItemId
-  label: string
+  labelKey: string
 }> = [
   {
     icon: Globe,
     id: 'saved-tabs-domain',
-    label: 'ドメインモード',
+    labelKey: 'savedTabs.viewMode.domain',
   },
   {
     icon: Folder,
     id: 'saved-tabs-custom',
-    label: 'カスタムモード',
+    labelKey: 'savedTabs.viewMode.custom',
   },
 ]
 
@@ -201,6 +202,7 @@ const IconRailLink = ({
 }
 
 export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
+  const { t } = useI18n()
   const { open, setOpen, setSidebarWidth, sidebarWidth } = useSidebar()
   const isIconCollapsed = open && sidebarWidth <= ICON_RAIL_WIDTH_PX
   const handleCollapseSidebar = () => {
@@ -234,20 +236,20 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
     {
       icon: FolderTree,
       isActive: state.item.startsWith('saved-tabs-'),
-      label: 'タブ一覧',
+      label: t('sidebar.tabList'),
       to: savedTabsHref,
     },
     ...topLevelItems.map(item => ({
       icon: item.icon,
       isActive: state.item === item.id,
-      label: item.label,
+      label: t(item.labelKey),
       to: getAppRoute(item.id),
     })),
   ]
   const optionItem = {
     icon: Wrench,
     id: 'options' as const,
-    label: 'オプション',
+    label: t('sidebar.options'),
   }
 
   return (
@@ -260,7 +262,7 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  aria-label='サイドバーを開く'
+                  aria-label={t('sidebar.open')}
                   className={iconRailLinkClass}
                   onClick={handleExpandSidebar}
                   size='icon'
@@ -271,7 +273,7 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side='right' align='center'>
-                サイドバーを開く
+                {t('sidebar.open')}
               </TooltipContent>
             </Tooltip>
           ) : (
@@ -279,7 +281,7 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    aria-label='サイドバーを小さくする'
+                    aria-label={t('sidebar.collapse')}
                     className={iconRailLinkClass}
                     onClick={handleCollapseSidebar}
                     size='icon'
@@ -290,7 +292,7 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side='right' align='center'>
-                  サイドバーを小さくする
+                  {t('sidebar.collapse')}
                 </TooltipContent>
               </Tooltip>
               <div className='min-w-0 group-data-[collapsible=icon]:hidden'>
@@ -322,61 +324,73 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
                     isActive={state.item.startsWith('saved-tabs-')}
                     className={expandedPrimaryButtonClass}
                     size='lg'
-                    tooltip='タブ一覧'
+                    tooltip={t('sidebar.tabList')}
                     asChild
                   >
                     <LinkLabel
                       to={savedTabsHref}
                       isActive={state.item.startsWith('saved-tabs-')}
-                      label='タブ一覧'
+                      label={t('sidebar.tabList')}
                     >
                       <FolderTree className='size-5 shrink-0' />
                       <span className='group-data-[collapsible=icon]:hidden'>
-                        タブ一覧
+                        {t('sidebar.tabList')}
                       </span>
                     </LinkLabel>
                   </SidebarMenuButton>
                   <SidebarMenuSub className={expandedSubmenuClass}>
                     {tabListItems.map(item => (
                       <SidebarMenuSubItem key={item.id}>
-                        <SidebarMenuSubButton
-                          asChild
-                          className='h-11 gap-3 rounded-xl px-4 text-base'
-                          isActive={state.item === item.id}
-                        >
-                          <LinkLabel
-                            to={getAppRoute(item.id)}
-                            isActive={state.item === item.id}
-                            label={item.label}
-                          >
-                            <item.icon className='size-4' />
-                            <span>{item.label}</span>
-                          </LinkLabel>
-                        </SidebarMenuSubButton>
+                        {(() => {
+                          const label = t(item.labelKey)
+
+                          return (
+                            <SidebarMenuSubButton
+                              asChild
+                              className='h-11 gap-3 rounded-xl px-4 text-base'
+                              isActive={state.item === item.id}
+                            >
+                              <LinkLabel
+                                to={getAppRoute(item.id)}
+                                isActive={state.item === item.id}
+                                label={label}
+                              >
+                                <item.icon className='size-4' />
+                                <span>{label}</span>
+                              </LinkLabel>
+                            </SidebarMenuSubButton>
+                          )
+                        })()}
                       </SidebarMenuSubItem>
                     ))}
                   </SidebarMenuSub>
                 </SidebarMenuItem>
                 {topLevelItems.map(item => (
                   <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      isActive={state.item === item.id}
-                      className={expandedPrimaryButtonClass}
-                      size='lg'
-                      tooltip={item.label}
-                      asChild
-                    >
-                      <LinkLabel
-                        to={getAppRoute(item.id)}
-                        isActive={state.item === item.id}
-                        label={item.label}
-                      >
-                        <item.icon className='size-5 shrink-0' />
-                        <span className='group-data-[collapsible=icon]:hidden'>
-                          {item.label}
-                        </span>
-                      </LinkLabel>
-                    </SidebarMenuButton>
+                    {(() => {
+                      const label = t(item.labelKey)
+
+                      return (
+                        <SidebarMenuButton
+                          isActive={state.item === item.id}
+                          className={expandedPrimaryButtonClass}
+                          size='lg'
+                          tooltip={label}
+                          asChild
+                        >
+                          <LinkLabel
+                            to={getAppRoute(item.id)}
+                            isActive={state.item === item.id}
+                            label={label}
+                          >
+                            <item.icon className='size-5 shrink-0' />
+                            <span className='group-data-[collapsible=icon]:hidden'>
+                              {label}
+                            </span>
+                          </LinkLabel>
+                        </SidebarMenuButton>
+                      )
+                    })()}
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
@@ -403,7 +417,7 @@ export const ExtensionSidebar = ({ state }: ExtensionSidebarProps) => {
             <SidebarMenuItem>
               <SidebarMenuButton
                 className='rounded-xl p-0'
-                tooltip='オプション'
+                tooltip={optionItem.label}
                 asChild
               >
                 <LinkLabel

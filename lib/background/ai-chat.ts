@@ -15,6 +15,8 @@ import type {
   AiChatAttachment,
   AiSavedUrlRecord,
 } from '@/features/ai-chat/types'
+import { getMessage, resolveLanguage } from '@/features/i18n/lib/language'
+import type { AppLanguage } from '@/features/i18n/messages'
 import { getParentCategories } from '@/lib/storage/categories'
 import { getCustomProjects } from '@/lib/storage/projects'
 import { getUserSettings } from '@/lib/storage/settings'
@@ -57,6 +59,16 @@ interface AiChatStepUpdate {
 interface RunAiChatRequestOptions {
   onStepUpdate?: (update: AiChatStepUpdate) => void
 }
+
+const getAiChatUiLocale = () =>
+  typeof chrome !== 'undefined'
+    ? (chrome.i18n?.getUILanguage?.() ?? 'ja')
+    : 'ja'
+
+const getNormalizedAiChatSettings = async () =>
+  normalizeAiSystemPromptSettings(
+    ((await getUserSettings()) ?? {}) as import('@/types/storage').UserSettings,
+  )
 
 const OLLAMA_BASE_URL = 'http://localhost:11434'
 const OLLAMA_TAGS_URL = `${OLLAMA_BASE_URL}/api/tags`
@@ -101,40 +113,47 @@ const createBaseOllamaErrorDetails = (): Pick<
   tagsUrl: OLLAMA_TAGS_URL,
 })
 
-const createOllamaSetupInstructions = (): string =>
+const createOllamaSetupInstructions = (language: AppLanguage): string =>
   (() => {
     const configuredOrigin = getConfiguredOllamaOrigin()
 
     return [
-      `接続先 URL: ${OLLAMA_BASE_URL}`,
-      `確認 URL: ${OLLAMA_TAGS_URL}`,
-      `確認コマンド: curl ${OLLAMA_TAGS_URL}`,
-      'macOS で Ollama.app を使う場合:',
-      'Spotlight 検索で「ターミナル」と入力して開きます。',
-      '次のコマンドをコピーして貼り付けます。',
+      `${getMessage(language, 'aiChat.ollama.connectionUrl')}${OLLAMA_BASE_URL}`,
+      `${getMessage(language, 'aiChat.ollama.tagsUrl')}${OLLAMA_TAGS_URL}`,
+      `${getMessage(language, 'aiChat.ollama.checkCommand')} curl ${OLLAMA_TAGS_URL}`,
+      getMessage(language, 'background.aiChat.ollama.macTitle'),
+      getMessage(language, 'aiChat.ollama.mac.step1'),
+      getMessage(language, 'aiChat.ollama.mac.step2'),
       `launchctl setenv OLLAMA_ORIGINS "${configuredOrigin}"`,
-      'return キーを押します。',
-      'Ollama.app を終了します。',
-      'Ollama.app を起動し直します。',
-      `FAQ: ${OLLAMA_FAQ_URL}`,
+      getMessage(language, 'aiChat.ollama.mac.step3'),
+      getMessage(language, 'aiChat.ollama.mac.step4'),
+      getMessage(language, 'aiChat.ollama.mac.step5'),
+      `${getMessage(language, 'aiChat.ollama.faq')} ${OLLAMA_FAQ_URL}`,
     ].join('\n')
   })()
 
-const createOllamaForbiddenErrorMessage = (): string => {
+const createOllamaForbiddenErrorMessage = (language: AppLanguage): string => {
   const allowedOrigins = getConfiguredOllamaOrigin()
 
   return [
-    'Ollama が拡張機能からのアクセスを拒否しました (403 Forbidden)。',
-    `OLLAMA_ORIGINS に ${allowedOrigins} を設定してください。`,
-    createOllamaSetupInstructions(),
+    getMessage(language, 'aiChat.ollama.forbiddenError'),
+    getMessage(
+      language,
+      'background.aiChat.ollama.setOriginsValue',
+      undefined,
+      {
+        value: allowedOrigins,
+      },
+    ),
+    createOllamaSetupInstructions(language),
   ].join('\n')
 }
 
-const createOllamaConnectionErrorMessage = (): string => {
+const createOllamaConnectionErrorMessage = (language: AppLanguage): string => {
   return [
-    'Ollama に接続できませんでした。',
-    `まだインストールしていない場合: ${OLLAMA_DOWNLOAD_URL}`,
-    createOllamaSetupInstructions(),
+    getMessage(language, 'aiChat.ollama.connectionError'),
+    `${getMessage(language, 'aiChat.ollama.downloadUrl')} ${OLLAMA_DOWNLOAD_URL}`,
+    createOllamaSetupInstructions(language),
   ].join('\n')
 }
 
@@ -146,15 +165,19 @@ const createOllamaError = (
     ollamaError,
   })
 
-const createOllamaForbiddenError = (): OllamaStructuredError =>
-  createOllamaError(createOllamaForbiddenErrorMessage(), {
+const createOllamaForbiddenError = (
+  language: AppLanguage = 'ja',
+): OllamaStructuredError =>
+  createOllamaError(createOllamaForbiddenErrorMessage(language), {
     ...createBaseOllamaErrorDetails(),
     allowedOrigins: getConfiguredOllamaOrigin(),
     kind: 'forbidden',
   })
 
-const createOllamaConnectionError = (): OllamaStructuredError =>
-  createOllamaError(createOllamaConnectionErrorMessage(), {
+const createOllamaConnectionError = (
+  language: AppLanguage = 'ja',
+): OllamaStructuredError =>
+  createOllamaError(createOllamaConnectionErrorMessage(language), {
     ...createBaseOllamaErrorDetails(),
     allowedOrigins: getConfiguredOllamaOrigin(),
     kind: 'notInstalledOrNotRunning',
@@ -176,7 +199,10 @@ const isConnectionError = (error: unknown): boolean => {
   )
 }
 
-const createContextSummary = (records: AiSavedUrlRecord[]): string =>
+const createContextSummary = (
+  records: AiSavedUrlRecord[],
+  language: AppLanguage,
+): string =>
   (() => {
     const recentSavedUrlPage = listSavedUrlPage(records, {
       page: 1,
@@ -185,8 +211,10 @@ const createContextSummary = (records: AiSavedUrlRecord[]): string =>
     })
 
     return [
-      `保存済みタブの件数: ${recentSavedUrlPage.totalItems}`,
-      '最近保存したタブ一覧:',
+      getMessage(language, 'background.aiChat.savedTabsCount', undefined, {
+        count: String(recentSavedUrlPage.totalItems),
+      }),
+      getMessage(language, 'background.aiChat.recentTabs'),
       ...recentSavedUrlPage.items.map(
         (record, index) =>
           `${index + 1}. ${record.title} | ${record.url} | domain=${record.domain}`,
@@ -197,12 +225,16 @@ const createContextSummary = (records: AiSavedUrlRecord[]): string =>
 const createUserMessageContent = (
   content: string,
   attachments: AiChatAttachment[] = [],
+  language: AppLanguage = 'ja',
 ) => {
   if (attachments.length === 0) {
     return content
   }
 
-  const textAttachmentContext = buildTextAttachmentContext(attachments)
+  const textAttachmentContext = buildTextAttachmentContext(
+    attachments,
+    language,
+  )
   const text = [content, textAttachmentContext].filter(Boolean).join('\n\n')
   const imageAttachments = attachments.filter(
     attachment => attachment.kind === 'image',
@@ -256,6 +288,9 @@ const getPaginatedToolTotalCount = (output: unknown): number | null => {
   const totalItems = (output as { totalItems?: unknown }).totalItems
   return typeof totalItems === 'number' ? totalItems : null
 }
+
+const getToolListSeparator = (language: AppLanguage) =>
+  language === 'en' ? ', ' : '、'
 
 interface GenerateTextToolCallLike {
   input: unknown
@@ -351,58 +386,91 @@ const createToolTraces = (
   })
 }
 
-const summarizePromptIntent = (prompt: string): string => {
+const summarizePromptIntent = (
+  prompt: string,
+  language: AppLanguage,
+): string => {
   if (/どんな|一覧|何が|何の/i.test(prompt)) {
-    return '保存済みタブの一覧確認'
+    return getMessage(language, 'background.aiChat.intent.list')
   }
   if (/好き|興味|傾向/i.test(prompt)) {
-    return '保存傾向の推定'
+    return getMessage(language, 'background.aiChat.intent.interests')
   }
   if (/月|追加|いつ/i.test(prompt)) {
-    return '期間や追加時期の確認'
+    return getMessage(language, 'background.aiChat.intent.time')
   }
-  return '保存済みタブの検索と要約'
+  return getMessage(language, 'background.aiChat.intent.search')
 }
 
-const summarizeToolTrace = (toolTrace: AiChatToolTrace): string => {
+const summarizeToolTrace = (
+  toolTrace: AiChatToolTrace,
+  language: AppLanguage,
+): string => {
   const resultCount = getToolResultCount(toolTrace.output)
   const totalItems = getPaginatedToolTotalCount(toolTrace.output)
 
   if (resultCount !== null) {
     return totalItems !== null && totalItems !== resultCount
-      ? `${resultCount} 件を取得しました。総件数は ${totalItems} 件です。`
-      : `${resultCount} 件の結果を確認しました。`
+      ? getMessage(
+          language,
+          'background.aiChat.toolSummary.fetchedWithTotal',
+          undefined,
+          {
+            count: String(resultCount),
+            total: String(totalItems),
+          },
+        )
+      : getMessage(
+          language,
+          'background.aiChat.toolSummary.fetchedCount',
+          undefined,
+          {
+            count: String(resultCount),
+          },
+        )
   }
   if (toolTrace.output) {
-    return '結果を取得しました。'
+    return getMessage(language, 'background.aiChat.toolSummary.resultRetrieved')
   }
-  return '呼び出し内容を確認しました。'
+  return getMessage(language, 'background.aiChat.toolSummary.callReviewed')
 }
 
 const createReasoningSummary = ({
+  language,
   prompt,
   recordCount,
   toolTraces,
 }: {
+  language: AppLanguage
   prompt: string
   recordCount: number
   toolTraces: AiChatToolTrace[]
 }): string =>
   [
-    `- 質問の解釈: ${summarizePromptIntent(prompt)}`,
-    `- 参照対象: 保存済みタブ ${recordCount} 件`,
-    `- 使用ツール: ${
+    `- ${getMessage(language, 'background.aiChat.reasoning.intentLabel')} ${summarizePromptIntent(prompt, language)}`,
+    `- ${getMessage(language, 'background.aiChat.reasoning.referenceLabel')} ${getMessage(
+      language,
+      'background.aiChat.savedTabsCount',
+      undefined,
+      {
+        count: String(recordCount),
+      },
+    )}`,
+    `- ${getMessage(language, 'background.aiChat.reasoning.toolsLabel')} ${
       toolTraces.length > 0
-        ? toolTraces.map(toolTrace => toolTrace.title).join('、')
-        : 'なし'
+        ? toolTraces
+            .map(toolTrace => toolTrace.title)
+            .join(getToolListSeparator(language))
+        : getMessage(language, 'background.aiChat.none')
     }`,
-    `- 回答方針: ${
+    `- ${getMessage(language, 'background.aiChat.reasoning.policyLabel')} ${
       toolTraces.length > 0
-        ? 'ツール結果を保存済みタブの根拠として使って回答しました。'
-        : '保存済みタブの要約コンテキストを直接参照して回答しました。'
+        ? getMessage(language, 'background.aiChat.reasoning.policyWithTools')
+        : getMessage(language, 'background.aiChat.reasoning.policyWithoutTools')
     }`,
     ...toolTraces.map(
-      toolTrace => `- ${toolTrace.title}: ${summarizeToolTrace(toolTrace)}`,
+      toolTrace =>
+        `- ${toolTrace.title}: ${summarizeToolTrace(toolTrace, language)}`,
     ),
   ].join('\n')
 
@@ -477,14 +545,24 @@ const listLocalOllamaModels = async (
       method: 'GET',
     })
   } catch (error) {
+    const settings = await getNormalizedAiChatSettings()
+    const language = resolveLanguage(
+      settings.language ?? 'system',
+      getAiChatUiLocale(),
+    )
     if (isConnectionError(error)) {
-      throw createOllamaConnectionError()
+      throw createOllamaConnectionError(language)
     }
     throw error
   }
 
+  const settings = await getNormalizedAiChatSettings()
+  const language = resolveLanguage(
+    settings.language ?? 'system',
+    getAiChatUiLocale(),
+  )
   if (response.status === 403) {
-    throw createOllamaForbiddenError()
+    throw createOllamaForbiddenError(language)
   }
 
   if (!response.ok) {
@@ -528,8 +606,12 @@ const runAiChatRequest = async (
   { attachments = [], history, prompt }: AiChatRequest,
   options: RunAiChatRequestOptions = {},
 ): Promise<AiChatResult> => {
-  const settings = normalizeAiSystemPromptSettings(await getUserSettings())
+  const settings = await getNormalizedAiChatSettings()
   const activeSystemPrompt = getActiveAiSystemPrompt(settings)
+  const language = resolveLanguage(
+    settings.language ?? 'system',
+    getAiChatUiLocale(),
+  )
 
   if (!settings.ollamaModel) {
     throw new Error('Ollama model is not configured')
@@ -559,7 +641,7 @@ const runAiChatRequest = async (
     baseURL: OLLAMA_BASE_URL,
   })
 
-  const tools = createAiChatTools(records)
+  const tools = createAiChatTools(records, language)
   let streamedToolTraces: AiChatToolTrace[] = []
 
   const result = await (async () => {
@@ -567,7 +649,7 @@ const runAiChatRequest = async (
       return await generateText({
         model: ollama(ollamaModel),
         system: buildFinalSystemPrompt({
-          savedUrlContext: createContextSummary(records),
+          savedUrlContext: createContextSummary(records, language),
           template: activeSystemPrompt.template,
         }),
         messages: [
@@ -578,6 +660,7 @@ const runAiChatRequest = async (
                   content: createUserMessageContent(
                     message.content,
                     message.attachments,
+                    language,
                   ),
                 }
               : {
@@ -587,7 +670,7 @@ const runAiChatRequest = async (
           ),
           {
             role: 'user' as const,
-            content: createUserMessageContent(prompt, attachments),
+            content: createUserMessageContent(prompt, attachments, language),
           },
         ],
         onStepFinish: stepResult => {
@@ -603,6 +686,7 @@ const runAiChatRequest = async (
 
           options.onStepUpdate?.({
             reasoning: createReasoningSummary({
+              language,
               prompt,
               recordCount: records.length,
               toolTraces: streamedToolTraces,
@@ -615,10 +699,10 @@ const runAiChatRequest = async (
       })
     } catch (error) {
       if (isForbiddenError(error)) {
-        throw createOllamaForbiddenError()
+        throw createOllamaForbiddenError(language)
       }
       if (isConnectionError(error)) {
-        throw createOllamaConnectionError()
+        throw createOllamaConnectionError(language)
       }
       throw error
     }
@@ -631,7 +715,7 @@ const runAiChatRequest = async (
   const toolCharts = getChartsFromToolTraces(toolTraces)
   const fallbackCharts =
     toolCharts.length === 0 && shouldFallbackToInterestCharts(prompt)
-      ? inferUserInterests(records).chartSpecs
+      ? inferUserInterests(records, language).chartSpecs
       : []
 
   return {
@@ -639,6 +723,7 @@ const runAiChatRequest = async (
     charts: toolCharts.length > 0 ? toolCharts : fallbackCharts,
     recordCount: records.length,
     reasoning: createReasoningSummary({
+      language,
       prompt,
       recordCount: records.length,
       toolTraces,

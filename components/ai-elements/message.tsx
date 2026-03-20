@@ -25,6 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
@@ -256,10 +257,11 @@ export const MessageBranchPrevious = ({
   ...props
 }: MessageBranchPreviousProps) => {
   const { goToPrevious, totalBranches } = useMessageBranch()
+  const t = useI18nText()
 
   return (
     <Button
-      aria-label='Previous branch'
+      aria-label={t('common.previousBranch')}
       disabled={totalBranches <= 1}
       onClick={goToPrevious}
       size='icon-sm'
@@ -279,10 +281,11 @@ export const MessageBranchNext = ({
   ...props
 }: MessageBranchNextProps) => {
   const { goToNext, totalBranches } = useMessageBranch()
+  const t = useI18nText()
 
   return (
     <Button
-      aria-label='Next branch'
+      aria-label={t('common.nextBranch')}
       disabled={totalBranches <= 1}
       onClick={goToNext}
       size='icon-sm'
@@ -311,7 +314,7 @@ export const MessageBranchPage = ({
       )}
       {...props}
     >
-      {currentBranch + 1} of {totalBranches}
+      {currentBranch + 1} / {totalBranches}
     </ButtonGroupText>
   )
 }

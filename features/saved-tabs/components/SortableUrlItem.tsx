@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { SortableUrlItemProps } from '@/types/saved-tabs'
 import { TimeRemaining, formatDatetime } from '@/utils/datetime'
 
@@ -37,6 +38,7 @@ export const SortableUrlItem = ({
   categoryContext,
   settings,
 }: SortableUrlItemProps) => {
+  const { t } = useI18n()
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id,
@@ -204,8 +206,8 @@ export const SortableUrlItem = ({
             size='icon'
             onClick={handleDeleteButtonClick}
             className='pointer-events-none invisible absolute top-0 right-0 bottom-0 my-auto shrink-0 cursor-pointer opacity-0 transition-opacity group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100'
-            title='タブを削除'
-            aria-label='タブを削除'
+            title={t('savedTabs.url.deleteAria')}
+            aria-label={t('savedTabs.url.deleteAria')}
           >
             <X size={14} />
           </Button>
@@ -218,15 +220,17 @@ export const SortableUrlItem = ({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>タブを削除しますか？</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('savedTabs.url.deleteConfirmTitle')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              このタブを削除します。この操作は元に戻せません。
+              {t('savedTabs.url.deleteConfirmDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => handleDeleteUrl(groupId, url)}>
-              削除する
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

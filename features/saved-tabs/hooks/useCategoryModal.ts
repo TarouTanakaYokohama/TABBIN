@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   createParentCategory,
   deleteParentCategory,
@@ -14,12 +15,6 @@ import {
 } from '@/lib/storage/categories'
 import { assignDomainToCategory } from '@/lib/storage/migration'
 import type { ParentCategory, TabGroup } from '@/types/storage'
-
-/** カテゴリ名のバリデーションスキーマ */
-const categoryNameSchema = z
-  .string()
-  .min(1, '新規親カテゴリ名を入力してください')
-  .max(25, '新規親カテゴリ名は25文字以下にしてください')
 
 /** useCategoryModal フックの引数 */
 interface UseCategoryModalParams {
@@ -103,6 +98,7 @@ const applyDomainSelectionChange = async (params: {
   groupDomain: string
   setCategories: Dispatch<SetStateAction<ParentCategory[]>>
   setDomainCategories: Dispatch<SetStateAction<DomainCategoryMap>>
+  t: (key: string, fallback?: string, values?: Record<string, string>) => string
 }) => {
   const {
     domainId,
@@ -113,6 +109,7 @@ const applyDomainSelectionChange = async (params: {
     groupDomain,
     setCategories,
     setDomainCategories,
+    t,
   } = params
   await assignDomainToCategory(
     domainId,
@@ -129,9 +126,16 @@ const applyDomainSelectionChange = async (params: {
   setCategories(updatedCategories)
   setDomainCategories(nextDomainCategories)
   toast.success(
-    newChecked
-      ? `ドメイン ${groupDomain} を「${selectedCategory.name}」に追加しました`
-      : `ドメイン ${groupDomain} を「${selectedCategory.name}」から削除しました`,
+    t(
+      newChecked
+        ? 'savedTabs.categoryModal.domainAssigned'
+        : 'savedTabs.categoryModal.domainRemoved',
+      undefined,
+      {
+        categoryName: selectedCategory.name,
+        domain: groupDomain,
+      },
+    ),
     {
       duration: 1500,
     },
@@ -143,6 +147,7 @@ const applyDomainSelectionChange = async (params: {
  * @returns カテゴリ作成・選択・削除・ドメイン選択関連の状態と操作
  */
 export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
+  const { t } = useI18n()
   // --- 新規カテゴリ名状態 ---
   const [newCategoryName, setNewCategoryName] = useState('')
   const [nameError, setNameError] = useState<string | null>(null)
@@ -179,6 +184,16 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
   const [categoryToDelete, setCategoryToDelete] =
     useState<ParentCategory | null>(null)
 
+  const validateCategoryName = useCallback(
+    (value: string) =>
+      z
+        .string()
+        .min(1, t('savedTabs.categoryModal.validation.empty'))
+        .max(25, t('savedTabs.categoryModal.validation.maxLength'))
+        .safeParse(value),
+    [t],
+  )
+
   // --- ドメイン選択状態の更新 ---
   const updateSelectedDomains = useCallback(
     (category: ParentCategory | 'uncategorized') => {
@@ -213,11 +228,11 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
         }
       } catch (error) {
         console.error('カテゴリの取得に失敗しました', error)
-        toast.error('カテゴリの読み込みに失敗しました')
+        toast.error(t('savedTabs.categoryModal.loadError'))
       }
     }
     loadCategories()
-  }, [tabGroups])
+  }, [t, tabGroups])
 
   // --- 選択カテゴリ変更時のドメイン選択更新 ---
   useEffect(() => {
@@ -249,24 +264,22 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
 
   // --- 新規カテゴリ作成ハンドラ ---
   const handleCreateCategory = useCallback(async () => {
-    try {
-      categoryNameSchema.parse(newCategoryName)
-      setNameError(null)
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errorMessage = error.issues[0]?.message || 'カテゴリ名が無効です'
-        setNameError(errorMessage)
-        toast.error(errorMessage)
-        return
-      }
+    const result = validateCategoryName(newCategoryName)
+    if (!result.success) {
+      const errorMessage =
+        result.error.issues[0]?.message || t('savedTabs.categoryModal.invalid')
+      setNameError(errorMessage)
+      toast.error(errorMessage)
+      return
     }
+
     try {
       setIsLoading(true)
       const newCategory = await createParentCategory(newCategoryName)
       setCategories(prev => [...prev, newCategory])
       setSelectedCategoryId(newCategory.id)
       setNewCategoryName('')
-      toast.success('カテゴリを作成しました')
+      toast.success(t('savedTabs.categoryModal.created'))
       updateSelectedDomains(newCategory)
     } catch (error) {
       console.error('カテゴリの作成に失敗しました', error)
@@ -274,30 +287,35 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
         error instanceof Error &&
         error.message.startsWith('DUPLICATE_CATEGORY_NAME:')
       ) {
-        toast.error(`カテゴリ名「${newCategoryName}」は既に存在します`)
+        toast.error(
+          t('savedTabs.categoryModal.duplicateName', undefined, {
+            name: newCategoryName,
+          }),
+        )
       } else {
-        toast.error('カテゴリの作成に失敗しました')
+        toast.error(t('savedTabs.categoryModal.createError'))
       }
     } finally {
       setIsLoading(false)
     }
-  }, [newCategoryName, updateSelectedDomains])
+  }, [newCategoryName, t, updateSelectedDomains, validateCategoryName])
 
   // --- 入力フィールド変更ハンドラ ---
   const handleCategoryNameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value
       setNewCategoryName(value)
-      try {
-        categoryNameSchema.parse(value)
+      const result = validateCategoryName(value)
+      if (result.success) {
         setNameError(null)
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          setNameError(error.issues[0]?.message || 'カテゴリ名が無効です')
-        }
+      } else {
+        setNameError(
+          result.error.issues[0]?.message ||
+            t('savedTabs.categoryModal.invalid'),
+        )
       }
     },
-    [],
+    [t, validateCategoryName],
   )
 
   // --- エンターキーハンドラ ---
@@ -347,11 +365,15 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
           setSelectedDomains({})
         }
       }
-      toast.success(`カテゴリ「${categoryToDelete.name}」を削除しました`)
+      toast.success(
+        t('savedTabs.categoryModal.deleted', undefined, {
+          name: categoryToDelete.name,
+        }),
+      )
       setCategoryToDelete(null)
     } catch (error) {
       console.error('カテゴリの削除に失敗しました:', error)
-      toast.error('カテゴリの削除に失敗しました')
+      toast.error(t('savedTabs.categoryModal.deleteError'))
     } finally {
       setIsLoading(false)
       setShowDeleteConfirm(false)
@@ -361,6 +383,7 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
     categories,
     domainCategories,
     selectedCategoryId,
+    t,
     updateSelectedDomains,
   ])
 
@@ -368,12 +391,12 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
   const handleDeleteClick = useCallback(() => {
     const target = categories.find(c => c.id === selectedCategoryId)
     if (!target) {
-      toast.error('削除するカテゴリが選択されていません')
+      toast.error(t('savedTabs.categoryModal.deleteSelectionMissing'))
       return
     }
     setCategoryToDelete(target)
     setShowDeleteConfirm(true)
-  }, [categories, selectedCategoryId])
+  }, [categories, selectedCategoryId, t])
 
   // --- ドメイン選択切り替え ---
   const toggleDomainSelection = useCallback(
@@ -400,9 +423,7 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
       if (selectedCategoryId === 'uncategorized') {
         if (newChecked) {
           rollbackSelection()
-          toast.error(
-            '未分類カテゴリでは直接操作できません。カテゴリを選択してください。',
-          )
+          toast.error(t('savedTabs.categoryModal.uncategorizedDirectEditError'))
         }
         return
       }
@@ -421,10 +442,11 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
         groupDomain: group.domain,
         setCategories,
         setDomainCategories,
+        t,
       })
         .catch(error => {
           console.error('カテゴリの設定に失敗しました:', error)
-          toast.error('カテゴリの設定に失敗しました')
+          toast.error(t('savedTabs.categoryModal.toggleError'))
           rollbackSelection()
         })
         .finally(() => {
@@ -437,6 +459,7 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
       tabGroups,
       domainCategories,
       categories,
+      t,
     ],
   )
   return {

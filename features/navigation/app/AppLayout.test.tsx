@@ -9,6 +9,12 @@ vi.mock('@/features/navigation/components/ExtensionPageShell', () => ({
   ),
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    language: 'en',
+  }),
+}))
+
 import { AppLayout } from './AppLayout'
 
 describe('AppLayout', () => {
@@ -29,5 +35,6 @@ describe('AppLayout', () => {
     expect(layout.className.includes('flex-1')).toBe(true)
     expect(layout.className.includes('overflow-hidden')).toBe(true)
     expect(screen.getByText('route-content')).toBeTruthy()
+    expect(document.title).toBe('AI Chat - TABBIN')
   })
 })

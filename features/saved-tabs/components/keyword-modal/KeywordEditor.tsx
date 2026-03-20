@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { useKeywordModal } from './KeywordModalContext'
 
 /**
@@ -10,6 +11,7 @@ import { useKeywordModal } from './KeywordModalContext'
  * キーワードの追加・削除を行う
  */
 export const KeywordEditor = () => {
+  const { t } = useI18n()
   const { state, group } = useKeywordModal()
   const { subcategory, keywords: keywordsState, rename } = state
 
@@ -20,10 +22,12 @@ export const KeywordEditor = () => {
   return (
     <div className='mb-4'>
       <Label htmlFor='keyword-input' className='block text-gray-400 text-sm'>
-        「{subcategory.activeCategory}」子カテゴリのキーワード
+        {t('savedTabs.keywords.activeCategoryLabel', undefined, {
+          name: subcategory.activeCategory,
+        })}
       </Label>
       <span className='mb-1 text-gray-500 text-xs'>
-        タイトルにキーワードが含まれていると自動的にこの子カテゴリに分類されます
+        {t('savedTabs.keywords.autoAssignHint')}
       </span>
 
       <div className='my-2 flex'>
@@ -31,7 +35,7 @@ export const KeywordEditor = () => {
           id='keyword-input'
           value={keywordsState.newKeyword}
           onChange={e => keywordsState.setNewKeyword(e.target.value)}
-          placeholder='例: 技術、新機能、チュートリアル'
+          placeholder={t('savedTabs.keywords.placeholder')}
           className='grow rounded border p-2'
           onKeyDown={e => {
             if (e.key === 'Enter') {
@@ -50,7 +54,7 @@ export const KeywordEditor = () => {
 
       <div className='flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded border p-2'>
         {keywordsState.keywords.length === 0 ? (
-          <p className='text-gray-500'>キーワードがありません</p>
+          <p className='text-gray-500'>{t('savedTabs.keywords.empty')}</p>
         ) : (
           keywordsState.keywords.map(keyword => (
             <Badge
@@ -64,7 +68,7 @@ export const KeywordEditor = () => {
                 size='sm'
                 onClick={() => keywordsState.handleRemoveKeyword(keyword)}
                 className='ml-1 cursor-pointer text-gray-400 hover:text-gray-200'
-                aria-label='キーワードを削除'
+                aria-label={t('savedTabs.keywords.deleteAria')}
                 disabled={rename.isRenaming}
               >
                 <X size={14} />

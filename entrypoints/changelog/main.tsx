@@ -3,102 +3,36 @@ import { Check } from 'lucide-react'
 import type React from 'react'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Card } from '@/components/ui/card'
+import { DocumentTitleSync } from '@/features/i18n/components/DocumentTitleSync'
+import { I18nProvider, useI18n } from '@/features/i18n/context/I18nProvider'
+import { formatLocalizedDate } from '@/features/i18n/lib/date-format'
+import { getChangelogItems } from '@/features/i18n/messages'
 import { mountToElement } from '@/lib/react/render-root'
 
-interface ChangelogFeature {
-  text: string
-  highlight?: boolean
-}
-
-interface ChangelogItem {
-  version: string
-  date: string
-  features: ChangelogFeature[]
-}
-
-const CHANGELOG: ChangelogItem[] = [
-  {
-    version: '2.0.0',
-    date: '2026年3月14日',
-    features: [
-      {
-        text: '保存したタブを見ながらそのまま使える、サイドバーのチャット機能を追加しました。調べものや整理を、画面を切り替えずに進められます。',
-      },
-      {
-        text: 'プレビュー版：分析機能を追加しました。保存したタブの傾向を、グラフや要約で確認できます。',
-      },
-      {
-        text: 'カスタムモードを正式リリースしました。プロジェクトごとの整理や管理を、これまで以上に安心して使えるようになりました。',
-      },
-      {
-        text: 'その他、使いやすさの向上や細かな改善を行いました。',
-      },
-    ],
-  },
-  {
-    version: '1.2.0',
-    date: '2026年2月27日',
-    features: [
-      {
-        text: 'ドラッグ&ドロップで移動が成功した際、元のリストから削除できる機能を追加しました。',
-      },
-      {
-        text: 'その他、パフォーマンスの向上やバグ修正など、様々な改善を行いました。',
-      },
-    ],
-  },
-  {
-    version: '1.1.0',
-    date: '2025年4月29日',
-    features: [
-      {
-        text: '便利な検索機能を追加しました。キーワードを入力するだけで、保存したタブをすばやく見つけることができます。',
-      },
-      { text: 'より使いやすく、見やすくなるようデザインを改善しました。' },
-      {
-        text: 'タブやカテゴリの削除時に確認ダイアログが表示されるようになり、誤操作を防止できます。',
-      },
-      {
-        text: 'ドメインやカテゴリを一時的に閉じることができるようになり、必要な情報だけを表示できます。',
-      },
-      {
-        text: '登録日時によって昇順・降順に並び替えができるようになり、新しく保存したタブや古く保存したタブを簡単に確認できます。',
-      },
-      {
-        text: '保存したタブをバックグラウンドタブで開く機能を追加し、現在の作業を中断せずにタブを開けるようになりました。',
-      },
-      {
-        text: 'プレビュー版：カスタムモードを実装し、より柔軟な設定が可能になりました。',
-      },
-      {
-        text: 'プレビュー版：カラーカスタマイズ機能を追加し、お好みの色でアプリの外観を変更できます。',
-      },
-      {
-        text: 'その他、パフォーマンスの向上やバグ修正など、様々な改善を行いました。',
-      },
-    ],
-  },
-  {
-    version: '1.0.0',
-    date: '2025年3月21日',
-    features: [
-      {
-        text: '初回リリース。タブやブックマークを効率的に管理できるツールとして、カテゴリ別の整理や簡単なアクセスが可能になりました。',
-      },
-    ],
-  },
-]
-
 const App: React.FC = () => (
-  <div className='min-h-screen bg-background px-4 py-16 sm:px-6 lg:px-8'>
+  <I18nProvider>
+    <DocumentTitleSync page='changelog' />
+    <div className='min-h-screen bg-background px-4 py-16 sm:px-6 lg:px-8'>
+      <ChangelogContent />
+    </div>
+  </I18nProvider>
+)
+
+const ChangelogContent: React.FC = () => {
+  const { language, t } = useI18n()
+  const changelog = getChangelogItems(language)
+
+  return (
     <div className='mx-auto max-w-4xl'>
       <div className='mb-16 text-center'>
         <h1 className='font-extrabold text-5xl text-primary sm:text-6xl sm:tracking-tight'>
-          <span className='block'>リリースノート</span>
+          <span className='block'>
+            {t('changelog.heading', 'Release Notes')}
+          </span>
         </h1>
       </div>
       <div className='space-y-12'>
-        {CHANGELOG.map(item => (
+        {changelog.map(item => (
           <Card
             key={item.version}
             className='overflow-hidden rounded-xl border-primary border-t-4 shadow-xl transition-shadow duration-300 hover:shadow-2xl'
@@ -109,7 +43,7 @@ const App: React.FC = () => (
                   v{item.version}
                 </h2>
                 <div className='mt-2 inline-flex rounded-full bg-secondary px-5 py-2 font-semibold text-secondary-foreground text-sm sm:mt-0'>
-                  {item.date}
+                  {formatLocalizedDate(language, item.date)}
                 </div>
               </div>
 
@@ -140,8 +74,8 @@ const App: React.FC = () => (
         ))}
       </div>
     </div>
-  </div>
-)
+  )
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   mountToElement(

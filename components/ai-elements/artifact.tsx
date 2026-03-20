@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 export type ArtifactProps = HTMLAttributes<HTMLDivElement>
@@ -47,21 +48,25 @@ export const ArtifactClose = ({
   size = 'sm',
   variant = 'ghost',
   ...props
-}: ArtifactCloseProps) => (
-  <Button
-    className={cn(
-      'size-8 p-0 text-muted-foreground hover:text-foreground',
-      className,
-    )}
-    size={size}
-    type='button'
-    variant={variant}
-    {...props}
-  >
-    {children ?? <XIcon className='size-4' />}
-    <span className='sr-only'>Close</span>
-  </Button>
-)
+}: ArtifactCloseProps) => {
+  const t = useI18nText()
+
+  return (
+    <Button
+      className={cn(
+        'size-8 p-0 text-muted-foreground hover:text-foreground',
+        className,
+      )}
+      size={size}
+      type='button'
+      variant={variant}
+      {...props}
+    >
+      {children ?? <XIcon className='size-4' />}
+      <span className='sr-only'>{t('common.close')}</span>
+    </Button>
+  )
+}
 
 export type ArtifactTitleProps = HTMLAttributes<HTMLParagraphElement>
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { composeStories } from '@storybook/react'
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as messageStories from '@/components/ai-elements/message.stories'
 import * as modeToggleStories from '@/components/mode-toggle.stories'
 import * as buttonStories from '@/components/ui/button.stories'
@@ -10,6 +10,25 @@ import * as headerStories from '@/features/navigation/components/ExtensionPageHe
 import * as importExportStories from '@/features/options/ImportExportSettings.stories'
 import * as viewModeStories from '@/features/saved-tabs/components/ViewModeToggle.stories'
 import preview from '../../.storybook/preview'
+
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    language: 'ja',
+    t: (key: string) =>
+      (
+        ({
+          'aiChat.ollama.connectionUrl': '接続先 URL:',
+          'options.importExport.export': '設定とタブデータをエクスポート',
+          'options.importExport.import': '設定とタブデータをインポート',
+          'options.importExport.merge': '既存データとマージする（推奨）',
+          'options.importExport.cancel': 'キャンセル',
+          'sidebar.tabList': 'タブ一覧',
+          'savedTabs.viewMode.custom': 'カスタムモード',
+          'savedTabs.viewMode.domain': 'ドメインモード',
+        }) satisfies Record<string, string>
+      )[key] ?? key,
+  }),
+}))
 
 const { Primary } = composeStories(buttonStories, preview)
 const { Conversation } = composeStories(messageStories, preview)
@@ -39,9 +58,7 @@ describe('storybook smoke stories', () => {
       </div>,
     )
 
-    expect(
-      screen.getByRole('button', { name: /テーマの切り替え/i }),
-    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: /theme|テーマ/i })).toBeTruthy()
     expect(
       screen.getByText(
         '保存済みタブをドメインごとに 4 グループへ再整理しました。',

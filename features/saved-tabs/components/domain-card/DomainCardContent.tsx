@@ -12,6 +12,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CardContent } from '@/components/ui/card'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { SortableCategorySection } from '@/features/saved-tabs/components/SortableCategorySection'
 import { CategorySection } from '@/features/saved-tabs/components/TimeRemaining'
 import { useDomainCard } from './DomainCardContext'
@@ -22,6 +23,7 @@ import { useDomainCard } from './DomainCardContext'
  * 折りたたみ時は何も表示しない
  */
 export const DomainCardContent = () => {
+  const { t } = useI18n()
   const { state, group, settings, categoryId, handlers } = useDomainCard()
   const { collapse, categoryReorder, computed, categoryActions } = state
 
@@ -50,8 +52,8 @@ export const DomainCardContent = () => {
       <CardContent className='space-y-1'>
         <div className='py-4 text-center text-gray-400'>
           {(group.urls?.length || 0) === 0
-            ? 'このドメインにはタブがありません'
-            : 'カテゴリを追加するにはカテゴリ管理から行ってください'}
+            ? t('savedTabs.domain.emptyNoTabs')
+            : t('savedTabs.domain.emptyManageCategoriesHint')}
         </div>
       </CardContent>
     )

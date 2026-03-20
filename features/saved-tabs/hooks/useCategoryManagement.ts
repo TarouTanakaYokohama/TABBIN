@@ -12,6 +12,7 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { saveParentCategories } from '@/lib/storage/categories'
 import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
 
@@ -137,6 +138,7 @@ const useCategoryManagement = (
   _tabGroups: TabGroup[],
   _settings: UserSettings,
 ): UseCategoryManagementReturn => {
+  const { t } = useI18n()
   const [categories, setCategories] = useState<ParentCategory[]>([])
   const [categoryOrder, setCategoryOrder] = useState<string[]>([])
   const [isCategoryReorderMode, setIsCategoryReorderMode] = useState(false)
@@ -249,12 +251,12 @@ const useCategoryManagement = (
       setIsCategoryReorderMode(false)
       setOriginalCategoryOrder([])
       setTempCategoryOrder([])
-      toast.success('親カテゴリの順序を変更しました')
+      toast.success(t('savedTabs.categoryManagement.reorderUpdated'))
     } catch (error) {
       console.error('親カテゴリ順序の更新に失敗しました:', error)
-      toast.error('親カテゴリ順序の更新に失敗しました')
+      toast.error(t('savedTabs.categoryManagement.reorderUpdateError'))
     }
-  }, [isCategoryReorderMode, tempCategoryOrder, categories])
+  }, [isCategoryReorderMode, tempCategoryOrder, categories, t])
 
   /** 並び替えをキャンセルして元の順序に戻す */
   const handleCancelCategoryReorder = useCallback((): void => {
@@ -268,8 +270,8 @@ const useCategoryManagement = (
     // 並び替えモードを終了
     setIsCategoryReorderMode(false)
     setOriginalCategoryOrder([])
-    toast.info('親カテゴリの並び替えをキャンセルしました')
-  }, [isCategoryReorderMode])
+    toast.info(t('savedTabs.categoryManagement.reorderCanceled'))
+  }, [isCategoryReorderMode, t])
 
   /** カテゴリ内のドメイン順序を更新する */
   const handleUpdateDomainsOrder = useCallback(

@@ -4,6 +4,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { CategoryKeywordModalProps } from '@/types/saved-tabs'
 import { useCategoryKeywordModal } from '../../hooks/useCategoryKeywordModal'
 import {
@@ -46,6 +47,7 @@ export const KeywordModalRoot = ({
   onUpdateParentCategories,
   children,
 }: KeywordModalRootProps) => {
+  const { t } = useI18n()
   const state = useCategoryKeywordModal({
     group,
     isOpen,
@@ -78,7 +80,11 @@ export const KeywordModalRoot = ({
           }}
         >
           <DialogHeader className='text-left'>
-            <DialogTitle>「{group.domain}」の子カテゴリ管理</DialogTitle>
+            <DialogTitle>
+              {t('savedTabs.keywordModal.title', undefined, {
+                domain: group.domain,
+              })}
+            </DialogTitle>
           </DialogHeader>
 
           <div ref={state.modalContentRef} className='space-y-4'>

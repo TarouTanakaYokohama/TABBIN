@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   downloadAsJson,
   exportSettings,
@@ -23,6 +24,7 @@ import {
 import { sendRuntimeMessage } from '@/lib/browser/runtime'
 
 export const ImportExportSettings: React.FC = () => {
+  const { t } = useI18n()
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
@@ -41,10 +43,10 @@ export const ImportExportSettings: React.FC = () => {
       const filename = `tab-manager-backup-${formattedDate}.json`
 
       downloadAsJson(data, filename)
-      toast.success('設定とタブデータをエクスポートしました')
+      toast.success(t('options.importExport.exportSuccess'))
     } catch (error) {
       console.error('エクスポートエラー:', error)
-      toast.error('エクスポート中にエラーが発生しました')
+      toast.error(t('options.importExport.exportError'))
     } finally {
       setIsExporting(false)
     }
@@ -69,7 +71,7 @@ export const ImportExportSettings: React.FC = () => {
   const processFile = useCallback(
     (file: File) => {
       if (!file.name.endsWith('.json')) {
-        toast.error('JSONファイルを選択してください')
+        toast.error(t('options.importExport.invalidJson'))
         return
       }
 
@@ -80,11 +82,11 @@ export const ImportExportSettings: React.FC = () => {
         try {
           const content = event.target?.result as string
           if (!content) {
-            toast.error('ファイルの読み込みに失敗しました')
+            toast.error(t('options.importExport.readError'))
             return
           }
 
-          const result = await importSettings(content, mergeData) // マージオプションを渡す
+          const result = await importSettings(content, mergeData, t)
           if (result.success) {
             toast.success(result.message)
             setImportDialogOpen(false)
@@ -96,7 +98,7 @@ export const ImportExportSettings: React.FC = () => {
           }
         } catch (error) {
           console.error('インポートエラー:', error)
-          toast.error('インポートに失敗しました')
+          toast.error(t('options.importExport.importError'))
         } finally {
           setIsImporting(false)
           if (fileInputRef.current) {
@@ -106,7 +108,7 @@ export const ImportExportSettings: React.FC = () => {
       }
 
       reader.onerror = () => {
-        toast.error('ファイルの読み込みに失敗しました')
+        toast.error(t('options.importExport.readError'))
         setIsImporting(false)
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
@@ -115,7 +117,7 @@ export const ImportExportSettings: React.FC = () => {
 
       reader.readAsText(file)
     },
-    [mergeData],
+    [mergeData, t],
   )
 
   // react-dropzoneの設定
@@ -147,7 +149,9 @@ export const ImportExportSettings: React.FC = () => {
           className='flex w-full cursor-pointer items-center justify-start gap-2'
         >
           <Download size={16} />
-          {isExporting ? 'エクスポート中...' : '設定とタブデータをエクスポート'}
+          {isExporting
+            ? t('options.importExport.exporting')
+            : t('options.importExport.export')}
         </Button>
 
         <Button
@@ -157,7 +161,9 @@ export const ImportExportSettings: React.FC = () => {
           className='flex w-full cursor-pointer items-center justify-start gap-2'
         >
           <Upload size={16} />
-          {isImporting ? 'インポート中...' : '設定とタブデータをインポート'}
+          {isImporting
+            ? t('options.importExport.importing')
+            : t('options.importExport.import')}
         </Button>
       </div>
 
@@ -172,9 +178,9 @@ export const ImportExportSettings: React.FC = () => {
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className='flex max-h-[90vh] flex-col gap-3 p-4 sm:max-w-md'>
           <DialogHeader className='shrink-0'>
-            <DialogTitle>設定とタブデータのインポート</DialogTitle>
+            <DialogTitle>{t('options.importExport.dialogTitle')}</DialogTitle>
             <DialogDescription className='text-left'>
-              以前にエクスポートしたバックアップファイルから設定とタブデータを復元します。
+              {t('options.importExport.dialogDescription')}
             </DialogDescription>
           </DialogHeader>
 
@@ -188,15 +194,15 @@ export const ImportExportSettings: React.FC = () => {
                   onCheckedChange={checked => setMergeData(checked === true)}
                 />
                 <Label htmlFor='merge-data' className='cursor-pointer'>
-                  既存データとマージする（推奨）
+                  {t('options.importExport.merge')}
                 </Label>
               </div>
 
               <div className='mb-4 text-muted-foreground text-sm'>
                 <p>
                   {mergeData
-                    ? '既存のデータを保持しつつ、新しいデータを追加・更新します。'
-                    : '警告：既存のデータをすべて置き換えます。'}
+                    ? t('options.importExport.mergeDescription')
+                    : t('options.importExport.replaceDescription')}
                 </p>
               </div>
 
@@ -213,11 +219,11 @@ export const ImportExportSettings: React.FC = () => {
                 <Upload className='mx-auto mb-2 h-12 w-12 text-muted-foreground' />
                 <p className='mb-1 font-medium text-sm'>
                   {isDragActive
-                    ? 'ファイルをドロップ'
-                    : 'JSONファイルをドラッグ&ドロップ'}
+                    ? t('options.importExport.dropActive')
+                    : t('options.importExport.dropIdle')}
                 </p>
                 <p className='text-muted-foreground text-xs'>
-                  または、クリックしてファイルを選択
+                  {t('options.importExport.selectFile')}
                 </p>
               </div>
 
@@ -226,11 +232,15 @@ export const ImportExportSettings: React.FC = () => {
                 className='my-4'
               >
                 <AlertCircle className='h-4 w-4' />
-                <AlertTitle>{mergeData ? '注意' : '警告'}</AlertTitle>
+                <AlertTitle>
+                  {mergeData
+                    ? t('options.importExport.mergeLabel')
+                    : t('options.importExport.replaceLabel')}
+                </AlertTitle>
                 <AlertDescription>
                   {mergeData
-                    ? 'マージの際、同じIDのデータは更新されます。'
-                    : 'インポートすると現在の設定とタブデータがすべて上書きされます。この操作は元に戻せません。'}
+                    ? t('options.importExport.mergeWarning')
+                    : t('options.importExport.replaceWarning')}
                 </AlertDescription>
               </Alert>
             </div>
@@ -242,7 +252,7 @@ export const ImportExportSettings: React.FC = () => {
               disabled={isImporting}
               className='w-full cursor-pointer'
             >
-              キャンセル
+              {t('options.importExport.cancel')}
             </Button>
           </DialogFooter>
         </DialogContent>

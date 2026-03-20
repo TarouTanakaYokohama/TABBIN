@@ -2,6 +2,10 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+const cardGroupActionsI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 vi.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TooltipTrigger: ({ children }: { children: React.ReactNode }) => (
@@ -51,11 +55,33 @@ vi.mock('@/components/ui/alert-dialog', () => ({
   ),
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: cardGroupActionsI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(cardGroupActionsI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
+
 import { CardGroupActions } from './CardGroupActions'
 
 describe('CardGroupActions', () => {
   afterEach(() => {
     cleanup()
+    cardGroupActionsI18nState.language = 'ja'
   })
 
   it('確認なしの操作では即時に各ハンドラを呼ぶ', () => {
@@ -107,7 +133,7 @@ describe('CardGroupActions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'すべて削除' }))
     expect(screen.getByText('URLをすべて削除しますか？')).toBeTruthy()
     expect(screen.getByText('すべて削除します')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+    fireEvent.click(screen.getByRole('button', { name: '削除' }))
     expect(onDeleteAll).toHaveBeenCalledTimes(1)
   })
 })

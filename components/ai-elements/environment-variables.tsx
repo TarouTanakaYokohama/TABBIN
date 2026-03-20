@@ -14,6 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 interface EnvironmentVariablesContextType {
@@ -111,6 +112,7 @@ export const EnvironmentVariablesToggle = ({
   ...props
 }: EnvironmentVariablesToggleProps) => {
   const { showValues, setShowValues } = useContext(EnvironmentVariablesContext)
+  const t = useI18nText()
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
@@ -118,7 +120,7 @@ export const EnvironmentVariablesToggle = ({
         {showValues ? <EyeIcon size={14} /> : <EyeOffIcon size={14} />}
       </span>
       <Switch
-        aria-label='Toggle value visibility'
+        aria-label={t('common.toggleValueVisibility')}
         checked={showValues}
         onCheckedChange={setShowValues}
         {...props}

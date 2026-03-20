@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { setCategoryKeywords } from '@/lib/storage/tabs'
 import type { TabGroup } from '@/types/storage'
 
@@ -11,6 +12,7 @@ export const SubCategoryKeywordManager = ({
 }: {
   tabGroup: TabGroup
 }) => {
+  const { t } = useI18n()
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [keywords, setKeywords] = useState<string[]>([])
   const [newKeyword, setNewKeyword] = useState('')
@@ -59,7 +61,7 @@ export const SubCategoryKeywordManager = ({
           keyword => keyword.toLowerCase() === newKeyword.trim().toLowerCase(),
         )
       ) {
-        alert('このキーワードは既に追加されています')
+        alert(t('savedTabs.keywords.duplicate'))
         return
       }
 
@@ -95,7 +97,7 @@ export const SubCategoryKeywordManager = ({
         setKeywords(categoryKeywords?.keywords || [])
 
         // エラーを表示
-        alert('キーワードの削除に失敗しました。再度お試しください。')
+        alert(t('savedTabs.subCategory.createError'))
       }
     }
   }
@@ -107,7 +109,7 @@ export const SubCategoryKeywordManager = ({
 
       // 既存の子カテゴリと重複していないか確認
       if (tabGroup.subCategories?.includes(categoryName)) {
-        alert('この子カテゴリは既に存在します')
+        alert(t('savedTabs.subCategory.duplicateName'))
         return
       }
 
@@ -195,11 +197,15 @@ export const SubCategoryKeywordManager = ({
       await chrome.storage.local.set({ savedTabs: updatedTabs })
       console.log('ストレージに保存完了')
 
-      alert(`カテゴリ "${categoryToRemove}" を削除しました`)
+      alert(
+        t('savedTabs.subCategory.deleted', undefined, {
+          name: categoryToRemove,
+        }),
+      )
       // }
     } catch (error) {
       console.error('子カテゴリ削除エラー:', error)
-      alert(`カテゴリの削除中にエラーが発生しました: ${error}`)
+      alert(t('savedTabs.subCategory.deleteError'))
     }
   }
 
@@ -236,7 +242,7 @@ export const SubCategoryKeywordManager = ({
 
     // 既存のカテゴリ名と重複していないか確認
     if (tabGroup.subCategories?.includes(newCategoryName.trim())) {
-      alert('このカテゴリ名は既に存在しています')
+      alert(t('savedTabs.subCategory.duplicateName'))
       setNewCategoryName(activeCategory) // 元の名前に戻す
       return
     }
@@ -249,7 +255,7 @@ export const SubCategoryKeywordManager = ({
       setIsRenamingSubCategory(false)
     } catch (error) {
       console.error('カテゴリ名変更エラー:', error)
-      alert('カテゴリ名の変更に失敗しました')
+      alert(t('savedTabs.subCategory.renameError'))
     }
   }
 
@@ -327,14 +333,14 @@ export const SubCategoryKeywordManager = ({
     return (
       <div className='mt-4 border-border border-t pt-4'>
         <p className='mb-3 text-muted-foreground'>
-          このドメインには子カテゴリがありません。
+          {t('savedTabs.subCategory.empty')}
         </p>
         <div className='mb-4'>
           <Label
             htmlFor='new-subcategory'
             className='mb-1 block font-medium text-foreground text-sm'
           >
-            新しい子カテゴリを追加
+            {t('savedTabs.subCategory.addTitle')}
           </Label>
           <Input
             id='new-subcategory'
@@ -342,7 +348,7 @@ export const SubCategoryKeywordManager = ({
             value={newSubCategory}
             onChange={e => setNewSubCategory(e.target.value)}
             onBlur={handleAddSubCategory}
-            placeholder='例: ニュース、ドキュメント'
+            placeholder={t('savedTabs.subCategory.addPlaceholder')}
             className='w-full rounded border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
             onKeyDown={e => {
               if (e.key === 'Enter') {
@@ -359,7 +365,7 @@ export const SubCategoryKeywordManager = ({
   return (
     <div className='mt-4 border-border border-t pt-4'>
       <h4 className='mb-2 font-medium text-foreground text-md'>
-        子カテゴリキーワード管理
+        {t('savedTabs.subCategory.keywordManagerTitle')}
       </h4>
 
       {/* 新しい子カテゴリの追加フォーム */}
@@ -368,7 +374,7 @@ export const SubCategoryKeywordManager = ({
           htmlFor='new-subcategory'
           className='mb-1 block font-medium text-foreground text-sm'
         >
-          新しい子カテゴリを追加
+          {t('savedTabs.subCategory.addTitle')}
         </Label>
         <Input
           id='new-subcategory'
@@ -376,7 +382,7 @@ export const SubCategoryKeywordManager = ({
           value={newSubCategory}
           onChange={e => setNewSubCategory(e.target.value)}
           onBlur={handleAddSubCategory}
-          placeholder='例: ニュース、ドキュメント'
+          placeholder={t('savedTabs.subCategory.addPlaceholder')}
           className='w-full rounded border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
           onKeyDown={e => {
             if (e.key === 'Enter') {
@@ -410,7 +416,9 @@ export const SubCategoryKeywordManager = ({
               variant='outline'
               size='sm'
               className='shrink-0 cursor-pointer rounded-l-none'
-              aria-label={`カテゴリ ${category} を削除`}
+              aria-label={t('savedTabs.subCategory.deleteAria', undefined, {
+                name: category,
+              })}
             >
               <X size={14} />
             </Button>
@@ -427,7 +435,7 @@ export const SubCategoryKeywordManager = ({
                 htmlFor='rename-category'
                 className='mb-1 block text-foreground text-sm'
               >
-                カテゴリ名を変更
+                {t('savedTabs.subCategory.rename')}
               </Label>
               <div className='flex'>
                 <Input
@@ -469,7 +477,7 @@ export const SubCategoryKeywordManager = ({
                 </div>
               </div>
               <div className='mt-1 text-muted-foreground text-xs'>
-                Enter で確定、Escape でキャンセル
+                {t('savedTabs.subCategory.renameHint')}
               </div>
             </div>
           ) : (
@@ -479,7 +487,9 @@ export const SubCategoryKeywordManager = ({
                   className='max-w-[200px] truncate font-medium text-foreground'
                   title={activeCategory}
                 >
-                  「{activeCategory}」カテゴリのキーワード
+                  {t('savedTabs.subCategory.titleKeywords', undefined, {
+                    name: activeCategory,
+                  })}
                 </h4>
                 <Button
                   type='button'
@@ -488,7 +498,7 @@ export const SubCategoryKeywordManager = ({
                   size='sm'
                   className='shrink-0 bg-muted text-foreground text-xs hover:bg-muted/70'
                 >
-                  リネーム
+                  {t('savedTabs.projectManagement.renameAction')}
                 </Button>
               </div>
             </div>
@@ -499,9 +509,11 @@ export const SubCategoryKeywordManager = ({
               htmlFor={`keyword-input-${activeCategory}`}
               className='mb-1 block text-foreground text-sm'
             >
-              キーワード
+              {t('savedTabs.keywords.activeCategoryLabel', undefined, {
+                name: activeCategory,
+              })}
               <span className='ml-2 text-muted-foreground text-xs'>
-                （タイトルにキーワードが含まれていると自動的にこのカテゴリに分類されます）
+                ({t('savedTabs.keywords.autoAssignHint')})
               </span>
             </Label>
             {/* キーワード追加フォーム */}
@@ -511,7 +523,7 @@ export const SubCategoryKeywordManager = ({
                 type='text'
                 value={newKeyword}
                 onChange={e => setNewKeyword(e.target.value)}
-                placeholder='例: 技術記事、GitHub、プログラミング'
+                placeholder={t('savedTabs.keywords.placeholder')}
                 className='grow rounded-l border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
@@ -530,7 +542,7 @@ export const SubCategoryKeywordManager = ({
                     ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                     : 'cursor-not-allowed bg-secondary/50 text-muted-foreground'
                 }`}
-                aria-label='キーワードを追加'
+                aria-label={t('savedTabs.keywords.addAria')}
               >
                 <Plus size={18} />
               </Button>
@@ -541,7 +553,7 @@ export const SubCategoryKeywordManager = ({
           <div className='mt-2 flex flex-wrap gap-2'>
             {keywords.length === 0 ? (
               <p className='text-muted-foreground text-sm'>
-                キーワードがありません
+                {t('savedTabs.keywords.empty')}
               </p>
             ) : (
               keywords.map(keyword => (
@@ -557,7 +569,11 @@ export const SubCategoryKeywordManager = ({
                     variant='ghost'
                     size='sm'
                     className='ml-1 shrink-0 cursor-pointer p-0 text-muted-foreground hover:bg-transparent hover:text-foreground'
-                    aria-label={`キーワード ${keyword} を削除`}
+                    aria-label={t(
+                      'savedTabs.keywords.deleteAriaWithName',
+                      undefined,
+                      { name: keyword },
+                    )}
                   >
                     <X size={14} />
                   </Button>

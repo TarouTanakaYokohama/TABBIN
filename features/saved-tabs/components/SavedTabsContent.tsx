@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { removeUrlsFromTabGroup } from '@/lib/storage/tabs'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
@@ -34,6 +35,7 @@ export const SortableCategorySection = ({
   settings: UserSettings
   handleDeleteAllTabs?: (urls: Array<{ url: string }>) => void // 新しいプロップの型定義
 }) => {
+  const { t } = useI18n()
   const {
     attributes,
     listeners,
@@ -61,7 +63,9 @@ export const SortableCategorySection = ({
   const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
 
   const categoryDisplayName =
-    props.categoryName === '__uncategorized' ? '未分類' : props.categoryName
+    props.categoryName === '__uncategorized'
+      ? t('savedTabs.uncategorized')
+      : props.categoryName
   const urls = props.urls ?? []
   const urlCount = urls.length
 
@@ -126,9 +130,7 @@ export const SortableCategorySection = ({
               <GripVertical size={16} aria-hidden='true' />
             </div>
             <h3 className='font-medium text-foreground'>
-              {props.categoryName === '__uncategorized'
-                ? '未分類'
-                : props.categoryName}{' '}
+              {categoryDisplayName}{' '}
               <span className='text-muted-foreground text-sm'>
                 ({urlCount})
               </span>
@@ -156,12 +158,12 @@ export const SortableCategorySection = ({
                 >
                   <ExternalLink size={14} />
                   <SavedTabsResponsiveLabel>
-                    すべて開く
+                    {t('savedTabs.openAll')}
                   </SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
               <SavedTabsResponsiveTooltipContent side='top'>
-                すべてのタブを開く
+                {t('savedTabs.openAllTabs')}
               </SavedTabsResponsiveTooltipContent>
             </Tooltip>
 
@@ -179,12 +181,14 @@ export const SortableCategorySection = ({
                   >
                     <Trash size={14} />
                     <SavedTabsResponsiveLabel>
-                      {isDeleting ? '削除中...' : 'すべて削除'}
+                      {isDeleting
+                        ? t('savedTabs.deletingAll')
+                        : t('savedTabs.deleteAll')}
                     </SavedTabsResponsiveLabel>
                   </Button>
                 </TooltipTrigger>
                 <SavedTabsResponsiveTooltipContent side='top'>
-                  すべてのタブを削除
+                  {t('savedTabs.deleteAllTabs')}
                 </SavedTabsResponsiveTooltipContent>
               </Tooltip>
             )}
@@ -201,15 +205,17 @@ export const SortableCategorySection = ({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>タブをすべて開きますか？</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('savedTabs.openAllConfirmTitle')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              10個以上のタブを開こうとしています。続行しますか？
+              {t('savedTabs.openAllConfirmDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => handleOpenAllTabs(urls)}>
-              開く
+              {t('common.open')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -222,16 +228,19 @@ export const SortableCategorySection = ({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>タブをすべて削除しますか？</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('savedTabs.deleteAllConfirmTitle')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              「{categoryDisplayName}
-              」のタブをすべて削除します。この操作は元に戻せません。
+              {t('savedTabs.deleteAllConfirmDescription', undefined, {
+                categoryName: categoryDisplayName,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => void executeDeleteAllTabs()}>
-              削除する
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

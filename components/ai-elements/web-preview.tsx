@@ -22,6 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 export interface WebPreviewContextValue {
@@ -144,6 +145,7 @@ export const WebPreviewUrl = ({
   onKeyDown,
   ...props
 }: WebPreviewUrlProps) => {
+  const t = useI18nText()
   const { url, setUrl } = useWebPreview()
   const [prevUrl, setPrevUrl] = useState(url)
   const [inputValue, setInputValue] = useState(url)
@@ -175,7 +177,7 @@ export const WebPreviewUrl = ({
       className='h-8 flex-1 text-sm'
       onChange={onChange ?? handleChange}
       onKeyDown={handleKeyDown}
-      placeholder='Enter URL...'
+      placeholder={t('common.enterUrl')}
       value={value ?? inputValue}
       {...props}
     />
@@ -193,6 +195,7 @@ export const WebPreviewBody = ({
   ...props
 }: WebPreviewBodyProps) => {
   const { url } = useWebPreview()
+  const t = useI18nText()
 
   return (
     <div className='flex-1'>
@@ -201,7 +204,7 @@ export const WebPreviewBody = ({
         // oxlint-disable-next-line eslint-plugin-react(iframe-missing-sandbox)
         sandbox='allow-scripts allow-same-origin allow-forms allow-popups allow-presentation'
         src={(src ?? url) || undefined}
-        title='Preview'
+        title={t('common.preview')}
         {...props}
       />
       {loading}
@@ -230,6 +233,7 @@ export const WebPreviewConsole = ({
   ...props
 }: WebPreviewConsoleProps) => {
   const { consoleOpen, setConsoleOpen } = useWebPreview()
+  const t = useI18nText()
 
   return (
     <Collapsible
@@ -243,7 +247,7 @@ export const WebPreviewConsole = ({
           className='flex w-full items-center justify-between p-4 text-left font-medium hover:bg-muted/50'
           variant='ghost'
         >
-          Console
+          {t('common.console')}
           <ChevronDownIcon
             className={cn(
               'h-4 w-4 transition-transform duration-200',
@@ -260,7 +264,9 @@ export const WebPreviewConsole = ({
       >
         <div className='max-h-48 space-y-1 overflow-y-auto'>
           {logs.length === 0 ? (
-            <p className='text-muted-foreground'>No console output</p>
+            <p className='text-muted-foreground'>
+              {t('common.noConsoleOutput')}
+            </p>
           ) : (
             logs.map(log => (
               <div

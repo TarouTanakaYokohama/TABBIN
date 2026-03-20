@@ -11,6 +11,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CustomProjectSectionProps } from '@/features/saved-tabs/types/CustomProjectSection.types'
 import type { UserSettings } from '@/types/storage'
 
+const customProjectSectionI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 const { dndContextPropsRef, customProjectCardSpy, arrayMoveMock } = vi.hoisted(
   () => ({
     dndContextPropsRef: {
@@ -90,6 +94,27 @@ vi.mock('./CustomProjectCard', () => ({
     )
   },
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: customProjectSectionI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(customProjectSectionI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 vi.mock('@/components/ui/dialog', () => ({
   Dialog: ({
@@ -204,6 +229,7 @@ const createProps = (
 describe('CustomProjectSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    customProjectSectionI18nState.language = 'ja'
     dndContextPropsRef.current = {}
     vi.spyOn(console, 'log').mockImplementation(() => {})
   })
@@ -219,6 +245,23 @@ describe('CustomProjectSection', () => {
     expect(screen.getByText('プロジェクトがありません')).toBeTruthy()
     expect(screen.getByText(/表示可能なプロジェクトがありません/)).toBeTruthy()
     expect(screen.queryByTestId('dnd-context')).toBeNull()
+  })
+
+  it('renders English empty-state copy when the display language is en', () => {
+    customProjectSectionI18nState.language = 'en'
+
+    render(<CustomProjectSection {...createProps({ projects: [] })} />)
+
+    expect(screen.getByText('No projects')).toBeTruthy()
+    const description = document.querySelector(
+      '.text-center.text-muted-foreground',
+    )
+    expect(description?.textContent).toContain(
+      'No projects are available to display',
+    )
+    expect(description?.textContent).toContain(
+      'Create a parent category to show it as a project',
+    )
   })
 
   it('作成ダイアログで空入力・重複・成功・キャンセルの分岐を処理する', async () => {
@@ -249,7 +292,7 @@ describe('CustomProjectSection', () => {
     fireEvent.click(screen.getByRole('button', { name: '作成' }))
     await waitFor(() => {
       expect(
-        screen.getByText('そのプロジェクト名は既に使用されています'),
+        screen.getByText('プロジェクト名「Project One」は既に使用されています'),
       ).toBeTruthy()
     })
 
@@ -258,7 +301,9 @@ describe('CustomProjectSection', () => {
     })
     await waitFor(() => {
       expect(
-        screen.queryByText('そのプロジェクト名は既に使用されています'),
+        screen.queryByText(
+          'プロジェクト名「Project One」は既に使用されています',
+        ),
       ).toBeNull()
     })
 

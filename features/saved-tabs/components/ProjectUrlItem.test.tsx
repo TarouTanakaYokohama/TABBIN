@@ -8,6 +8,10 @@ const { useSortableMock } = vi.hoisted(() => ({
   useSortableMock: vi.fn(),
 }))
 
+const projectUrlItemI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: useSortableMock,
 }))
@@ -19,6 +23,27 @@ vi.mock('@dnd-kit/utilities', () => ({
     },
   },
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: projectUrlItemI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(projectUrlItemI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 import { ProjectUrlItem, getCategoryDisplayName } from './ProjectUrlItem'
 
@@ -194,7 +219,7 @@ describe('ProjectUrlItem', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'タブを削除' }))
     const confirmButton = await screen.findByRole('button', {
-      name: '削除する',
+      name: '削除',
     })
     fireEvent.click(confirmButton)
 

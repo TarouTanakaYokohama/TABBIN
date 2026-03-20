@@ -1,0 +1,10 @@
+{
+  "extensionName": {
+    "message": "TABBIN",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "An extension for organizing and categorizing browser tabs so cluttered tab lists stay manageable.",
+    "description": "Extension description"
+  }
+}

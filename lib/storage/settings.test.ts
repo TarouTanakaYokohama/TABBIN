@@ -36,6 +36,7 @@ describe('settings storage', () => {
     const { defaultSettings, getUserSettings } = await loadModule()
 
     await expect(getUserSettings()).resolves.toEqual(defaultSettings)
+    expect(defaultSettings.language).toBe('system')
     expect(mocks.warnMissingChromeStorage).toHaveBeenCalledWith('設定読み込み')
   })
 
@@ -45,6 +46,7 @@ describe('settings storage', () => {
         userSettings: {
           aiChatEnabled: true,
           excludePinnedTabs: false,
+          language: 'en',
         },
       })),
     }
@@ -55,6 +57,7 @@ describe('settings storage', () => {
     await expect(getUserSettings()).resolves.toMatchObject({
       aiChatEnabled: true,
       excludePinnedTabs: false,
+      language: 'en',
       normalized: true,
     })
   })
