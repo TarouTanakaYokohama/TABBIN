@@ -51,6 +51,7 @@ export interface TabGroup {
 }
 
 export interface UserSettings {
+  language?: 'system' | 'ja' | 'en'
   removeTabAfterOpen: boolean
   removeTabAfterExternalDrop: boolean
   excludePatterns: string[]

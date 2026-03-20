@@ -1,22 +1,24 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createElement } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { OptionsPage } from '@/features/options/routes/OptionsRoute'
 import type { UserSettings } from '@/types/storage'
 
 const mocked = vi.hoisted(() => ({
+  addExcludePattern: vi.fn(),
   confirmationConfirm: vi.fn(),
-  createRoot: vi.fn(),
   handleCategoryKeyDown: vi.fn(),
   handleColorChange: vi.fn(),
-  handleExcludePatternsBlur: vi.fn(),
-  handleExcludePatternsChange: vi.fn(),
+  handleExcludePatternInputChange: vi.fn(),
   handleResetColors: vi.fn(),
   handleSelectAutoDelete: vi.fn(),
   handleSelectClickBehavior: vi.fn(),
   hideConfirmation: vi.fn(),
-  renderRoot: vi.fn(),
+  inputProps: [] as Record<string, unknown>[],
+  removeExcludePattern: vi.fn(),
   selectContentProps: [] as Record<string, unknown>[],
+  setExcludePatternInput: vi.fn(),
   setSettings: vi.fn(),
   settings: {
     aiChatEnabled: true,
@@ -36,7 +38,6 @@ const mocked = vi.hoisted(() => ({
     removeTabAfterOpen: false,
     showSavedTime: false,
   } as UserSettings,
-  textareaProps: [] as Record<string, unknown>[],
   updateSetting: vi.fn(),
   useAutoDeletePeriodResult: {
     confirmationState: {
@@ -50,27 +51,24 @@ const mocked = vi.hoisted(() => ({
     prepareAutoDeletePeriod: vi.fn(),
   },
   useSettingsResult: {
-    handleExcludePatternsBlur: vi.fn(),
-    handleExcludePatternsChange: vi.fn(),
+    addExcludePattern: vi.fn(),
+    excludePatternInput: '',
+    handleExcludePatternInputChange: vi.fn(),
     isLoading: false,
+    removeExcludePattern: vi.fn(),
     setSettings: vi.fn(),
     settings: {} as UserSettings,
+    setExcludePatternInput: vi.fn(),
     updateSetting: vi.fn(),
   },
-}))
-
-vi.mock('react-dom/client', () => ({
-  createRoot: mocked.createRoot,
 }))
 
 vi.mock('@/components/mode-toggle', () => ({
   ModeToggle: () => createElement('div', null, 'ModeToggle'),
 }))
 
-vi.mock('@/components/theme-provider', () => ({
-  ThemeProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
+vi.mock('@/features/i18n/components/LanguageSelect', () => ({
+  LanguageSelect: () => createElement('div', null, 'LanguageSelect'),
 }))
 
 vi.mock('@/components/ui/button', () => ({
@@ -110,7 +108,10 @@ vi.mock('@/components/ui/checkbox', () => ({
 }))
 
 vi.mock('@/components/ui/input', () => ({
-  Input: (props: Record<string, unknown>) => <input {...props} />,
+  Input: (props: Record<string, unknown>) => {
+    mocked.inputProps.push(props)
+    return <input {...props} />
+  },
 }))
 
 vi.mock('@/components/ui/label', () => ({
@@ -126,15 +127,6 @@ vi.mock('@/components/ui/label', () => ({
       {children}
     </label>
   ),
-}))
-
-vi.mock('@/components/ui/scroll-area', () => ({
-  ScrollArea: ({
-    children,
-    ...props
-  }: {
-    children: React.ReactNode
-  } & Record<string, unknown>) => <div {...props}>{children}</div>,
 }))
 
 vi.mock('@/components/ui/select', () => ({
@@ -191,13 +183,6 @@ vi.mock('@/components/ui/sonner', () => ({
   Toaster: () => createElement('div', null, 'Toaster'),
 }))
 
-vi.mock('@/components/ui/textarea', () => ({
-  Textarea: (props: Record<string, unknown>) => {
-    mocked.textareaProps.push(props)
-    return <textarea {...props} />
-  },
-}))
-
 vi.mock('@/features/options/ImportExportSettings', () => ({
   ImportExportSettings: () =>
     createElement('div', null, 'ImportExportSettings'),
@@ -224,11 +209,126 @@ vi.mock('@/features/options/hooks/useAutoDeletePeriod', () => ({
   useAutoDeletePeriod: () => mocked.useAutoDeletePeriodResult,
 }))
 
-const importModule = async () => {
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    t: (key: string, fallback?: string, values?: Record<string, string>) => {
+      const messages: Record<string, string> = {
+        'common.reset': 'Reset',
+        'common.loading': 'Loading...',
+        'options.autoDelete.allWindows': 'Open all tabs in a new window',
+        'options.autoDelete.allWindowsDescription':
+          'When enabled, the "Open all" button opens tabs in a new window.',
+        'options.autoDelete.background': 'Open in background tabs',
+        'options.autoDelete.confirmDeleteAll': 'Confirm before deleting all',
+        'options.autoDelete.confirmDeleteAllDescription':
+          'When enabled, a confirmation dialog appears before deleting all tabs in a category.',
+        'options.autoDelete.confirmDeleteEach': 'Confirm before deleting tabs',
+        'options.autoDelete.confirmDeleteEachDescription':
+          'When enabled, a confirmation dialog appears before deleting a tab.',
+        'options.autoDelete.description':
+          'Saved tabs are deleted automatically after the selected period.',
+        'options.autoDelete.externalDrop':
+          'Delete automatically after dropping into another browser',
+        'options.autoDelete.externalDropDescription':
+          'When enabled, saved tabs are removed after you drag and drop them into another browser.',
+        'options.autoDelete.excludePinned': 'Exclude pinned tabs',
+        'options.autoDelete.excludePinnedDescription':
+          'When enabled, pinned tabs are excluded from saved tabs.',
+        'options.autoDelete.openAfter':
+          'Delete automatically after opening a saved tab',
+        'options.autoDelete.openAfterDescription':
+          'When enabled, a saved tab is removed from the list after you open it. When disabled, the tab stays in the list.',
+        'options.autoDelete.periodLabel': 'Auto-delete period for tabs',
+        'options.autoDelete.savedTime': 'Show saved time',
+        'options.autoDelete.savedTimeDescription':
+          'When enabled, the saved date is shown in the saved tabs list.',
+        'options.autoDelete.saveInBackground': 'Open in background tabs',
+        'options.autoDelete.saveInBackgroundDescription':
+          'When enabled, saved tabs open in the background.',
+        'options.autoDelete.selectPlaceholder': 'Select an auto-delete period',
+        'options.autoDelete.shorterWarning':
+          'Warning: This shortens the current period, so some tabs may be deleted immediately!',
+        'options.autoDelete.validateWarning':
+          'Note: Tabs older than the selected period may be deleted immediately.',
+        'options.autoDelete.periodDescription':
+          'Saved tabs are deleted automatically when they exceed the selected period. Applying the setting deletes tabs that have already expired.',
+        'options.autoDelete.zero': 'Do not auto delete',
+        'options.backupRestore': 'Backup & Restore',
+        'options.behavior.description':
+          'When enabled, tabs are opened in a new window.',
+        'options.behaviorSettings': 'Tab behavior',
+        'options.clickBehavior.allWindows':
+          'Save all tabs including other windows',
+        'options.clickBehavior.currentTab': 'Save current tab',
+        'options.clickBehavior.sameDomain':
+          'Save all tabs from the current domain',
+        'options.clickBehavior.windowTabs': 'Save all tabs in the window',
+        'options.clickBehaviorLabel': 'Click action',
+        'options.clickBehaviorPlaceholder': 'Select click action',
+        'options.color.background': 'Background',
+        'options.color.border': 'Border',
+        'options.color.card': 'Card background',
+        'options.color.cardForeground': 'Card text',
+        'options.color.chart1': 'Chart 1',
+        'options.color.chart2': 'Chart 2',
+        'options.color.chart3': 'Chart 3',
+        'options.color.chart4': 'Chart 4',
+        'options.color.chart5': 'Chart 5',
+        'options.color.destructive': 'Destructive background',
+        'options.color.destructiveForeground': 'Destructive text',
+        'options.color.foreground': 'Text',
+        'options.color.hexPlaceholder': 'e.g. #FF5733, #3366CC',
+        'options.color.input': 'Input background',
+        'options.color.muted': 'Muted background',
+        'options.color.mutedForeground': 'Sub text',
+        'options.color.popover': 'Popover',
+        'options.color.popoverForeground': 'Popover text',
+        'options.color.primary': 'Primary background',
+        'options.color.primaryForeground': 'Primary text',
+        'options.color.ring': 'Ring',
+        'options.color.secondary': 'Secondary background',
+        'options.color.secondaryForeground': 'Secondary text',
+        'options.color.sidebar': 'Sidebar background',
+        'options.color.sidebarAccent': 'Sidebar accent background',
+        'options.color.sidebarAccentForeground': 'Sidebar accent text',
+        'options.color.sidebarBorder': 'Sidebar border',
+        'options.color.sidebarForeground': 'Sidebar text',
+        'options.color.sidebarPrimary': 'Sidebar primary background',
+        'options.color.sidebarPrimaryForeground': 'Sidebar primary text',
+        'options.color.sidebarRing': 'Sidebar ring',
+        'options.contact': 'Contact',
+        'options.contactDescription':
+          'Google Forms is used. A Google account is required because image uploads are enabled.',
+        'options.excludePatterns.add': 'Add',
+        'options.excludePatterns.empty': 'No exclude patterns',
+        'options.excludePatterns.help':
+          'Matching URLs are not saved and tabs are not closed.',
+        'options.excludePatterns.label':
+          'URLs that should not be saved or closed',
+        'options.excludePatterns.placeholder': 'e.g. chrome-extension://',
+        'options.excludePatterns.title': 'Exclude settings',
+        'options.excludePatterns.removeAria':
+          'Remove exclude pattern {{pattern}}',
+        'options.previewColorCustomization': '(preview) Color customization',
+        'options.previewColorCustomizationReset': 'Reset',
+        'options.releaseNotes': 'Release Notes',
+        'options.showSavedTimeDescription':
+          'When enabled, the saved date is shown in the saved tabs list.',
+        'options.title': 'Options',
+      }
+
+      const template = messages[key] ?? fallback ?? key
+
+      return template.replaceAll(
+        /\{\{(\w+)\}\}/g,
+        (_match: string, token: string) => values?.[token] ?? '',
+      )
+    },
+  }),
+}))
+
+const importBootstrapModule = async () => {
   vi.resetModules()
-  mocked.createRoot.mockReturnValue({
-    render: mocked.renderRoot,
-  })
   return import('./main')
 }
 
@@ -236,17 +336,20 @@ const resetHookState = () => {
   mocked.updateSetting.mockResolvedValue(true)
   mocked.handleColorChange.mockReset()
   mocked.handleResetColors.mockReset()
-  mocked.handleCategoryKeyDown.mockReset()
   mocked.hideConfirmation.mockReset()
-  mocked.renderRoot.mockReset()
+  mocked.inputProps = []
   mocked.selectContentProps = []
-  mocked.textareaProps = []
+  mocked.addExcludePattern.mockResolvedValue(true)
+  mocked.removeExcludePattern.mockResolvedValue(undefined)
   mocked.useSettingsResult = {
-    handleExcludePatternsBlur: mocked.handleExcludePatternsBlur,
-    handleExcludePatternsChange: mocked.handleExcludePatternsChange,
+    addExcludePattern: mocked.addExcludePattern,
+    excludePatternInput: '',
+    handleExcludePatternInputChange: mocked.handleExcludePatternInputChange,
     isLoading: false,
+    removeExcludePattern: mocked.removeExcludePattern,
     setSettings: mocked.setSettings,
     settings: mocked.settings,
+    setExcludePatternInput: mocked.setExcludePatternInput,
     updateSetting: mocked.updateSetting,
   }
   mocked.useAutoDeletePeriodResult = {
@@ -262,11 +365,10 @@ const resetHookState = () => {
   }
 }
 
-describe('options main behavior', () => {
+describe('options route behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     resetHookState()
-    document.body.innerHTML = ''
     const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
     chromeGlobal.chrome = {
       runtime: {
@@ -276,23 +378,15 @@ describe('options main behavior', () => {
     vi.spyOn(window, 'open').mockImplementation(vi.fn() as never)
   })
 
-  afterEach(() => {
-    vi.unstubAllEnvs()
-    vi.restoreAllMocks()
-  })
-
-  it('loading 中はローディング表示を返す', async () => {
+  it('loading 中はローディング表示を返す', () => {
     mocked.useSettingsResult.isLoading = true
-    const { OptionsPage } = await importModule()
 
     render(createElement(OptionsPage))
 
-    expect(screen.getByText('読み込み中...')).toBeTruthy()
+    expect(screen.getByText('Loading...')).toBeTruthy()
   })
 
-  it('各種ハンドラを UI から呼び出す', async () => {
-    const { OptionsPage } = await importModule()
-
+  it('各種ハンドラを UI から呼び出す', () => {
     render(createElement(OptionsPage))
 
     fireEvent.click(
@@ -304,23 +398,19 @@ describe('options main behavior', () => {
     )
 
     fireEvent.click(
-      screen.getByLabelText(
-        '保存したタブを開いた後、リストから自動的に削除する',
-      ),
+      screen.getByLabelText('Delete automatically after opening a saved tab'),
     )
     fireEvent.click(
       screen.getByLabelText(
-        '別ブラウザへドラッグ&ドロップした後、リストから自動的に削除する',
+        'Delete automatically after dropping into another browser',
       ),
     )
-    fireEvent.click(screen.getByLabelText('固定タブ（ピン留め）を除外する'))
-    fireEvent.click(screen.getByLabelText('バックグラウンドタブで開く'))
-    fireEvent.click(
-      screen.getByLabelText('すべてのタブを新しいウィンドウで開く'),
-    )
-    fireEvent.click(screen.getByLabelText('保存日時を表示する'))
-    fireEvent.click(screen.getByLabelText('タブ削除前に確認する'))
-    fireEvent.click(screen.getByLabelText('すべて削除前に確認する'))
+    fireEvent.click(screen.getByLabelText('Exclude pinned tabs'))
+    fireEvent.click(screen.getByLabelText('Open in background tabs'))
+    fireEvent.click(screen.getByLabelText('Open all tabs in a new window'))
+    fireEvent.click(screen.getByLabelText('Show saved time'))
+    fireEvent.click(screen.getByLabelText('Confirm before deleting tabs'))
+    fireEvent.click(screen.getByLabelText('Confirm before deleting all'))
 
     expect(mocked.updateSetting).toHaveBeenCalledWith(
       'removeTabAfterOpen',
@@ -343,52 +433,32 @@ describe('options main behavior', () => {
     expect(mocked.updateSetting).toHaveBeenCalledWith('confirmDeleteEach', true)
     expect(mocked.updateSetting).toHaveBeenCalledWith('confirmDeleteAll', true)
 
-    expect(screen.queryByText('タブの自動削除期間')).toBeNull()
-
-    const textarea = document.querySelector('textarea')
-    if (!textarea) {
-      throw new Error('textarea not found')
-    }
-    fireEvent.change(textarea, { target: { value: 'https://example.com' } })
-    fireEvent.blur(textarea)
-    expect(mocked.handleExcludePatternsChange).toHaveBeenCalledTimes(1)
-    expect(mocked.handleExcludePatternsBlur).toHaveBeenCalledTimes(1)
-
-    ;(
-      mocked.textareaProps[0]?.onKeyDown as
-        | ((event: {
-            currentTarget: { tagName: string }
-            key: string
-            preventDefault: () => void
-            stopPropagation: () => void
-          }) => void)
-        | undefined
-    )?.({
-      currentTarget: { tagName: 'TEXTAREA' },
-      key: 'Enter',
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
+    const excludeInput = screen.getByPlaceholderText('e.g. chrome-extension://')
+    fireEvent.change(excludeInput, {
+      target: { value: 'https://example.com' },
     })
+    expect(mocked.handleExcludePatternInputChange).toHaveBeenCalledTimes(1)
+    fireEvent.blur(excludeInput)
+    expect(mocked.addExcludePattern).toHaveBeenCalledTimes(1)
 
-    const inputLikeEvent = {
-      currentTarget: { tagName: 'INPUT' },
-      key: 'Enter',
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
-    }
-    ;(
-      mocked.textareaProps[0]?.onKeyDown as
-        | ((event: typeof inputLikeEvent) => void)
-        | undefined
-    )?.(inputLikeEvent)
-    expect(inputLikeEvent.preventDefault).toHaveBeenCalledTimes(1)
-    expect(mocked.handleCategoryKeyDown).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(mocked.addExcludePattern).toHaveBeenCalledTimes(2)
 
-    fireEvent.click(screen.getByRole('button', { name: 'リセット' }))
+    fireEvent.keyDown(excludeInput, { key: 'Enter' })
+    expect(mocked.addExcludePattern).toHaveBeenCalledTimes(3)
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Remove exclude pattern chrome://',
+      }),
+    )
+    expect(mocked.removeExcludePattern).toHaveBeenCalledWith('chrome://')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
     expect(mocked.handleResetColors).toHaveBeenCalledTimes(1)
 
     const colorInput = document.querySelector('input[type="color"]')
-    const hexInput = screen.getAllByPlaceholderText('例: #FF5733, #3366CC')[0]
+    const hexInput = screen.getAllByPlaceholderText('e.g. #FF5733, #3366CC')[0]
     if (!colorInput) {
       throw new Error('color input not found')
     }
@@ -398,8 +468,8 @@ describe('options main behavior', () => {
 
     expect(mocked.handleColorChange).toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'お問い合わせ' }))
-    fireEvent.click(screen.getByRole('button', { name: 'リリースノート' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Contact' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Release Notes' }))
 
     expect(window.open).toHaveBeenCalledWith(
       'https://forms.gle/c9gBiF2TmgXaeU7J6',
@@ -409,37 +479,40 @@ describe('options main behavior', () => {
       'chrome-extension://id/changelog.html',
       '_blank',
     )
-  }, 10000)
-
-  it('production import で console を抑制し、DOMContentLoaded で mount する', async () => {
-    let domReadyHandler: EventListener | undefined
-    const originalLog = console.log
-    const originalDebug = console.debug
-
-    vi.stubEnv('DEV', false)
-    vi.spyOn(document, 'addEventListener').mockImplementation(((
-      type: string,
-      callback: EventListenerOrEventListenerObject | null,
-    ) => {
-      if (type === 'DOMContentLoaded' && typeof callback === 'function') {
-        domReadyHandler = callback
-      }
-    }) as typeof document.addEventListener)
-
-    await importModule()
-    expect(console.log).not.toBe(originalLog)
-    expect(console.debug).not.toBe(originalDebug)
-
-    document.body.innerHTML = '<div id="options-app"></div>'
-    domReadyHandler?.(new Event('DOMContentLoaded'))
-
-    expect(mocked.createRoot).toHaveBeenCalledWith(
-      document.getElementById('options-app'),
-    )
-    expect(mocked.renderRoot).toHaveBeenCalledTimes(1)
   })
 
-  it('options-app 要素が無ければ例外を投げる', async () => {
+  it('Enter 以外のキー入力では除外パターンを追加しない', () => {
+    render(createElement(OptionsPage))
+
+    fireEvent.keyDown(
+      screen.getAllByPlaceholderText(
+        'e.g. chrome-extension://',
+      )[0] as HTMLElement,
+      {
+        key: 'Escape',
+      },
+    )
+
+    expect(mocked.addExcludePattern).not.toHaveBeenCalled()
+  })
+})
+
+describe('options bootstrap redirect', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('redirect helper は options entrypoint を app route へ変換する', async () => {
+    const { redirectToApp } = await importBootstrapModule()
+    const replace = vi.fn()
+
+    expect(redirectToApp('/options.html', '', replace)).toBe(
+      'app.html#/options',
+    )
+    expect(replace).toHaveBeenCalledWith('app.html#/options')
+  })
+
+  it('DOMContentLoaded の redirect handler を登録する', async () => {
     let domReadyHandler: EventListener | undefined
 
     vi.spyOn(document, 'addEventListener').mockImplementation(((
@@ -451,10 +524,8 @@ describe('options main behavior', () => {
       }
     }) as typeof document.addEventListener)
 
-    await importModule()
+    await importBootstrapModule()
 
-    expect(() => domReadyHandler?.(new Event('DOMContentLoaded'))).toThrow(
-      'Failed to find the options app container',
-    )
+    expect(domReadyHandler).toBeTypeOf('function')
   })
 })

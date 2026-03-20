@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { CustomProject } from '@/types/storage'
 import {
   DragHandlersContext,
@@ -42,11 +43,9 @@ import { CardCollapseControl } from './shared/CardCollapseControl'
 import { CardGroupTitle } from './shared/CardGroupTitle'
 import { CardSortControl } from './shared/CardSortControl'
 
-const createProjectSchema = z.object({
-  name: z.string().trim().min(1, 'プロジェクト名を入力してください'),
-})
-
-type CreateProjectFormValues = z.infer<typeof createProjectSchema>
+interface CreateProjectFormValues {
+  name: string
+}
 
 interface ActiveDragData {
   projectId?: string
@@ -351,6 +350,14 @@ export const CustomProjectSection = ({
   handleMoveUrlsBetweenCategories, // カテゴリ間移動
   settings,
 }: CustomProjectSectionProps) => {
+  const { t } = useI18n()
+  const createProjectSchema = useMemo(
+    () =>
+      z.object({
+        name: z.string().trim().min(1, t('savedTabs.projectNameRequired')),
+      }),
+    [t],
+  )
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const {
     register,
@@ -432,7 +439,9 @@ export const CustomProjectSection = ({
     ) {
       setError('name', {
         type: 'manual',
-        message: 'そのプロジェクト名は既に使用されています',
+        message: t('savedTabs.projects.duplicateName', undefined, {
+          name: trimmedName,
+        }),
       })
       return
     }
@@ -690,12 +699,12 @@ export const CustomProjectSection = ({
       ) : (
         <div className='flex min-h-[200px] flex-col items-center justify-center gap-4 rounded-md border p-8'>
           <div className='text-2xl text-foreground'>
-            プロジェクトがありません
+            {t('savedTabs.customProjects.emptyTitle')}
           </div>
           <div className='text-center text-muted-foreground'>
-            表示可能なプロジェクトがありません
+            {t('savedTabs.customProjects.emptyDescription')}
             <br />
-            親カテゴリを作成するとプロジェクトとして表示されます
+            {t('savedTabs.customProjects.emptyHint')}
           </div>
           {/* 新規プロジェクト作成ボタンも非表示に
           <Button onClick={() => setIsCreateDialogOpen(true)}>
@@ -709,17 +718,21 @@ export const CustomProjectSection = ({
       <Dialog open={isCreateDialogOpen} onOpenChange={handleCreateDialogChange}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>新規プロジェクト作成</DialogTitle>
+            <DialogTitle>
+              {t('savedTabs.customProjects.createDialogTitle')}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit(handleCreateProjectSubmit)}>
             <div className='grid gap-4 py-4'>
               <div>
-                <Label htmlFor='name'>プロジェクト名 *</Label>
+                <Label htmlFor='name'>
+                  {t('savedTabs.customProjects.nameLabel')}
+                </Label>
                 <Input
                   id='name'
                   {...nameField}
                   onKeyDown={handleNameKeyDown}
-                  placeholder='例: ウェブサイトリニューアル、ライブラリ調査'
+                  placeholder={t('savedTabs.customProjects.createPlaceholder')}
                   className={`w-full ${nameError ? 'border-red-500' : ''}`}
                 />
                 {nameError && (
@@ -729,10 +742,10 @@ export const CustomProjectSection = ({
             </div>
             <DialogFooter>
               <Button variant='ghost' type='button' onClick={closeCreateDialog}>
-                キャンセル
+                {t('common.cancel')}
               </Button>
               <Button type='button' onClick={handleCreateButtonClick}>
-                作成
+                {t('savedTabs.customProjects.createAction')}
               </Button>
             </DialogFooter>
           </form>

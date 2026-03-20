@@ -10,6 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CustomProjectCategoryProps } from '@/features/saved-tabs/types/CustomProjectCategory.types'
 import type { UserSettings } from '@/types/storage'
 
+const customProjectCategoryAdditionalI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 vi.mock('@dnd-kit/core', () => ({
   useDroppable: vi.fn(() => ({
     setNodeRef: vi.fn(),
@@ -54,6 +58,29 @@ vi.mock('@/components/ui/tooltip', () => ({
     <div>{children}</div>
   ),
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: customProjectCategoryAdditionalI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(
+          customProjectCategoryAdditionalI18nState.language,
+        )
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 import { CustomProjectCategory } from './CustomProjectCategory'
 

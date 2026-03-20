@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/features/options/hooks/useSettings', () => ({
   useSettings: () => ({
+    addExcludePattern: vi.fn(),
+    excludePatternInput: '',
+    handleExcludePatternInputChange: vi.fn(),
     settings: {
       aiChatEnabled: false,
       aiProvider: 'none',
@@ -22,11 +25,11 @@ vi.mock('@/features/options/hooks/useSettings', () => ({
       removeTabAfterOpen: true,
       showSavedTime: false,
     },
+    removeExcludePattern: vi.fn(),
     setSettings: vi.fn(),
+    setExcludePatternInput: vi.fn(),
     isLoading: false,
     updateSetting: vi.fn(),
-    handleExcludePatternsChange: vi.fn(),
-    handleExcludePatternsBlur: vi.fn(),
   }),
 }))
 
@@ -64,16 +67,42 @@ vi.mock('@/components/mode-toggle', () => ({
   ModeToggle: () => createElement('div', null, 'ModeToggle'),
 }))
 
+vi.mock('@/features/i18n/components/LanguageSelect', () => ({
+  LanguageSelect: () => createElement('div', null, 'LanguageSelect'),
+}))
+
 vi.mock('@/components/ui/sonner', () => ({
   Toaster: () => createElement('div', null, 'Toaster'),
 }))
 
-import { OptionsPage } from './main'
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    t: (key: string) =>
+      (
+        ({
+          'common.loading': 'Loading...',
+          'options.backupRestore': 'Backup & Restore',
+          'options.behaviorSettings': 'Tab behavior',
+          'options.clickBehaviorLabel': 'Click action',
+          'options.clickBehaviorPlaceholder': 'Select click action',
+          'options.excludePatterns.title': 'Exclude settings',
+          'options.title': 'Options',
+        }) satisfies Record<string, string>
+      )[key] ?? key,
+  }),
+}))
+
+import { OptionsPage } from '@/features/options/routes/OptionsRoute'
 
 describe('オプションページ', () => {
   it('AI チャット設定セクションを表示しない', () => {
     render(createElement(OptionsPage))
 
     expect(screen.queryByText('AI チャット')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Options' })).toBeTruthy()
+    expect(screen.getByText('LanguageSelect')).toBeTruthy()
+    expect(screen.getByText('ModeToggle')).toBeTruthy()
+    expect(screen.getByText('Backup & Restore')).toBeTruthy()
+    expect(screen.getByText('Exclude settings')).toBeTruthy()
   })
 })

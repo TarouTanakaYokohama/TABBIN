@@ -23,6 +23,9 @@ type ClickListener = (
   info: chrome.contextMenus.OnClickData,
   tab?: chrome.tabs.Tab,
 ) => void | Promise<void>
+
+const flushAsync = () => new Promise(resolve => setTimeout(resolve, 0))
+
 const createChromeHarness = (
   options: {
     withContextMenus?: boolean
@@ -110,6 +113,7 @@ describe('createContextMenus関数', () => {
       { url: 'https://d.example', title: 'D' },
     ])
     createContextMenus()
+    await flushAsync()
     expect(harness.removeAll).toHaveBeenCalledTimes(1)
     expect(harness.create).toHaveBeenCalledTimes(6)
     expect(harness.create).toHaveBeenCalledWith({
@@ -143,13 +147,14 @@ describe('createContextMenus関数', () => {
     expect(mocked.handleSaveAllWindowsTabs).toHaveBeenCalledTimes(1)
     expect(mocked.openSavedTabsPage).toHaveBeenCalledTimes(1)
   })
-  it('runtime.lastError の削除エラーをログ出力して継続する', () => {
+  it('runtime.lastError の削除エラーをログ出力して継続する', async () => {
     const harness = createChromeHarness({
       runtimeLastError: {
         message: 'remove failed',
       },
     })
     createContextMenus()
+    await flushAsync()
     expect(console.error).toHaveBeenCalledWith('メニュー削除エラー:', {
       message: 'remove failed',
     })
@@ -161,6 +166,7 @@ describe('createContextMenus関数', () => {
     const error = new Error('save failed')
     mocked.handleSaveCurrentTab.mockRejectedValueOnce(error)
     createContextMenus()
+    await flushAsync()
     await harness.listeners[0]({
       menuItemId: 'saveCurrentTab',
     } as chrome.contextMenus.OnClickData)
@@ -173,6 +179,7 @@ describe('createContextMenus関数', () => {
     const harness = createChromeHarness()
     mocked.handleSaveCurrentTab.mockResolvedValueOnce([])
     createContextMenus()
+    await flushAsync()
 
     await harness.listeners[0]({
       menuItemId: 'saveCurrentTab',
@@ -188,12 +195,13 @@ describe('createContextMenus関数', () => {
     createContextMenus()
     expect(console.error).toHaveBeenCalledWith('メニュー削除中のエラー:', error)
   })
-  it('メニュー項目作成中の例外を捕捉する', () => {
+  it('メニュー項目作成中の例外を捕捉する', async () => {
     const error = new Error('create crashed')
     createChromeHarness({
       createThrows: error,
     })
     createContextMenus()
+    await flushAsync()
     expect(console.error).toHaveBeenCalledWith('メニュー作成エラー:', error)
   })
 })

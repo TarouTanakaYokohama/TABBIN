@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { CategoryKeywordModal } from '@/features/saved-tabs/components/CategoryKeywordModal'
 import {
   SavedTabsResponsiveLabel,
@@ -25,6 +26,7 @@ import { useDomainCard } from './DomainCardContext'
  * 子カテゴリ管理、すべて開く、すべて削除、キーワードモーダルを含む
  */
 export const DomainCardActions = () => {
+  const { t } = useI18n()
   const { state, group, settings, isReorderMode, handlers } = useDomainCard()
   const { keywordModal, parentCategories, categoryActions } = state
 
@@ -44,16 +46,16 @@ export const DomainCardActions = () => {
                 keywordModal.setShowKeywordModal(!keywordModal.showKeywordModal)
               }
               className='flex cursor-pointer items-center gap-1'
-              aria-label='子カテゴリを管理'
+              aria-label={t('savedTabs.manageSubcategories')}
             >
               <Settings size={14} />
               <SavedTabsResponsiveLabel>
-                子カテゴリ管理
+                {t('savedTabs.manageSubcategories')}
               </SavedTabsResponsiveLabel>
             </Button>
           </TooltipTrigger>
           <SavedTabsResponsiveTooltipContent side='top'>
-            子カテゴリを管理
+            {t('savedTabs.manageSubcategories')}
           </SavedTabsResponsiveTooltipContent>
         </Tooltip>
 
@@ -77,14 +79,16 @@ export const DomainCardActions = () => {
                 }
               }}
               className='flex cursor-pointer items-center gap-1'
-              aria-label='すべてのタブを開く'
+              aria-label={t('savedTabs.openAllTabs')}
             >
               <ExternalLink size={14} />
-              <SavedTabsResponsiveLabel>すべて開く</SavedTabsResponsiveLabel>
+              <SavedTabsResponsiveLabel>
+                {t('savedTabs.openAll')}
+              </SavedTabsResponsiveLabel>
             </Button>
           </TooltipTrigger>
           <SavedTabsResponsiveTooltipContent side='top'>
-            すべてのタブを開く
+            {t('savedTabs.openAllTabs')}
           </SavedTabsResponsiveTooltipContent>
         </Tooltip>
 
@@ -109,14 +113,16 @@ export const DomainCardActions = () => {
                 }
               }}
               className='flex cursor-pointer items-center gap-1'
-              aria-label='すべてのタブを削除'
+              aria-label={t('savedTabs.deleteAllTabs')}
             >
               <Trash size={14} />
-              <SavedTabsResponsiveLabel>すべて削除</SavedTabsResponsiveLabel>
+              <SavedTabsResponsiveLabel>
+                {t('savedTabs.deleteAll')}
+              </SavedTabsResponsiveLabel>
             </Button>
           </TooltipTrigger>
           <SavedTabsResponsiveTooltipContent side='top'>
-            すべてのタブを削除
+            {t('savedTabs.deleteAllTabs')}
           </SavedTabsResponsiveTooltipContent>
         </Tooltip>
 
@@ -147,13 +153,17 @@ export const DomainCardActions = () => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>タブをすべて開きますか？</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('savedTabs.openAllConfirmTitle')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              10個以上のタブを開こうとしています。続行しますか？
+              {t('savedTabs.openAllConfirmDescription', undefined, {
+                count: '10',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 handlers.handleOpenAllTabs(group.urls || [])
@@ -164,7 +174,7 @@ export const DomainCardActions = () => {
                 }
               }}
             >
-              開く
+              {t('common.open')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -177,13 +187,15 @@ export const DomainCardActions = () => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>すべてのタブを削除しますか？</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('savedTabs.deleteAllConfirmTitle')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              このグループのすべてのタブを削除します。この操作は元に戻せません。
+              {t('savedTabs.domain.deleteAllWarning')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 handlers.handleDeleteGroup(group.id)
@@ -194,7 +206,7 @@ export const DomainCardActions = () => {
                 }
               }}
             >
-              削除する
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

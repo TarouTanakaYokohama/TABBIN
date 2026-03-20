@@ -141,6 +141,10 @@ const mocked = vi.hoisted(() => {
   }
 })
 
+const savedTabsAppI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 vi.mock('@dnd-kit/core', () => ({
   KeyboardSensor: class KeyboardSensor {},
   PointerSensor: class PointerSensor {},
@@ -163,6 +167,27 @@ vi.mock('sonner', () => ({
 vi.mock('@/components/ui/sonner', () => ({
   Toaster: () => null,
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: savedTabsAppI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(savedTabsAppI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 vi.mock('@/features/saved-tabs/components/Footer', () => ({
   CategoryReorderFooter: () => null,

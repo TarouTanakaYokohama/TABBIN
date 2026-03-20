@@ -10,6 +10,7 @@ import type {
   AiChatConversationMessage,
   AiChatHistoryItem,
 } from '@/features/ai-chat/types'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 
 interface ConversationHistoryState {
   activeConversationId: string
@@ -45,8 +46,9 @@ const sortConversationsByRecent = (
 
 const getConversationPreview = (
   conversation: AiChatConversation,
+  defaultPreview: string,
 ): AiChatHistoryItem['preview'] =>
-  conversation.messages.at(-1)?.content || '新しい会話を始めてください'
+  conversation.messages.at(-1)?.content || defaultPreview
 
 const resolveNextActiveConversationId = ({
   activeConversationId,
@@ -83,6 +85,9 @@ const resolveNextActiveConversationId = ({
 }
 
 const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
+  const { t } = useI18n()
+  const newConversationTitle = t('aiChat.newConversation')
+  const historyStartPrompt = t('aiChat.history.startPrompt')
   const [historyState, setHistoryState] =
     useState<ConversationHistoryState | null>(null)
   const [activeConversationId, setActiveConversationId] = useState<
@@ -95,7 +100,7 @@ const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
   useEffect(() => {
     let isMounted = true
 
-    void loadConversationHistory().then(nextState => {
+    void loadConversationHistory(newConversationTitle).then(nextState => {
       if (!isMounted) {
         return
       }
@@ -110,7 +115,7 @@ const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [newConversationTitle])
 
   const persistHistory = useCallback(
     (
@@ -135,10 +140,12 @@ const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
   )
 
   const createConversation = useCallback(() => {
-    const conversation = createConversationRecord()
+    const conversation = createConversationRecord({
+      defaultTitle: newConversationTitle,
+    })
     setPendingConversationId(conversation.id)
     setActiveConversationId(conversation.id)
-  }, [])
+  }, [newConversationTitle])
 
   const deleteConversation = useCallback(
     (conversationId: string) => {
@@ -218,6 +225,7 @@ const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
         }
 
         const conversation = createConversationRecord({
+          defaultTitle: newConversationTitle,
           id: pendingConversationId,
           messages,
         })
@@ -237,14 +245,19 @@ const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
             ? {
                 ...conversation,
                 messages,
-                title: buildConversationTitle(messages),
+                title: buildConversationTitle(messages, newConversationTitle),
                 updatedAt: Date.now(),
               }
             : conversation,
         ),
       }))
     },
-    [activeConversationId, pendingConversationId, persistHistory],
+    [
+      activeConversationId,
+      newConversationTitle,
+      pendingConversationId,
+      persistHistory,
+    ],
   )
 
   if (!historyState) {
@@ -266,7 +279,10 @@ const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
 
   const activeConversation =
     pendingConversationId && currentConversationId === pendingConversationId
-      ? createConversationRecord({ id: pendingConversationId })
+      ? createConversationRecord({
+          defaultTitle: newConversationTitle,
+          id: pendingConversationId,
+        })
       : (conversations.find(
           conversation => conversation.id === currentConversationId,
         ) ?? conversations[0])
@@ -274,7 +290,7 @@ const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
   const historyItems = conversations.map(conversation => ({
     id: conversation.id,
     isActive: conversation.id === currentConversationId,
-    preview: getConversationPreview(conversation),
+    preview: getConversationPreview(conversation, historyStartPrompt),
     title: conversation.title,
   }))
 

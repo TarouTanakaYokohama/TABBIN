@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { CustomProject, TabGroup, ViewMode } from '@/types/storage'
 import { CategoryModal } from './CategoryModal'
 import {
@@ -42,6 +43,7 @@ export const Header = ({
   filteredCustomProjects,
   onCreateProject = () => {},
 }: HeaderProps) => {
+  const { t } = useI18n()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCustomProjectModalOpen, setIsCustomProjectModalOpen] =
     useState(false)
@@ -93,7 +95,7 @@ export const Header = ({
 
     const name = newProjectName.trim()
     if (!name) {
-      toast.error('プロジェクト名を入力してください')
+      toast.error(t('savedTabs.projectNameRequired'))
       return
     }
 
@@ -101,12 +103,12 @@ export const Header = ({
       project => project.name.toLowerCase() === name.toLowerCase(),
     )
     if (exists) {
-      toast.error('同じプロジェクト名は追加できません')
+      toast.error(t('savedTabs.projectNameDuplicate'))
       return
     }
 
     onCreateProject(name)
-    toast.success(`プロジェクト「${name}」を追加しました`)
+    toast.success(t('savedTabs.projectAdded', undefined, { name }))
     setNewProjectName('')
     setIsCustomProjectModalOpen(false)
   }
@@ -117,7 +119,8 @@ export const Header = ({
         <div className='relative w-full min-w-24'>
           <Input
             type='text'
-            placeholder='検索'
+            aria-label={t('savedTabs.searchPlaceholder')}
+            placeholder={t('savedTabs.searchPlaceholder')}
             value={searchQuery}
             onChange={e => onSearchChange(e.target.value)}
             className='h-9 w-full pr-9'
@@ -146,12 +149,12 @@ export const Header = ({
               >
                 <Plus size={16} />
                 <SavedTabsResponsiveLabel>
-                  親カテゴリ管理
+                  {t('savedTabs.manageParentCategories')}
                 </SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
             <SavedTabsResponsiveTooltipContent side='top'>
-              親カテゴリ管理
+              {t('savedTabs.manageParentCategories')}
             </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         )}
@@ -166,22 +169,32 @@ export const Header = ({
               >
                 <Plus size={16} />
                 <SavedTabsResponsiveLabel>
-                  プロジェクト追加
+                  {t('savedTabs.addProject')}
                 </SavedTabsResponsiveLabel>
               </Button>
             </TooltipTrigger>
             <SavedTabsResponsiveTooltipContent side='top'>
-              プロジェクト追加
+              {t('savedTabs.addProject')}
             </SavedTabsResponsiveTooltipContent>
           </Tooltip>
         )}
         <ViewModeToggle currentMode={currentMode} onChange={onModeChange} />
         <div className='space-x-4 text-muted-foreground text-sm'>
-          <p>タブ:{tabCount}</p>
+          <p>
+            {t('savedTabs.tabCount', undefined, { count: String(tabCount) })}
+          </p>
           {currentMode === 'custom' ? (
-            <p>プロジェクト:{customGroupsForDisplay.length}</p>
+            <p>
+              {t('savedTabs.projectsCount', undefined, {
+                count: String(customGroupsForDisplay.length),
+              })}
+            </p>
           ) : (
-            <p>ドメイン:{groupsForDisplay.length}</p>
+            <p>
+              {t('savedTabs.domainsCount', undefined, {
+                count: String(groupsForDisplay.length),
+              })}
+            </p>
           )}
         </div>
       </div>
@@ -199,13 +212,13 @@ export const Header = ({
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>新しいプロジェクトを追加</DialogTitle>
+              <DialogTitle>{t('savedTabs.newProjectTitle')}</DialogTitle>
             </DialogHeader>
             <Input
               value={newProjectName}
               onChange={e => setNewProjectName(e.target.value)}
               onKeyDown={handleCustomProjectEnter}
-              placeholder='例: 仕事、調査、後で読む'
+              placeholder={t('savedTabs.newProjectPlaceholder')}
               className='mb-2 w-full'
               autoFocus={true}
             />

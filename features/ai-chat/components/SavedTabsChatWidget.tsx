@@ -119,6 +119,7 @@ import type {
   AiChatConversationMessage,
   AiChatHistoryItem,
 } from '@/features/ai-chat/types'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   getChromeStorageOnChanged,
   warnMissingChromeStorage,
@@ -228,11 +229,11 @@ interface SystemPromptManagerDialogProps {
   onSelectPrompt: (promptId: string) => void
 }
 
-const SUGGESTIONS = [
-  '今月追加したタブを教えて',
-  '最近よく保存しているジャンルは？',
-  '私が好きそうなコンテンツを教えて',
-]
+type TranslateFn = (
+  key: string,
+  fallback?: string,
+  values?: Record<string, string>,
+) => string
 
 const CHAT_SIDEBAR_STORAGE_KEY = 'tabbin-ai-chat-sidebar-width'
 const DEFAULT_CHAT_SIDEBAR_WIDTH = 420
@@ -295,7 +296,7 @@ const persistSidebarWidth = (width: number): void => {
       String(clampSidebarWidth(width)),
     )
   } catch {
-    // localStorage が使えない環境では保持をスキップする
+    // Skip persistence when localStorage is unavailable.
   }
 }
 
@@ -328,8 +329,13 @@ const getResolvedSettings = (settings: UserSettings | null): UserSettings =>
 const clampPromptName = (value: string): string =>
   value.trim().slice(0, MAX_AI_SYSTEM_PROMPT_NAME_LENGTH)
 
-const buildPromptNameCandidate = (baseName: string, suffix = ''): string => {
-  const normalizedBaseName = clampPromptName(baseName) || '新しいプロンプト'
+const buildPromptNameCandidate = (
+  baseName: string,
+  t: TranslateFn,
+  suffix = '',
+): string => {
+  const normalizedBaseName =
+    clampPromptName(baseName) || t('aiChat.systemPrompt.new')
   if (!suffix) {
     return normalizedBaseName
   }
@@ -344,12 +350,15 @@ const buildPromptNameCandidate = (baseName: string, suffix = ''): string => {
 const getUniquePromptName = (
   presets: AiSystemPromptPreset[],
   baseName: string,
+  t: TranslateFn,
   initialSuffix = '',
 ): string => {
-  const normalizedBaseName = clampPromptName(baseName) || '新しいプロンプト'
+  const normalizedBaseName =
+    clampPromptName(baseName) || t('aiChat.systemPrompt.new')
   const existingNames = new Set(presets.map(preset => preset.name.trim()))
   const initialCandidateName = buildPromptNameCandidate(
     normalizedBaseName,
+    t,
     initialSuffix,
   )
 
@@ -360,6 +369,7 @@ const getUniquePromptName = (
   for (let index = 2; index <= MAX_AI_SYSTEM_PROMPT_PRESETS + 1; index += 1) {
     const candidateName = buildPromptNameCandidate(
       normalizedBaseName,
+      t,
       initialSuffix ? `${initialSuffix} ${index}` : ` ${index}`,
     )
     if (!existingNames.has(candidateName)) {
@@ -367,7 +377,7 @@ const getUniquePromptName = (
     }
   }
 
-  return buildPromptNameCandidate(normalizedBaseName, ` ${Date.now()}`)
+  return buildPromptNameCandidate(normalizedBaseName, t, ` ${Date.now()}`)
 }
 
 const getSelectedPrompt = (
@@ -378,6 +388,7 @@ const getSelectedPrompt = (
 
 const getPromptManagerValidationError = (
   presets: AiSystemPromptPreset[],
+  t: TranslateFn,
 ): string => {
   const trimmedPresets = presets.map(prompt => ({
     name: prompt.name.trim(),
@@ -389,7 +400,7 @@ const getPromptManagerValidationError = (
       prompt => prompt.name.length === 0 || prompt.template.length === 0,
     )
   ) {
-    return 'プロンプト名とシステムプロンプト本文を入力してください。'
+    return t('aiChat.systemPrompt.validation.empty')
   }
 
   if (
@@ -397,7 +408,9 @@ const getPromptManagerValidationError = (
       prompt => prompt.name.length > MAX_AI_SYSTEM_PROMPT_NAME_LENGTH,
     )
   ) {
-    return `プロンプト名は${MAX_AI_SYSTEM_PROMPT_NAME_LENGTH}文字以内で入力してください。`
+    return t('aiChat.systemPrompt.validation.maxLength', undefined, {
+      count: String(MAX_AI_SYSTEM_PROMPT_NAME_LENGTH),
+    })
   }
 
   const duplicateNames = new Set<string>()
@@ -413,7 +426,7 @@ const getPromptManagerValidationError = (
   }
 
   if (duplicateNames.size > 0) {
-    return '同じ名前のプロンプトは保存できません。'
+    return t('aiChat.systemPrompt.validation.duplicate')
   }
 
   return ''
@@ -430,8 +443,10 @@ const loadWidgetSettings = async (): Promise<UserSettings | null> => {
 const isAiChatConfigured = (settings: UserSettings | null): boolean =>
   Boolean(settings?.ollamaModel)
 
-const getAiChatErrorMessage = (response: AiChatResponse | undefined): string =>
-  response?.error || 'AI からの応答を取得できませんでした。'
+const getAiChatErrorMessage = (
+  response: AiChatResponse | undefined,
+  t: TranslateFn,
+): string => response?.error || t('aiChat.responseError')
 
 const getAiChatOllamaError = (
   response: AiChatResponse | undefined,
@@ -459,17 +474,22 @@ const getRuntimePlatform = async (): Promise<OllamaErrorPlatform> => {
   }
 }
 
-const getAttachmentInputErrorMessage = (error: {
-  code: 'accept' | 'max_file_size' | 'max_files'
-  message: string
-}) => {
+const getAttachmentInputErrorMessage = (
+  error: {
+    code: 'accept' | 'max_file_size' | 'max_files'
+    message: string
+  },
+  t: TranslateFn,
+) => {
   switch (error.code) {
     case 'accept':
-      return '対応しているのはテキスト系ファイルと画像ファイルだけです。'
+      return t('aiChat.attachments.unsupportedType')
     case 'max_file_size':
-      return '添付ファイルは 2MB 以下にしてください。'
+      return t('aiChat.attachments.maxFileSize')
     case 'max_files':
-      return `添付できるのは ${AI_CHAT_MAX_ATTACHMENTS} ファイルまでです。`
+      return t('aiChat.attachments.maxFiles', undefined, {
+        count: String(AI_CHAT_MAX_ATTACHMENTS),
+      })
     default:
       return error.message
   }
@@ -494,21 +514,29 @@ const requestOllamaModels = async (): Promise<
     action: 'listOllamaModels',
   })) as OllamaModelListResponse | undefined
 
-const createInitialStreamingReasoning = (prompt: string): string =>
+const createInitialStreamingReasoning = (
+  prompt: string,
+  t: TranslateFn,
+): string =>
   [
-    `- 質問を受け付けました: ${prompt}`,
-    '- 保存済みタブを確認しています。',
-    '- ツールと reasoning は step 完了ごとに更新されます。',
+    t('aiChat.streaming.receivedQuestion', undefined, { prompt }),
+    t('aiChat.streaming.checkingTabs'),
+    t('aiChat.streaming.toolsFollow'),
   ].join('\n')
 
-const getConversationCopyText = (messages: ChatMessage[]): string =>
+const getConversationCopyText = (
+  messages: ChatMessage[],
+  t: TranslateFn,
+): string =>
   messages
     .filter(message => message.content.trim().length > 0)
     .map(message =>
       [
-        message.role === 'user' ? 'ユーザー:' : 'AI:',
+        message.role === 'user'
+          ? t('aiChat.copy.user')
+          : t('aiChat.copy.assistant'),
         message.attachments?.length
-          ? `添付: ${message.attachments
+          ? `${t('aiChat.copy.attachments')} ${message.attachments
               .map(attachment => attachment.filename)
               .join(', ')}`
           : '',
@@ -609,6 +637,8 @@ const AssistantMessageDiagnostics = ({
   reasoning,
   toolTraces = [],
 }: Pick<ChatMessage, 'isStreaming' | 'reasoning' | 'toolTraces'>) => {
+  const { t } = useI18n()
+
   if (!reasoning && toolTraces.length === 0) {
     return null
   }
@@ -622,7 +652,9 @@ const AssistantMessageDiagnostics = ({
         >
           <ReasoningTrigger
             getThinkingMessage={() =>
-              `Reasoning${toolTraces.length > 0 ? ` / ${toolTraces.length} tools` : ''}`
+              `${t('aiChat.reasoning')}${
+                toolTraces.length > 0 ? ` / ${toolTraces.length}` : ''
+              }`
             }
           />
           <ReasoningContent>{reasoning}</ReasoningContent>
@@ -632,7 +664,7 @@ const AssistantMessageDiagnostics = ({
       {toolTraces.length > 0 ? (
         <div className='space-y-2'>
           <p className='pl-1 font-medium text-[11px] text-muted-foreground uppercase tracking-wide'>
-            実行したツール
+            {t('aiChat.toolsRun')}
           </p>
           {toolTraces.map(toolTrace => (
             <Tool
@@ -664,7 +696,13 @@ const ChatPromptIntro = ({
   isCompactLayout,
   onSelectSuggestion,
 }: Pick<SavedTabsChatPanelProps, 'isCompactLayout' | 'onSelectSuggestion'>) => {
-  const suggestionItems = SUGGESTIONS.map(suggestion => (
+  const { t } = useI18n()
+  const suggestions = [
+    t('aiChat.suggestion.recentTabs'),
+    t('aiChat.suggestion.favoriteContent'),
+    t('aiChat.suggestion.recommendation'),
+  ]
+  const suggestionItems = suggestions.map(suggestion => (
     <Suggestion
       className={
         isCompactLayout
@@ -679,9 +717,7 @@ const ChatPromptIntro = ({
 
   return (
     <div className='shrink-0 space-y-3' data-testid='ai-chat-intro'>
-      <p className='text-muted-foreground text-sm'>
-        保存済みタブを質問できます。
-      </p>
+      <p className='text-muted-foreground text-sm'>{t('aiChat.intro')}</p>
       {isCompactLayout ? (
         <div className='grid gap-2'>{suggestionItems}</div>
       ) : (
@@ -702,6 +738,7 @@ const SystemPromptSelector = ({
   selectedPromptId: string
   onValueChange: (value: string) => void
 }) => {
+  const { t } = useI18n()
   const activePrompt =
     getSelectedPrompt(prompts, selectedPromptId) ?? prompts[0] ?? null
 
@@ -712,13 +749,15 @@ const SystemPromptSelector = ({
       onValueChange={onValueChange}
     >
       <PromptInputSelectTrigger
-        aria-label={activePrompt?.name || 'システムプロンプトを選択'}
+        aria-label={activePrompt?.name || t('aiChat.systemPrompt.select')}
         className={cn(
           'h-8 w-[140px] shrink-0 justify-between rounded-md border border-border/70 bg-background px-2 text-xs shadow-none',
           isCompactLayout && 'w-[112px]',
         )}
       >
-        <PromptInputSelectValue placeholder='プロンプト' />
+        <PromptInputSelectValue
+          placeholder={t('aiChat.systemPrompt.placeholder')}
+        />
       </PromptInputSelectTrigger>
       <PromptInputSelectContent>
         {prompts.length > 0 ? (
@@ -732,7 +771,7 @@ const SystemPromptSelector = ({
             disabled
             value={SYSTEM_PROMPT_SELECTOR_EMPTY_VALUE}
           >
-            システムプロンプトがありません
+            {t('aiChat.systemPrompt.empty')}
           </PromptInputSelectItem>
         )}
       </PromptInputSelectContent>
@@ -758,6 +797,7 @@ const SystemPromptManagerDialog = ({
   onSave,
   onSelectPrompt,
 }: SystemPromptManagerDialogProps) => {
+  const { t } = useI18n()
   const selectedPrompt = getSelectedPrompt(presets, selectedPromptId)
   const isLimitReached = presets.length >= MAX_AI_SYSTEM_PROMPT_PRESETS
   const isDeleteDisabled = presets.length <= 1
@@ -769,14 +809,16 @@ const SystemPromptManagerDialog = ({
         className='flex h-[calc(100vh-48px)] max-h-none w-[calc(100vw-48px)] max-w-none flex-col gap-0 overflow-hidden p-0'
       >
         <DialogHeader className='border-border border-b px-6 py-4 text-left'>
-          <DialogTitle>システムプロンプト管理</DialogTitle>
+          <DialogTitle>{t('aiChat.systemPrompt.managerTitle')}</DialogTitle>
         </DialogHeader>
 
         <div className='grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)] overflow-hidden'>
           <div className='flex min-h-0 flex-col border-border border-r'>
             <div className='border-border border-b px-4 py-4'>
               <div className='mb-3 flex items-center justify-between gap-2'>
-                <p className='font-medium text-sm'>システムプロンプト一覧</p>
+                <p className='font-medium text-sm'>
+                  {t('aiChat.systemPrompt.listTitle')}
+                </p>
                 <span className='text-muted-foreground text-xs'>
                   {presets.length} / {MAX_AI_SYSTEM_PROMPT_PRESETS}
                 </span>
@@ -790,7 +832,7 @@ const SystemPromptManagerDialog = ({
                   onClick={onCreatePrompt}
                 >
                   <Plus className='size-4' />
-                  新規作成
+                  {t('aiChat.systemPrompt.new')}
                 </Button>
               </div>
             </div>
@@ -816,7 +858,7 @@ const SystemPromptManagerDialog = ({
                       </p>
                       {prompt.id === activePromptId ? (
                         <span className='shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground'>
-                          使用中
+                          {t('aiChat.systemPrompt.inUse')}
                         </span>
                       ) : null}
                     </div>
@@ -831,14 +873,16 @@ const SystemPromptManagerDialog = ({
               {selectedPrompt ? (
                 <div className='space-y-5'>
                   <div className='space-y-2'>
-                    <Label htmlFor='system-prompt-name'>プロンプト名</Label>
+                    <Label htmlFor='system-prompt-name'>
+                      {t('aiChat.systemPrompt.nameLabel')}
+                    </Label>
                     <div
                       className='flex items-start gap-2'
                       data-testid='system-prompt-name-row'
                     >
                       <Input
                         id='system-prompt-name'
-                        aria-label='プロンプト名'
+                        aria-label={t('aiChat.systemPrompt.nameLabel')}
                         className='flex-1'
                         maxLength={MAX_AI_SYSTEM_PROMPT_NAME_LENGTH}
                         value={selectedPrompt.name}
@@ -854,7 +898,7 @@ const SystemPromptManagerDialog = ({
                         onClick={onDuplicatePrompt}
                       >
                         <Copy className='size-4' />
-                        複製
+                        {t('aiChat.systemPrompt.duplicate')}
                       </Button>
                       <Button
                         type='button'
@@ -864,18 +908,18 @@ const SystemPromptManagerDialog = ({
                         onClick={onDeletePrompt}
                       >
                         <Trash2 className='size-4' />
-                        削除
+                        {t('common.delete')}
                       </Button>
                     </div>
                   </div>
 
                   <div className='space-y-2'>
                     <Label htmlFor='system-prompt-template'>
-                      システムプロンプト本文
+                      {t('aiChat.systemPrompt.bodyLabel')}
                     </Label>
                     <Textarea
                       id='system-prompt-template'
-                      aria-label='システムプロンプト本文'
+                      aria-label={t('aiChat.systemPrompt.bodyLabel')}
                       className='min-h-[420px] resize-y'
                       value={selectedPrompt.template}
                       onChange={event =>
@@ -886,10 +930,11 @@ const SystemPromptManagerDialog = ({
 
                   <div className='space-y-3'>
                     <div className='space-y-1'>
-                      <p className='font-medium text-sm'>利用できるツール</p>
+                      <p className='font-medium text-sm'>
+                        {t('aiChat.systemPrompt.availableTools')}
+                      </p>
                       <p className='text-muted-foreground text-xs'>
-                        システムプロンプトで前提にしやすいように、利用可能な
-                        tool の名前と説明を載せています。
+                        {t('aiChat.systemPrompt.availableToolsDescription')}
                       </p>
                     </div>
                     <div className='grid gap-2 xl:grid-cols-2'>
@@ -925,14 +970,16 @@ const SystemPromptManagerDialog = ({
                 disabled={isSaving}
                 onClick={onCancel}
               >
-                キャンセル
+                {t('common.cancel')}
               </Button>
               <Button
                 type='button'
                 disabled={isSaveDisabled}
                 onClick={() => void onSave()}
               >
-                {isSaving ? '保存中...' : '保存'}
+                {isSaving
+                  ? t('aiChat.systemPrompt.saving')
+                  : t('aiChat.systemPrompt.save')}
               </Button>
             </DialogFooter>
           </div>
@@ -942,24 +989,30 @@ const SystemPromptManagerDialog = ({
   )
 }
 
-const ChatHistoryButton = ({ onClick }: { onClick?: () => void }) => (
-  <TooltipProvider delayDuration={0}>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type='button'
-          variant='ghost'
-          size='icon'
-          aria-label='会話履歴'
-          onClick={onClick}
-        >
-          <History className='size-4' />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side='bottom'>会話履歴</TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-)
+const ChatHistoryButton = ({ onClick }: { onClick?: () => void }) => {
+  const { t } = useI18n()
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type='button'
+            variant='ghost'
+            size='icon'
+            aria-label={t('aiChat.historyTitle')}
+            onClick={onClick}
+          >
+            <History className='size-4' />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side='bottom'>
+          {t('aiChat.historyTitle')}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
 
 const ChatHistoryDropdown = ({
   historyItems,
@@ -970,6 +1023,7 @@ const ChatHistoryDropdown = ({
   onDeleteHistoryItem?: (conversationId: string) => void
   onSelectHistoryItem?: (conversationId: string) => void
 }) => {
+  const { t } = useI18n()
   const [isOpen, setIsOpen] = useState(false)
   const [pendingDeleteHistoryItem, setPendingDeleteHistoryItem] =
     useState<AiChatHistoryItem | null>(null)
@@ -982,7 +1036,7 @@ const ChatHistoryDropdown = ({
             type='button'
             variant='ghost'
             size='icon'
-            aria-label='会話履歴'
+            aria-label={t('aiChat.historyTitle')}
           >
             <History className='size-4' />
           </Button>
@@ -993,9 +1047,9 @@ const ChatHistoryDropdown = ({
           side='bottom'
         >
           <div className='px-2 py-1'>
-            <p className='font-medium text-sm'>会話履歴</p>
+            <p className='font-medium text-sm'>{t('aiChat.historyTitle')}</p>
             <p className='text-muted-foreground text-xs'>
-              保存済みの会話から再開できます
+              {t('aiChat.history.resumeHint')}
             </p>
           </div>
 
@@ -1033,7 +1087,11 @@ const ChatHistoryDropdown = ({
                         type='button'
                         variant='ghost'
                         size='icon-sm'
-                        aria-label={`${historyItem.title}を削除`}
+                        aria-label={t(
+                          'aiChat.deleteConversationAria',
+                          undefined,
+                          { title: historyItem.title },
+                        )}
                         className='shrink-0 text-muted-foreground hover:text-destructive'
                         onClick={event => {
                           event.stopPropagation()
@@ -1049,7 +1107,7 @@ const ChatHistoryDropdown = ({
               ))
             ) : (
               <div className='rounded-xl px-3 py-4 text-muted-foreground text-sm'>
-                保存済みの会話はまだありません
+                {t('aiChat.history.empty')}
               </div>
             )}
           </div>
@@ -1066,8 +1124,10 @@ const ChatHistoryDropdown = ({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>この会話を削除しますか？</DialogTitle>
-            <DialogDescription>削除すると元に戻せません。</DialogDescription>
+            <DialogTitle>{t('aiChat.deleteTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('aiChat.deleteDescription')}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
@@ -1077,7 +1137,7 @@ const ChatHistoryDropdown = ({
                 setPendingDeleteHistoryItem(null)
               }}
             >
-              キャンセル
+              {t('common.cancel')}
             </Button>
             <Button
               type='button'
@@ -1091,7 +1151,7 @@ const ChatHistoryDropdown = ({
                 setPendingDeleteHistoryItem(null)
               }}
             >
-              削除
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1136,117 +1196,126 @@ const ChatSidebarHeader = ({
   showCloseButton: boolean
   systemPrompts: AiSystemPromptPreset[]
   title: string
-}) => (
-  <CardHeader className='items-center border-border border-b px-4 py-4 text-center'>
-    <div
-      className={cn(
-        'relative flex w-full items-center justify-between gap-2',
-        isCompactLayout && 'min-h-10',
-      )}
-    >
+}) => {
+  const { t } = useI18n()
+
+  return (
+    <CardHeader className='items-center border-border border-b px-4 py-4 text-center'>
       <div
-        className='z-10 flex min-w-0 items-center gap-1'
-        data-testid='ai-chat-header-left-controls'
+        className={cn(
+          'relative flex w-full items-center justify-between gap-2',
+          isCompactLayout && 'min-h-10',
+        )}
       >
-        {historyVariant === 'sidebar-toggle' ? (
-          <ChatHistoryButton onClick={onToggleHistory} />
-        ) : null}
-        {historyVariant === 'dropdown' ? (
-          <ChatHistoryDropdown
-            historyItems={historyItems}
-            onDeleteHistoryItem={onDeleteHistoryItem}
-            onSelectHistoryItem={onSelectHistoryItem}
+        <div
+          className='z-10 flex min-w-0 items-center gap-1'
+          data-testid='ai-chat-header-left-controls'
+        >
+          {historyVariant === 'sidebar-toggle' ? (
+            <ChatHistoryButton onClick={onToggleHistory} />
+          ) : null}
+          {historyVariant === 'dropdown' ? (
+            <ChatHistoryDropdown
+              historyItems={historyItems}
+              onDeleteHistoryItem={onDeleteHistoryItem}
+              onSelectHistoryItem={onSelectHistoryItem}
+            />
+          ) : null}
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon'
+                  aria-label={t('aiChat.systemPrompt.openSettings')}
+                  onClick={onOpenSystemPromptManager}
+                >
+                  <Settings2 className='size-4' />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='bottom'>
+                {t('aiChat.systemPrompt.settingsTooltip')}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <SystemPromptSelector
+            isCompactLayout={isCompactLayout}
+            prompts={systemPrompts}
+            selectedPromptId={activeSystemPromptId}
+            onValueChange={onSelectSystemPrompt}
           />
-        ) : null}
-        <TooltipProvider delayDuration={0}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type='button'
-                variant='ghost'
-                size='icon'
-                aria-label='システムプロンプト設定を開く'
-                onClick={onOpenSystemPromptManager}
-              >
-                <Settings2 className='size-4' />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side='bottom'>
-              システムプロンプト設定
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        </div>
 
-        <SystemPromptSelector
-          isCompactLayout={isCompactLayout}
-          prompts={systemPrompts}
-          selectedPromptId={activeSystemPromptId}
-          onValueChange={onSelectSystemPrompt}
-        />
+        <CardTitle className='pointer-events-none absolute inset-x-0 flex items-center justify-center px-20 text-base'>
+          <span className='truncate'>{title}</span>
+        </CardTitle>
+
+        <div className='z-10 flex items-center justify-end gap-1'>
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon'
+                  aria-label={t('aiChat.copyConversation')}
+                  data-state={isConversationCopied ? 'copied' : 'idle'}
+                  disabled={isCopyDisabled}
+                  onClick={onCopyConversation}
+                >
+                  {isConversationCopied ? (
+                    <Check className='size-4' />
+                  ) : (
+                    <Copy className='size-4' />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='bottom'>
+                {isConversationCopied
+                  ? t('aiChat.ollama.copied')
+                  : t('aiChat.copyConversation')}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon'
+                  aria-label={t('aiChat.newConversation')}
+                  onClick={onResetConversation}
+                >
+                  <Plus className='size-4' />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side='bottom'>
+                {t('aiChat.newConversation')}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {showCloseButton ? (
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon'
+              aria-label={t('aiChat.close')}
+              onClick={onClose}
+            >
+              <X className='size-4' />
+            </Button>
+          ) : null}
+        </div>
       </div>
-
-      <CardTitle className='pointer-events-none absolute inset-x-0 flex items-center justify-center px-20 text-base'>
-        <span className='truncate'>{title}</span>
-      </CardTitle>
-
-      <div className='z-10 flex items-center justify-end gap-1'>
-        <TooltipProvider delayDuration={0}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type='button'
-                variant='ghost'
-                size='icon'
-                aria-label='会話をコピー'
-                data-state={isConversationCopied ? 'copied' : 'idle'}
-                disabled={isCopyDisabled}
-                onClick={onCopyConversation}
-              >
-                {isConversationCopied ? (
-                  <Check className='size-4' />
-                ) : (
-                  <Copy className='size-4' />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side='bottom'>
-              {isConversationCopied ? 'コピーしました' : '会話をコピー'}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider delayDuration={0}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type='button'
-                variant='ghost'
-                size='icon'
-                aria-label='新しい会話'
-                onClick={onResetConversation}
-              >
-                <Plus className='size-4' />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side='bottom'>新しい会話</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        {showCloseButton ? (
-          <Button
-            type='button'
-            variant='ghost'
-            size='icon'
-            aria-label='AIチャットを閉じる'
-            onClick={onClose}
-          >
-            <X className='size-4' />
-          </Button>
-        ) : null}
-      </div>
-    </div>
-  </CardHeader>
-)
+    </CardHeader>
+  )
+}
 
 const ChatPromptAttachments = () => {
+  const { t } = useI18n()
   const attachments = usePromptInputAttachments()
 
   if (attachments.files.length === 0) {
@@ -1264,7 +1333,9 @@ const ChatPromptAttachments = () => {
           <AttachmentPreview />
           <AttachmentInfo />
           <AttachmentRemove
-            label={`${file.filename ?? '添付ファイル'} を削除`}
+            label={t('aiChat.attachments.deleteAria', undefined, {
+              filename: file.filename ?? t('aiChat.attachments.defaultName'),
+            })}
           />
         </Attachment>
       ))}
@@ -1273,6 +1344,7 @@ const ChatPromptAttachments = () => {
 }
 
 const ChatPromptAttachmentButton = () => {
+  const { t } = useI18n()
   const attachments = usePromptInputAttachments()
 
   return (
@@ -1280,7 +1352,7 @@ const ChatPromptAttachmentButton = () => {
       type='button'
       variant='ghost'
       size='icon'
-      aria-label='ファイルを添付'
+      aria-label={t('aiChat.attachments.add')}
       className='shrink-0'
       onClick={() => attachments.openFileDialog()}
     >
@@ -1324,6 +1396,37 @@ const ChatMessageAttachments = ({
   )
 }
 
+const getSourcesLabel = ({
+  count,
+  t,
+}: {
+  count: number
+  t: (key: string, fallback?: string, values?: Record<string, string>) => string
+}) =>
+  t(count === 1 ? 'aiChat.sources.one' : 'aiChat.sources.other', undefined, {
+    count: String(count),
+  })
+
+const renderConversationMessageBody = ({
+  message,
+  platform,
+}: {
+  message: ChatMessage
+  platform: OllamaErrorPlatform
+}) => {
+  if (message.ollamaError) {
+    return (
+      <OllamaErrorNotice
+        className='text-sm'
+        error={message.ollamaError}
+        platform={platform}
+      />
+    )
+  }
+
+  return <MessageResponse>{message.content}</MessageResponse>
+}
+
 const ChatConversationMessage = ({
   message,
   platform,
@@ -1331,17 +1434,13 @@ const ChatConversationMessage = ({
   message: ChatMessage
   platform: OllamaErrorPlatform
 }) => {
+  const { t } = useI18n()
   const messageSources =
     message.role === 'assistant' ? getMessageSources(message.toolTraces) : []
-  const messageBody = message.ollamaError ? (
-    <OllamaErrorNotice
-      className='text-sm'
-      error={message.ollamaError}
-      platform={platform}
-    />
-  ) : (
-    <MessageResponse>{message.content}</MessageResponse>
-  )
+  const messageBody = renderConversationMessageBody({
+    message,
+    platform,
+  })
   const shouldShowStreamingShimmer =
     message.role === 'assistant' &&
     message.isStreaming &&
@@ -1362,7 +1461,7 @@ const ChatConversationMessage = ({
             count={messageSources.length}
           >
             <span className='font-medium text-[11px] uppercase tracking-wide'>
-              参照ソース {messageSources.length}件
+              {getSourcesLabel({ count: messageSources.length, t })}
             </span>
             <ChevronDown className='h-4 w-4' />
           </SourcesTrigger>
@@ -1399,7 +1498,7 @@ const ChatConversationMessage = ({
           <AiChartRenderer charts={message.charts} />
         ) : null}
         {shouldShowStreamingShimmer ? (
-          <Shimmer className='text-sm'>回答を組み立てています...</Shimmer>
+          <Shimmer className='text-sm'>{t('aiChat.shimmer')}</Shimmer>
         ) : null}
       </MessageContent>
     </Message>
@@ -1440,7 +1539,10 @@ const ChatPromptComposer = ({
   | 'setupErrorMessage'
   | 'setupOllamaError'
 >) => {
-  const compactSubmitLabel = isSubmitting ? '送信中...' : '送信'
+  const { t } = useI18n()
+  const compactSubmitLabel = isSubmitting
+    ? t('aiChat.sending')
+    : t('aiChat.send')
   const isSubmitDisabled =
     !isConfigured || isSubmitting || isSavingModel || input.trim().length === 0
   const handleTextareaKeyDown = (
@@ -1482,12 +1584,12 @@ const ChatPromptComposer = ({
       maxFileSize={AI_CHAT_MAX_ATTACHMENT_SIZE_BYTES}
       multiple
       onError={error => {
-        toast.error(getAttachmentInputErrorMessage(error))
+        toast.error(getAttachmentInputErrorMessage(error, t))
       }}
       onSubmit={onSubmit}
     >
       <PromptInputTextarea
-        aria-label='AIに質問する'
+        aria-label={t('aiChat.inputLabel')}
         className={cn('min-h-16', isCompactLayout && 'min-h-24 text-sm')}
         value={input}
         onChange={event => onInputChange(event.target.value)}
@@ -1495,8 +1597,8 @@ const ChatPromptComposer = ({
         disabled={!isConfigured || isSavingModel}
         placeholder={
           isConfigured
-            ? '保存済みタブについて質問してください'
-            : '左下で Ollama モデルを選択してください'
+            ? t('aiChat.inputPlaceholder')
+            : t('aiChat.inputPlaceholderSelectModel')
         }
       />
       <ChatPromptAttachments />
@@ -1587,6 +1689,7 @@ const SavedTabsChatPanel = ({
   showCloseButton,
   systemPrompts,
 }: SavedTabsChatPanelProps) => {
+  const { t } = useI18n()
   if (!isOpen) {
     return null
   }
@@ -1618,7 +1721,9 @@ const SavedTabsChatPanel = ({
 
   const card = (
     <Card
-      aria-label={mode === 'page' ? 'AIチャット画面' : 'AIチャットサイドバー'}
+      aria-label={
+        mode === 'page' ? t('aiChat.pageAria') : t('aiChat.sidebarAria')
+      }
       data-sidebar-layout={isCompactLayout ? 'compact' : 'default'}
       className={cardClassName}
       style={cardStyle}
@@ -1653,7 +1758,7 @@ const SavedTabsChatPanel = ({
           {messages.length === 0 && !isConfigured ? (
             <ConversationEmptyState
               description=''
-              title='モデルを選択してください'
+              title={t('aiChat.emptySelectModel')}
             />
           ) : (
             <>
@@ -1670,7 +1775,7 @@ const SavedTabsChatPanel = ({
                 ))}
               </ConversationContent>
               <ConversationScrollButton
-                aria-label='最新メッセージへ移動'
+                aria-label={t('aiChat.scrollLatest')}
                 className='bottom-3'
               />
             </>
@@ -1719,7 +1824,7 @@ const SavedTabsChatPanel = ({
   return (
     <div className='sticky top-0 z-50 flex h-screen max-w-[calc(100vw-24px)] shrink-0 self-start overflow-hidden overscroll-none'>
       <Button
-        aria-label='AIチャットの幅を調整'
+        aria-label={t('aiChat.resizeAria')}
         className={`relative w-4 shrink-0 cursor-col-resize touch-none ${
           isResizing ? 'bg-primary/10' : 'bg-transparent'
         }`}
@@ -1742,7 +1847,7 @@ const SavedTabsChatWidget = ({
   historyVariant = 'none',
   initialMessages = EMPTY_CHAT_MESSAGES,
   mode = 'floating',
-  title = 'チャット',
+  title,
   onCreateConversation,
   onDeleteHistoryItem,
   onMessagesChange,
@@ -1750,6 +1855,7 @@ const SavedTabsChatWidget = ({
   onSelectHistoryItem,
   onToggleHistory,
 }: SavedTabsChatWidgetProps = {}) => {
+  const { language, t } = useI18n()
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [isOpen, setIsOpen] = useState(defaultOpen || mode === 'page')
   const [isResizing, setIsResizing] = useState(false)
@@ -1883,7 +1989,7 @@ const SavedTabsChatWidget = ({
 
     const storageOnChanged = getChromeStorageOnChanged()
     if (!storageOnChanged) {
-      warnMissingChromeStorage('AIチャット設定変更監視')
+      warnMissingChromeStorage('AI chat settings change watcher')
       return
     }
 
@@ -1912,6 +2018,7 @@ const SavedTabsChatWidget = ({
   const isConfigured = isAiChatConfigured(resolvedSettings)
   const isCompactLayout =
     mode === 'page' ? viewportWidth < 768 : sidebarWidth <= 360
+  const resolvedTitle = title ?? t('aiChat.chatTitle')
 
   const setMessagesState = (nextMessages: ChatMessage[]) => {
     messagesRef.current = nextMessages
@@ -2027,9 +2134,7 @@ const SavedTabsChatWidget = ({
 
     if (response?.status !== 'ok' || !response.models) {
       setModelOptions([])
-      setSetupErrorMessage(
-        response?.error || 'モデル一覧を取得できませんでした',
-      )
+      setSetupErrorMessage(response?.error || t('aiChat.modelListLoadError'))
       setSetupOllamaError(response?.ollamaError)
       setIsLoadingModels(false)
       return
@@ -2061,7 +2166,7 @@ const SavedTabsChatWidget = ({
       setSettings(nextSettings)
       return true
     } catch {
-      setSetupErrorMessage('モデル設定を保存できませんでした')
+      setSetupErrorMessage(t('aiChat.modelSettingsSaveError'))
       return false
     } finally {
       setIsSavingModel(false)
@@ -2093,13 +2198,13 @@ const SavedTabsChatWidget = ({
   }
 
   const handleCopyConversation = async () => {
-    const conversationCopyText = getConversationCopyText(messages)
+    const conversationCopyText = getConversationCopyText(messages, t)
     if (!conversationCopyText) {
       return
     }
 
     if (typeof window === 'undefined' || !navigator?.clipboard?.writeText) {
-      toast.error('会話をコピーできませんでした')
+      toast.error(t('aiChat.copyConversationError'))
       return
     }
 
@@ -2109,13 +2214,13 @@ const SavedTabsChatWidget = ({
         window.clearTimeout(conversationCopiedTimeoutRef.current)
       }
       setIsConversationCopied(true)
-      toast.success('会話をコピーしました')
+      toast.success(t('aiChat.copyConversationSuccess'))
       conversationCopiedTimeoutRef.current = window.setTimeout(() => {
         setIsConversationCopied(false)
         conversationCopiedTimeoutRef.current = null
       }, COPIED_CONVERSATION_ICON_TIMEOUT)
     } catch {
-      toast.error('会話をコピーできませんでした')
+      toast.error(t('aiChat.copyConversationError'))
     }
   }
 
@@ -2180,7 +2285,12 @@ const SavedTabsChatWidget = ({
 
       const nextPrompt = createAiSystemPromptPreset({
         id: createSystemPromptId(),
-        name: getUniquePromptName(currentPrompts, '新しいプロンプト'),
+        language,
+        name: getUniquePromptName(
+          currentPrompts,
+          t('aiChat.systemPrompt.new'),
+          t,
+        ),
       })
 
       setSelectedPromptIdInModal(nextPrompt.id)
@@ -2205,10 +2315,12 @@ const SavedTabsChatWidget = ({
 
       const nextPrompt = createAiSystemPromptPreset({
         id: createSystemPromptId(),
+        language,
         name: getUniquePromptName(
           currentPrompts,
           selectedPrompt.name,
-          'のコピー',
+          t,
+          t('aiChat.systemPrompt.copySuffix'),
         ),
         template: selectedPrompt.template,
       })
@@ -2252,7 +2364,7 @@ const SavedTabsChatWidget = ({
   }
 
   const handleSavePromptManager = async () => {
-    const validationError = getPromptManagerValidationError(promptDrafts)
+    const validationError = getPromptManagerValidationError(promptDrafts, t)
     if (validationError) {
       return
     }
@@ -2288,7 +2400,7 @@ const SavedTabsChatWidget = ({
         handleResetConversation()
       }
     } catch {
-      setPromptManagerError('システムプロンプトを保存できませんでした')
+      setPromptManagerError(t('aiChat.systemPrompt.saveError'))
     } finally {
       setIsSavingPrompts(false)
     }
@@ -2310,12 +2422,14 @@ const SavedTabsChatWidget = ({
       handleResetConversation()
     } catch {
       setChatOllamaError(undefined)
-      setErrorMessage('システムプロンプトの切り替えを保存できませんでした')
+      setErrorMessage(t('aiChat.systemPrompt.switchSaveError'))
     }
   }
 
-  const promptManagerValidationError =
-    getPromptManagerValidationError(promptDrafts)
+  const promptManagerValidationError = getPromptManagerValidationError(
+    promptDrafts,
+    t,
+  )
   const promptManagerDisplayError =
     promptManagerValidationError || promptManagerError
   const isPromptManagerSaveDisabled =
@@ -2459,10 +2573,7 @@ const SavedTabsChatWidget = ({
       return
     }
 
-    setAssistantErrorState(
-      assistantMessageId,
-      'AI からの応答を取得できませんでした。',
-    )
+    setAssistantErrorState(assistantMessageId, t('aiChat.responseError'))
   }
 
   const submitPrompt = async (
@@ -2496,7 +2607,7 @@ const SavedTabsChatWidget = ({
           role: 'assistant',
           content: '',
           isStreaming: true,
-          reasoning: createInitialStreamingReasoning(nextPrompt),
+          reasoning: createInitialStreamingReasoning(nextPrompt, t),
           toolTraces: [],
         },
       ],
@@ -2544,7 +2655,7 @@ const SavedTabsChatWidget = ({
         return
       }
     } catch {
-      // Port 経由の接続に失敗した場合は単発メッセージへフォールバックする
+      // Fall back to the one-shot message path if the port connection fails.
     }
 
     const response = await requestAssistantAnswer(
@@ -2574,7 +2685,7 @@ const SavedTabsChatWidget = ({
       return
     }
 
-    const nextError = getAiChatErrorMessage(response)
+    const nextError = getAiChatErrorMessage(response, t)
     setAssistantErrorState(
       assistantMessageId,
       nextError,
@@ -2587,14 +2698,16 @@ const SavedTabsChatWidget = ({
     text,
   }: PromptInputMessage) => {
     try {
-      const attachments =
-        await convertPromptInputFilesToAiChatAttachments(files)
+      const attachments = await convertPromptInputFilesToAiChatAttachments(
+        files,
+        language,
+      )
       await submitPrompt(text, attachments)
     } catch (error) {
       const errorMessage =
         error instanceof Error
           ? error.message
-          : '添付ファイルを読み取れませんでした。'
+          : t('aiChat.attachments.readError')
       toast.error(errorMessage)
       throw error
     }
@@ -2605,7 +2718,7 @@ const SavedTabsChatWidget = ({
       {mode === 'floating' && !isOpen ? (
         <Button
           type='button'
-          aria-label='AIチャットを開く'
+          aria-label={t('aiChat.open')}
           className='fixed right-4 bottom-4 z-50 size-10 cursor-pointer rounded-full shadow-lg'
           onClick={() => {
             setIsOpen(true)
@@ -2663,7 +2776,7 @@ const SavedTabsChatWidget = ({
         onToggleHistory={onToggleHistory}
         platform={platform}
         sidebarWidth={sidebarWidth}
-        title={title}
+        title={resolvedTitle}
         setupErrorMessage={setupErrorMessage}
         setupOllamaError={setupOllamaError}
         showCloseButton={mode === 'floating'}

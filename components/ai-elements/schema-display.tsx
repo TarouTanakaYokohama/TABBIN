@@ -9,6 +9,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -240,12 +241,13 @@ export const SchemaDisplayParameters = ({
   ...props
 }: SchemaDisplayParametersProps) => {
   const { parameters } = useContext(SchemaDisplayContext)
+  const t = useI18nText()
 
   return (
     <Collapsible className={cn(className)} defaultOpen {...props}>
       <CollapsibleTrigger className='group flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/50'>
         <ChevronRightIcon className='size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90' />
-        <span className='font-medium text-sm'>Parameters</span>
+        <span className='font-medium text-sm'>{t('common.parameters')}</span>
         <Badge className='ml-auto text-xs' variant='secondary'>
           {parameters?.length}
         </Badge>
@@ -273,32 +275,36 @@ export const SchemaDisplayParameter = ({
   location,
   className,
   ...props
-}: SchemaDisplayParameterProps) => (
-  <div className={cn('px-4 py-3 pl-10', className)} {...props}>
-    <div className='flex items-center gap-2'>
-      <span className='font-mono text-sm'>{name}</span>
-      <Badge className='text-xs' variant='outline'>
-        {type}
-      </Badge>
-      {location && (
-        <Badge className='text-xs' variant='secondary'>
-          {location}
+}: SchemaDisplayParameterProps) => {
+  const t = useI18nText()
+
+  return (
+    <div className={cn('px-4 py-3 pl-10', className)} {...props}>
+      <div className='flex items-center gap-2'>
+        <span className='font-mono text-sm'>{name}</span>
+        <Badge className='text-xs' variant='outline'>
+          {type}
         </Badge>
-      )}
-      {required && (
-        <Badge
-          className='bg-red-100 text-red-700 text-xs dark:bg-red-900/30 dark:text-red-400'
-          variant='secondary'
-        >
-          required
-        </Badge>
+        {location && (
+          <Badge className='text-xs' variant='secondary'>
+            {location}
+          </Badge>
+        )}
+        {required && (
+          <Badge
+            className='bg-red-100 text-red-700 text-xs dark:bg-red-900/30 dark:text-red-400'
+            variant='secondary'
+          >
+            {t('common.required')}
+          </Badge>
+        )}
+      </div>
+      {description && (
+        <p className='mt-1 text-muted-foreground text-sm'>{description}</p>
       )}
     </div>
-    {description && (
-      <p className='mt-1 text-muted-foreground text-sm'>{description}</p>
-    )}
-  </div>
-)
+  )
+}
 
 export type SchemaDisplayRequestProps = ComponentProps<typeof Collapsible>
 
@@ -308,12 +314,13 @@ export const SchemaDisplayRequest = ({
   ...props
 }: SchemaDisplayRequestProps) => {
   const { requestBody } = useContext(SchemaDisplayContext)
+  const t = useI18nText()
 
   return (
     <Collapsible className={cn(className)} defaultOpen {...props}>
       <CollapsibleTrigger className='group flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/50'>
         <ChevronRightIcon className='size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90' />
-        <span className='font-medium text-sm'>Request Body</span>
+        <span className='font-medium text-sm'>{t('common.requestBody')}</span>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className='border-t'>
@@ -335,12 +342,13 @@ export const SchemaDisplayResponse = ({
   ...props
 }: SchemaDisplayResponseProps) => {
   const { responseBody } = useContext(SchemaDisplayContext)
+  const t = useI18nText()
 
   return (
     <Collapsible className={cn(className)} defaultOpen {...props}>
       <CollapsibleTrigger className='group flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/50'>
         <ChevronRightIcon className='size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90' />
-        <span className='font-medium text-sm'>Response</span>
+        <span className='font-medium text-sm'>{t('common.response')}</span>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className='border-t'>
@@ -382,6 +390,7 @@ export const SchemaDisplayProperty = ({
   className,
   ...props
 }: SchemaDisplayPropertyProps) => {
+  const t = useI18nText()
   const hasChildren = properties || items
   const paddingLeft = 40 + depth * 16
 
@@ -405,7 +414,7 @@ export const SchemaDisplayProperty = ({
               className='bg-red-100 text-red-700 text-xs dark:bg-red-900/30 dark:text-red-400'
               variant='secondary'
             >
-              required
+              {t('common.required')}
             </Badge>
           )}
         </CollapsibleTrigger>
@@ -457,7 +466,7 @@ export const SchemaDisplayProperty = ({
             className='bg-red-100 text-red-700 text-xs dark:bg-red-900/30 dark:text-red-400'
             variant='secondary'
           >
-            required
+            {t('common.required')}
           </Badge>
         )}
       </div>

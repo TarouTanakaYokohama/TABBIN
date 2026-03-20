@@ -11,7 +11,8 @@ type AnalyticsGroupBy =
   | 'project'
   | 'projectCategory'
   | 'subCategory'
-  | 'time'
+  | 'timeRecent'
+  | 'timeTop'
 type AnalyticsTimeRange = '30d' | '365d' | '7d' | '90d' | 'all' | 'custom'
 type AnalyticsTimeBucket = 'day' | 'month' | 'week'
 type AnalyticsSort = 'label-asc' | 'label-desc' | 'value-asc' | 'value-desc'
@@ -51,6 +52,12 @@ interface AnalyticsQuery {
   title?: string
 }
 
+type LegacyAnalyticsGroupBy = AnalyticsGroupBy | 'time'
+
+type AnalyticsQueryInput = Omit<AnalyticsQuery, 'groupBy'> & {
+  groupBy: LegacyAnalyticsGroupBy
+}
+
 interface AnalyticsPreset {
   id: string
   description: string
@@ -67,11 +74,49 @@ interface AnalyticsResult {
 }
 
 interface GenerateAnalyticsResultOptions {
+  messages?: Partial<AnalyticsMessages>
   now?: number
 }
 
+interface AnalyticsMessages {
+  chartDescriptionAggregated: string
+  chartDescriptionCompareMode: string
+  chartMonthlySavedTrend: string
+  chartSavedCountByDomain: string
+  chartSavedCountByParentCategory: string
+  chartSavedCountByProject: string
+  chartSavedCountByProjectCategory: string
+  chartSavedCountBySubCategory: string
+  chartSeriesCustomMode: string
+  chartSeriesDomainMode: string
+  chartSeriesSavedCount: string
+  chartSeriesShare: string
+  chartSummary: string
+  chartWeeklySavedTrend: string
+  chartDailySavedTrend: string
+  uncategorizedLabel: string
+}
+
 const CHART_COLORS = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5']
-const UNCATEGORIZED_LABEL = '未分類'
+const UNCATEGORIZED_LABEL = 'Uncategorized'
+const DEFAULT_ANALYTICS_MESSAGES: AnalyticsMessages = {
+  chartDescriptionAggregated: '{{count}} saved records aggregated',
+  chartDescriptionCompareMode: '{{count}} saved records compared by mode',
+  chartDailySavedTrend: 'Daily saved trend',
+  chartMonthlySavedTrend: 'Monthly saved trend',
+  chartSavedCountByDomain: 'Saved count by domain',
+  chartSavedCountByParentCategory: 'Saved count by parent category',
+  chartSavedCountByProject: 'Saved count by project',
+  chartSavedCountByProjectCategory: 'Saved count by project category',
+  chartSavedCountBySubCategory: 'Saved count by sub category',
+  chartSeriesCustomMode: 'Custom mode',
+  chartSeriesDomainMode: 'Domain mode',
+  chartSeriesSavedCount: 'Saved count',
+  chartSeriesShare: 'Share',
+  chartSummary: 'Created {{title}} from {{count}} saved records.',
+  chartWeeklySavedTrend: 'Weekly saved trend',
+  uncategorizedLabel: UNCATEGORIZED_LABEL,
+}
 const DEFAULT_LIMIT = 8
 const EMPTY_FILTERS: AnalyticsFilters = {
   excludedDomains: [],
@@ -99,6 +144,12 @@ const RANGE_IN_DAYS: Record<
 const lowerCaseSet = (values: string[]): Set<string> =>
   new Set(values.map(value => value.trim().toLowerCase()).filter(Boolean))
 
+const interpolate = (
+  template: string,
+  values: Record<string, string>,
+): string =>
+  template.replaceAll(/\{\{(\w+)\}\}/g, (_, token) => values[token] ?? '')
+
 const getDefaultAnalyticsQuery = (): AnalyticsQuery => ({
   chartType: 'bar',
   compareBy: 'none',
@@ -113,6 +164,13 @@ const getDefaultAnalyticsQuery = (): AnalyticsQuery => ({
   stacked: false,
   timeBucket: 'day',
   timeRange: 'all',
+})
+
+const normalizeAnalyticsQuery = (
+  query: AnalyticsQueryInput,
+): AnalyticsQuery => ({
+  ...query,
+  groupBy: query.groupBy === 'time' ? 'timeRecent' : query.groupBy,
 })
 
 const parseLocalDateString = (value: string | undefined): number | null => {
@@ -185,9 +243,10 @@ const arrayMatchesFilters = (
   values: string[],
   included: string[],
   excluded: string[],
+  uncategorizedLabel = UNCATEGORIZED_LABEL,
 ): boolean => {
   const normalizedValues = lowerCaseSet(
-    values.length > 0 ? values : [UNCATEGORIZED_LABEL],
+    values.length > 0 ? values : [uncategorizedLabel],
   )
   const includedSet = lowerCaseSet(included)
   const excludedSet = lowerCaseSet(excluded)
@@ -209,31 +268,37 @@ const arrayMatchesFilters = (
 const matchesFilters = (
   record: AiSavedUrlRecord,
   filters: AnalyticsFilters,
+  uncategorizedLabel = UNCATEGORIZED_LABEL,
 ): boolean =>
   arrayMatchesFilters(
     [record.domain],
     filters.includedDomains,
     filters.excludedDomains,
+    uncategorizedLabel,
   ) &&
   arrayMatchesFilters(
     record.parentCategories,
     filters.includedParentCategories,
     filters.excludedParentCategories,
+    uncategorizedLabel,
   ) &&
   arrayMatchesFilters(
     record.subCategories,
     filters.includedSubCategories,
     filters.excludedSubCategories,
+    uncategorizedLabel,
   ) &&
   arrayMatchesFilters(
     record.savedInProjects,
     filters.includedProjects,
     filters.excludedProjects,
+    uncategorizedLabel,
   ) &&
   arrayMatchesFilters(
     record.projectCategories,
     filters.includedProjectCategories,
     filters.excludedProjectCategories,
+    uncategorizedLabel,
   )
 
 const sortEntries = (
@@ -243,18 +308,18 @@ const sortEntries = (
   entries.sort((left, right) => {
     switch (sort) {
       case 'label-asc':
-        return left.label.localeCompare(right.label, 'ja')
+        return left.label.localeCompare(right.label, 'en')
       case 'label-desc':
-        return right.label.localeCompare(left.label, 'ja')
+        return right.label.localeCompare(left.label, 'en')
       case 'value-asc':
         return (
           left.count - right.count ||
-          left.label.localeCompare(right.label, 'ja')
+          left.label.localeCompare(right.label, 'en')
         )
       default:
         return (
           right.count - left.count ||
-          left.label.localeCompare(right.label, 'ja')
+          left.label.localeCompare(right.label, 'en')
         )
     }
   })
@@ -295,6 +360,7 @@ const getTimeBucketLabel = (
 const getLabelsForGroup = (
   record: AiSavedUrlRecord,
   groupBy: AnalyticsGroupBy,
+  uncategorizedLabel = UNCATEGORIZED_LABEL,
 ): string[] => {
   switch (groupBy) {
     case 'domain':
@@ -302,49 +368,57 @@ const getLabelsForGroup = (
     case 'parentCategory':
       return record.parentCategories.length > 0
         ? record.parentCategories
-        : [UNCATEGORIZED_LABEL]
+        : [uncategorizedLabel]
     case 'subCategory':
       return record.subCategories.length > 0
         ? record.subCategories
-        : [UNCATEGORIZED_LABEL]
+        : [uncategorizedLabel]
     case 'project':
       return record.savedInProjects.length > 0
         ? record.savedInProjects
-        : [UNCATEGORIZED_LABEL]
+        : [uncategorizedLabel]
     case 'projectCategory':
       return record.projectCategories.length > 0
         ? record.projectCategories
-        : [UNCATEGORIZED_LABEL]
-    case 'time':
+        : [uncategorizedLabel]
+    case 'timeRecent':
+    case 'timeTop':
       return [getTimeBucketLabel(record.savedAt, 'day')]
   }
 }
 
-const getSingleSeriesTitle = (groupBy: AnalyticsGroupBy): string => {
+const getSingleSeriesTitle = (
+  groupBy: AnalyticsGroupBy,
+  messages: AnalyticsMessages,
+): string => {
   switch (groupBy) {
     case 'domain':
-      return 'ドメイン別の保存数'
+      return messages.chartSavedCountByDomain
     case 'parentCategory':
-      return '親カテゴリ別の保存数'
+      return messages.chartSavedCountByParentCategory
     case 'subCategory':
-      return '子カテゴリ別の保存数'
+      return messages.chartSavedCountBySubCategory
     case 'project':
-      return 'プロジェクト別の保存数'
+      return messages.chartSavedCountByProject
     case 'projectCategory':
-      return 'プロジェクトカテゴリ別の保存数'
-    case 'time':
-      return '日別の保存推移'
+      return messages.chartSavedCountByProjectCategory
+    case 'timeRecent':
+    case 'timeTop':
+      return messages.chartDailySavedTrend
   }
 }
 
-const getTimeTitle = (bucket: AnalyticsTimeBucket): string => {
+const getTimeTitle = (
+  bucket: AnalyticsTimeBucket,
+  messages: AnalyticsMessages,
+): string => {
   switch (bucket) {
     case 'week':
-      return '週別の保存推移'
+      return messages.chartWeeklySavedTrend
     case 'month':
-      return '月別の保存推移'
+      return messages.chartMonthlySavedTrend
     default:
-      return '日別の保存推移'
+      return messages.chartDailySavedTrend
   }
 }
 
@@ -356,17 +430,54 @@ const getNormalizedCount = (count: number, total: number): number => {
   return Math.round((count / total) * 100)
 }
 
+const sortTimeEntriesByTotalDesc = (
+  entries: Array<{ count: number; label: string }>,
+) => {
+  entries.sort(
+    (left, right) =>
+      right.count - left.count || left.label.localeCompare(right.label, 'en'),
+  )
+}
+
+const getTimeGroupByVariant = (
+  groupBy: AnalyticsGroupBy,
+): 'timeRecent' | 'timeTop' | null => {
+  if (groupBy === 'timeRecent' || groupBy === 'timeTop') {
+    return groupBy
+  }
+
+  return null
+}
+
+const getLimitedTimeEntries = <T extends { count: number; label: string }>(
+  entries: T[],
+  groupBy: 'timeRecent' | 'timeTop',
+  limit: number,
+): T[] => {
+  if (groupBy === 'timeRecent') {
+    sortEntries(entries, 'label-asc')
+    return entries.slice(-limit)
+  }
+
+  sortTimeEntriesByTotalDesc(entries)
+  const limitedEntries = entries.slice(0, limit)
+  sortEntries(limitedEntries, 'label-asc')
+  return limitedEntries
+}
+
 const createSingleSeriesChart = (
   filteredRecords: AiSavedUrlRecord[],
   query: AnalyticsQuery,
+  messages: AnalyticsMessages,
 ): AiChartSpec => {
   const bucketMap = new Map<string, number>()
+  const timeGroupBy = getTimeGroupByVariant(query.groupBy)
+  const isTimeSeries = timeGroupBy !== null
 
   for (const record of filteredRecords) {
-    const labels =
-      query.groupBy === 'time'
-        ? [getTimeBucketLabel(record.savedAt, query.timeBucket)]
-        : getLabelsForGroup(record, query.groupBy)
+    const labels = isTimeSeries
+      ? [getTimeBucketLabel(record.savedAt, query.timeBucket)]
+      : getLabelsForGroup(record, query.groupBy, messages.uncategorizedLabel)
 
     for (const label of labels) {
       bucketMap.set(label, (bucketMap.get(label) ?? 0) + 1)
@@ -377,10 +488,12 @@ const createSingleSeriesChart = (
     count,
     label,
   }))
-  sortEntries(entries, query.groupBy === 'time' ? 'label-asc' : query.sort)
-
-  const limitedEntries =
-    query.groupBy === 'time' ? entries : entries.slice(0, query.limit)
+  const limitedEntries = isTimeSeries
+    ? getLimitedTimeEntries(entries, timeGroupBy, query.limit)
+    : (() => {
+        sortEntries(entries, query.sort)
+        return entries.slice(0, query.limit)
+      })()
   const total = limitedEntries.reduce((sum, entry) => sum + entry.count, 0)
   const data = limitedEntries.map(entry => ({
     count: query.normalize
@@ -392,21 +505,25 @@ const createSingleSeriesChart = (
   return {
     categoryKey: 'label',
     data,
-    description: `${filteredRecords.length} 件の保存データを集計`,
+    description: interpolate(messages.chartDescriptionAggregated, {
+      count: String(filteredRecords.length),
+    }),
     showLegend: query.chartType !== 'pie',
     series: [
       {
         colorToken: CHART_COLORS[0],
         dataKey: 'count',
-        label: query.normalize ? '構成比' : '保存数',
+        label: query.normalize
+          ? messages.chartSeriesShare
+          : messages.chartSeriesSavedCount,
       },
     ],
     stacked: query.stacked,
     title:
       query.title ??
-      (query.groupBy === 'time'
-        ? getTimeTitle(query.timeBucket)
-        : getSingleSeriesTitle(query.groupBy)),
+      (isTimeSeries
+        ? getTimeTitle(query.timeBucket, messages)
+        : getSingleSeriesTitle(query.groupBy, messages)),
     type: query.chartType,
     valueFormat: query.normalize ? 'percent' : 'count',
     xKey: query.chartType === 'pie' ? undefined : 'label',
@@ -416,17 +533,10 @@ const createSingleSeriesChart = (
 const createModeComparisonChart = (
   filteredRecords: AiSavedUrlRecord[],
   query: AnalyticsQuery,
+  messages: AnalyticsMessages,
 ): AiChartSpec => {
-  const labels =
-    query.groupBy === 'time'
-      ? [
-          ...new Set(
-            filteredRecords.map(record =>
-              getTimeBucketLabel(record.savedAt, query.timeBucket),
-            ),
-          ),
-        ].sort()
-      : []
+  const timeGroupBy = getTimeGroupByVariant(query.groupBy)
+  const isTimeSeries = timeGroupBy !== null
   const buckets = new Map<
     string,
     {
@@ -435,18 +545,10 @@ const createModeComparisonChart = (
     }
   >()
 
-  for (const label of labels) {
-    buckets.set(label, {
-      custom: 0,
-      domain: 0,
-    })
-  }
-
   for (const record of filteredRecords) {
-    const label =
-      query.groupBy === 'time'
-        ? getTimeBucketLabel(record.savedAt, query.timeBucket)
-        : record.domain
+    const label = isTimeSeries
+      ? getTimeBucketLabel(record.savedAt, query.timeBucket)
+      : record.domain
     const current = buckets.get(label) ?? {
       custom: 0,
       domain: 0,
@@ -463,12 +565,21 @@ const createModeComparisonChart = (
     buckets.set(label, current)
   }
 
-  const rawData = [...buckets.entries()]
-    .sort(([left], [right]) => left.localeCompare(right, 'ja'))
-    .map(([label, counts]) => ({
-      ...counts,
-      label,
-    }))
+  const entries = [...buckets.entries()].map(([label, counts]) => ({
+    count: counts.custom + counts.domain,
+    counts,
+    label,
+  }))
+  const limitedEntries = isTimeSeries
+    ? getLimitedTimeEntries(entries, timeGroupBy, query.limit)
+    : (() => {
+        sortEntries(entries, query.sort)
+        return entries.slice(0, query.limit)
+      })()
+  const rawData = limitedEntries.map(({ counts, label }) => ({
+    ...counts,
+    label,
+  }))
   const data = query.normalize
     ? rawData.map(entry => {
         const total = entry.domain + entry.custom
@@ -482,21 +593,23 @@ const createModeComparisonChart = (
 
   return {
     data,
-    description: `${filteredRecords.length} 件の保存データをモード比較`,
+    description: interpolate(messages.chartDescriptionCompareMode, {
+      count: String(filteredRecords.length),
+    }),
     series: [
       {
         colorToken: CHART_COLORS[0],
         dataKey: 'domain',
-        label: 'ドメインモード',
+        label: messages.chartSeriesDomainMode,
       },
       {
         colorToken: CHART_COLORS[1],
         dataKey: 'custom',
-        label: 'カスタムモード',
+        label: messages.chartSeriesCustomMode,
       },
     ],
     stacked: query.stacked,
-    title: query.title ?? getTimeTitle(query.timeBucket),
+    title: query.title ?? getTimeTitle(query.timeBucket, messages),
     type: query.chartType,
     valueFormat: query.normalize ? 'percent' : 'count',
     xKey: query.chartType === 'pie' ? undefined : 'label',
@@ -505,41 +618,53 @@ const createModeComparisonChart = (
 
 const generateAnalyticsResult = (
   records: AiSavedUrlRecord[],
-  query: AnalyticsQuery,
+  query: AnalyticsQueryInput,
   options: GenerateAnalyticsResultOptions = {},
 ): AnalyticsResult => {
+  const normalizedQuery = normalizeAnalyticsQuery(query)
   const now = options.now ?? Date.now()
+  const messages = {
+    ...DEFAULT_ANALYTICS_MESSAGES,
+    ...options.messages,
+  }
   const filteredRecords = records.filter(
     record =>
-      matchesMode(record, query.mode) &&
+      matchesMode(record, normalizedQuery.mode) &&
       isWithinTimeRange(
         record.savedAt,
-        query.customDateRange,
-        query.timeRange,
+        normalizedQuery.customDateRange,
+        normalizedQuery.timeRange,
         now,
       ) &&
-      matchesFilters(record, query.filters),
+      matchesFilters(
+        record,
+        normalizedQuery.filters,
+        messages.uncategorizedLabel,
+      ),
   )
 
   const chartSpec =
-    query.compareBy === 'mode'
-      ? createModeComparisonChart(filteredRecords, query)
-      : createSingleSeriesChart(filteredRecords, query)
+    normalizedQuery.compareBy === 'mode'
+      ? createModeComparisonChart(filteredRecords, normalizedQuery, messages)
+      : createSingleSeriesChart(filteredRecords, normalizedQuery, messages)
 
   return {
     chartSpecs: [chartSpec],
     filteredRecordCount: filteredRecords.length,
-    query,
-    summary: `${filteredRecords.length} 件の保存データから ${chartSpec.title} を作成しました。`,
+    query: normalizedQuery,
+    summary: interpolate(messages.chartSummary, {
+      count: String(filteredRecords.length),
+      title: chartSpec.title,
+    }),
   }
 }
 
 const getAnalyticsPresets = (): AnalyticsPreset[] => [
   {
-    description: '直近30日でよく保存しているドメインを見る',
+    description: 'View the domains saved most often in the last 30 days',
     id: 'top-domains-30d',
     isReadonly: true,
-    name: 'トップドメイン',
+    name: 'Top domains',
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'bar',
@@ -549,36 +674,36 @@ const getAnalyticsPresets = (): AnalyticsPreset[] => [
     },
   },
   {
-    description: '直近30日の保存推移を見る',
+    description: 'View the saved trend for the last 30 days',
     id: 'daily-trend-30d',
     isReadonly: true,
-    name: '30日推移',
+    name: '30-day trend',
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'line',
-      groupBy: 'time',
+      groupBy: 'timeRecent',
       timeBucket: 'day',
       timeRange: '30d',
     },
   },
   {
-    description: '月別の保存増減を見る',
+    description: 'View month-over-month saved changes',
     id: 'monthly-trend',
     isReadonly: true,
-    name: '月別推移',
+    name: 'Monthly trend',
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'area',
-      groupBy: 'time',
+      groupBy: 'timeRecent',
       timeBucket: 'month',
       timeRange: '365d',
     },
   },
   {
-    description: '親カテゴリの偏りを見る',
+    description: 'View the distribution of parent categories',
     id: 'top-parent-categories',
     isReadonly: true,
-    name: '親カテゴリ構成',
+    name: 'Parent category breakdown',
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'pie',
@@ -588,10 +713,10 @@ const getAnalyticsPresets = (): AnalyticsPreset[] => [
     },
   },
   {
-    description: 'カスタムプロジェクトの偏りを見る',
+    description: 'View the distribution of custom projects',
     id: 'top-projects',
     isReadonly: true,
-    name: 'プロジェクト別保存数',
+    name: 'Saved count by project',
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'bar',
@@ -600,10 +725,10 @@ const getAnalyticsPresets = (): AnalyticsPreset[] => [
     },
   },
   {
-    description: '子カテゴリの偏りを見る',
+    description: 'View the distribution of sub categories',
     id: 'top-sub-categories',
     isReadonly: true,
-    name: '子カテゴリ別保存数',
+    name: 'Saved count by sub category',
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'bar',
@@ -612,10 +737,10 @@ const getAnalyticsPresets = (): AnalyticsPreset[] => [
     },
   },
   {
-    description: 'プロジェクトカテゴリの偏りを見る',
+    description: 'View the distribution of project categories',
     id: 'top-project-categories',
     isReadonly: true,
-    name: 'プロジェクトカテゴリ別保存数',
+    name: 'Saved count by project category',
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'bar',
@@ -624,42 +749,42 @@ const getAnalyticsPresets = (): AnalyticsPreset[] => [
     },
   },
   {
-    description: '直近7日の変化を素早く見る',
+    description: 'Quickly view changes over the last 7 days',
     id: 'daily-trend-7d',
     isReadonly: true,
-    name: '7日推移',
+    name: '7-day trend',
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'line',
-      groupBy: 'time',
+      groupBy: 'timeRecent',
       timeBucket: 'day',
       timeRange: '7d',
     },
   },
   {
-    description: 'カスタムモードの月別推移を見る',
+    description: 'View the monthly trend for custom mode',
     id: 'custom-monthly-trend',
     isReadonly: true,
-    name: 'カスタム月別推移',
+    name: 'Custom monthly trend',
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'area',
-      groupBy: 'time',
+      groupBy: 'timeRecent',
       mode: 'custom',
       timeBucket: 'month',
       timeRange: '365d',
     },
   },
   {
-    description: 'ドメインモードとカスタムモードの比較を見る',
+    description: 'Compare domain mode and custom mode',
     id: 'mode-comparison-30d',
     isReadonly: true,
-    name: 'モード比較',
+    name: 'Mode comparison',
     query: {
       ...getDefaultAnalyticsQuery(),
       chartType: 'line',
       compareBy: 'mode',
-      groupBy: 'time',
+      groupBy: 'timeRecent',
       mode: 'both',
       timeBucket: 'day',
       timeRange: '30d',
@@ -685,4 +810,5 @@ export {
   generateAnalyticsResult,
   getAnalyticsPresets,
   getDefaultAnalyticsQuery,
+  normalizeAnalyticsQuery,
 }

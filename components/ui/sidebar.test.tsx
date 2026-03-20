@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { getMessage, resolveUiLanguage } from '@/features/i18n/lib/language'
 
 const { useIsMobileMock } = vi.hoisted(() => ({
   useIsMobileMock: vi.fn(() => false),
@@ -37,6 +38,11 @@ import {
 } from './sidebar'
 
 describe('Sidebar', () => {
+  const resizeLabel = getMessage(
+    resolveUiLanguage(window.navigator.language),
+    'sidebar.resize',
+  )
+
   beforeEach(() => {
     useIsMobileMock.mockReset()
     useIsMobileMock.mockReturnValue(false)
@@ -151,7 +157,7 @@ describe('Sidebar', () => {
     )
 
     const resizeHandle = screen.getByRole('button', {
-      name: 'サイドバーの幅を調整',
+      name: resizeLabel,
     })
 
     fireEvent.pointerDown(resizeHandle, {
@@ -185,7 +191,7 @@ describe('Sidebar', () => {
     )
 
     const resizeHandle = screen.getByRole('button', {
-      name: 'サイドバーの幅を調整',
+      name: resizeLabel,
     })
     const wrapper = container.firstElementChild as HTMLElement | null
     const sidebarRoot = resizeHandle.closest(
@@ -225,7 +231,7 @@ describe('Sidebar', () => {
       name: 'Toggle Sidebar',
     })
     const sidebarRoot = screen
-      .getByRole('button', { name: 'サイドバーの幅を調整' })
+      .getByRole('button', { name: resizeLabel })
       .closest('[data-side]') as HTMLElement | null
 
     fireEvent.click(trigger)
@@ -245,7 +251,7 @@ describe('Sidebar', () => {
     )
 
     const resizeHandle = screen.getByRole('button', {
-      name: 'サイドバーの幅を調整',
+      name: resizeLabel,
     })
     const wrapper = container.firstElementChild as HTMLElement | null
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const storageMocks = vi.hoisted(() => ({
@@ -21,6 +21,30 @@ vi.mock('@/components/ui/tooltip', () => ({
   TooltipTrigger: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
+}))
+
+vi.mock('@/features/i18n/components/LanguageSelect', () => ({
+  LanguageSelect: () => <div>表示言語</div>,
+}))
+
+vi.mock('@/features/i18n/context/I18nProvider', () => ({
+  useI18n: () => ({
+    language: 'ja',
+    t: (key: string) =>
+      (
+        ({
+          'sidebar.analytics': '分析',
+          'sidebar.chat': 'チャット',
+          'sidebar.collapse': 'サイドバーを小さくする',
+          'sidebar.open': 'サイドバーを開く',
+          'sidebar.options': 'オプション',
+          'sidebar.periodicExecution': '定期実行',
+          'sidebar.tabList': 'タブ一覧',
+          'savedTabs.viewMode.custom': 'カスタムモード',
+          'savedTabs.viewMode.domain': 'ドメインモード',
+        }) satisfies Record<string, string>
+      )[key] ?? key,
+  }),
 }))
 
 vi.mock('@/features/saved-tabs/routes/SavedTabsRoute', () => ({
@@ -53,6 +77,10 @@ vi.mock('@/features/analytics/routes/AnalyticsRoute', () => ({
 
 vi.mock('@/features/periodic-execution/routes/PeriodicExecutionRoute', () => ({
   PeriodicExecutionRoute: () => <div>periodic-execution-route</div>,
+}))
+
+vi.mock('@/features/options/routes/OptionsRoute', () => ({
+  OptionsRoute: () => <div>options-route</div>,
 }))
 
 vi.mock('@/lib/storage/projects', () => ({
@@ -122,6 +150,12 @@ describe('AppRouter', () => {
     expect(screen.getByText('analytics-route')).toBeTruthy()
   })
 
+  it('options route を開ける', () => {
+    render(<AppRouter initialEntries={['/options']} />)
+
+    expect(screen.getByText('options-route')).toBeTruthy()
+  })
+
   it('SavedTabsRoute から別 mode を選ぶと replace navigate する', () => {
     render(<AppRouter initialEntries={['/saved-tabs?mode=domain']} />)
 
@@ -154,5 +188,25 @@ describe('AppRouter', () => {
     render(<AppRouter />)
 
     expect(screen.getByText('saved-tabs-route:?mode=custom')).toBeTruthy()
+  })
+
+  it('unmount 後に viewMode が解決しても navigate しない', async () => {
+    let resolveViewMode: ((mode: 'custom' | 'domain') => void) | undefined
+    storageMocks.getViewMode.mockReturnValue(
+      new Promise<'custom' | 'domain'>(resolve => {
+        resolveViewMode = resolve
+      }),
+    )
+
+    const { unmount } = render(<AppRouter initialEntries={['/unknown']} />)
+
+    unmount()
+
+    await act(async () => {
+      resolveViewMode?.('custom')
+      await Promise.resolve()
+    })
+
+    expect(storageMocks.getViewMode).toHaveBeenCalledTimes(1)
   })
 })

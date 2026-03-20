@@ -2,6 +2,7 @@ import type {
   AiChatConversation,
   AiChatConversationMessage,
 } from '@/features/ai-chat/types'
+import { getMessage } from '@/features/i18n/lib/language'
 import {
   getChromeStorageLocal,
   warnMissingChromeStorage,
@@ -15,30 +16,33 @@ interface ConversationHistoryState {
   conversations: AiChatConversation[]
 }
 
-const DEFAULT_CONVERSATION_TITLE = '新しい会話'
+const DEFAULT_CONVERSATION_TITLE = getMessage('ja', 'aiChat.newConversation')
 
 const createConversationId = (): string =>
   `conversation-${Date.now()}-${Math.random().toString(16).slice(2)}`
 
 const buildConversationTitle = (
   messages: AiChatConversationMessage[],
+  defaultTitle = DEFAULT_CONVERSATION_TITLE,
 ): string => {
   const firstUserMessage = messages.find(
     message => message.role === 'user' && message.content.trim().length > 0,
   )
 
   if (!firstUserMessage) {
-    return DEFAULT_CONVERSATION_TITLE
+    return defaultTitle
   }
 
   return firstUserMessage.content.trim().slice(0, 40)
 }
 
 const createConversationRecord = ({
+  defaultTitle = DEFAULT_CONVERSATION_TITLE,
   id = createConversationId(),
   messages = [],
   now = Date.now(),
 }: {
+  defaultTitle?: string
   id?: string
   messages?: AiChatConversationMessage[]
   now?: number
@@ -46,12 +50,14 @@ const createConversationRecord = ({
   createdAt: now,
   id,
   messages,
-  title: buildConversationTitle(messages),
+  title: buildConversationTitle(messages, defaultTitle),
   updatedAt: now,
 })
 
-const createDefaultConversationHistory = (): ConversationHistoryState => {
-  const conversation = createConversationRecord()
+const createDefaultConversationHistory = (
+  defaultTitle = DEFAULT_CONVERSATION_TITLE,
+): ConversationHistoryState => {
+  const conversation = createConversationRecord({ defaultTitle })
 
   return {
     activeConversationId: conversation.id,
@@ -59,11 +65,13 @@ const createDefaultConversationHistory = (): ConversationHistoryState => {
   }
 }
 
-const loadConversationHistory = async (): Promise<ConversationHistoryState> => {
+const loadConversationHistory = async (
+  defaultTitle = DEFAULT_CONVERSATION_TITLE,
+): Promise<ConversationHistoryState> => {
   const storageLocal = getChromeStorageLocal()
   if (!storageLocal) {
     warnMissingChromeStorage('AIチャット履歴の読み込み')
-    return createDefaultConversationHistory()
+    return createDefaultConversationHistory(defaultTitle)
   }
 
   const stored = await storageLocal.get([
@@ -76,7 +84,7 @@ const loadConversationHistory = async (): Promise<ConversationHistoryState> => {
     : []
 
   if (conversations.length === 0) {
-    return createDefaultConversationHistory()
+    return createDefaultConversationHistory(defaultTitle)
   }
 
   const activeConversationId =

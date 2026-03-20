@@ -18,7 +18,10 @@ import type {
 import {
   generateAnalyticsResult,
   getDefaultAnalyticsQuery,
+  normalizeAnalyticsQuery,
 } from '@/features/analytics/lib/analytics'
+import { getMessage } from '@/features/i18n/lib/language'
+import type { AppLanguage } from '@/features/i18n/messages'
 
 const paginationSchema = z.object({
   page: z.number().int().min(1).default(DEFAULT_SAVED_URL_PAGE),
@@ -78,7 +81,65 @@ const createCurrentDateTimeOutput = (now = new Date()) => {
   }
 }
 
-const createAiChatTools = (records: AiSavedUrlRecord[]) => ({
+const createAnalyticsMessages = (language: AppLanguage) => ({
+  chartDailySavedTrend: getMessage(language, 'analytics.chart.dailySavedTrend'),
+  chartDescriptionAggregated: getMessage(
+    language,
+    'analytics.chart.descriptionAggregated',
+  ),
+  chartDescriptionCompareMode: getMessage(
+    language,
+    'analytics.chart.descriptionCompareMode',
+  ),
+  chartMonthlySavedTrend: getMessage(
+    language,
+    'analytics.chart.monthlySavedTrend',
+  ),
+  chartSavedCountByDomain: getMessage(
+    language,
+    'analytics.chart.savedCountByDomain',
+  ),
+  chartSavedCountByParentCategory: getMessage(
+    language,
+    'analytics.chart.savedCountByParentCategory',
+  ),
+  chartSavedCountByProject: getMessage(
+    language,
+    'analytics.chart.savedCountByProject',
+  ),
+  chartSavedCountByProjectCategory: getMessage(
+    language,
+    'analytics.chart.savedCountByProjectCategory',
+  ),
+  chartSavedCountBySubCategory: getMessage(
+    language,
+    'analytics.chart.savedCountBySubCategory',
+  ),
+  chartSeriesCustomMode: getMessage(
+    language,
+    'analytics.chart.seriesCustomMode',
+  ),
+  chartSeriesDomainMode: getMessage(
+    language,
+    'analytics.chart.seriesDomainMode',
+  ),
+  chartSeriesSavedCount: getMessage(
+    language,
+    'analytics.chart.seriesSavedCount',
+  ),
+  chartSeriesShare: getMessage(language, 'analytics.chart.seriesShare'),
+  chartSummary: getMessage(language, 'analytics.summary'),
+  chartWeeklySavedTrend: getMessage(
+    language,
+    'analytics.chart.weeklySavedTrend',
+  ),
+  uncategorizedLabel: getMessage(language, 'analytics.uncategorized'),
+})
+
+const createAiChatTools = (
+  records: AiSavedUrlRecord[],
+  language: AppLanguage = 'ja',
+) => ({
   getCurrentDateTime: tool({
     description: AI_CHAT_TOOL_DESCRIPTIONS.getCurrentDateTime,
     inputSchema: z.object({}),
@@ -140,6 +201,8 @@ const createAiChatTools = (records: AiSavedUrlRecord[]) => ({
           'projectCategory',
           'subCategory',
           'time',
+          'timeRecent',
+          'timeTop',
         ])
         .default('domain'),
       limit: z.number().int().min(1).max(20).default(8),
@@ -155,12 +218,15 @@ const createAiChatTools = (records: AiSavedUrlRecord[]) => ({
         .default('all'),
       title: z.string().trim().optional(),
     }),
-    execute: async input => generateAnalyticsResult(records, input),
+    execute: async input =>
+      generateAnalyticsResult(records, normalizeAnalyticsQuery(input), {
+        messages: createAnalyticsMessages(language),
+      }),
   }),
   inferUserInterests: tool({
     description: AI_CHAT_TOOL_DESCRIPTIONS.inferUserInterests,
     inputSchema: z.object({}),
-    execute: async () => inferUserInterests(records),
+    execute: async () => inferUserInterests(records, language),
   }),
 })
 

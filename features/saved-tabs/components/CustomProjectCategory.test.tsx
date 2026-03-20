@@ -10,6 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CustomProjectCategoryProps } from '@/features/saved-tabs/types/CustomProjectCategory.types'
 import type { UserSettings } from '@/types/storage'
 
+const customProjectCategoryI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 const { useSortableMock, useDroppableMock, projectUrlItemSpy } = vi.hoisted(
   () => ({
     useSortableMock: vi.fn(),
@@ -167,6 +171,27 @@ vi.mock('@/components/ui/card', () => ({
   ),
 }))
 
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: customProjectCategoryI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(customProjectCategoryI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
+
 import { CustomProjectCategory } from './CustomProjectCategory'
 
 const defaultSettings: UserSettings = {
@@ -211,6 +236,7 @@ const createProps = (
 describe('CustomProjectCategory', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    customProjectCategoryI18nState.language = 'ja'
     useSortableMock.mockReturnValue({
       attributes: {},
       listeners: {},
@@ -369,7 +395,7 @@ describe('CustomProjectCategory', () => {
     fireEvent.click(screen.getByRole('button', { name: 'すべて削除' }))
     expect(screen.getByText('タブをすべて削除しますか？')).toBeTruthy()
     expect(screen.getByText(/未分類/)).toBeTruthy()
-    fireEvent.click(await screen.findByRole('button', { name: '削除する' }))
+    fireEvent.click(await screen.findByRole('button', { name: '削除' }))
 
     await waitFor(() => {
       expect(handleDeleteUrl).toHaveBeenCalledWith('project-1', 'https://u.com')
@@ -415,10 +441,10 @@ describe('CustomProjectCategory', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'カテゴリを削除' }))
     fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
-    expect(screen.queryByRole('button', { name: '削除する' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '削除' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'カテゴリを削除' }))
-    fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+    fireEvent.click(screen.getByRole('button', { name: '削除' }))
     expect(handleDeleteCategory).toHaveBeenCalledWith('project-1', 'Work')
     expect(screen.queryByRole('heading', { name: 'カテゴリ管理' })).toBeNull()
   })
@@ -565,7 +591,7 @@ describe('CustomProjectCategory', () => {
     expect(handleDeleteCategory).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'カテゴリを削除' }))
-    fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+    fireEvent.click(screen.getByRole('button', { name: '削除' }))
     expect(handleDeleteCategory).toHaveBeenCalledWith('project-1', 'Work')
 
     const handleRenameCategory = vi.fn()
@@ -586,7 +612,7 @@ describe('CustomProjectCategory', () => {
     if (deleteCategoryButton) {
       fireEvent.click(deleteCategoryButton)
     }
-    fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+    fireEvent.click(screen.getByRole('button', { name: '削除' }))
     expect(screen.queryByRole('heading', { name: 'カテゴリ管理' })).toBeNull()
   })
 

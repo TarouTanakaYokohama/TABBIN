@@ -25,6 +25,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
 import {
@@ -34,12 +35,6 @@ import {
 import { CategorySection } from './TimeRemaining'
 
 type SortOrder = 'default' | 'asc' | 'desc'
-
-const sortLabelMap: Record<SortOrder, string> = {
-  default: 'デフォルト',
-  asc: '保存日時の昇順',
-  desc: '保存日時の降順',
-}
 
 const nextSortOrderMap: Record<SortOrder, SortOrder> = {
   default: 'asc',
@@ -56,11 +51,16 @@ const sortIconMap = {
 const getCollapseTooltipText = (
   isReorderMode: boolean,
   isCollapsed: boolean,
+  t: (
+    key: string,
+    fallback?: string,
+    values?: Record<string, string>,
+  ) => string,
 ): string => {
   if (isReorderMode) {
-    return '並び替えモード中'
+    return t('savedTabs.reorder.disabled')
   }
-  return isCollapsed ? '展開' : '折りたたむ'
+  return isCollapsed ? t('savedTabs.expand') : t('savedTabs.collapse')
 }
 
 const getCollapseIcon = (isCollapsed: boolean) =>
@@ -102,6 +102,7 @@ export const SortableCategorySection = ({
   settings: UserSettings
   handleDeleteAllTabs?: (urls: Array<{ url: string }>) => void // 新しいプロップの型定義
 }) => {
+  const { t } = useI18n()
   const {
     attributes,
     listeners,
@@ -148,11 +149,22 @@ export const SortableCategorySection = ({
   const [userCollapsedState, setUserCollapsedState] = useState(false)
   const [isDraggingGlobal, setIsDraggingGlobal] = useState(false)
   const displayedCategoryName =
-    props.categoryName === '__uncategorized' ? '未分類' : props.categoryName
+    props.categoryName === '__uncategorized'
+      ? t('savedTabs.uncategorized')
+      : props.categoryName
   const sectionClassName = isDragging
     ? 'category-section mb-1 rounded-md bg-muted shadow-lg'
     : 'category-section mb-1'
-  const collapseTooltipText = getCollapseTooltipText(isReorderMode, isCollapsed)
+  const collapseTooltipText = getCollapseTooltipText(
+    isReorderMode,
+    isCollapsed,
+    t,
+  )
+  const sortLabelMap: Record<SortOrder, string> = {
+    default: t('savedTabs.sort.default'),
+    asc: t('savedTabs.sort.asc'),
+    desc: t('savedTabs.sort.desc'),
+  }
   const sortLabel = sortLabelMap[sortOrder]
   const SortIcon = sortIconMap[sortOrder]
   const CollapseIcon = getCollapseIcon(isCollapsed)
@@ -251,7 +263,9 @@ export const SortableCategorySection = ({
                 size='sm'
                 onClick={handleToggleCollapse}
                 className={collapseButtonClassName}
-                aria-label={isCollapsed ? '展開' : '折りたたむ'}
+                aria-label={
+                  isCollapsed ? t('savedTabs.expand') : t('savedTabs.collapse')
+                }
                 disabled={isReorderMode}
               >
                 <CollapseIcon size={14} />
@@ -296,7 +310,7 @@ export const SortableCategorySection = ({
                   <Badge variant='secondary'>{urlCount}</Badge>
                 </TooltipTrigger>
                 <SavedTabsResponsiveTooltipContent side='top'>
-                  タブ数
+                  {t('savedTabs.sortableCategory.tabCountLabel')}
                 </SavedTabsResponsiveTooltipContent>
               </Tooltip>
             </span>
@@ -315,12 +329,12 @@ export const SortableCategorySection = ({
                 >
                   <ExternalLink size={14} />
                   <SavedTabsResponsiveLabel>
-                    すべて開く
+                    {t('savedTabs.openAll')}
                   </SavedTabsResponsiveLabel>
                 </Button>
               </TooltipTrigger>
               <SavedTabsResponsiveTooltipContent side='top'>
-                すべてのタブを開く
+                {t('savedTabs.openAllTabs')}
               </SavedTabsResponsiveTooltipContent>
             </Tooltip>
 
@@ -338,12 +352,14 @@ export const SortableCategorySection = ({
                   >
                     <Trash size={14} />
                     <SavedTabsResponsiveLabel>
-                      {isDeleting ? '削除中...' : 'すべて削除'}
+                      {isDeleting
+                        ? t('savedTabs.deletingAll')
+                        : t('savedTabs.deleteAll')}
                     </SavedTabsResponsiveLabel>
                   </Button>
                 </TooltipTrigger>
                 <SavedTabsResponsiveTooltipContent side='top'>
-                  すべてのタブを削除
+                  {t('savedTabs.deleteAllTabs')}
                 </SavedTabsResponsiveTooltipContent>
               </Tooltip>
             )}
@@ -362,15 +378,23 @@ export const SortableCategorySection = ({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>タブを削除</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('savedTabs.sortableCategory.bulkDeleteTitle')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              「{displayedCategoryName}」のタブをすべて削除しますか？
+              {t(
+                'savedTabs.sortableCategory.bulkDeleteDescription',
+                undefined,
+                {
+                  name: displayedCategoryName,
+                },
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => void onDeleteAllTabsConfirmed()}>
-              削除
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -383,15 +407,19 @@ export const SortableCategorySection = ({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>複数タブを開く</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('savedTabs.sortableCategory.bulkOpenTitle')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              10個以上のタブを開こうとしています。続行しますか？
+              {t('savedTabs.openAllConfirmDescription', undefined, {
+                count: '10',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmOpenAll}>
-              開く
+              {t('common.open')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -4,6 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SortableUrlItemProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
 
+const sortableUrlItemI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: vi.fn(() => ({
     attributes: {},
@@ -36,6 +40,27 @@ vi.mock('@/utils/datetime', () => ({
     </span>
   ),
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: sortableUrlItemI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(sortableUrlItemI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 import { formatDatetime } from '@/utils/datetime'
 import { SortableUrlItem } from './SortableUrlItem'
@@ -94,6 +119,7 @@ describe('SortableUrlItem', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useRealTimers()
+    sortableUrlItemI18nState.language = 'ja'
     vi.spyOn(console, 'log').mockImplementation(() => {})
 
     sendMessageMock.mockImplementation(
@@ -162,7 +188,7 @@ describe('SortableUrlItem', () => {
     fireEvent.click(getDeleteButton())
 
     const confirmButton = await screen.findByRole('button', {
-      name: '削除する',
+      name: '削除',
     })
     fireEvent.click(confirmButton)
 
@@ -182,6 +208,25 @@ describe('SortableUrlItem', () => {
 
     expect(handleOpenTab).toHaveBeenCalledTimes(1)
     expect(handleOpenTab).toHaveBeenCalledWith('https://example.com')
+  })
+
+  it('renders English delete copy when the display language is en', async () => {
+    sortableUrlItemI18nState.language = 'en'
+
+    render(
+      <SortableUrlItem
+        {...createProps({
+          settings: {
+            ...defaultSettings,
+            confirmDeleteEach: true,
+          },
+        })}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Delete tab' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete tab' }))
+    expect(await screen.findByText('Delete this tab?')).toBeTruthy()
   })
 
   it('保存日時表示の各分岐を描画する', () => {

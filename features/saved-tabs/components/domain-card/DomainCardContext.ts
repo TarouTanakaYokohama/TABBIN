@@ -14,6 +14,8 @@ export interface DomainCardContextType {
   settings: UserSettings
   /** 親カテゴリID */
   categoryId?: string
+  /** 表示中の子カテゴリ数 */
+  visibleSubCategoryCount: number
   /** 並び替えモード状態 */
   isReorderMode: boolean
   /** ソート可能な属性・リスナー */

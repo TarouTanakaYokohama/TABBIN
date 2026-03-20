@@ -24,6 +24,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
 
 // Regex patterns for parsing stack traces
@@ -481,6 +482,7 @@ export const StackTraceFrames = memo(
     showInternalFrames = true,
     ...props
   }: StackTraceFramesProps) => {
+    const t = useI18nText()
     const { trace, onFilePathClick } = useStackTrace()
 
     const framesToShow = showInternalFrames
@@ -521,7 +523,9 @@ export const StackTraceFrames = memo(
           </div>
         ))}
         {framesToShow.length === 0 && (
-          <div className='text-muted-foreground text-xs'>No stack frames</div>
+          <div className='text-muted-foreground text-xs'>
+            {t('common.noStackFrames')}
+          </div>
         )}
       </div>
     )

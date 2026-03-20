@@ -3,6 +3,7 @@ import { useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { TabGroup } from '@/types/storage'
 import { useCategoryModalContext } from './CategoryModalContext'
 
@@ -67,11 +68,13 @@ const DomainCategoryStatus = ({
   selectedCategoryId,
   onToggle,
   disabled,
+  t,
 }: {
   belongsToCategory: DomainCategoryInfo | null
   selectedCategoryId: string | null
   onToggle: () => void
   disabled: boolean
+  t: (key: string, fallback?: string, values?: Record<string, string>) => string
 }) => {
   if (!belongsToCategory) {
     return (
@@ -80,11 +83,11 @@ const DomainCategoryStatus = ({
         className='mt-1 h-auto w-full justify-start p-0 text-left text-muted-foreground text-xs hover:text-foreground'
         onClick={onToggle}
         disabled={disabled}
-        aria-label='未分類のドメイン'
+        aria-label={t('savedTabs.categoryModal.uncategorizedAria')}
         variant='ghost'
       >
         <span className='mr-1 inline-block h-2 w-2 rounded-full bg-muted-foreground' />
-        <span>未分類</span>
+        <span>{t('savedTabs.categoryModal.uncategorized')}</span>
       </Button>
     )
   }
@@ -96,13 +99,24 @@ const DomainCategoryStatus = ({
       className='mt-1 h-auto w-full justify-start p-0 text-left text-muted-foreground text-xs hover:text-foreground'
       onClick={onToggle}
       disabled={disabled}
-      aria-label={`${isCurrentCategory ? '現在選択中のカテゴリ' : '所属カテゴリ'}: ${belongsToCategory.name}`}
+      aria-label={t(
+        isCurrentCategory
+          ? 'savedTabs.categoryModal.currentCategory'
+          : 'savedTabs.categoryModal.belongsToCategory',
+        undefined,
+        { name: belongsToCategory.name },
+      )}
       variant='ghost'
     >
       <span className='mr-1 inline-block h-2 w-2 rounded-full bg-primary' />
       <span>
-        {isCurrentCategory ? '現在選択中のカテゴリ: ' : '所属カテゴリ: '}
-        {belongsToCategory.name}
+        {t(
+          isCurrentCategory
+            ? 'savedTabs.categoryModal.currentCategory'
+            : 'savedTabs.categoryModal.belongsToCategory',
+          undefined,
+          { name: belongsToCategory.name },
+        )}
       </span>
     </Button>
   )
@@ -113,8 +127,9 @@ const renderDomainRow = (params: {
   selection: DomainSelectionState
   domains: DomainState
   isLoading: boolean
+  t: (key: string, fallback?: string, values?: Record<string, string>) => string
 }) => {
-  const { group, selection, domains, isLoading } = params
+  const { group, selection, domains, isLoading, t } = params
   const belongsToCategory = domains.domainCategories[group.id]
   const isInCurrentCategory =
     selection.selectedCategoryId !== null &&
@@ -144,6 +159,7 @@ const renderDomainRow = (params: {
           selectedCategoryId={selection.selectedCategoryId}
           onToggle={onToggle}
           disabled={disabled}
+          t={t}
         />
       </div>
     </div>
@@ -155,6 +171,7 @@ const renderDomainRow = (params: {
  * ドメインをカテゴリに割り当てるためのチェックボックスリスト
  */
 export const DomainSelectionList = () => {
+  const { t } = useI18n()
   const { state, tabGroups } = useCategoryModalContext()
   const { selection, domains, isLoading } = state
   const scrollElementRef = useRef<HTMLDivElement>(null)
@@ -200,13 +217,13 @@ export const DomainSelectionList = () => {
   if (tabGroups.length === 0) {
     listContent = (
       <div className='py-8 text-center text-muted-foreground'>
-        保存されたドメインがありません
+        {t('savedTabs.categoryModal.noDomains')}
       </div>
     )
   } else if (visibleTabGroups.length === 0) {
     listContent = (
       <div className='py-8 text-center text-muted-foreground'>
-        すべてのドメインがカテゴリに分類されています
+        {t('savedTabs.categoryModal.allCategorized')}
       </div>
     )
   } else {
@@ -236,6 +253,7 @@ export const DomainSelectionList = () => {
                 selection,
                 domains,
                 isLoading,
+                t,
               })}
             </div>
           )
@@ -247,9 +265,9 @@ export const DomainSelectionList = () => {
   return (
     <div>
       <Label>
-        ドメイン選択
-        {selection.selectedCategoryId === 'uncategorized' &&
-          '（未割り当てドメインのみ表示）'}
+        {selection.selectedCategoryId === 'uncategorized'
+          ? t('savedTabs.categoryModal.domainsLabelUncategorized')
+          : t('savedTabs.categoryModal.domainsLabel')}
       </Label>
       <div
         ref={scrollElementRef}

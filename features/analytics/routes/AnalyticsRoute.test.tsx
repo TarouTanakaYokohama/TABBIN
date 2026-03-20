@@ -17,11 +17,33 @@ import { AnalyticsRoute } from './AnalyticsRoute'
 
 const analyticsRouteMocks = vi.hoisted(() => ({
   deleteViewMock: vi.fn(),
+  language: 'en' as 'en' | 'ja',
   loadRecordsMock: vi.fn<() => Promise<AiSavedUrlRecord[]>>(),
   loadViewsMock: vi.fn<() => Promise<SavedAnalyticsView[]>>(),
   saveViewsMock: vi.fn(),
   updateMessagesMock: vi.fn(),
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: analyticsRouteMocks.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(analyticsRouteMocks.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 vi.mock('@/features/analytics/lib/loadAnalyticsRecords', () => ({
   loadAnalyticsRecords: analyticsRouteMocks.loadRecordsMock,
@@ -175,10 +197,10 @@ vi.mock('@/features/ai-chat/components/SavedTabsChatWidget', () => ({
                     {
                       colorToken: 'chart-1',
                       dataKey: 'count',
-                      label: '保存数',
+                      label: 'Saved count',
                     },
                   ],
-                  title: 'AI 生成チャート',
+                  title: 'AI-generated chart',
                   type: 'bar',
                   xKey: 'label',
                 },
@@ -216,7 +238,7 @@ vi.mock('@/features/ai-chat/components/SavedTabsChatWidget', () => ({
                     },
                   },
                   state: 'output-available',
-                  title: '保存分析',
+                  title: 'Saved analytics',
                   toolCallId: 'tool-1',
                   toolName: 'generateSavedTabsAnalytics',
                   type: 'dynamic-tool',
@@ -240,10 +262,10 @@ vi.mock('@/features/ai-chat/components/SavedTabsChatWidget', () => ({
                     {
                       colorToken: 'chart-1',
                       dataKey: 'count',
-                      label: '保存数',
+                      label: 'Saved count',
                     },
                   ],
-                  title: 'クエリなしAIチャート',
+                  title: 'AI chart without query',
                   type: 'bar',
                   xKey: 'label',
                 },
@@ -328,6 +350,7 @@ const records: AiSavedUrlRecord[] = [
 
 describe('AnalyticsRoute', () => {
   beforeEach(() => {
+    analyticsRouteMocks.language = 'en'
     analyticsRouteMocks.loadRecordsMock.mockResolvedValue(records)
     analyticsRouteMocks.loadViewsMock.mockResolvedValue([])
     analyticsRouteMocks.deleteViewMock.mockReset()
@@ -359,32 +382,43 @@ describe('AnalyticsRoute', () => {
   it('初期条件でチャートを表示する', async () => {
     render(<AnalyticsRoute />)
 
-    expect(await screen.findByText('分析条件')).toBeTruthy()
-    expect(await screen.findByText('ドメイン別の保存数')).toBeTruthy()
-    expect(screen.queryByText('期間')).toBeNull()
-    expect(screen.queryByText('現在の期間: 全期間')).toBeNull()
+    expect(await screen.findByText('Analysis conditions')).toBeTruthy()
+    expect(await screen.findByText('Saved count by domain')).toBeTruthy()
+    expect(screen.queryByText('Date range')).toBeNull()
+    expect(screen.queryByText('Current range: All time')).toBeNull()
     expect(
-      screen.queryByRole('button', { name: 'カレンダーで範囲選択' }),
+      screen.queryByRole('button', { name: 'Select range on calendar' }),
     ).toBeNull()
-    expect(screen.queryByLabelText('含めるドメイン')).toBeNull()
-    expect(screen.queryByLabelText('除外するドメイン')).toBeNull()
-    expect(screen.queryByLabelText('モード')).toBeNull()
-    expect(screen.queryByText('モード')).toBeNull()
-    expect(screen.queryByLabelText('比較系列')).toBeNull()
-    expect(screen.queryByText('比較系列')).toBeNull()
+    expect(screen.queryByLabelText('Included domains')).toBeNull()
+    expect(screen.queryByLabelText('Excluded domains')).toBeNull()
+    expect(screen.queryByLabelText('Mode')).toBeNull()
+    expect(screen.queryByText('Mode')).toBeNull()
+    expect(screen.queryByLabelText('Comparison series')).toBeNull()
+    expect(screen.queryByText('Comparison series')).toBeNull()
     expect(
-      screen.queryByRole('option', { name: 'プロジェクトカテゴリ' }),
+      screen.queryByRole('option', { name: 'Project category' }),
     ).toBeNull()
-    expect(screen.queryByText('分析プリセット')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'トップドメイン' })).toBeNull()
+    expect(screen.queryByText('Analytics presets')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Top domains' })).toBeNull()
     expect(screen.getByText('history-variant:dropdown')).toBeTruthy()
     expect(screen.getByText('active-title:Analytics Chat')).toBeTruthy()
+  })
+
+  it('日本語表示では分析 UI を日本語で描画する', async () => {
+    analyticsRouteMocks.language = 'ja'
+
+    render(<AnalyticsRoute />)
+
+    expect(await screen.findByText('分析条件')).toBeTruthy()
+    expect(screen.getByText('分析キャンバス')).toBeTruthy()
+    expect(screen.getByLabelText('ビュー名')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'リセット' })).toBeTruthy()
   })
 
   it('分析条件と分析キャンバスを個別スクロールする固定レイアウトで描画する', async () => {
     render(<AnalyticsRoute />)
 
-    await screen.findByText('分析条件')
+    await screen.findByText('Analysis conditions')
 
     const layout = screen.getByTestId('analytics-page-layout')
     const sidebarPane = screen.getByTestId('analytics-sidebar-pane')
@@ -404,10 +438,10 @@ describe('AnalyticsRoute', () => {
   it('分析条件の操作ボタンを1:1幅の2カラムで表示する', async () => {
     render(<AnalyticsRoute />)
 
-    await screen.findByText('分析条件')
+    await screen.findByText('Analysis conditions')
 
-    const saveButton = screen.getByRole('button', { name: '保存する' })
-    const resetButton = screen.getByRole('button', { name: '初期化' })
+    const saveButton = screen.getByRole('button', { name: 'Save' })
+    const resetButton = screen.getByRole('button', { name: 'Reset' })
     const buttonRow = saveButton.parentElement
 
     expect(buttonRow?.className.includes('grid')).toBe(true)
@@ -419,23 +453,88 @@ describe('AnalyticsRoute', () => {
   it('左側の手動フィルタ変更でチャートを更新する', async () => {
     render(<AnalyticsRoute />)
 
-    expect((await screen.findAllByText('ドメイン別の保存数')).length).toBe(1)
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
 
-    fireEvent.change(screen.getByLabelText('集計軸'), {
+    fireEvent.change(screen.getByLabelText('Group by'), {
       target: { value: 'project' },
     })
 
-    expect(await screen.findByText('プロジェクト別の保存数')).toBeTruthy()
+    expect(await screen.findByText('Saved count by project')).toBeTruthy()
+  })
+
+  it('shows both time-series group-by options', async () => {
+    render(<AnalyticsRoute />)
+
+    await screen.findByText('Analysis conditions')
+
+    expect(
+      screen.getByRole('option', { name: 'Time series (recent)' }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('option', { name: 'Time series (top counts)' }),
+    ).toBeTruthy()
+  })
+
+  it('保存済みビューの旧 time は時系列（直近）として読み込む', async () => {
+    analyticsRouteMocks.loadViewsMock.mockResolvedValue([
+      {
+        createdAt: 1,
+        id: 'view-legacy-time',
+        name: 'Legacy Time View',
+        query: {
+          chartType: 'line',
+          compareBy: 'none',
+          filters: {
+            excludedDomains: [],
+            excludedParentCategories: [],
+            excludedProjectCategories: [],
+            excludedProjects: [],
+            excludedSubCategories: [],
+            includedDomains: [],
+            includedParentCategories: [],
+            includedProjectCategories: [],
+            includedProjects: [],
+            includedSubCategories: [],
+          },
+          groupBy: 'time',
+          limit: 1,
+          mode: 'both',
+          normalize: false,
+          sort: 'value-desc',
+          stacked: false,
+          timeBucket: 'day',
+          timeRange: '30d',
+        } as never,
+        updatedAt: 1,
+      },
+    ])
+
+    render(<AnalyticsRoute />)
+
+    expect(
+      await screen.findByRole('button', { name: 'Legacy Time View' }),
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Legacy Time View' }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('[{"count":1,"label":"2026-03-13"}]'),
+      ).toBeTruthy()
+    })
+
+    const groupBySelect = screen.getByLabelText('Group by') as HTMLSelectElement
+    expect(groupBySelect.value).toBe('timeRecent')
   })
 
   it('現在の条件を保存できる', async () => {
     render(<AnalyticsRoute />)
 
-    expect((await screen.findAllByText('ドメイン別の保存数')).length).toBe(1)
-    fireEvent.change(screen.getByLabelText('ビュー名'), {
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.change(screen.getByLabelText('View name'), {
       target: { value: 'My Analytics' },
     })
-    fireEvent.click(screen.getByRole('button', { name: '保存する' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => {
       expect(analyticsRouteMocks.saveViewsMock).toHaveBeenCalledTimes(1)
@@ -479,9 +578,9 @@ describe('AnalyticsRoute', () => {
     render(<AnalyticsRoute />)
 
     expect(
-      await screen.findByRole('button', { name: 'Saved Viewを削除' }),
+      await screen.findByRole('button', { name: 'Delete Saved View' }),
     ).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Saved Viewを削除' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Saved View' }))
 
     await waitFor(() => {
       expect(analyticsRouteMocks.deleteViewMock).toHaveBeenCalledWith('view-1')
@@ -525,7 +624,7 @@ describe('AnalyticsRoute', () => {
     render(<AnalyticsRoute />)
 
     expect(
-      await screen.findByRole('button', { name: 'Domain Only Viewを削除' }),
+      await screen.findByRole('button', { name: 'Delete Domain Only View' }),
     ).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Domain Only View' }))
@@ -542,35 +641,35 @@ describe('AnalyticsRoute', () => {
   it('AIチャットから渡されたチャートを左側に反映する', async () => {
     render(<AnalyticsRoute />)
 
-    expect((await screen.findAllByText('ドメイン別の保存数')).length).toBe(1)
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
     fireEvent.click(screen.getByRole('button', { name: 'emit-ai-chart' }))
 
-    expect(await screen.findByText('AI 生成チャート')).toBeTruthy()
+    expect(await screen.findByText('AI-generated chart')).toBeTruthy()
     expect(analyticsRouteMocks.updateMessagesMock).toHaveBeenCalledTimes(1)
   })
 
   it('分析クエリが無い AI チャートでも左側に反映する', async () => {
     render(<AnalyticsRoute />)
 
-    expect((await screen.findAllByText('ドメイン別の保存数')).length).toBe(1)
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
     fireEvent.click(screen.getByRole('button', { name: 'emit-chart-only' }))
 
-    expect(await screen.findByText('クエリなしAIチャート')).toBeTruthy()
+    expect(await screen.findByText('AI chart without query')).toBeTruthy()
   })
 
   it('チャートクリックで項目に含まれる保存タブを表示する', async () => {
     render(<AnalyticsRoute />)
 
-    expect((await screen.findAllByText('ドメイン別の保存数')).length).toBe(1)
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
     fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
 
-    expect(await screen.findByText('項目に含まれる保存タブ')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'クリア' })).toBeNull()
+    expect(await screen.findByText('Saved tabs in this item')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull()
     expect(screen.getByText('Example Docs')).toBeTruthy()
     expect(screen.queryByText('https://docs.example.com/a')).toBeNull()
-    const savedAtText = new Date(records[0].savedAt).toLocaleString('ja-JP')
+    const savedAtText = new Date(records[0].savedAt).toLocaleString('en-US')
     expect(screen.getByText(savedAtText)).toBeTruthy()
-    const openLink = screen.getByRole('link', { name: 'Example Docs を開く' })
+    const openLink = screen.getByRole('link', { name: 'Open Example Docs' })
     expect(openLink).toBeTruthy()
     expect(openLink.closest('div')?.className.includes('shrink-0')).toBe(true)
   })
@@ -587,11 +686,11 @@ describe('AnalyticsRoute', () => {
 
     render(<AnalyticsRoute />)
 
-    expect((await screen.findAllByText('ドメイン別の保存数')).length).toBe(1)
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
     fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
 
     const openLink = await screen.findByRole('link', {
-      name: 'Extremely long analytics drilldown title that should never push the action area out of view even when the canvas is narrow を開く',
+      name: 'Open Extremely long analytics drilldown title that should never push the action area out of view even when the canvas is narrow',
     })
 
     const actionColumn = openLink.closest('div')

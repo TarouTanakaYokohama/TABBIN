@@ -8,6 +8,7 @@ import { Check, X } from 'lucide-react'
 import type { ComponentProps } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { CategoryGroup } from '@/features/saved-tabs/components/CategoryGroup'
 import { SortableDomainCard } from '@/features/saved-tabs/components/SortableDomainCard'
 import {
@@ -92,10 +93,11 @@ export const DomainModeContainer = ({
   handleUncategorizedDragEnd,
   hasContentTabGroupsCount,
 }: DomainModeContainerProps) => {
+  const { t } = useI18n()
   if (isLoading) {
     return (
       <div className='flex min-h-[200px] items-center justify-center'>
-        <div className='text-foreground text-xl'>読み込み中...</div>
+        <div className='text-foreground text-xl'>{t('common.loading')}</div>
       </div>
     )
   }
@@ -167,7 +169,7 @@ export const DomainModeContainer = ({
           className={`sticky top-0 z-50 flex items-center justify-between bg-card ${hasVisibleCategoryGroups ? 'mt-6' : 'mt-2'}`}
         >
           <h2 className='font-bold text-foreground text-xl'>
-            未分類のドメイン
+            {t('savedTabs.uncategorizedDomainsTitle')}
           </h2>
 
           {isUncategorizedReorderMode && (
@@ -179,16 +181,16 @@ export const DomainModeContainer = ({
                     size='sm'
                     onClick={handleCancelUncategorizedReorder}
                     className='flex cursor-pointer items-center gap-1'
-                    aria-label='並び替えをキャンセル'
+                    aria-label={t('savedTabs.reorder.cancelAria')}
                   >
                     <X size={14} />
                     <SavedTabsResponsiveLabel>
-                      キャンセル
+                      {t('savedTabs.reorder.cancel')}
                     </SavedTabsResponsiveLabel>
                   </Button>
                 </TooltipTrigger>
                 <SavedTabsResponsiveTooltipContent side='top'>
-                  並び替えをキャンセル
+                  {t('savedTabs.reorder.cancelAria')}
                 </SavedTabsResponsiveTooltipContent>
               </Tooltip>
 
@@ -199,14 +201,16 @@ export const DomainModeContainer = ({
                     size='sm'
                     onClick={handleConfirmUncategorizedReorder}
                     className='flex cursor-pointer items-center gap-1'
-                    aria-label='並び替えを確定'
+                    aria-label={t('savedTabs.reorder.confirmAria')}
                   >
                     <Check size={14} />
-                    <SavedTabsResponsiveLabel>確定</SavedTabsResponsiveLabel>
+                    <SavedTabsResponsiveLabel>
+                      {t('savedTabs.reorder.confirm')}
+                    </SavedTabsResponsiveLabel>
                   </Button>
                 </TooltipTrigger>
                 <SavedTabsResponsiveTooltipContent side='top'>
-                  並び替えを確定
+                  {t('savedTabs.reorder.confirmAria')}
                 </SavedTabsResponsiveTooltipContent>
               </Tooltip>
             </div>
@@ -250,10 +254,10 @@ export const DomainModeContainer = ({
       {hasContentTabGroupsCount === 0 && (
         <div className='flex min-h-[200px] flex-col items-center justify-center gap-4'>
           <div className='text-2xl text-foreground'>
-            保存されたタブはありません
+            {t('savedTabs.emptyTitle')}
           </div>
           <div className='text-muted-foreground'>
-            タブを右クリックして保存するか、拡張機能のアイコンをクリックしてください
+            {t('savedTabs.emptyDescription')}
           </div>
         </div>
       )}

@@ -434,7 +434,7 @@ describe('runAiChatRequest', () => {
           modelId: 'llama3.2',
           provider: 'ollama',
         },
-        system: expect.stringContaining('保存済みタブの件数: 1'),
+        system: expect.stringContaining('保存済みタブ 1 件'),
         tools: expect.objectContaining({
           findUrlsByMonth: expect.any(Object),
           getCurrentDateTime: expect.any(Object),
@@ -519,7 +519,7 @@ describe('runAiChatRequest', () => {
     )
     expect(mocked.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
-        system: expect.stringContaining('保存済みタブの件数: 1'),
+        system: expect.stringContaining('保存済みタブ 1 件'),
       }),
     )
     expect(mocked.generateText).toHaveBeenCalledWith(

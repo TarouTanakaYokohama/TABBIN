@@ -3,6 +3,10 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CustomProject, TabGroup, ViewMode } from '@/types/storage'
 
+const headerI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 const { toastErrorSpy, toastSuccessSpy, categoryModalSpy, viewModeToggleSpy } =
   vi.hoisted(() => ({
     toastErrorSpy: vi.fn(),
@@ -17,6 +21,27 @@ vi.mock('sonner', () => ({
     success: toastSuccessSpy,
   },
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: headerI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(headerI18nState.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 vi.mock('./CategoryModal', () => ({
   CategoryModal: ({
@@ -138,6 +163,7 @@ const createProps = (
 describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    headerI18nState.language = 'ja'
   })
 
   afterEach(() => {
@@ -174,6 +200,19 @@ describe('Header', () => {
 
     expect(screen.getByText('タブ:2')).toBeTruthy()
     expect(screen.getByText('ドメイン:1')).toBeTruthy()
+  })
+
+  it('renders English header copy when the display language is en', () => {
+    headerI18nState.language = 'en'
+
+    render(<Header {...createProps()} />)
+
+    expect(screen.getByPlaceholderText('Search')).toBeTruthy()
+    expect(screen.getByText('Tabs:3')).toBeTruthy()
+    expect(screen.getByText('Domains:2')).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: /Manage parent categories/ }),
+    ).toBeTruthy()
   })
 
   it('urlIds のみを持つグループでもタブ件数を表示できる', () => {

@@ -18,6 +18,7 @@ const mocked = vi.hoisted(() => ({
   conversationScrollButtonClick: vi.fn(),
   conversationScrollButtonVisible: false,
   getUserSettings: vi.fn(),
+  language: 'en' as 'en' | 'ja',
   platformOs: 'mac',
   saveUserSettings: vi.fn(),
   sendRuntimeMessage: vi.fn(),
@@ -48,9 +49,9 @@ vi.mock('@/lib/storage/settings', () => ({
       {
         createdAt: 0,
         id: 'default-system-prompt',
-        name: 'デフォルト',
+        name: 'Default',
         template:
-          'あなたは TABBIN に保存されたタブの情報だけを根拠に答えるアシスタントです。',
+          'You are an assistant that answers only from tabs saved in TABBIN.',
         updatedAt: 0,
       },
     ],
@@ -71,6 +72,27 @@ vi.mock('sonner', () => ({
     success: mocked.toastSuccess,
   },
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: mocked.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(mocked.language)
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 vi.mock('@/components/ai-elements/conversation', async () => {
   const actual = await vi.importActual<
@@ -147,16 +169,16 @@ const buildConfiguredSettings = (): UserSettings =>
       {
         createdAt: 0,
         id: 'default-system-prompt',
-        name: 'デフォルト',
+        name: 'Default',
         template:
-          'あなたは TABBIN に保存されたタブの情報だけを根拠に答えるアシスタントです。',
+          'You are an assistant that answers only from tabs saved in TABBIN.',
         updatedAt: 0,
       },
       {
         createdAt: 1,
         id: 'research-system-prompt',
-        name: 'リサーチ',
-        template: '保存タブの比較観点を多めに出してください。',
+        name: 'Research',
+        template: 'Give me more comparison angles for saved tabs.',
         updatedAt: 1,
       },
     ],
@@ -180,6 +202,7 @@ describe('SavedTabsChatWidget', () => {
   beforeEach(() => {
     storageListeners.length = 0
     vi.clearAllMocks()
+    mocked.language = 'en'
     mocked.connectRuntimePort.mockResolvedValue(null)
     mocked.conversationScrollButtonVisible = false
     mocked.platformOs = 'mac'
@@ -225,7 +248,7 @@ describe('SavedTabsChatWidget', () => {
     vi.unstubAllGlobals()
   })
 
-  it('shared ui button を使い、生の button/input 要素を残さない', () => {
+  it('uses the shared ui button and does not leave raw button/input elements', () => {
     const source = readFileSync(
       resolve(
         dirname(fileURLToPath(import.meta.url)),
@@ -237,7 +260,7 @@ describe('SavedTabsChatWidget', () => {
     expect(source).not.toContain('<button')
   })
 
-  it('右下ランチャーからサイドバーを開ける', async () => {
+  it('opens the sidebar from the bottom-right launcher', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     const onOpenChange = vi.fn()
 
@@ -245,21 +268,21 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    expect(screen.getByLabelText('AIチャットサイドバー')).toBeTruthy()
+    expect(screen.getByLabelText('AI chat sidebar')).toBeTruthy()
     expect(onOpenChange).toHaveBeenLastCalledWith(true)
-    expect(screen.getByText('チャット')).toBeTruthy()
-    expect(screen.getByText('今月追加したタブを教えて')).toBeTruthy()
+    expect(screen.getByText('Chat')).toBeTruthy()
+    expect(screen.getByText('Show me the tabs I added this month')).toBeTruthy()
   })
 
-  it('サイドバーの X ボタンで閉じられる', async () => {
+  it('renders Japanese copy when the display language is ja', async () => {
+    mocked.language = 'ja'
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
-    const onOpenChange = vi.fn()
 
-    render(<SavedTabsChatWidget onOpenChange={onOpenChange} />)
+    render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
@@ -268,14 +291,39 @@ describe('SavedTabsChatWidget', () => {
     )
 
     expect(screen.getByLabelText('AIチャットサイドバー')).toBeTruthy()
+    expect(screen.getByText('チャット')).toBeTruthy()
+    expect(screen.getByText('今月追加したタブを教えて')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'AIチャットを閉じる' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'システムプロンプト設定を開く' }),
+    )
 
-    expect(screen.queryByLabelText('AIチャットサイドバー')).toBeNull()
+    const nameRow = await screen.findByTestId('system-prompt-name-row')
+
+    expect(within(nameRow).getByRole('button', { name: '削除' })).toBeTruthy()
+  })
+
+  it('closes with the sidebar X button', async () => {
+    mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
+    const onOpenChange = vi.fn()
+
+    render(<SavedTabsChatWidget onOpenChange={onOpenChange} />)
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Open AI chat',
+      }),
+    )
+
+    expect(screen.getByLabelText('AI chat sidebar')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close AI chat' }))
+
+    expect(screen.queryByLabelText('AI chat sidebar')).toBeNull()
     expect(onOpenChange).toHaveBeenLastCalledWith(false)
   })
 
-  it('ドラッグでサイドバー幅を変更し、次回表示時に復元する', async () => {
+  it('drags the sidebar width and restores it on the next render', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     Object.defineProperty(window, 'innerWidth', {
       configurable: true,
@@ -287,12 +335,12 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    const sidebar = screen.getByLabelText('AIチャットサイドバー')
-    const resizeHandle = screen.getByLabelText('AIチャットの幅を調整')
+    const sidebar = screen.getByLabelText('AI chat sidebar')
+    const resizeHandle = screen.getByLabelText('Resize the AI chat width')
 
     expect(sidebar.style.width).toBe('420px')
 
@@ -311,16 +359,14 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    expect(screen.getByLabelText('AIチャットサイドバー').style.width).toBe(
-      '500px',
-    )
+    expect(screen.getByLabelText('AI chat sidebar').style.width).toBe('500px')
   })
 
-  it('狭い幅では送信ボタンをテキスト表示にして入力 UI を維持する', async () => {
+  it('shows a text send button at narrow widths while keeping the input UI', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     window.localStorage.setItem('tabbin-ai-chat-sidebar-width', '320')
 
@@ -328,42 +374,46 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     expect(
       screen.getByRole('button', {
-        name: '送信',
+        name: 'Send',
       }),
     ).toBeTruthy()
   })
 
-  it('初期表示では説明文と候補質問を入力欄の近くにまとめて出す', async () => {
+  it('keeps the intro copy and suggested prompts near the input on first render', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     const intro = screen.getByTestId('ai-chat-intro')
 
-    expect(within(intro).getByText('保存済みタブを質問できます。')).toBeTruthy()
-    expect(within(intro).getByText('今月追加したタブを教えて')).toBeTruthy()
+    expect(
+      within(intro).getByText('Ask questions about your saved tabs.'),
+    ).toBeTruthy()
+    expect(
+      within(intro).getByText('Show me the tabs I added this month'),
+    ).toBeTruthy()
   })
 
-  it('入力欄まわりは bottom dock として下端に寄せる', async () => {
+  it('anchors the input area as a bottom dock', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
@@ -372,7 +422,7 @@ describe('SavedTabsChatWidget', () => {
     ).toBe(true)
   })
 
-  it('会話領域で ConversationScrollButton を描画する', async () => {
+  it('renders ConversationScrollButton in the conversation area', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     mocked.conversationScrollButtonVisible = true
 
@@ -380,12 +430,12 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     const scrollButton = screen.getByRole('button', {
-      name: '最新メッセージへ移動',
+      name: 'Jump to latest message',
     })
 
     fireEvent.click(scrollButton)
@@ -393,14 +443,14 @@ describe('SavedTabsChatWidget', () => {
     expect(mocked.conversationScrollButtonClick).toHaveBeenCalledTimes(1)
   })
 
-  it('会話スクロール領域は overscroll を contain して左側へ伝播させない', async () => {
+  it('contains overscroll in the conversation scroll area', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
@@ -410,18 +460,18 @@ describe('SavedTabsChatWidget', () => {
     expect(scrollContainer?.className.includes('overscroll-contain')).toBe(true)
   })
 
-  it('チャット shell 自体も独立した scroll 領域として左側へ伝播させない', async () => {
+  it('keeps the chat shell as an independent scroll region', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    const sidebar = screen.getByLabelText('AIチャットサイドバー')
+    const sidebar = screen.getByLabelText('AI chat sidebar')
     const shell = sidebar.parentElement
 
     expect(shell?.className.includes('h-screen')).toBe(true)
@@ -429,56 +479,56 @@ describe('SavedTabsChatWidget', () => {
     expect(shell?.className.includes('overscroll-none')).toBe(true)
   })
 
-  it('ヘッダーではモデル名 badge を表示しない', async () => {
+  it('does not show a model-name badge in the header', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     expect(screen.queryByText('Ollama: llama3.2')).toBeNull()
   })
 
-  it('ヘッダーのタイトルはサイドバー中央に寄せる', async () => {
+  it('centers the header title in the sidebar', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    const title = screen.getByText('チャット').parentElement
+    const title = screen.getByText('Chat').parentElement
 
     expect(title?.className.includes('absolute')).toBe(true)
     expect(title?.className.includes('inset-x-0')).toBe(true)
     expect(title?.className.includes('justify-center')).toBe(true)
   })
 
-  it('ヘッダー左に system prompt 設定アイコンと selector を表示する', async () => {
+  it('shows the system prompt settings icon and selector on the left of the header', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     expect(
-      screen.getByRole('button', { name: 'システムプロンプト設定を開く' }),
+      screen.getByRole('button', { name: 'Open system prompt settings' }),
     ).toBeTruthy()
-    expect(screen.getByRole('combobox', { name: 'デフォルト' })).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Default' })).toBeTruthy()
   })
 
-  it('履歴ボタンをシステムプロンプト設定の左に表示し、sidebar-toggle を呼び出せる', async () => {
+  it('places the history button to the left of system prompt settings and triggers sidebar-toggle', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     const onToggleHistory = vi.fn()
 
@@ -491,10 +541,10 @@ describe('SavedTabsChatWidget', () => {
     )
 
     const historyButton = await screen.findByRole('button', {
-      name: '会話履歴',
+      name: 'Recent conversations',
     })
     const systemPromptButton = screen.getByRole('button', {
-      name: 'システムプロンプト設定を開く',
+      name: 'Open system prompt settings',
     })
 
     expect(
@@ -507,7 +557,7 @@ describe('SavedTabsChatWidget', () => {
     expect(onToggleHistory).toHaveBeenCalledTimes(1)
   })
 
-  it('dropdown 履歴ボタンで一覧を開き、会話選択 callback を呼び出せる', async () => {
+  it('opens the list from the dropdown history button and calls the conversation select callback', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     const onSelectHistoryItem = vi.fn()
 
@@ -518,14 +568,14 @@ describe('SavedTabsChatWidget', () => {
           {
             id: 'conversation-1',
             isActive: true,
-            preview: '最初の会話',
-            title: '最初の会話',
+            preview: 'First conversation',
+            title: 'First conversation',
           },
           {
             id: 'conversation-2',
             isActive: false,
-            preview: '別の会話',
-            title: '別の会話',
+            preview: 'Another conversation',
+            title: 'Another conversation',
           },
         ]}
         historyVariant='dropdown'
@@ -535,17 +585,19 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: '会話履歴',
+        name: 'Recent conversations',
       }),
     )
 
-    expect(screen.getByText('会話履歴')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /別の会話/ }))
+    expect(screen.getByText('Recent conversations')).toBeTruthy()
+    fireEvent.click(
+      screen.getByRole('button', { name: /Another conversation/ }),
+    )
 
     expect(onSelectHistoryItem).toHaveBeenCalledWith('conversation-2')
   })
 
-  it('dropdown 履歴の削除ボタンで確認後に会話を削除できる', async () => {
+  it('deletes a conversation after confirming from the dropdown history menu', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     const onDeleteHistoryItem = vi.fn()
     const onSelectHistoryItem = vi.fn()
@@ -557,14 +609,14 @@ describe('SavedTabsChatWidget', () => {
           {
             id: 'conversation-1',
             isActive: true,
-            preview: '最初の会話',
-            title: '最初の会話',
+            preview: 'First conversation',
+            title: 'First conversation',
           },
           {
             id: 'conversation-2',
             isActive: false,
-            preview: '別の会話',
-            title: '別の会話',
+            preview: 'Another conversation',
+            title: 'Another conversation',
           },
         ]}
         historyVariant='dropdown'
@@ -575,25 +627,25 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: '会話履歴',
+        name: 'Recent conversations',
       }),
     )
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: '別の会話を削除',
+        name: 'Delete Another conversation',
       }),
     )
 
-    expect(screen.getByText('この会話を削除しますか？')).toBeTruthy()
+    expect(screen.getByText('Delete this conversation?')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '削除' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(onDeleteHistoryItem).toHaveBeenCalledWith('conversation-2')
     expect(onSelectHistoryItem).not.toHaveBeenCalled()
   })
 
-  it('chrome.storage.onChanged で userSettings が変わると再読み込みなしで反映する', async () => {
+  it('reflects userSettings changes from chrome.storage.onChanged without reloading', async () => {
     const initialSettings = buildConfiguredSettings()
     const importedSettings = {
       ...buildConfiguredSettings(),
@@ -603,8 +655,8 @@ describe('SavedTabsChatWidget', () => {
         {
           createdAt: 2,
           id: 'imported-system-prompt',
-          name: 'インポート済み',
-          template: 'インポートしたシステムプロンプト',
+          name: 'Imported',
+          template: 'Imported system prompt',
           updatedAt: 2,
         },
       ],
@@ -616,11 +668,11 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    expect(screen.getByRole('combobox', { name: 'デフォルト' })).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Default' })).toBeTruthy()
 
     storageListeners[0](
       {
@@ -633,12 +685,12 @@ describe('SavedTabsChatWidget', () => {
     )
 
     expect(
-      await screen.findByRole('combobox', { name: 'インポート済み' }),
+      await screen.findByRole('combobox', { name: 'Imported' }),
     ).toBeTruthy()
     expect(screen.getByRole('combobox', { name: 'qwen3:latest' })).toBeTruthy()
   })
 
-  it('外部から会話を切り替えた同期では onMessagesChange を再通知しない', async () => {
+  it('does not re-notify onMessagesChange when syncing an externally switched conversation', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     const onMessagesChange = vi.fn()
 
@@ -648,17 +700,17 @@ describe('SavedTabsChatWidget', () => {
         defaultOpen
         initialMessages={[
           {
-            content: '最初の会話',
+            content: 'First conversation',
             id: 'message-1',
             role: 'user',
           },
         ]}
         onMessagesChange={onMessagesChange}
-        title='最初の会話'
+        title='First conversation'
       />,
     )
 
-    await screen.findByLabelText('AIチャットサイドバー')
+    await screen.findByLabelText('AI chat sidebar')
 
     onMessagesChange.mockClear()
 
@@ -668,24 +720,26 @@ describe('SavedTabsChatWidget', () => {
         defaultOpen
         initialMessages={[
           {
-            content: '別の会話',
+            content: 'Another conversation',
             id: 'message-2',
             role: 'user',
           },
         ]}
         onMessagesChange={onMessagesChange}
-        title='別の会話'
+        title='Another conversation'
       />,
     )
 
     await waitFor(() => {
-      expect(screen.getAllByText('別の会話').length).toBeGreaterThan(0)
+      expect(
+        screen.getAllByText('Another conversation').length,
+      ).toBeGreaterThan(0)
     })
 
     expect(onMessagesChange).not.toHaveBeenCalled()
   })
 
-  it('onMessagesChange は会話開始と完了時だけ通知し、stream途中では再通知しない', async () => {
+  it('notifies onMessagesChange only at conversation start and completion, not during stream steps', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     const onMessagesChange = vi.fn()
     let handlePortMessage: ((message: unknown) => void) | undefined
@@ -707,9 +761,9 @@ describe('SavedTabsChatWidget', () => {
       <SavedTabsChatWidget defaultOpen onMessagesChange={onMessagesChange} />,
     )
 
-    fireEvent.change(await screen.findByLabelText('AIに質問する'), {
+    fireEvent.change(await screen.findByLabelText('Ask AI'), {
       target: {
-        value: '今月追加したタブを教えて',
+        value: 'Show me the tabs I added this month',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -719,7 +773,7 @@ describe('SavedTabsChatWidget', () => {
     })
     expect(onMessagesChange).toHaveBeenLastCalledWith([
       expect.objectContaining({
-        content: '今月追加したタブを教えて',
+        content: 'Show me the tabs I added this month',
         role: 'user',
       }),
       expect.objectContaining({
@@ -730,20 +784,20 @@ describe('SavedTabsChatWidget', () => {
     ])
 
     handlePortMessage?.({
-      reasoning: '途中の推論',
+      reasoning: 'Intermediate reasoning',
       toolTraces: [],
       type: 'step',
     })
 
     await waitFor(() => {
-      expect(screen.getByText('途中の推論')).toBeTruthy()
+      expect(screen.getByText('Intermediate reasoning')).toBeTruthy()
     })
     expect(onMessagesChange).toHaveBeenCalledTimes(1)
 
     handlePortMessage?.({
-      answer: '今月追加した URL は https://react.dev/learn です。',
+      answer: 'The added URL this month is https://react.dev/learn.',
       charts: [],
-      reasoning: '完了した推論',
+      reasoning: 'Completed reasoning',
       toolTraces: [],
       type: 'complete',
     })
@@ -753,58 +807,58 @@ describe('SavedTabsChatWidget', () => {
     })
     expect(onMessagesChange).toHaveBeenLastCalledWith([
       expect.objectContaining({
-        content: '今月追加したタブを教えて',
+        content: 'Show me the tabs I added this month',
         role: 'user',
       }),
       expect.objectContaining({
-        content: '今月追加した URL は https://react.dev/learn です。',
+        content: 'The added URL this month is https://react.dev/learn.',
         isStreaming: false,
         role: 'assistant',
       }),
     ])
   })
 
-  it('システムプロンプト設定モーダルを開き、新規作成と複製を保存できる', async () => {
+  it('opens the system prompt modal and can create, duplicate, and save', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'システムプロンプト設定を開く' }),
+      screen.getByRole('button', { name: 'Open system prompt settings' }),
     )
 
     expect(
-      await screen.findByRole('dialog', { name: 'システムプロンプト管理' }),
+      await screen.findByRole('dialog', { name: 'System prompt manager' }),
     ).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '新規作成' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New prompt' }))
 
-    fireEvent.change(screen.getByLabelText('プロンプト名'), {
-      target: { value: '分析用' },
+    fireEvent.change(screen.getByLabelText('Prompt name'), {
+      target: { value: 'Research notes' },
     })
-    fireEvent.change(screen.getByLabelText('システムプロンプト本文'), {
-      target: { value: '保存傾向を分析してください。' },
+    fireEvent.change(screen.getByLabelText('System prompt body'), {
+      target: { value: 'Analyze saved-tab patterns.' },
     })
 
-    fireEvent.click(screen.getByRole('button', { name: '複製' }))
-    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => {
       expect(mocked.saveUserSettings).toHaveBeenCalledWith(
         expect.objectContaining({
           aiSystemPrompts: expect.arrayContaining([
             expect.objectContaining({
-              name: '分析用',
-              template: '保存傾向を分析してください。',
+              name: 'Research notes',
+              template: 'Analyze saved-tab patterns.',
             }),
             expect.objectContaining({
-              name: expect.stringContaining('分析用'),
+              name: expect.stringContaining('Research notes'),
             }),
           ]),
         }),
@@ -812,26 +866,26 @@ describe('SavedTabsChatWidget', () => {
     })
   })
 
-  it('システムプロンプト管理に利用できるツール一覧を表示する', async () => {
+  it('shows the available tools list in the system prompt manager', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'システムプロンプト設定を開く' }),
+      screen.getByRole('button', { name: 'Open system prompt settings' }),
     )
 
     const dialog = await screen.findByRole('dialog', {
-      name: 'システムプロンプト管理',
+      name: 'System prompt manager',
     })
 
-    expect(within(dialog).getByText('利用できるツール')).toBeTruthy()
+    expect(within(dialog).getByText('Available tools')).toBeTruthy()
 
     for (const toolDefinition of AI_CHAT_TOOL_DEFINITIONS) {
       expect(
@@ -843,10 +897,10 @@ describe('SavedTabsChatWidget', () => {
     }
   })
 
-  it('システムプロンプト selector 切替で active preset を保存し、会話をリセットする', async () => {
+  it('saves the active preset and resets the conversation when switching the selector', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     mocked.sendRuntimeMessage.mockResolvedValue({
-      answer: '最初の返答',
+      answer: 'First response',
       recordCount: 1,
       status: 'ok',
     })
@@ -855,21 +909,21 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
       target: {
-        value: '今月追加したタブを教えて',
+        value: 'Show me the tabs I added this month',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
-    expect(await screen.findByText('最初の返答')).toBeTruthy()
+    expect(await screen.findByText('First response')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'デフォルト' }))
-    fireEvent.click(await screen.findByRole('option', { name: 'リサーチ' }))
+    fireEvent.click(screen.getByRole('combobox', { name: 'Default' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Research' }))
 
     await waitFor(() => {
       expect(mocked.saveUserSettings).toHaveBeenCalledWith(
@@ -879,11 +933,11 @@ describe('SavedTabsChatWidget', () => {
       )
     })
 
-    expect(screen.queryByText('最初の返答')).toBeNull()
+    expect(screen.queryByText('First response')).toBeNull()
     expect(screen.getByTestId('ai-chat-intro')).toBeTruthy()
   })
 
-  it('system prompt が50件なら新規作成と複製を無効化する', async () => {
+  it('disables create and duplicate when there are 50 system prompts', async () => {
     mocked.getUserSettings.mockResolvedValue({
       ...buildConfiguredSettings(),
       activeAiSystemPromptId: 'prompt-1',
@@ -900,74 +954,76 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'システムプロンプト設定を開く' }),
+      screen.getByRole('button', { name: 'Open system prompt settings' }),
     )
 
-    const createButton = await screen.findByRole('button', { name: '新規作成' })
-    const duplicateButton = screen.getByRole('button', { name: '複製' })
+    const createButton = await screen.findByRole('button', {
+      name: 'New prompt',
+    })
+    const duplicateButton = screen.getByRole('button', { name: 'Duplicate' })
 
     expect(createButton.hasAttribute('disabled')).toBe(true)
     expect(duplicateButton.hasAttribute('disabled')).toBe(true)
     expect(screen.getByText('50 / 50')).toBeTruthy()
   })
 
-  it('system prompt の name/body 未入力や重複名では保存を無効化する', async () => {
+  it('disables saving when the system prompt name or body is empty or duplicated', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'システムプロンプト設定を開く' }),
+      screen.getByRole('button', { name: 'Open system prompt settings' }),
     )
 
-    const saveButton = await screen.findByRole('button', { name: '保存' })
+    const saveButton = await screen.findByRole('button', { name: 'Save' })
 
     expect(saveButton.hasAttribute('disabled')).toBe(false)
 
-    fireEvent.change(screen.getByLabelText('プロンプト名'), {
+    fireEvent.change(screen.getByLabelText('Prompt name'), {
       target: { value: '' },
     })
 
     expect(saveButton.hasAttribute('disabled')).toBe(true)
 
-    fireEvent.change(screen.getByLabelText('プロンプト名'), {
-      target: { value: 'デフォルト' },
+    fireEvent.change(screen.getByLabelText('Prompt name'), {
+      target: { value: 'Default' },
     })
-    fireEvent.change(screen.getByLabelText('システムプロンプト本文'), {
+    fireEvent.change(screen.getByLabelText('System prompt body'), {
       target: { value: '' },
     })
 
     expect(saveButton.hasAttribute('disabled')).toBe(true)
 
-    fireEvent.change(screen.getByLabelText('システムプロンプト本文'), {
-      target: { value: '保存タブの比較観点を多めに出してください。' },
+    fireEvent.change(screen.getByLabelText('System prompt body'), {
+      target: { value: 'Give me more comparison angles for saved tabs.' },
     })
-    fireEvent.click(screen.getByText('リサーチ'))
-    fireEvent.change(screen.getByLabelText('プロンプト名'), {
-      target: { value: 'デフォルト' },
+    fireEvent.click(screen.getByText('Research'))
+    fireEvent.change(screen.getByLabelText('Prompt name'), {
+      target: { value: 'Default' },
     })
 
     expect(saveButton.hasAttribute('disabled')).toBe(true)
     expect(mocked.saveUserSettings).not.toHaveBeenCalled()
 
-    fireEvent.change(screen.getByLabelText('プロンプト名'), {
-      target: { value: 'リサーチ詳細' },
+    fireEvent.change(screen.getByLabelText('Prompt name'), {
+      target: { value: 'Research details' },
     })
 
     expect(saveButton.hasAttribute('disabled')).toBe(false)
 
-    const nameInput = screen.getByLabelText('プロンプト名') as HTMLInputElement
+    const nameInput = screen.getByLabelText('Prompt name') as HTMLInputElement
 
     expect(nameInput.maxLength).toBe(25)
 
@@ -978,31 +1034,33 @@ describe('SavedTabsChatWidget', () => {
     expect(saveButton.hasAttribute('disabled')).toBe(true)
   })
 
-  it('選択中 prompt の複製と削除はプロンプト名入力の右側に表示する', async () => {
+  it('shows duplicate and delete actions to the right of the prompt name input', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'システムプロンプト設定を開く' }),
+      screen.getByRole('button', { name: 'Open system prompt settings' }),
     )
 
     const nameRow = await screen.findByTestId('system-prompt-name-row')
 
-    expect(within(nameRow).getByLabelText('プロンプト名')).toBeTruthy()
-    expect(within(nameRow).getByRole('button', { name: '複製' })).toBeTruthy()
-    expect(within(nameRow).getByRole('button', { name: '削除' })).toBeTruthy()
+    expect(within(nameRow).getByLabelText('Prompt name')).toBeTruthy()
+    expect(
+      within(nameRow).getByRole('button', { name: 'Duplicate' }),
+    ).toBeTruthy()
+    expect(within(nameRow).getByRole('button', { name: 'Delete' })).toBeTruthy()
   })
 
-  it('左側の system prompt 一覧は長い名前を省略表示にする', async () => {
+  it('truncates long names in the system prompt list', async () => {
     const longName =
-      'とても長いシステムプロンプト名が入ったときに一覧では省略表示されることを確認するための名前'
+      'A very long system prompt name that should be truncated in the list view'
     const normalizedLongName = longName.slice(0, 25)
 
     mocked.getUserSettings.mockResolvedValue({
@@ -1025,12 +1083,12 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'システムプロンプト設定を開く' }),
+      screen.getByRole('button', { name: 'Open system prompt settings' }),
     )
 
     const listItemButton = await screen.findByRole('button', {
@@ -1044,27 +1102,29 @@ describe('SavedTabsChatWidget', () => {
     expect(listItemRow?.className.includes('min-w-0')).toBe(true)
   })
 
-  it('新しい会話はアイコンボタンで表示し、tooltip でラベルを出す', async () => {
+  it('shows new conversation as an icon button with a tooltip label', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    const resetButton = screen.getByRole('button', { name: '新しい会話' })
+    const resetButton = screen.getByRole('button', { name: 'New conversation' })
 
-    expect(screen.queryByText('新しい会話')).toBeNull()
+    expect(screen.queryByText('New conversation')).toBeNull()
 
     fireEvent.focus(resetButton)
 
-    expect((await screen.findByRole('tooltip')).textContent).toBe('新しい会話')
+    expect((await screen.findByRole('tooltip')).textContent).toBe(
+      'New conversation',
+    )
   })
 
-  it('ヘッダーのコピーアイコンを押すと会話全文を clipboard に書き込む', async () => {
+  it('copies the whole conversation from the header button', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     let handlePortMessage: ((message: unknown) => void) | undefined
     const port = {
@@ -1085,13 +1145,13 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
       target: {
-        value: '今月追加したタブを教えて',
+        value: 'Show me the tabs I added this month',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -1099,14 +1159,14 @@ describe('SavedTabsChatWidget', () => {
     await waitFor(() => {
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '今月追加したタブを教えて',
+        prompt: 'Show me the tabs I added this month',
         type: 'run',
       })
     })
 
     handlePortMessage?.({
-      answer: '今月追加した URL は https://react.dev/learn です。',
-      reasoning: '- 質問の解釈: 月別に追加された URL の確認',
+      answer: 'The added URL this month is https://react.dev/learn.',
+      reasoning: '- Question interpretation: checking URLs added by month',
       recordCount: 1,
       toolTraces: [],
       type: 'complete',
@@ -1117,34 +1177,34 @@ describe('SavedTabsChatWidget', () => {
         Boolean(
           element?.tagName === 'P' &&
             element.textContent ===
-              '今月追加した URL は https://react.dev/learn です。',
+              'The added URL this month is https://react.dev/learn.',
         ),
       ),
     ).toBeTruthy()
 
-    const copyButton = screen.getByRole('button', { name: '会話をコピー' })
+    const copyButton = screen.getByRole('button', { name: 'Copy conversation' })
 
     fireEvent.click(copyButton)
 
     await waitFor(() => {
       expect(mocked.writeClipboardText).toHaveBeenCalledWith(
         [
-          'ユーザー:',
-          '今月追加したタブを教えて',
+          'User:',
+          'Show me the tabs I added this month',
           '',
           'AI:',
-          '今月追加した URL は https://react.dev/learn です。',
+          'The added URL this month is https://react.dev/learn.',
         ].join('\n'),
       )
     })
-    expect(mocked.toastSuccess).toHaveBeenCalledWith('会話をコピーしました')
+    expect(mocked.toastSuccess).toHaveBeenCalledWith('Copied the conversation')
     expect(copyButton.getAttribute('data-state')).toBe('copied')
   })
 
-  it('新しい会話を押すと履歴をリセットして初期状態へ戻す', async () => {
+  it('resets history and returns to the initial state when new conversation is clicked', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     mocked.sendRuntimeMessage.mockResolvedValue({
-      answer: '最初の返答',
+      answer: 'First response',
       recordCount: 1,
       status: 'ok',
     })
@@ -1153,29 +1213,29 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
       target: {
-        value: '今月追加したタブを教えて',
+        value: 'Show me the tabs I added this month',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
-    expect(await screen.findByText('最初の返答')).toBeTruthy()
+    expect(await screen.findByText('First response')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '新しい会話' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
 
-    expect(screen.queryByText('最初の返答')).toBeNull()
+    expect(screen.queryByText('First response')).toBeNull()
     expect(screen.getByTestId('ai-chat-intro')).toBeTruthy()
-    expect(
-      (screen.getByLabelText('AIに質問する') as HTMLTextAreaElement).value,
-    ).toBe('')
+    expect((screen.getByLabelText('Ask AI') as HTMLTextAreaElement).value).toBe(
+      '',
+    )
   })
 
-  it('新しい会話を押すと進行中の stream を切断する', async () => {
+  it('disconnects the active stream when new conversation is clicked', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     const port = {
       disconnect: vi.fn(),
@@ -1193,13 +1253,13 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
       target: {
-        value: '今月追加したタブを教えて',
+        value: 'Show me the tabs I added this month',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -1207,18 +1267,18 @@ describe('SavedTabsChatWidget', () => {
     await waitFor(() => {
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '今月追加したタブを教えて',
+        prompt: 'Show me the tabs I added this month',
         type: 'run',
       })
     })
 
-    fireEvent.click(screen.getByRole('button', { name: '新しい会話' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
 
     expect(port.disconnect).toHaveBeenCalled()
     expect(screen.getByTestId('ai-chat-intro')).toBeTruthy()
   })
 
-  it('質問を送ると assistant 返答を描画する', async () => {
+  it('renders the assistant response after submitting a question', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     let handlePortMessage: ((message: unknown) => void) | undefined
     const port = {
@@ -1239,13 +1299,13 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
       target: {
-        value: '今月追加したタブを教えて',
+        value: 'Show me the tabs I added this month',
       },
     })
     fireEvent.click(
@@ -1258,15 +1318,15 @@ describe('SavedTabsChatWidget', () => {
       expect(mocked.connectRuntimePort).toHaveBeenCalledWith('ai-chat-stream')
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '今月追加したタブを教えて',
+        prompt: 'Show me the tabs I added this month',
         type: 'run',
       })
     })
 
     handlePortMessage?.({
       reasoning: [
-        '- 質問の解釈: 月別に追加された URL の確認',
-        '- 使用ツール: 保存済みタブ一覧',
+        '- Question interpretation: checking URLs added by month',
+        '- Used tool: Saved tabs list',
       ].join('\n'),
       toolTraces: [
         {
@@ -1281,7 +1341,7 @@ describe('SavedTabsChatWidget', () => {
             },
           ],
           state: 'output-available',
-          title: '保存済みタブ一覧',
+          title: 'Saved tabs list',
           toolCallId: 'call-1',
           toolName: 'listSavedUrls',
           type: 'dynamic-tool',
@@ -1292,7 +1352,7 @@ describe('SavedTabsChatWidget', () => {
 
     expect(screen.getByRole('button', { name: /Reasoning/i })).toBeTruthy()
     const sourcesTrigger = await screen.findByRole('button', {
-      name: '参照ソース 1件',
+      name: '1 source',
     })
     expect(sourcesTrigger).toBeTruthy()
     fireEvent.click(sourcesTrigger)
@@ -1304,30 +1364,29 @@ describe('SavedTabsChatWidget', () => {
     expect(
       await screen.findAllByText(
         (_, element) =>
-          element?.textContent?.includes('保存済みタブ一覧') ?? false,
+          element?.textContent?.includes('Saved tabs list') ?? false,
       ),
     ).not.toHaveLength(0)
     expect(
       await screen.findAllByText(
-        (_, element) =>
-          element?.textContent?.includes('実行したツール') ?? false,
+        (_, element) => element?.textContent?.includes('Tools run') ?? false,
       ),
     ).not.toHaveLength(0)
     expect(screen.queryByText('Parameters')).toBeNull()
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: /保存済みタブ一覧/,
+        name: /Saved tabs list/,
       }),
     )
 
     expect(await screen.findByText('Parameters')).toBeTruthy()
 
     handlePortMessage?.({
-      answer: '今月追加した URL は https://react.dev/learn です。',
+      answer: 'The added URL this month is https://react.dev/learn.',
       reasoning: [
-        '- 質問の解釈: 月別に追加された URL の確認',
-        '- 使用ツール: 保存済みタブ一覧',
+        '- Question interpretation: checking URLs added by month',
+        '- Used tool: Saved tabs list',
       ].join('\n'),
       recordCount: 1,
       toolTraces: [
@@ -1343,7 +1402,7 @@ describe('SavedTabsChatWidget', () => {
             },
           ],
           state: 'output-available',
-          title: '保存済みタブ一覧',
+          title: 'Saved tabs list',
           toolCallId: 'call-1',
           toolName: 'listSavedUrls',
           type: 'dynamic-tool',
@@ -1357,7 +1416,7 @@ describe('SavedTabsChatWidget', () => {
         Boolean(
           element?.tagName === 'P' &&
             element.textContent ===
-              '今月追加した URL は https://react.dev/learn です。',
+              'The added URL this month is https://react.dev/learn.',
         ),
       ),
     ).toBeTruthy()
@@ -1366,7 +1425,7 @@ describe('SavedTabsChatWidget', () => {
       Boolean(
         element?.tagName === 'P' &&
           element.textContent ===
-            '今月追加した URL は https://react.dev/learn です。',
+            'The added URL this month is https://react.dev/learn.',
       ),
     )
 
@@ -1377,7 +1436,7 @@ describe('SavedTabsChatWidget', () => {
     expect(port.disconnect).toHaveBeenCalled()
   })
 
-  it('assistant 完了メッセージに charts があると本文直下へ描画する', async () => {
+  it('renders charts directly under the assistant message when present', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     let handlePortMessage: ((message: unknown) => void) | undefined
     const port = {
@@ -1398,13 +1457,13 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
       target: {
-        value: '最近よく保存しているジャンルを教えて',
+        value: 'What kinds of content do I save most often?',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -1412,13 +1471,13 @@ describe('SavedTabsChatWidget', () => {
     await waitFor(() => {
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '最近よく保存しているジャンルを教えて',
+        prompt: 'What kinds of content do I save most often?',
         type: 'run',
       })
     })
 
     handlePortMessage?.({
-      answer: '最近は Frontend 系をよく保存しています。',
+      answer: 'I have been saving a lot of frontend content lately.',
       charts: [
         {
           categoryKey: 'label',
@@ -1426,36 +1485,36 @@ describe('SavedTabsChatWidget', () => {
             { count: 3, label: 'Frontend' },
             { count: 1, label: 'AI' },
           ],
-          description: '最近保存したカテゴリ比率',
+          description: 'Recent saved category mix',
           series: [
             {
               colorToken: 'chart-1',
               dataKey: 'count',
-              label: '保存数',
+              label: 'Saved count',
             },
           ],
-          title: 'よく保存しているジャンル',
+          title: 'Most-saved categories',
           type: 'pie',
           valueFormat: 'count',
         },
       ],
-      reasoning: '- 使用ツール: 興味推定',
+      reasoning: '- Used tool: Interest estimation',
       recordCount: 4,
       toolTraces: [],
       type: 'complete',
     })
 
     const answerText = await screen.findByText(
-      '最近は Frontend 系をよく保存しています。',
+      'I have been saving a lot of frontend content lately.',
     )
     const chartHeading = await screen.findByRole('heading', {
       level: 3,
-      name: 'よく保存しているジャンル',
+      name: 'Most-saved categories',
     })
     const messageContent = chartHeading.closest('[class*="overflow"]')
     const assistantMessage = chartHeading.closest('[class*="max-w"]')
 
-    expect(screen.getByText('最近保存したカテゴリ比率')).toBeTruthy()
+    expect(screen.getByText('Recent saved category mix')).toBeTruthy()
     expect(messageContent?.className).toContain('overflow-visible')
     expect(assistantMessage?.className).toContain('max-w-full')
     expect(
@@ -1464,7 +1523,7 @@ describe('SavedTabsChatWidget', () => {
     ).toBeTruthy()
   })
 
-  it('source URL は tool trace 間で重複しても 1 件にまとめて表示する', async () => {
+  it('deduplicates source URLs across tool traces', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     let handlePortMessage: ((message: unknown) => void) | undefined
     const port = {
@@ -1485,13 +1544,13 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
       target: {
-        value: '最近保存したタブを見せて',
+        value: 'Show me the tabs I saved recently',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -1499,14 +1558,14 @@ describe('SavedTabsChatWidget', () => {
     await waitFor(() => {
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '最近保存したタブを見せて',
+        prompt: 'Show me the tabs I saved recently',
         type: 'run',
       })
     })
 
     handlePortMessage?.({
-      answer: '最近保存した URL をまとめます。',
-      reasoning: '- 使用ツール: 保存済みタブ一覧',
+      answer: 'I will summarize the recently saved URLs.',
+      reasoning: '- Used tool: Saved tabs list',
       recordCount: 2,
       toolTraces: [
         {
@@ -1529,7 +1588,7 @@ describe('SavedTabsChatWidget', () => {
             totalItems: 2,
           },
           state: 'output-available',
-          title: '保存済みタブ一覧',
+          title: 'Saved tabs list',
           toolCallId: 'call-1',
           toolName: 'listSavedUrls',
           type: 'dynamic-tool',
@@ -1550,7 +1609,7 @@ describe('SavedTabsChatWidget', () => {
             totalItems: 2,
           },
           state: 'output-available',
-          title: '保存済みタブ一覧',
+          title: 'Saved tabs list',
           toolCallId: 'call-2',
           toolName: 'listSavedUrls',
           type: 'dynamic-tool',
@@ -1560,7 +1619,7 @@ describe('SavedTabsChatWidget', () => {
     })
 
     const sourcesTrigger = await screen.findByRole('button', {
-      name: '参照ソース 2件',
+      name: '2 sources',
     })
     fireEvent.click(sourcesTrigger)
 
@@ -1580,7 +1639,7 @@ describe('SavedTabsChatWidget', () => {
     ).toBeTruthy()
   })
 
-  it('回答待ちでも入力はできるが送信はできない', async () => {
+  it('keeps the input editable but disables send while waiting for a reply', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     const port = {
       disconnect: vi.fn(),
@@ -1598,13 +1657,13 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
       target: {
-        value: '今月追加したタブを教えて',
+        value: 'Show me the tabs I added this month',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -1612,14 +1671,12 @@ describe('SavedTabsChatWidget', () => {
     await waitFor(() => {
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '今月追加したタブを教えて',
+        prompt: 'Show me the tabs I added this month',
         type: 'run',
       })
     })
 
-    const textarea = screen.getByLabelText(
-      'AIに質問する',
-    ) as HTMLTextAreaElement
+    const textarea = screen.getByLabelText('Ask AI') as HTMLTextAreaElement
     const submitButton = screen.getByRole('button', { name: 'Submit' })
 
     expect(textarea.disabled).toBe(false)
@@ -1627,18 +1684,18 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.change(textarea, {
       target: {
-        value: '続けて質問したい内容',
+        value: 'Another question to ask',
       },
     })
 
-    expect(textarea.value).toBe('続けて質問したい内容')
+    expect(textarea.value).toBe('Another question to ask')
 
     fireEvent.click(submitButton)
 
     expect(port.postMessage).toHaveBeenCalledTimes(1)
   })
 
-  it('入力欄フッターのモデル selector を開くと Ollama からモデル一覧を取得する', async () => {
+  it('loads the Ollama model list when the footer selector is opened', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     mocked.sendRuntimeMessage.mockResolvedValue({
       models: [
@@ -1654,7 +1711,7 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
@@ -1666,22 +1723,20 @@ describe('SavedTabsChatWidget', () => {
       })
     })
 
-    expect(
-      screen.queryByRole('dialog', { name: 'Ollamaモデルを選択' }),
-    ).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Select a model' })).toBeNull()
     expect(await screen.findAllByText('llama3.2 (8B)')).not.toHaveLength(0)
   })
 
-  it('候補質問を押すと即送信され、2回目の送信では履歴を渡す', async () => {
+  it('sends immediately when a suggestion is clicked and passes history on the second send', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     mocked.sendRuntimeMessage
       .mockResolvedValueOnce({
-        answer: '最初の返答',
+        answer: 'First response',
         recordCount: 1,
         status: 'ok',
       })
       .mockResolvedValueOnce({
-        answer: '2回目の返答',
+        answer: 'Second response',
         recordCount: 1,
         status: 'ok',
       })
@@ -1690,28 +1745,28 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    fireEvent.click(screen.getByText('今月追加したタブを教えて'))
+    fireEvent.click(screen.getByText('Show me the tabs I added this month'))
 
     await waitFor(() => {
       expect(mocked.sendRuntimeMessage).toHaveBeenNthCalledWith(1, {
         action: 'runAiChat',
         history: [],
-        prompt: '今月追加したタブを教えて',
+        prompt: 'Show me the tabs I added this month',
       })
     })
 
-    expect(
-      (screen.getByLabelText('AIに質問する') as HTMLTextAreaElement).value,
-    ).toBe('')
+    expect((screen.getByLabelText('Ask AI') as HTMLTextAreaElement).value).toBe(
+      '',
+    )
 
-    expect(await screen.findByText('最初の返答')).toBeTruthy()
+    expect(await screen.findByText('First response')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
-      target: { value: '続けて教えて' },
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
+      target: { value: 'Tell me more' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
@@ -1720,20 +1775,20 @@ describe('SavedTabsChatWidget', () => {
         action: 'runAiChat',
         history: [
           {
-            content: '今月追加したタブを教えて',
+            content: 'Show me the tabs I added this month',
             role: 'user',
           },
           {
-            content: '最初の返答',
+            content: 'First response',
             role: 'assistant',
           },
         ],
-        prompt: '続けて教えて',
+        prompt: 'Tell me more',
       })
     })
   })
 
-  it('応答が失敗したときは fallback エラーを assistant メッセージとして出す', async () => {
+  it('shows the fallback error as an assistant message when the response fails', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     mocked.sendRuntimeMessage.mockResolvedValue({
       status: 'error',
@@ -1743,23 +1798,23 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
       target: {
-        value: '最近よく保存しているジャンルは？',
+        value: 'What kinds of content do I save most often?',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
     expect(
-      await screen.findAllByText('AI からの応答を取得できませんでした。'),
+      await screen.findAllByText('Could not get a response from AI.'),
     ).toHaveLength(2)
   })
 
-  it('stream の Ollama 403 エラーでは macOS 向け設定案内と FAQ リンクを表示する', async () => {
+  it('shows macOS setup guidance and the FAQ link for Ollama 403 stream errors', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     mocked.platformOs = 'mac'
     let handlePortMessage: ((message: unknown) => void) | undefined
@@ -1781,13 +1836,13 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
       target: {
-        value: '最近よく保存しているジャンルは？',
+        value: 'What kinds of content do I save most often?',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -1795,13 +1850,13 @@ describe('SavedTabsChatWidget', () => {
     await waitFor(() => {
       expect(port.postMessage).toHaveBeenCalledWith({
         history: [],
-        prompt: '最近よく保存しているジャンルは？',
+        prompt: 'What kinds of content do I save most often?',
         type: 'run',
       })
     })
 
     handlePortMessage?.({
-      error: 'Ollama が拡張機能からのアクセスを拒否しました (403 Forbidden)。',
+      error: 'Ollama denied access from the extension (403 Forbidden).',
       ollamaError: {
         allowedOrigins: 'chrome-extension://test-extension-id',
         baseUrl: 'http://localhost:11434',
@@ -1814,12 +1869,10 @@ describe('SavedTabsChatWidget', () => {
     })
 
     expect(
-      await screen.findAllByText(
-        'Spotlight 検索で「ターミナル」と入力して開きます。',
-      ),
+      await screen.findAllByText('Open Terminal from Spotlight search.'),
     ).toHaveLength(1)
     expect(
-      screen.getAllByText('次のコマンドをコピーして貼り付けます。'),
+      screen.getAllByText('Copy and paste the following command.'),
     ).toHaveLength(1)
     expect(
       screen.getAllByDisplayValue(
@@ -1827,21 +1880,21 @@ describe('SavedTabsChatWidget', () => {
       ),
     ).toHaveLength(1)
     expect(
-      screen.getAllByRole('button', { name: 'コマンドをコピー' }),
+      screen.getAllByRole('button', { name: 'Copy command' }),
     ).toHaveLength(1)
-    expect(screen.getAllByText('return キーを押します。')).toHaveLength(1)
-    expect(screen.getAllByText('Ollama.app を終了します。')).toHaveLength(1)
-    expect(screen.getAllByText('Ollama.app を起動し直します。')).toHaveLength(1)
+    expect(screen.getAllByText('Press the Return key.')).toHaveLength(1)
+    expect(screen.getAllByText('Quit Ollama.app.')).toHaveLength(1)
+    expect(screen.getAllByText('Launch Ollama.app again.')).toHaveLength(1)
     expect(
       screen.getAllByText(
-        '確認コマンドをコピーして貼り付けると状態を確認できます。',
+        'Copy and paste the check command to verify the connection.',
       ),
     ).toHaveLength(1)
     expect(
       screen.getAllByDisplayValue('curl http://localhost:11434/api/tags'),
     ).toHaveLength(1)
     expect(
-      screen.getAllByRole('button', { name: '確認コマンドをコピー' }),
+      screen.getAllByRole('button', { name: 'Copy check command' }),
     ).toHaveLength(1)
     expect(
       screen.getAllByRole('link', {
@@ -1850,26 +1903,24 @@ describe('SavedTabsChatWidget', () => {
     ).toHaveLength(1)
   })
 
-  it('設定取得に失敗しても未設定として扱い、close ボタンで閉じる', async () => {
+  it('treats settings fetch failures as unconfigured and closes with the close button', async () => {
     mocked.getUserSettings.mockRejectedValue(new Error('failed to load'))
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    expect(
-      screen.getByPlaceholderText('左下で Ollama モデルを選択してください'),
-    ).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Select a model' })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'AIチャットを閉じる' }))
-    expect(screen.queryByText('チャット')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Close AI chat' }))
+    expect(screen.queryByText('Chat')).toBeNull()
   })
 
-  it('モデル未選択時は会話領域の中央に案内を表示し、候補質問は出さない', async () => {
+  it('shows a centered guide and no suggestions when no model is selected', async () => {
     mocked.getUserSettings.mockResolvedValue({
       ...buildConfiguredSettings(),
       ollamaModel: '',
@@ -1879,11 +1930,13 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    const emptyStateMessage = screen.getByText('モデルを選択してください')
+    const emptyStateMessage = screen.getByRole('heading', {
+      name: 'Select a model',
+    })
     const emptyStateRoot = emptyStateMessage.closest('div')?.parentElement
 
     expect(emptyStateMessage).toBeTruthy()
@@ -1891,18 +1944,18 @@ describe('SavedTabsChatWidget', () => {
     expect(emptyStateRoot?.className.includes('justify-center')).toBe(true)
   })
 
-  it('空入力では送信しない', async () => {
+  it('does not send when the input is empty', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    const form = screen.getByLabelText('AIに質問する').closest('form')
+    const form = screen.getByLabelText('Ask AI').closest('form')
     if (!form) {
       throw new Error('form not found')
     }
@@ -1911,20 +1964,18 @@ describe('SavedTabsChatWidget', () => {
     expect(mocked.sendRuntimeMessage).not.toHaveBeenCalled()
   })
 
-  it('Enter では送信せず改行する', async () => {
+  it('inserts a newline on Enter instead of sending', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
 
     render(<SavedTabsChatWidget />)
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    const textarea = screen.getByLabelText(
-      'AIに質問する',
-    ) as HTMLTextAreaElement
+    const textarea = screen.getByLabelText('Ask AI') as HTMLTextAreaElement
 
     fireEvent.change(textarea, {
       target: {
@@ -1944,10 +1995,10 @@ describe('SavedTabsChatWidget', () => {
     expect(mocked.sendRuntimeMessage).not.toHaveBeenCalled()
   })
 
-  it('Ctrl+Enter で送信する', async () => {
+  it('sends on Ctrl+Enter', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     mocked.sendRuntimeMessage.mockResolvedValue({
-      answer: 'Ctrl 送信の返答',
+      answer: 'Ctrl submit response',
       recordCount: 1,
       status: 'ok',
     })
@@ -1956,13 +2007,11 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
-    const textarea = screen.getByLabelText(
-      'AIに質問する',
-    ) as HTMLTextAreaElement
+    const textarea = screen.getByLabelText('Ask AI') as HTMLTextAreaElement
 
     fireEvent.change(textarea, {
       target: {
@@ -1982,13 +2031,13 @@ describe('SavedTabsChatWidget', () => {
         prompt: 'Ctrl submit',
       })
     })
-    expect(await screen.findByText('Ctrl 送信の返答')).toBeTruthy()
+    expect(await screen.findByText('Ctrl submit response')).toBeTruthy()
   })
 
-  it('左下の添付から text ファイルを選ぶと会話に使う payload で送信する', async () => {
+  it('sends text attachments in the conversation payload when selected from the bottom-left picker', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     mocked.sendRuntimeMessage.mockResolvedValue({
-      answer: '添付を読みました',
+      answer: 'I read the attachment',
       recordCount: 1,
       status: 'ok',
     })
@@ -1997,7 +2046,7 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
@@ -2010,9 +2059,9 @@ describe('SavedTabsChatWidget', () => {
 
     expect(await screen.findByText('memo.txt')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('AIに質問する'), {
+    fireEvent.change(screen.getByLabelText('Ask AI'), {
       target: {
-        value: '添付を要約して',
+        value: 'Summarize the attachment',
       },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
@@ -2029,14 +2078,14 @@ describe('SavedTabsChatWidget', () => {
           },
         ],
         history: [],
-        prompt: '添付を要約して',
+        prompt: 'Summarize the attachment',
       })
     })
 
-    expect(await screen.findByText('添付を読みました')).toBeTruthy()
+    expect(await screen.findByText('I read the attachment')).toBeTruthy()
   })
 
-  it('未設定ならチャット内でモデルを選んで保存できる', async () => {
+  it('can select and save a model from inside the chat when none is set', async () => {
     mocked.getUserSettings.mockResolvedValue({
       ...buildConfiguredSettings(),
       ollamaModel: '',
@@ -2055,19 +2104,17 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
     expect(
-      (screen.getByLabelText('AIに質問する') as HTMLTextAreaElement).disabled,
+      (screen.getByLabelText('Ask AI') as HTMLTextAreaElement).disabled,
     ).toBe(true)
 
-    expect(
-      screen.queryByRole('button', { name: 'モデル一覧を取得' }),
-    ).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Load models' })).toBeNull()
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'モデルを選択' }))
+    fireEvent.click(screen.getByRole('combobox', { name: 'Select a model' }))
 
     await waitFor(() => {
       expect(mocked.sendRuntimeMessage).toHaveBeenCalledWith({
@@ -2090,17 +2137,17 @@ describe('SavedTabsChatWidget', () => {
 
     await waitFor(() => {
       expect(
-        (screen.getByLabelText('AIに質問する') as HTMLTextAreaElement).disabled,
+        (screen.getByLabelText('Ask AI') as HTMLTextAreaElement).disabled,
       ).toBe(false)
     })
     expect(screen.queryByText('Ollama: llama3.2')).toBeNull()
   })
 
-  it('モデル一覧取得の Ollama 接続エラーでは Windows 向け案内とダウンロードリンクを表示する', async () => {
+  it('shows Windows guidance and download links for Ollama connection errors while fetching the model list', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     mocked.platformOs = 'win'
     mocked.sendRuntimeMessage.mockResolvedValue({
-      error: 'Ollama に接続できませんでした。',
+      error: 'Could not connect to Ollama.',
       ollamaError: {
         allowedOrigins: 'chrome-extension://test-extension-id',
         baseUrl: 'http://localhost:11434',
@@ -2116,7 +2163,7 @@ describe('SavedTabsChatWidget', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'AIチャットを開く',
+        name: 'Open AI chat',
       }),
     )
 
@@ -2130,28 +2177,30 @@ describe('SavedTabsChatWidget', () => {
 
     expect(
       await screen.findByText(
-        'Windows のスタートメニューで「環境変数」と入力します。',
+        'Search for Environment Variables in the Windows start menu.',
       ),
     ).toBeTruthy()
     expect(
-      screen.getByText('「システム環境変数の編集」を開きます。'),
+      screen.getByText('Open Edit the system environment variables.'),
     ).toBeTruthy()
     expect(
-      screen.getByText('表示された画面で「環境変数」を押します。'),
+      screen.getByText(
+        'In the window that appears, select Environment Variables.',
+      ),
+    ).toBeTruthy()
+    expect(screen.getByText('Under User variables, select New.')).toBeTruthy()
+    expect(
+      screen.getByText('Enter OLLAMA_ORIGINS as the variable name.'),
     ).toBeTruthy()
     expect(
-      screen.getByText('「ユーザー環境変数」の「新規」を押します。'),
+      screen.getByText('Enter the following value as the variable value.'),
     ).toBeTruthy()
-    expect(
-      screen.getByText('変数名に OLLAMA_ORIGINS を入力します。'),
-    ).toBeTruthy()
-    expect(screen.getByText('変数値に次の値を入力します。')).toBeTruthy()
     expect(
       screen.getByDisplayValue('chrome-extension://test-extension-id'),
     ).toBeTruthy()
-    expect(screen.getByRole('button', { name: '入力値をコピー' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Copy value' })).toBeTruthy()
     expect(
-      screen.getByText('保存してから Ollama を再起動します。'),
+      screen.getByText('Save the setting and restart Ollama.'),
     ).toBeTruthy()
     expect(
       screen.getByRole('link', {

@@ -4,6 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SortableUrlItemProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
 
+const sortableUrlItemAdditionalI18nState = vi.hoisted(() => ({
+  language: 'ja' as 'en' | 'ja',
+}))
+
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: vi.fn(() => ({
     attributes: {},
@@ -26,6 +30,29 @@ vi.mock('@/utils/datetime', () => ({
   formatDatetime: vi.fn(),
   TimeRemaining: () => null,
 }))
+
+vi.mock('@/features/i18n/context/I18nProvider', async () => {
+  const { getMessages } = await vi.importActual<
+    typeof import('@/features/i18n/messages')
+  >('@/features/i18n/messages')
+
+  return {
+    useI18n: () => ({
+      language: sortableUrlItemAdditionalI18nState.language,
+      t: (key: string, fallback?: string, values?: Record<string, string>) => {
+        const messages = getMessages(
+          sortableUrlItemAdditionalI18nState.language,
+        )
+        const template =
+          messages[key as keyof typeof messages] ?? fallback ?? key
+        return template.replaceAll(
+          /\{\{(\w+)\}\}/g,
+          (_, token) => values?.[token] ?? '',
+        )
+      },
+    }),
+  }
+})
 
 import { SortableUrlItem } from './SortableUrlItem'
 
@@ -76,6 +103,7 @@ describe('SortableUrlItem additional', () => {
   afterEach(() => {
     cleanup()
     vi.clearAllMocks()
+    sortableUrlItemAdditionalI18nState.language = 'ja'
   })
 
   it('window 内 drop 済みなら外部ドロップ扱いしない', () => {

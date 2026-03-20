@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -33,8 +33,10 @@ import {
   type AnalyticsQuery,
   generateAnalyticsResult,
   getDefaultAnalyticsQuery,
+  normalizeAnalyticsQuery,
 } from '@/features/analytics/lib/analytics'
 import { loadAnalyticsRecords } from '@/features/analytics/lib/loadAnalyticsRecords'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import {
   type SavedAnalyticsView,
   createSavedAnalyticsView,
@@ -45,28 +47,6 @@ import {
 import type { AiChatToolTrace } from '@/types/background'
 
 const defaultAnalyticsQuery = getDefaultAnalyticsQuery()
-
-const analyticsGroupByOptions = [
-  { label: 'ドメイン', value: 'domain' },
-  { label: '時系列', value: 'time' },
-  { label: '親カテゴリ', value: 'parentCategory' },
-  { label: '子カテゴリ', value: 'subCategory' },
-  { label: 'プロジェクト', value: 'project' },
-] as const satisfies ReadonlyArray<{
-  label: string
-  value: AnalyticsQuery['groupBy']
-}>
-
-const analyticsChartTypeOptions = [
-  { label: '棒グラフ', value: 'bar' },
-  { label: '折れ線', value: 'line' },
-  { label: '面グラフ', value: 'area' },
-  { label: '円グラフ', value: 'pie' },
-  { label: 'レーダー', value: 'radar' },
-] as const satisfies ReadonlyArray<{
-  label: string
-  value: AnalyticsQuery['chartType']
-}>
 
 const isAnalyticsQuery = (value: unknown): value is AnalyticsQuery => {
   if (!value || typeof value !== 'object') {
@@ -136,7 +116,7 @@ const awaitableEmptyRecords: Awaited<ReturnType<typeof loadAnalyticsRecords>> =
 const normalizeAnalyticsRouteQuery = (
   analyticsQuery: AnalyticsQuery,
 ): AnalyticsQuery => ({
-  ...analyticsQuery,
+  ...normalizeAnalyticsQuery(analyticsQuery),
   mode: 'both',
 })
 
@@ -147,34 +127,47 @@ interface AnalyticsDrilldownSelection {
   specTitle: string
 }
 
+type AnalyticsChartMessages = NonNullable<
+  Parameters<typeof generateAnalyticsResult>[2]
+>['messages']
+
 const getDrilldownLabelsForRecord = (
   record: AiSavedUrlRecord,
   query: AnalyticsQuery,
+  uncategorizedLabel: string,
+  chartMessages: AnalyticsChartMessages,
 ): string[] => {
   switch (query.groupBy) {
-    case 'time':
+    case 'timeRecent':
+    case 'timeTop':
       return (
-        generateAnalyticsResult([record], {
-          ...query,
-          compareBy: 'none',
-        })
+        generateAnalyticsResult(
+          [record],
+          {
+            ...query,
+            compareBy: 'none',
+          },
+          { messages: chartMessages },
+        )
           .chartSpecs[0]?.data.map(datum => String(datum.label ?? ''))
           .filter(Boolean) ?? []
       )
     case 'parentCategory':
       return record.parentCategories.length > 0
         ? record.parentCategories
-        : ['未分類']
+        : [uncategorizedLabel]
     case 'subCategory':
-      return record.subCategories.length > 0 ? record.subCategories : ['未分類']
+      return record.subCategories.length > 0
+        ? record.subCategories
+        : [uncategorizedLabel]
     case 'project':
       return record.savedInProjects.length > 0
         ? record.savedInProjects
-        : ['未分類']
+        : [uncategorizedLabel]
     case 'projectCategory':
       return record.projectCategories.length > 0
         ? record.projectCategories
-        : ['未分類']
+        : [uncategorizedLabel]
     default:
       return [record.domain]
   }
@@ -209,11 +202,15 @@ const matchesDrilldownLabel = ({
   query,
   record,
   seriesKey,
+  uncategorizedLabel,
+  chartMessages,
 }: {
   label: string
   query: AnalyticsQuery
   record: AiSavedUrlRecord
   seriesKey?: string
+  uncategorizedLabel: string
+  chartMessages: AnalyticsChartMessages
 }): boolean => {
   const normalizedLabel = label.trim().toLowerCase()
   if (!normalizedLabel) {
@@ -224,12 +221,16 @@ const matchesDrilldownLabel = ({
     return false
   }
 
-  return getDrilldownLabelsForRecord(record, query).some(
-    value => value.toLowerCase() === normalizedLabel,
-  )
+  return getDrilldownLabelsForRecord(
+    record,
+    query,
+    uncategorizedLabel,
+    chartMessages,
+  ).some(value => value.toLowerCase() === normalizedLabel)
 }
 
 const AnalyticsRoute = () => {
+  const { language, t } = useI18n()
   const {
     activeConversation,
     createConversation,
@@ -240,7 +241,7 @@ const AnalyticsRoute = () => {
   } = useSharedAiChatHistory()
   const [records, setRecords] = useState(awaitableEmptyRecords)
   const [savedViews, setSavedViews] = useState<SavedAnalyticsView[]>([])
-  const [query, setQuery] = useState<AnalyticsQuery>(
+  const [query, setQuery] = useState<AnalyticsQuery>(() =>
     normalizeAnalyticsRouteQuery(defaultAnalyticsQuery),
   )
   const [viewName, setViewName] = useState('')
@@ -252,6 +253,54 @@ const AnalyticsRoute = () => {
   const [drilldownSelection, setDrilldownSelection] =
     useState<AnalyticsDrilldownSelection | null>(null)
   const [isUsingAiCharts, setIsUsingAiCharts] = useState(false)
+  const chartMessages = useMemo<AnalyticsChartMessages>(
+    () => ({
+      chartDailySavedTrend: t('analytics.chart.dailySavedTrend'),
+      chartDescriptionAggregated: t('analytics.chart.descriptionAggregated'),
+      chartDescriptionCompareMode: t('analytics.chart.descriptionCompareMode'),
+      chartMonthlySavedTrend: t('analytics.chart.monthlySavedTrend'),
+      chartSavedCountByDomain: t('analytics.chart.savedCountByDomain'),
+      chartSavedCountByParentCategory: t(
+        'analytics.chart.savedCountByParentCategory',
+      ),
+      chartSavedCountByProject: t('analytics.chart.savedCountByProject'),
+      chartSavedCountByProjectCategory: t(
+        'analytics.chart.savedCountByProjectCategory',
+      ),
+      chartSavedCountBySubCategory: t(
+        'analytics.chart.savedCountBySubCategory',
+      ),
+      chartSeriesCustomMode: t('analytics.chart.seriesCustomMode'),
+      chartSeriesDomainMode: t('analytics.chart.seriesDomainMode'),
+      chartSeriesSavedCount: t('analytics.chart.seriesSavedCount'),
+      chartSeriesShare: t('analytics.chart.seriesShare'),
+      chartSummary: t('analytics.summary'),
+      chartWeeklySavedTrend: t('analytics.chart.weeklySavedTrend'),
+      uncategorizedLabel: t('analytics.uncategorized'),
+    }),
+    [language],
+  )
+  const analyticsGroupByOptions = [
+    { label: t('analytics.groupBy.domain'), value: 'domain' },
+    { label: t('analytics.groupBy.timeRecent'), value: 'timeRecent' },
+    { label: t('analytics.groupBy.timeTop'), value: 'timeTop' },
+    { label: t('analytics.groupBy.parentCategory'), value: 'parentCategory' },
+    { label: t('analytics.groupBy.subCategory'), value: 'subCategory' },
+    { label: t('analytics.groupBy.project'), value: 'project' },
+  ] as const satisfies ReadonlyArray<{
+    label: string
+    value: AnalyticsQuery['groupBy']
+  }>
+  const analyticsChartTypeOptions = [
+    { label: t('analytics.chartType.bar'), value: 'bar' },
+    { label: t('analytics.chartType.line'), value: 'line' },
+    { label: t('analytics.chartType.area'), value: 'area' },
+    { label: t('analytics.chartType.pie'), value: 'pie' },
+    { label: t('analytics.chartType.radar'), value: 'radar' },
+  ] as const satisfies ReadonlyArray<{
+    label: string
+    value: AnalyticsQuery['chartType']
+  }>
 
   useEffect(() => {
     let cancelled = false
@@ -273,10 +322,12 @@ const AnalyticsRoute = () => {
   }, [])
 
   useEffect(() => {
-    const result = generateAnalyticsResult(records, query)
+    const result = generateAnalyticsResult(records, query, {
+      messages: chartMessages,
+    })
     setGeneratedChartSpecs(result.chartSpecs)
     setSummary(result.summary)
-  }, [query, records])
+  }, [chartMessages, query, records])
 
   const applyQuery = (nextQuery: AnalyticsQuery, nextViewName?: string) => {
     setIsUsingAiCharts(false)
@@ -323,7 +374,7 @@ const AnalyticsRoute = () => {
     setIsUsingAiCharts(true)
     setAiChartSpecs(latestAssistantCharts.charts)
     setDrilldownSelection(null)
-    setSummary('AI が生成した分析チャートです。')
+    setSummary(t('analytics.aiSummary'))
   }
 
   const handleChartPointClick = ({
@@ -337,6 +388,8 @@ const AnalyticsRoute = () => {
         query,
         record,
         seriesKey,
+        chartMessages,
+        uncategorizedLabel: t('analytics.uncategorized'),
       }),
     )
 
@@ -367,7 +420,9 @@ const AnalyticsRoute = () => {
                 <div className='space-y-4 pr-3'>
                   <Card className='rounded-3xl border-border p-5 shadow-none'>
                     <CardHeader className='gap-1 p-0'>
-                      <CardTitle className='text-lg'>分析条件</CardTitle>
+                      <CardTitle className='text-lg'>
+                        {t('analytics.conditionsTitle')}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className='mt-4 grid gap-3 p-0'>
                       <div className='grid gap-1.5'>
@@ -375,10 +430,10 @@ const AnalyticsRoute = () => {
                           className='text-sm'
                           htmlFor='analytics-view-name'
                         >
-                          ビュー名
+                          {t('analytics.viewName')}
                         </Label>
                         <Input
-                          aria-label='ビュー名'
+                          aria-label={t('analytics.viewName')}
                           className='rounded-xl bg-background'
                           id='analytics-view-name'
                           onChange={event => setViewName(event.target.value)}
@@ -387,7 +442,7 @@ const AnalyticsRoute = () => {
                       </div>
                       <div className='grid gap-1.5'>
                         <Label className='text-sm' htmlFor='analytics-group-by'>
-                          集計軸
+                          {t('analytics.groupByLabel')}
                         </Label>
                         <Select
                           onValueChange={value =>
@@ -399,7 +454,7 @@ const AnalyticsRoute = () => {
                           value={query.groupBy}
                         >
                           <SelectTrigger
-                            aria-label='集計軸'
+                            aria-label={t('analytics.groupByLabel')}
                             className='rounded-xl bg-background'
                             id='analytics-group-by'
                           >
@@ -422,7 +477,7 @@ const AnalyticsRoute = () => {
                           className='text-sm'
                           htmlFor='analytics-chart-type'
                         >
-                          グラフ種別
+                          {t('analytics.chartTypeLabel')}
                         </Label>
                         <Select
                           onValueChange={value =>
@@ -434,7 +489,7 @@ const AnalyticsRoute = () => {
                           value={query.chartType}
                         >
                           <SelectTrigger
-                            aria-label='グラフ種別'
+                            aria-label={t('analytics.chartTypeLabel')}
                             className='rounded-xl bg-background'
                             id='analytics-chart-type'
                           >
@@ -454,10 +509,10 @@ const AnalyticsRoute = () => {
                       </div>
                       <div className='grid gap-1.5'>
                         <Label className='text-sm' htmlFor='analytics-limit'>
-                          上位件数
+                          {t('analytics.limitLabel')}
                         </Label>
                         <Input
-                          aria-label='上位件数'
+                          aria-label={t('analytics.limitLabel')}
                           className='rounded-xl bg-background'
                           id='analytics-limit'
                           min={1}
@@ -481,7 +536,7 @@ const AnalyticsRoute = () => {
                         onClick={handleSaveView}
                         type='button'
                       >
-                        保存する
+                        {t('analytics.saveView')}
                       </Button>
                       <Button
                         className='w-full cursor-pointer rounded-xl'
@@ -489,22 +544,24 @@ const AnalyticsRoute = () => {
                         type='button'
                         variant='outline'
                       >
-                        初期化
+                        {t('common.reset')}
                       </Button>
                     </div>
                   </Card>
 
                   <Card className='rounded-3xl border-border p-5 shadow-none'>
                     <CardHeader className='gap-1 p-0'>
-                      <CardTitle className='text-lg'>保存済みビュー</CardTitle>
+                      <CardTitle className='text-lg'>
+                        {t('analytics.savedViewsTitle')}
+                      </CardTitle>
                       <CardDescription>
-                        保存した分析条件をここから再利用できます。
+                        {t('analytics.savedViewsDescription')}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className='mt-4 p-0'>
                       {savedViews.length === 0 ? (
                         <p className='text-muted-foreground text-sm'>
-                          まだ保存された分析ビューはありません。
+                          {t('analytics.savedViewsEmpty')}
                         </p>
                       ) : (
                         <div className='space-y-2'>
@@ -527,14 +584,18 @@ const AnalyticsRoute = () => {
                                   </span>
                                 </Button>
                                 <Button
-                                  aria-label={`${view.name}を削除`}
+                                  aria-label={t(
+                                    'analytics.deleteViewAria',
+                                    undefined,
+                                    { name: view.name },
+                                  )}
                                   className='cursor-pointer rounded-lg'
                                   onClick={() => void handleDeleteView(view.id)}
                                   size='sm'
                                   type='button'
                                   variant='outline'
                                 >
-                                  削除
+                                  {t('common.delete')}
                                 </Button>
                               </div>
                             </Card>
@@ -554,7 +615,9 @@ const AnalyticsRoute = () => {
               <div className='p-5'>
                 <div className='flex flex-wrap items-start justify-between gap-3'>
                   <div>
-                    <h2 className='font-semibold text-lg'>分析キャンバス</h2>
+                    <h2 className='font-semibold text-lg'>
+                      {t('analytics.canvasTitle')}
+                    </h2>
                     <p className='mt-1 text-muted-foreground text-sm'>
                       {summary}
                     </p>
@@ -580,19 +643,23 @@ const AnalyticsRoute = () => {
                     <div>
                       <div>
                         <h3 className='font-semibold text-base'>
-                          項目に含まれる保存タブ
+                          {t('analytics.drilldownTitle')}
                         </h3>
                         <p className='mt-1 text-muted-foreground text-sm'>
                           {drilldownSelection.specTitle} /{' '}
                           {drilldownSelection.label} /{' '}
-                          {drilldownSelection.matchingRecords.length}件
+                          {t('analytics.drilldownCount', undefined, {
+                            count: String(
+                              drilldownSelection.matchingRecords.length,
+                            ),
+                          })}
                         </p>
                       </div>
                     </div>
                     <div className='mt-4 space-y-3'>
                       {drilldownSelection.matchingRecords.length === 0 ? (
                         <p className='text-muted-foreground text-sm'>
-                          該当する保存タブはありません。
+                          {t('analytics.drilldownEmpty')}
                         </p>
                       ) : (
                         drilldownSelection.matchingRecords.map(record => (
@@ -635,17 +702,21 @@ const AnalyticsRoute = () => {
                               <div className='flex shrink-0 items-center justify-between gap-2 sm:flex-col sm:items-end sm:justify-start'>
                                 <time className='text-muted-foreground text-xs'>
                                   {new Date(record.savedAt).toLocaleString(
-                                    'ja-JP',
+                                    language === 'ja' ? 'ja-JP' : 'en-US',
                                   )}
                                 </time>
                                 <Button asChild size='sm' variant='outline'>
                                   <a
-                                    aria-label={`${record.title} を開く`}
+                                    aria-label={t(
+                                      'analytics.openAria',
+                                      undefined,
+                                      { title: record.title },
+                                    )}
                                     href={record.url}
                                     rel='noreferrer'
                                     target='_blank'
                                   >
-                                    開く
+                                    {t('analytics.open')}
                                   </a>
                                 </Button>
                               </div>

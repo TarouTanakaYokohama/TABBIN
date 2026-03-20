@@ -10,8 +10,11 @@ import {
 } from '@/lib/storage/settings'
 import type { UserSettings } from '@/types/storage'
 
+const normalizeExcludePattern = (pattern: string) => pattern.trim()
+
 export const useSettings = () => {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
+  const [excludePatternInput, setExcludePatternInput] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const settingsRef = useRef(settings)
 
@@ -69,9 +72,13 @@ export const useSettings = () => {
     try {
       // 保存する前に空の行を除外
       const cleanSettings = {
-        ...settings,
-        excludePatterns: settings.excludePatterns.filter(p => p.trim()),
+        ...settingsRef.current,
+        excludePatterns: settingsRef.current.excludePatterns.filter(p =>
+          normalizeExcludePattern(p),
+        ),
       }
+      settingsRef.current = cleanSettings
+      setSettings(cleanSettings)
       await saveUserSettings(cleanSettings)
     } catch (error) {
       console.error('設定の保存エラー:', error)
@@ -113,10 +120,73 @@ export const useSettings = () => {
     handleSaveSettings()
   }
 
+  const handleExcludePatternInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    setExcludePatternInput(e.target.value)
+  }
+
+  const addExcludePattern = async () => {
+    const trimmedPattern = normalizeExcludePattern(excludePatternInput)
+
+    if (!trimmedPattern) {
+      setExcludePatternInput('')
+      return false
+    }
+
+    const hasDuplicate = settingsRef.current.excludePatterns.some(
+      pattern => normalizeExcludePattern(pattern) === trimmedPattern,
+    )
+    if (hasDuplicate) {
+      return false
+    }
+
+    const newSettings = {
+      ...settingsRef.current,
+      excludePatterns: [...settingsRef.current.excludePatterns, trimmedPattern],
+    }
+
+    settingsRef.current = newSettings
+    setSettings(newSettings)
+
+    try {
+      await saveUserSettings(newSettings)
+      setExcludePatternInput('')
+      return true
+    } catch (error) {
+      console.error('除外パターンの追加エラー:', error)
+      return false
+    }
+  }
+
+  const removeExcludePattern = async (patternToRemove: string) => {
+    const targetPattern = normalizeExcludePattern(patternToRemove)
+    const newSettings = {
+      ...settingsRef.current,
+      excludePatterns: settingsRef.current.excludePatterns.filter(
+        pattern => normalizeExcludePattern(pattern) !== targetPattern,
+      ),
+    }
+
+    settingsRef.current = newSettings
+    setSettings(newSettings)
+
+    try {
+      await saveUserSettings(newSettings)
+    } catch (error) {
+      console.error('除外パターンの削除エラー:', error)
+    }
+  }
+
   return {
+    addExcludePattern,
+    excludePatternInput,
+    handleExcludePatternInputChange,
     settings,
     setSettings,
     isLoading,
+    removeExcludePattern,
+    setExcludePatternInput,
     updateSetting,
     handleSaveSettings,
     handleExcludePatternsChange,

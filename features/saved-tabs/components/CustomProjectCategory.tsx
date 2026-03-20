@@ -30,6 +30,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
+import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { SortOrder } from '../hooks/useSortOrder'
 import type { CustomProjectCategoryProps } from '../types/CustomProjectCategory.types'
 import { ProjectUrlItem } from './ProjectUrlItem'
@@ -143,69 +144,79 @@ const CategoryHeaderActions = ({
   onOpenManageDialog,
   onOpenAllClick,
   onDeleteAllClick,
-}: CategoryHeaderActionsProps) => (
-  <div className='flex items-center gap-1'>
-    {showManageActions && (
-      <Tooltip>
-        <TooltipTrigger asChild={true}>
-          <Button
-            variant='secondary'
-            size='sm'
-            className='flex cursor-pointer items-center gap-1'
-            onClick={onOpenManageDialog}
-            aria-label='カテゴリ管理'
-          >
-            <Settings size={14} />
-            <SavedTabsResponsiveLabel>カテゴリ管理</SavedTabsResponsiveLabel>
-          </Button>
-        </TooltipTrigger>
-        <SavedTabsResponsiveTooltipContent side='top'>
-          カテゴリ管理
-        </SavedTabsResponsiveTooltipContent>
-      </Tooltip>
-    )}
+}: CategoryHeaderActionsProps) => {
+  const { t } = useI18n()
 
-    {showBulkActions && (
-      <>
+  return (
+    <div className='flex items-center gap-1'>
+      {showManageActions && (
         <Tooltip>
           <TooltipTrigger asChild={true}>
             <Button
               variant='secondary'
               size='sm'
               className='flex cursor-pointer items-center gap-1'
-              onClick={onOpenAllClick}
-              aria-label='すべて開く'
+              onClick={onOpenManageDialog}
+              aria-label={t('savedTabs.projectCategory.manage')}
             >
-              <ExternalLink size={14} />
-              <SavedTabsResponsiveLabel>すべて開く</SavedTabsResponsiveLabel>
+              <Settings size={14} />
+              <SavedTabsResponsiveLabel>
+                {t('savedTabs.projectCategory.manage')}
+              </SavedTabsResponsiveLabel>
             </Button>
           </TooltipTrigger>
           <SavedTabsResponsiveTooltipContent side='top'>
-            すべて開く
+            {t('savedTabs.projectCategory.manage')}
           </SavedTabsResponsiveTooltipContent>
         </Tooltip>
+      )}
 
-        <Tooltip>
-          <TooltipTrigger asChild={true}>
-            <Button
-              variant='secondary'
-              size='sm'
-              className='flex cursor-pointer items-center gap-1'
-              onClick={onDeleteAllClick}
-              aria-label='すべて削除'
-            >
-              <Trash2 size={14} />
-              <SavedTabsResponsiveLabel>すべて削除</SavedTabsResponsiveLabel>
-            </Button>
-          </TooltipTrigger>
-          <SavedTabsResponsiveTooltipContent side='top'>
-            すべて削除
-          </SavedTabsResponsiveTooltipContent>
-        </Tooltip>
-      </>
-    )}
-  </div>
-)
+      {showBulkActions && (
+        <>
+          <Tooltip>
+            <TooltipTrigger asChild={true}>
+              <Button
+                variant='secondary'
+                size='sm'
+                className='flex cursor-pointer items-center gap-1'
+                onClick={onOpenAllClick}
+                aria-label={t('savedTabs.openAll')}
+              >
+                <ExternalLink size={14} />
+                <SavedTabsResponsiveLabel>
+                  {t('savedTabs.openAll')}
+                </SavedTabsResponsiveLabel>
+              </Button>
+            </TooltipTrigger>
+            <SavedTabsResponsiveTooltipContent side='top'>
+              {t('savedTabs.openAll')}
+            </SavedTabsResponsiveTooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild={true}>
+              <Button
+                variant='secondary'
+                size='sm'
+                className='flex cursor-pointer items-center gap-1'
+                onClick={onDeleteAllClick}
+                aria-label={t('savedTabs.deleteAll')}
+              >
+                <Trash2 size={14} />
+                <SavedTabsResponsiveLabel>
+                  {t('savedTabs.deleteAll')}
+                </SavedTabsResponsiveLabel>
+              </Button>
+            </TooltipTrigger>
+            <SavedTabsResponsiveTooltipContent side='top'>
+              {t('savedTabs.deleteAll')}
+            </SavedTabsResponsiveTooltipContent>
+          </Tooltip>
+        </>
+      )}
+    </div>
+  )
+}
 
 interface CategoryContentProps {
   urls: CategoryUrl[]
@@ -305,6 +316,7 @@ const CategoryManageDialog = ({
   onRename,
   onConfirmDelete,
 }: CategoryManageDialogProps) => {
+  const { t } = useI18n()
   const handleDialogKeyDown = (event: React.KeyboardEvent) => {
     if (shouldStopDialogPropagation(event.key)) {
       event.stopPropagation()
@@ -327,20 +339,24 @@ const CategoryManageDialog = ({
         onKeyDown={handleDialogKeyDown}
       >
         <DialogHeader>
-          <DialogTitle>カテゴリ管理</DialogTitle>
+          <DialogTitle>{t('savedTabs.projectCategory.title')}</DialogTitle>
           <DialogDescription>
-            カテゴリ「{category}」を編集できます
+            {t('savedTabs.projectCategory.renameDescription', undefined, {
+              name: category,
+            })}
           </DialogDescription>
         </DialogHeader>
         <div className='space-y-4'>
           <div>
-            <Label htmlFor='rename-input'>カテゴリ名</Label>
+            <Label htmlFor='rename-input'>
+              {t('savedTabs.projectCategory.renameLabel')}
+            </Label>
             <Input
               id='rename-input'
               value={newCategoryName}
               onChange={event => setNewCategoryName(event.target.value)}
               onBlur={onRename}
-              placeholder='例: 開発資料、参考サイト'
+              placeholder={t('savedTabs.projectCategory.renamePlaceholder')}
               className={`w-full rounded border p-2 ${renameError ? 'border-red-500' : ''}`}
               onKeyDown={handleRenameInputKeyDown}
             />
@@ -351,7 +367,7 @@ const CategoryManageDialog = ({
 
           <div className='border-t pt-4'>
             <p className='text-gray-600 text-sm'>
-              カテゴリを削除すると、このカテゴリに属するすべてのタブは未分類になります。
+              {t('savedTabs.projectCategory.deleteWarning')}
             </p>
             {showDeleteConfirm ? (
               <div className='mt-2 flex justify-end gap-2'>
@@ -360,14 +376,14 @@ const CategoryManageDialog = ({
                   size='sm'
                   onClick={() => setShowDeleteConfirm(false)}
                 >
-                  キャンセル
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   variant='destructive'
                   size='sm'
                   onClick={onConfirmDelete}
                 >
-                  削除する
+                  {t('common.delete')}
                 </Button>
               </div>
             ) : (
@@ -377,7 +393,7 @@ const CategoryManageDialog = ({
                   size='sm'
                   onClick={() => setShowDeleteConfirm(true)}
                 >
-                  カテゴリを削除
+                  {t('savedTabs.projectCategory.deleteAction')}
                 </Button>
               </div>
             )}
@@ -406,48 +422,61 @@ const CategoryBulkConfirmDialogs = ({
   categoryDisplayName,
   onConfirmOpenAll,
   onConfirmDeleteAll,
-}: CategoryBulkConfirmDialogsProps) => (
-  <>
-    <AlertDialog
-      open={isOpenAllConfirmOpen}
-      onOpenChange={setIsOpenAllConfirmOpen}
-    >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>タブをすべて開きますか？</AlertDialogTitle>
-          <AlertDialogDescription>
-            10個以上のタブを開こうとしています。続行しますか？
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>キャンセル</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirmOpenAll}>開く</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+}: CategoryBulkConfirmDialogsProps) => {
+  const { t } = useI18n()
 
-    <AlertDialog
-      open={isDeleteAllConfirmOpen}
-      onOpenChange={setIsDeleteAllConfirmOpen}
-    >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>タブをすべて削除しますか？</AlertDialogTitle>
-          <AlertDialogDescription>
-            「{categoryDisplayName}
-            」のタブをすべて削除します。この操作は元に戻せません。
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>キャンセル</AlertDialogCancel>
-          <AlertDialogAction onClick={() => void onConfirmDeleteAll()}>
-            削除する
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  </>
-)
+  return (
+    <>
+      <AlertDialog
+        open={isOpenAllConfirmOpen}
+        onOpenChange={setIsOpenAllConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('savedTabs.openAllConfirmTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('savedTabs.openAllConfirmDescription', undefined, {
+                count: '10',
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirmOpenAll}>
+              {t('common.open')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={isDeleteAllConfirmOpen}
+        onOpenChange={setIsDeleteAllConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('savedTabs.deleteAllConfirmTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('savedTabs.projectCategory.deleteAllWarning', undefined, {
+                categoryName: categoryDisplayName,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void onConfirmDeleteAll()}>
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
 
 const CustomProjectCategoryComponent = ({
   projectId,
@@ -467,6 +496,7 @@ const CustomProjectCategoryComponent = ({
   isCategoryReorder = false,
   handleRenameCategory,
 }: CustomProjectCategoryProps) => {
+  const { t } = useI18n()
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id: category,
@@ -526,7 +556,7 @@ const CustomProjectCategoryComponent = ({
     isDropTarget ? 'border-2 border-primary bg-primary/5' : ''
   } ${isSelfDragging ? 'opacity-50' : ''}`
   const categoryDisplayName =
-    category === '__uncategorized' ? '未分類' : category
+    category === '__uncategorized' ? t('savedTabs.uncategorized') : category
   const showManageActions = Boolean(
     handleRenameCategory || handleDeleteCategory,
   )
@@ -574,7 +604,7 @@ const CustomProjectCategoryComponent = ({
 
   const handleRename = () => {
     if (!newCategoryName.trim()) {
-      setRenameError('カテゴリ名を入力してください')
+      setRenameError(t('savedTabs.projectCategory.required'))
       return
     }
     if (newCategoryName === category) {
@@ -613,7 +643,9 @@ const CustomProjectCategoryComponent = ({
         data-is-category='true'
         data-type='category'
         data-category-drop-id={categoryDropId}
-        aria-label={`カテゴリ: ${category}`}
+        aria-label={t('savedTabs.categoryCardAria', undefined, {
+          name: category,
+        })}
       >
         <CardHeader className='flex-row items-center justify-between px-3 py-2'>
           <CategoryHeaderMain
