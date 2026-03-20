@@ -9,7 +9,8 @@ import { useDomainCard } from './DomainCardContext'
  * ドメイン名、タブ数バッジ、ドラッグハンドルを含む
  */
 export const DomainCardTitle = () => {
-  const { group, sortable } = useDomainCard()
+  const { group, sortable, categoryId, visibleSubCategoryCount } =
+    useDomainCard()
 
   return (
     <div
@@ -33,6 +34,18 @@ export const DomainCardTitle = () => {
           </SavedTabsResponsiveTooltipContent>
         </Tooltip>
       </span>
+      {categoryId ? (
+        <span className='text-muted-foreground text-sm'>
+          <Tooltip>
+            <TooltipTrigger asChild={true}>
+              <Badge variant='secondary'>{visibleSubCategoryCount}</Badge>
+            </TooltipTrigger>
+            <SavedTabsResponsiveTooltipContent side='top'>
+              子カテゴリ数
+            </SavedTabsResponsiveTooltipContent>
+          </Tooltip>
+        </span>
+      ) : null}
     </div>
   )
 }

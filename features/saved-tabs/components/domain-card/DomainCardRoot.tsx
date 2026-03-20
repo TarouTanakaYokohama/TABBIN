@@ -66,6 +66,12 @@ export const DomainCardRoot = ({
   // 検索でヒットしない場合は非表示
   const hasSearchQuery = searchQuery.trim().length > 0
   const totalUrls = group.urls?.length || 0
+  const visibleSubCategoryCount = categoryId
+    ? Object.entries(state.computed.categorizedUrls).filter(
+        ([categoryName, urls]) =>
+          categoryName !== '__uncategorized' && urls.length > 0,
+      ).length
+    : 0
 
   const contextValue: DomainCardContextType = useMemo(
     () => ({
@@ -73,6 +79,7 @@ export const DomainCardRoot = ({
       group,
       settings,
       categoryId,
+      visibleSubCategoryCount,
       isReorderMode,
       sortable: { attributes, listeners },
       handlers,
@@ -82,6 +89,7 @@ export const DomainCardRoot = ({
       group,
       settings,
       categoryId,
+      visibleSubCategoryCount,
       isReorderMode,
       attributes,
       listeners,
