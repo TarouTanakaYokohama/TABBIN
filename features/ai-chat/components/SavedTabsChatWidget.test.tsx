@@ -607,6 +607,32 @@ describe('SavedTabsChatWidget', () => {
     )
 
     expect(screen.getByText('Recent conversations')).toBeTruthy()
+    const conversationButton = screen.getByRole('button', {
+      name: /Another conversation/,
+    })
+    const conversationRow = conversationButton.parentElement
+    const textRows = conversationButton.querySelectorAll('p')
+    const title = textRows[0]
+    const preview = textRows[1]
+
+    expect(conversationButton.className).toContain('flex-col')
+    expect(conversationButton.className).toContain('items-start')
+    expect(conversationButton.className).toContain('w-full')
+    expect(conversationButton.className).toContain('overflow-hidden')
+    expect(conversationButton.className).toContain('whitespace-normal')
+    expect(conversationButton.className).not.toContain('flex-1')
+    expect(conversationRow?.className).toContain('min-w-0')
+    expect(conversationRow?.className).toContain('grid')
+    expect(conversationRow?.className).toContain(
+      'grid-cols-[minmax(0,1fr)_auto]',
+    )
+    expect(title?.className).toContain('w-full')
+    expect(title?.className).toContain('min-w-0')
+    expect(preview?.className).toContain('w-full')
+    expect(preview?.className).toContain('min-w-0')
+    expect(preview?.className).toContain('wrap-anywhere')
+    expect(preview?.className).toContain('overflow-hidden')
+
     fireEvent.click(
       screen.getByRole('button', { name: /Another conversation/ }),
     )
@@ -754,6 +780,36 @@ describe('SavedTabsChatWidget', () => {
     })
 
     expect(onMessagesChange).not.toHaveBeenCalled()
+  })
+
+  it('復帰した中断メッセージでは shimmer を出し続けない', async () => {
+    mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
+
+    render(
+      <SavedTabsChatWidget
+        conversationId='conversation-1'
+        defaultOpen
+        initialMessages={[
+          {
+            content:
+              'The previous response was interrupted. Send your message again if needed.',
+            id: 'message-1',
+            isStreaming: false,
+            role: 'assistant',
+          },
+        ]}
+        title='Interrupted conversation'
+      />,
+    )
+
+    await screen.findByLabelText('AI chat sidebar')
+
+    expect(
+      screen.getByText(
+        'The previous response was interrupted. Send your message again if needed.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('Assembling the answer...')).toBeNull()
   })
 
   it('notifies onMessagesChange only at conversation start and completion, not during stream steps', async () => {

@@ -130,6 +130,87 @@ describe('useSharedAiChatHistory', () => {
     })
   })
 
+  it('新規会話の開始と完了が連続しても履歴を重複追加しない', async () => {
+    const { result } = renderHook(() => useSharedAiChatHistory())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    act(() => {
+      result.current.createConversation()
+    })
+
+    await waitFor(() => {
+      expect(result.current.activeConversation?.id).toBe('new-conversation')
+    })
+
+    act(() => {
+      result.current.updateMessages([
+        {
+          content: '朝確認したいタブを教えて',
+          id: 'message-1',
+          role: 'user',
+        },
+        {
+          content: '',
+          id: 'message-2',
+          isStreaming: true,
+          role: 'assistant',
+        },
+      ])
+      result.current.updateMessages([
+        {
+          content: '朝確認したいタブを教えて',
+          id: 'message-1',
+          role: 'user',
+        },
+        {
+          content: '朝の確認候補は 3 件あります',
+          id: 'message-2',
+          role: 'assistant',
+        },
+      ])
+    })
+
+    await waitFor(() => {
+      expect(mocked.saveConversationHistory).toHaveBeenCalled()
+    })
+
+    const lastSavedHistory =
+      mocked.saveConversationHistory.mock.calls.at(-1)?.[0]
+
+    expect(
+      lastSavedHistory?.conversations.filter(
+        (conversation: { id: string }) =>
+          conversation.id === 'new-conversation',
+      ),
+    ).toHaveLength(1)
+    expect(lastSavedHistory).toEqual({
+      activeConversationId: 'new-conversation',
+      conversations: [
+        expect.objectContaining({
+          id: 'new-conversation',
+          messages: [
+            {
+              content: '朝確認したいタブを教えて',
+              id: 'message-1',
+              role: 'user',
+            },
+            {
+              content: '朝の確認候補は 3 件あります',
+              id: 'message-2',
+              role: 'assistant',
+            },
+          ],
+          title: '朝確認したいタブを教えて',
+        }),
+        expect.objectContaining({ id: 'conversation-2' }),
+        expect.objectContaining({ id: 'conversation-1' }),
+      ],
+    })
+  })
+
   it('履歴選択と既存会話更新を保存する', async () => {
     const { result } = renderHook(() => useSharedAiChatHistory())
 

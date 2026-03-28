@@ -57,6 +57,127 @@ describe('conversation-history', () => {
     expect(history.conversations[0]?.title).toBe('新しい会話')
   })
 
+  it('読み込み時に中断された assistant メッセージを正規化して保存し直す', async () => {
+    mocked.storageLocal.get.mockResolvedValue({
+      activeAiChatConversationId: 'conversation-1',
+      aiChatConversations: [
+        {
+          createdAt: 1,
+          id: 'conversation-1',
+          messages: [
+            {
+              content: '質問です',
+              id: 'message-1',
+              role: 'user',
+            },
+            {
+              content: '',
+              id: 'message-2',
+              isStreaming: true,
+              reasoning: 'checking tabs',
+              role: 'assistant',
+            },
+          ],
+          title: '質問です',
+          updatedAt: 1,
+        },
+      ],
+    })
+
+    const history = await loadConversationHistory()
+
+    expect(history).toEqual({
+      activeConversationId: 'conversation-1',
+      conversations: [
+        {
+          createdAt: 1,
+          id: 'conversation-1',
+          messages: [
+            {
+              content: '質問です',
+              id: 'message-1',
+              role: 'user',
+            },
+            {
+              content:
+                'The previous response was interrupted. Send your message again if needed.',
+              id: 'message-2',
+              isStreaming: false,
+              reasoning: 'checking tabs',
+              role: 'assistant',
+            },
+          ],
+          title: '質問です',
+          updatedAt: 1,
+        },
+      ],
+    })
+
+    expect(mocked.storageLocal.set).toHaveBeenCalledWith({
+      activeAiChatConversationId: 'conversation-1',
+      aiChatConversations: history.conversations,
+    })
+  })
+
+  it('本文がある中断 assistant メッセージは本文を残して中断文言を追記する', async () => {
+    mocked.storageLocal.get.mockResolvedValue({
+      activeAiChatConversationId: 'conversation-1',
+      aiChatConversations: [
+        {
+          createdAt: 1,
+          id: 'conversation-1',
+          messages: [
+            {
+              content: '途中までの回答',
+              id: 'message-2',
+              isStreaming: true,
+              role: 'assistant',
+            },
+          ],
+          title: '会話',
+          updatedAt: 1,
+        },
+      ],
+    })
+
+    const history = await loadConversationHistory()
+
+    expect(history.conversations[0]?.messages[0]).toEqual({
+      content:
+        '途中までの回答\n\nThe previous response was interrupted. Send your message again if needed.',
+      id: 'message-2',
+      isStreaming: false,
+      role: 'assistant',
+    })
+    expect(mocked.storageLocal.set).toHaveBeenCalledTimes(1)
+  })
+
+  it('通常の履歴は読み込み時に保存し直さない', async () => {
+    mocked.storageLocal.get.mockResolvedValue({
+      activeAiChatConversationId: 'conversation-1',
+      aiChatConversations: [
+        {
+          createdAt: 1,
+          id: 'conversation-1',
+          messages: [
+            {
+              content: '完了済みの回答',
+              id: 'message-1',
+              isStreaming: false,
+              role: 'assistant',
+            },
+          ],
+          title: '会話',
+          updatedAt: 1,
+        },
+      ],
+    })
+
+    await loadConversationHistory()
+
+    expect(mocked.storageLocal.set).not.toHaveBeenCalled()
+  })
+
   it('履歴を storage に保存する', async () => {
     const conversation = createConversationRecord({
       id: 'conversation-1',

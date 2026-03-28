@@ -78,6 +78,8 @@ const messages = {
     'aiChat.systemPrompt.settingsTooltip': 'System prompt settings',
     'aiChat.systemPrompt.copySuffix': ' copy',
     'aiChat.responseError': 'Could not get a response from AI.',
+    'aiChat.interruptedResponse':
+      'The previous response was interrupted. Send your message again if needed.',
     'aiChat.modelListLoadError': 'Could not load the model list',
     'aiChat.modelSettingsSaveError': 'Could not save model settings',
     'aiChat.history.resumeHint': 'Resume from a saved conversation',
@@ -845,6 +847,8 @@ const messages = {
     'aiChat.systemPrompt.settingsTooltip': 'システムプロンプト設定',
     'aiChat.systemPrompt.copySuffix': ' のコピー',
     'aiChat.responseError': 'AI からの応答を取得できませんでした。',
+    'aiChat.interruptedResponse':
+      '前回の応答は途中で中断されました。必要であれば、もう一度送信してください。',
     'aiChat.modelListLoadError': 'モデル一覧を取得できませんでした',
     'aiChat.modelSettingsSaveError': 'モデル設定を保存できませんでした',
     'aiChat.history.resumeHint': '保存済みの会話から再開できます',

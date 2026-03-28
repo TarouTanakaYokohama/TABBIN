@@ -137,14 +137,32 @@ describe('AiChatRoute', () => {
     render(createElement(AiChatRoute))
 
     const conversationButton = screen
-      .getAllByRole('button')
-      .find(button => button.className.includes('flex-1'))
+      .getAllByRole('button', { name: /最初の会話/ })
+      .find(button => button.className.includes('flex-col'))
+    const conversationRow = conversationButton?.parentElement
+    const textRows = conversationButton?.querySelectorAll('p')
+    const title = textRows?.[0]
+    const preview = textRows?.[1]
 
     expect(conversationButton).toBeTruthy()
 
     expect(conversationButton?.className).toContain('flex-col')
     expect(conversationButton?.className).toContain('items-start')
     expect(conversationButton?.className).toContain('whitespace-normal')
+    expect(conversationButton?.className).toContain('w-full')
+    expect(conversationButton?.className).toContain('overflow-hidden')
+    expect(conversationButton?.className).not.toContain('flex-1')
+    expect(conversationRow?.className).toContain('min-w-0')
+    expect(conversationRow?.className).toContain('grid')
+    expect(conversationRow?.className).toContain(
+      'grid-cols-[minmax(0,1fr)_auto]',
+    )
+    expect(title?.className).toContain('w-full')
+    expect(title?.className).toContain('min-w-0')
+    expect(preview?.className).toContain('w-full')
+    expect(preview?.className).toContain('min-w-0')
+    expect(preview?.className).toContain('wrap-anywhere')
+    expect(preview?.className).toContain('overflow-hidden')
   })
 
   it('狭い画面では左履歴を完全非表示にしてチャットを残り幅へ広げる', () => {
