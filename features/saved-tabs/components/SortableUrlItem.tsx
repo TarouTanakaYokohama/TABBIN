@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { SortableUrlItemProps } from '@/types/saved-tabs'
-import { TimeRemaining, formatDatetime } from '@/utils/datetime'
+import { TimeRemaining, formatDatetime } from '@/utils/savedTimeDisplay'
 
 // グローバルのドロップ状態を追跡（ウィンドウ内でのドロップか外部へのドロップかを判定するため）
 let isGlobalInternalDrop = false

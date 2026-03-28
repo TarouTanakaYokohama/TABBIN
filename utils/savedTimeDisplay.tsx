@@ -5,6 +5,7 @@ interface TimeRemainingResponse {
   error?: string
   timeRemaining?: number
 }
+
 const getTimeRemainingColorClass = (remainingMs: number): string => {
   if (remainingMs < 1000 * 60 * 60) {
     return 'text-red-500 font-medium'
@@ -17,6 +18,7 @@ const getTimeRemainingColorClass = (remainingMs: number): string => {
   }
   return 'text-emerald-500'
 }
+
 const formatTimeRemainingText = (remainingMs: number): string => {
   const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
   const hours = Math.floor(
@@ -33,6 +35,7 @@ const formatTimeRemainingText = (remainingMs: number): string => {
   result += `${minutes}分`
   return result
 }
+
 const applyTimeRemainingResponse = (
   response: TimeRemainingResponse,
   setTimeLeft: (value: string) => void,
@@ -56,22 +59,10 @@ const applyTimeRemainingResponse = (
   setColorClass(getTimeRemainingColorClass(remainingMs))
   setTimeLeft(formatTimeRemainingText(remainingMs))
 }
-/**
- * タイムスタンプを日時形式にフォーマットする関数
- * 「YYYY/MM/DD HH:MM:SS」形式で返します
- *
- * @param timestamp ミリ秒タイムスタンプ
- * @returns フォーマットされた日時文字列
- */
-export const formatDatetime = (timestamp?: number): string => {
-  return formatFixedDatetime(timestamp)
-}
-/**
- * 残り時間を表示するコンポーネント
- *
- * @param props.savedAt タブが保存された時間（ミリ秒タイムスタンプ）
- * @param props.autoDeletePeriod 自動削除期間の設定
- */
+
+export const formatDatetime = (timestamp?: number): string =>
+  formatFixedDatetime(timestamp)
+
 export const TimeRemaining = ({
   savedAt,
   autoDeletePeriod,
@@ -81,16 +72,14 @@ export const TimeRemaining = ({
 }) => {
   const [timeLeft, setTimeLeft] = useState<string>('')
   const [colorClass, setColorClass] = useState<string>('')
+
   useEffect(() => {
-    // 自動削除が無効な場合や保存時刻がない場合は何も表示しない
     if (!autoDeletePeriod || autoDeletePeriod === 'never' || !savedAt) {
       setTimeLeft('')
       return
     }
 
-    // 残り時間を計算する関数
     const calculateTimeLeft = () => {
-      // バックグラウンドスクリプトに残り時間計算をリクエスト
       chrome.runtime.sendMessage(
         {
           action: 'calculateTimeRemaining',
@@ -102,16 +91,16 @@ export const TimeRemaining = ({
       )
     }
 
-    // 初回計算
     calculateTimeLeft()
 
-    // 1分ごとに更新
     const timer = setInterval(calculateTimeLeft, 60000)
     return () => clearInterval(timer)
   }, [savedAt, autoDeletePeriod])
+
   if (!timeLeft) {
     return null
   }
+
   return (
     <span className={`text-xs ${colorClass}`} title='自動削除までの残り時間'>
       {timeLeft}

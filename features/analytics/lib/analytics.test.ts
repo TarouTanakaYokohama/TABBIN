@@ -153,6 +153,44 @@ describe('analytics', () => {
     ])
   })
 
+  it('groups day buckets by the provided timezone instead of UTC', () => {
+    const options: Parameters<typeof generateAnalyticsResult>[2] & {
+      timeZone: string
+    } = {
+      now: Date.UTC(2026, 2, 1, 0, 0, 0),
+      timeZone: 'Asia/Tokyo',
+    }
+
+    const result = generateAnalyticsResult(
+      [
+        {
+          id: 'tz-1',
+          url: 'https://docs.example.com/tz',
+          title: 'Timezone Sensitive',
+          domain: 'docs.example.com',
+          savedAt: Date.UTC(2026, 1, 28, 15, 30, 0),
+          savedInTabGroups: ['docs.example.com'],
+          savedInProjects: [],
+          subCategories: [],
+          projectCategories: [],
+          parentCategories: [],
+        },
+      ],
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'timeRecent',
+        mode: 'both',
+        timeBucket: 'day',
+        timeRange: 'all',
+      },
+      options,
+    )
+
+    expect(result.chartSpecs[0]?.data).toEqual([
+      { count: 1, label: '2026-03-01' },
+    ])
+  })
+
   it('sorts time-series buckets by count before restoring chronological order', () => {
     const result = generateAnalyticsResult(
       [
