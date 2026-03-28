@@ -81,6 +81,11 @@ interface SavedTabsProfilerStats {
   phase: string
   actualDuration: number
 }
+interface CategoryLookup {
+  byId: Map<string, ParentCategory>
+  byGroupId: Map<string, ParentCategory>
+  byDomainName: Map<string, ParentCategory>
+}
 type SavedTabsProfilerGlobal = typeof globalThis & {
   savedTabsProfiler?: SavedTabsProfilerStats
   enableSavedTabsProfiler?: boolean
@@ -108,15 +113,38 @@ const handleSavedTabsRender: ProfilerOnRenderCallback = (
     `[Profiler] SavedTabs commit #${savedTabsCommitCount} phase=${phase} actual=${actualDuration.toFixed(2)}ms`,
   )
 }
+const buildCategoryLookup = (categories: ParentCategory[]): CategoryLookup => {
+  const byId = new Map<string, ParentCategory>()
+  const byGroupId = new Map<string, ParentCategory>()
+  const byDomainName = new Map<string, ParentCategory>()
+
+  for (const category of categories) {
+    byId.set(category.id, category)
+    for (const domainId of category.domains) {
+      if (!byGroupId.has(domainId)) {
+        byGroupId.set(domainId, category)
+      }
+    }
+    for (const domainName of category.domainNames) {
+      if (!byDomainName.has(domainName)) {
+        byDomainName.set(domainName, category)
+      }
+    }
+  }
+
+  return {
+    byId,
+    byGroupId,
+    byDomainName,
+  }
+}
 const matchesParentCategoryQuery = (
   group: TabGroup,
-  categories: ParentCategory[],
+  categoryLookup: CategoryLookup,
   query: string,
 ): boolean => {
   if (group.parentCategoryId) {
-    const parentCategory = categories.find(
-      cat => cat.id === group.parentCategoryId,
-    )
+    const parentCategory = categoryLookup.byId.get(group.parentCategoryId)
     if (parentCategory) {
       const matched = parentCategory.name.toLowerCase().includes(query)
       console.log(
@@ -131,18 +159,16 @@ const matchesParentCategoryQuery = (
       )
     }
   }
-  for (const category of categories) {
-    if (
-      category.domains?.includes(group.id) ||
-      category.domainNames?.includes(group.domain)
-    ) {
-      const matched = category.name.toLowerCase().includes(query)
-      if (matched) {
-        console.log(
-          `親カテゴリ検索デバッグ（リアルタイム）: ドメイン ${group.domain}, 親カテゴリ「${category.name}」, クエリ「${query}」, マッチ: ${matched}`,
-        )
-        return true
-      }
+  const fallbackCategory =
+    categoryLookup.byGroupId.get(group.id) ||
+    categoryLookup.byDomainName.get(group.domain)
+  if (fallbackCategory) {
+    const matched = fallbackCategory.name.toLowerCase().includes(query)
+    if (matched) {
+      console.log(
+        `親カテゴリ検索デバッグ（リアルタイム）: ドメイン ${group.domain}, 親カテゴリ「${fallbackCategory.name}」, クエリ「${query}」, マッチ: ${matched}`,
+      )
+      return true
     }
   }
   if (!group.parentCategoryId) {
@@ -155,7 +181,7 @@ const matchesParentCategoryQuery = (
 const filterGroupByQuery = (
   group: TabGroup,
   normalizedQuery: string,
-  categories: ParentCategory[],
+  categoryLookup: CategoryLookup,
 ): TabGroup => {
   const currentUrls = group.urls || []
   if (currentUrls.length === 0) {
@@ -163,7 +189,7 @@ const filterGroupByQuery = (
   }
   const parentCategoryMatched = matchesParentCategoryQuery(
     group,
-    categories,
+    categoryLookup,
     normalizedQuery,
   )
   const filteredUrls = currentUrls.filter(item => {
@@ -211,57 +237,51 @@ const pushGroupToCategory = (
 }
 const tryCategorizeById = (
   group: TabGroup,
-  categories: ParentCategory[],
+  categoryLookup: CategoryLookup,
   categorizedGroups: Record<string, TabGroup[]>,
 ): boolean => {
-  for (const category of categories) {
-    if (category.domains?.includes(group.id)) {
-      pushGroupToCategory(categorizedGroups, category.id, group)
-      if (group.parentCategoryId !== category.id) {
-        console.log(
-          `ドメイン ${group.domain} のparentCategoryIdをIDベースで ${category.id} に更新しました`,
-        )
-      }
+  const category = categoryLookup.byGroupId.get(group.id)
+  if (category) {
+    pushGroupToCategory(categorizedGroups, category.id, group)
+    if (group.parentCategoryId !== category.id) {
       console.log(
-        `ドメイン ${group.domain} はIDベースで ${category.name} に分類されました`,
+        `ドメイン ${group.domain} のparentCategoryIdをIDベースで ${category.id} に更新しました`,
       )
-      return true
     }
+    console.log(
+      `ドメイン ${group.domain} はIDベースで ${category.name} に分類されました`,
+    )
+    return true
   }
   return false
 }
 const tryCategorizeByDomainName = (
   group: TabGroup,
-  categories: ParentCategory[],
+  categoryLookup: CategoryLookup,
   categorizedGroups: Record<string, TabGroup[]>,
 ): boolean => {
-  for (const category of categories) {
-    if (
-      category.domainNames &&
-      Array.isArray(category.domainNames) &&
-      category.domainNames.includes(group.domain)
-    ) {
-      pushGroupToCategory(categorizedGroups, category.id, group)
-      console.log(
-        `ドメイン ${group.domain} はドメイン名ベースで ${category.name} に分類されました`,
-      )
-      console.log(
-        `ドメイン ${group.domain} のparentCategoryIdを ${category.id} に設定しました`,
-      )
-      return true
-    }
+  const category = categoryLookup.byDomainName.get(group.domain)
+  if (category) {
+    pushGroupToCategory(categorizedGroups, category.id, group)
+    console.log(
+      `ドメイン ${group.domain} はドメイン名ベースで ${category.name} に分類されました`,
+    )
+    console.log(
+      `ドメイン ${group.domain} のparentCategoryIdを ${category.id} に設定しました`,
+    )
+    return true
   }
   return false
 }
 const sortCategorizedGroups = (
   categorizedGroups: Record<string, TabGroup[]>,
-  categories: ParentCategory[],
+  categoryLookup: CategoryLookup,
 ): void => {
   for (const categoryId of Object.keys(categorizedGroups)) {
     if (!categorizedGroups[categoryId]) {
       categorizedGroups[categoryId] = []
     }
-    const category = categories.find(c => c.id === categoryId)
+    const category = categoryLookup.byId.get(categoryId)
     const domains = category?.domains
     if (!(domains && domains.length > 0)) {
       continue
@@ -318,10 +338,10 @@ const updateSavedTabParentCategory = (
 }
 const syncGroupCategoryAssignment = (
   group: TabGroup,
-  categories: ParentCategory[],
+  categoryLookup: CategoryLookup,
   state: CategorySyncState,
 ): CategorySyncState => {
-  const idBasedCategory = categories.find(c => c.domains?.includes(group.id))
+  const idBasedCategory = categoryLookup.byGroupId.get(group.id)
   if (idBasedCategory && group.parentCategoryId !== idBasedCategory.id) {
     state.updatedSavedTabs = updateSavedTabParentCategory(
       state.updatedSavedTabs,
@@ -333,12 +353,14 @@ const syncGroupCategoryAssignment = (
       `[カテゴリ同期] ドメイン ${group.domain} のparentCategoryIdをIDベースで ${idBasedCategory.id} に更新しました`,
     )
   }
-  const foundByDomainName = categories.find(
-    category =>
-      !category.domains?.includes(group.id) &&
-      category.domainNames?.includes(group.domain),
-  )
+  const foundByDomainName = categoryLookup.byDomainName.get(group.domain)
   if (!foundByDomainName) {
+    return state
+  }
+  if (
+    foundByDomainName.domains.includes(group.id) ||
+    foundByDomainName.id === idBasedCategory?.id
+  ) {
     return state
   }
   state.updatedCategories = state.updatedCategories.map(category =>
@@ -364,12 +386,12 @@ const syncGroupCategoryAssignment = (
 const organizeTabGroupsWithCategories = ({
   enableCategories,
   tabGroupsWithUrls,
-  categories,
+  categoryLookup,
   searchQuery,
 }: {
   enableCategories: boolean
   tabGroupsWithUrls: TabGroup[]
-  categories: ParentCategory[]
+  categoryLookup: CategoryLookup
   searchQuery: string
 }): {
   categorized: Record<string, TabGroup[]>
@@ -381,7 +403,7 @@ const organizeTabGroupsWithCategories = ({
       uncategorized: tabGroupsWithUrls,
     }
   }
-  console.log('親カテゴリ一覧:', categories)
+  console.log('親カテゴリ一覧:', Array.from(categoryLookup.byId.values()))
   console.log('organizeTabGroups開始:')
   console.log('- tabGroupsWithUrls:', tabGroupsWithUrls)
   console.log('- tabGroupsWithUrls.length:', tabGroupsWithUrls.length)
@@ -392,7 +414,7 @@ const organizeTabGroupsWithCategories = ({
   const groupsToOrganize = tabGroupsWithUrls
     .map(group =>
       hasSearchQuery
-        ? filterGroupByQuery(group, normalizedQuery, categories)
+        ? filterGroupByQuery(group, normalizedQuery, categoryLookup)
         : group,
     )
     .filter(hasDisplayableUrls)
@@ -401,7 +423,7 @@ const organizeTabGroupsWithCategories = ({
   for (const group of groupsToOrganize) {
     const categorizedById = tryCategorizeById(
       group,
-      categories,
+      categoryLookup,
       categorizedGroups,
     )
     if (categorizedById) {
@@ -409,7 +431,7 @@ const organizeTabGroupsWithCategories = ({
     }
     const categorizedByDomainName = tryCategorizeByDomainName(
       group,
-      categories,
+      categoryLookup,
       categorizedGroups,
     )
     if (!categorizedByDomainName) {
@@ -417,7 +439,7 @@ const organizeTabGroupsWithCategories = ({
       console.log(`ドメイン ${group.domain} は未分類です`)
     }
   }
-  sortCategorizedGroups(categorizedGroups, categories)
+  sortCategorizedGroups(categorizedGroups, categoryLookup)
   console.log('organizeTabGroups結果:')
   console.log('- categorizedGroups:', categorizedGroups)
   console.log('- uncategorizedGroups:', uncategorizedGroups)
@@ -550,6 +572,10 @@ const SavedTabsApp = ({
     handleReorderProjects,
     handleRenameCategory,
   } = projectState
+  const categoryLookup = useMemo(
+    () => buildCategoryLookup(categories),
+    [categories],
+  )
   useEffect(() => {
     if (showSubCategoryModal && inputRef.current) {
       inputRef.current.focus()
@@ -976,10 +1002,10 @@ const SavedTabsApp = ({
       organizeTabGroupsWithCategories({
         enableCategories: settings.enableCategories,
         tabGroupsWithUrls,
-        categories,
+        categoryLookup,
         searchQuery,
       }),
-    [tabGroupsWithUrls, categories, settings.enableCategories, searchQuery],
+    [tabGroupsWithUrls, categoryLookup, settings.enableCategories, searchQuery],
   )
 
   // tabGroupsWithUrls と categories が変わったとき、カテゴリ割り当ての不一致を
@@ -1007,7 +1033,7 @@ const SavedTabsApp = ({
           categoriesChanged: false,
         }
         for (const group of tabGroupsWithUrls) {
-          syncGroupCategoryAssignment(group, currentCategories, syncState)
+          syncGroupCategoryAssignment(group, categoryLookup, syncState)
         }
         if (syncState.categoriesChanged) {
           await saveParentCategories(syncState.updatedCategories)
@@ -1023,7 +1049,7 @@ const SavedTabsApp = ({
       }
     }
     syncCategoryAssignments()
-  }, [tabGroupsWithUrls, categories, settings.enableCategories])
+  }, [tabGroupsWithUrls, categories, categoryLookup, settings.enableCategories])
 
   // 検索・フィルタ適用後のグループを整理（メモ化）
   const { categorized, uncategorized } = useMemo(
@@ -1114,6 +1140,11 @@ const SavedTabsApp = ({
       await handleDeleteUrlFromProject(projectId, url)
     },
     [handleDeleteUrlFromProject],
+  )
+  const handleDeleteCategoryWithRefresh = useCallback(
+    async (groupId: string, categoryName: string) =>
+      handleDeleteCategory(groupId, categoryName, refreshTabGroupsWithUrls),
+    [handleDeleteCategory, refreshTabGroupsWithUrls],
   )
 
   useEffect(() => {
@@ -1276,13 +1307,7 @@ const SavedTabsApp = ({
           handleUpdateUrls={handleUpdateUrls}
           handleUpdateDomainsOrder={handleUpdateDomainsOrder}
           handleMoveDomainToCategory={handleMoveDomainToCategory}
-          handleDeleteCategory={(groupId, categoryName) =>
-            handleDeleteCategory(
-              groupId,
-              categoryName,
-              refreshTabGroupsWithUrls,
-            )
-          }
+          handleDeleteCategory={handleDeleteCategoryWithRefresh}
           shouldShowUncategorizedSectionHeader={
             shouldShowUncategorizedSectionHeader
           }
