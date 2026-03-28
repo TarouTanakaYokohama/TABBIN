@@ -1,4 +1,15 @@
+import { ExternalLink, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,6 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   type AiChartPointSelection,
   AiChartRenderer,
@@ -45,6 +62,7 @@ import {
   loadSavedAnalyticsViews,
   saveSavedAnalyticsViews,
 } from '@/lib/storage/analytics'
+import { defaultSettings, getUserSettings } from '@/lib/storage/settings'
 import type { AiChatToolTrace } from '@/types/background'
 
 const defaultAnalyticsQuery = getDefaultAnalyticsQuery()
@@ -113,6 +131,24 @@ const getLatestAssistantCharts = (
 
 const awaitableEmptyRecords: Awaited<ReturnType<typeof loadAnalyticsRecords>> =
   []
+
+const removeUrlFromStorage = async (url: string): Promise<void> =>
+  new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      {
+        action: 'removeUrlFromStorage',
+        url,
+      },
+      (response?: { error?: string; status?: string }) => {
+        if (response?.status === 'removed') {
+          resolve()
+          return
+        }
+
+        reject(new Error(response?.error || 'removeUrlFromStorage failed'))
+      },
+    )
+  })
 
 const normalizeAnalyticsRouteQuery = (
   analyticsQuery: AnalyticsQuery,
@@ -242,6 +278,7 @@ const AnalyticsRoute = () => {
   } = useSharedAiChatHistory()
   const [records, setRecords] = useState(awaitableEmptyRecords)
   const [savedViews, setSavedViews] = useState<SavedAnalyticsView[]>([])
+  const [settings, setSettings] = useState(defaultSettings)
   const [query, setQuery] = useState<AnalyticsQuery>(() =>
     normalizeAnalyticsRouteQuery(defaultAnalyticsQuery),
   )
@@ -253,6 +290,10 @@ const AnalyticsRoute = () => {
   const [aiChartSpecs, setAiChartSpecs] = useState<AiChartSpec[]>([])
   const [drilldownSelection, setDrilldownSelection] =
     useState<AnalyticsDrilldownSelection | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<AiSavedUrlRecord | null>(
+    null,
+  )
+  const [deletingUrl, setDeletingUrl] = useState<string | null>(null)
   const [isUsingAiCharts, setIsUsingAiCharts] = useState(false)
   const chartMessages = useMemo<AnalyticsChartMessages>(
     () => ({
@@ -306,16 +347,19 @@ const AnalyticsRoute = () => {
   useEffect(() => {
     let cancelled = false
 
-    void Promise.all([loadAnalyticsRecords(), loadSavedAnalyticsViews()]).then(
-      ([nextRecords, nextSavedViews]) => {
-        if (cancelled) {
-          return
-        }
+    void Promise.all([
+      loadAnalyticsRecords(),
+      loadSavedAnalyticsViews(),
+      getUserSettings(),
+    ]).then(([nextRecords, nextSavedViews, nextSettings]) => {
+      if (cancelled) {
+        return
+      }
 
-        setRecords(nextRecords)
-        setSavedViews(nextSavedViews)
-      },
-    )
+      setRecords(nextRecords)
+      setSavedViews(nextSavedViews)
+      setSettings(nextSettings)
+    })
 
     return () => {
       cancelled = true
@@ -408,6 +452,67 @@ const AnalyticsRoute = () => {
       seriesKey,
       specTitle: spec.title,
     })
+  }
+
+  const refreshRecords = async () => {
+    const nextRecords = await loadAnalyticsRecords()
+    setRecords(nextRecords)
+    return nextRecords
+  }
+
+  const rebuildDrilldownSelection = (nextRecords: AiSavedUrlRecord[]) => {
+    setDrilldownSelection(currentSelection => {
+      if (!currentSelection) {
+        return null
+      }
+
+      return {
+        ...currentSelection,
+        matchingRecords: filterAnalyticsRecords(nextRecords, query, {
+          messages: chartMessages,
+        }).filter(record =>
+          matchesDrilldownLabel({
+            label: currentSelection.label,
+            query,
+            record,
+            seriesKey: currentSelection.seriesKey,
+            chartMessages,
+            uncategorizedLabel: t('analytics.uncategorized'),
+          }),
+        ),
+      }
+    })
+  }
+
+  const performDelete = async (record: AiSavedUrlRecord) => {
+    if (deletingUrl) {
+      return
+    }
+
+    try {
+      setDeletingUrl(record.url)
+      await removeUrlFromStorage(record.url)
+      const nextRecords = await refreshRecords()
+      rebuildDrilldownSelection(nextRecords)
+    } catch (error) {
+      console.error('Failed to delete analytics drilldown url:', error)
+    } finally {
+      setDeletingUrl(null)
+      setDeleteTarget(null)
+    }
+  }
+
+  const handleDeleteClick = (record: AiSavedUrlRecord) => {
+    if (deletingUrl) {
+      return
+    }
+
+    if (settings.confirmDeleteEach) {
+      setDeleteTarget(record)
+      return
+    }
+
+    void performDelete(record)
   }
 
   return (
@@ -708,26 +813,62 @@ const AnalyticsRoute = () => {
                                   ))}
                                 </div>
                               </div>
-                              <div className='flex shrink-0 items-center justify-between gap-2 sm:flex-col sm:items-end sm:justify-start'>
+                              <div className='flex shrink-0 flex-col gap-2 sm:items-end'>
                                 <time className='text-muted-foreground text-xs'>
                                   {new Date(record.savedAt).toLocaleString(
                                     language === 'ja' ? 'ja-JP' : 'en-US',
                                   )}
                                 </time>
-                                <Button asChild size='sm' variant='outline'>
-                                  <a
-                                    aria-label={t(
-                                      'analytics.openAria',
-                                      undefined,
-                                      { title: record.title },
-                                    )}
-                                    href={record.url}
-                                    rel='noreferrer'
-                                    target='_blank'
-                                  >
-                                    {t('analytics.open')}
-                                  </a>
-                                </Button>
+                                <TooltipProvider delayDuration={0}>
+                                  <div className='flex items-center justify-end gap-1'>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          asChild
+                                          size='icon-sm'
+                                          variant='ghost'
+                                        >
+                                          <a
+                                            aria-label={t(
+                                              'analytics.openAria',
+                                              undefined,
+                                              { title: record.title },
+                                            )}
+                                            href={record.url}
+                                            rel='noreferrer'
+                                            target='_blank'
+                                          >
+                                            <ExternalLink className='size-4' />
+                                          </a>
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side='top'>
+                                        {t('analytics.open')}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          aria-label={t(
+                                            'savedTabs.url.deleteAria',
+                                          )}
+                                          disabled={deletingUrl === record.url}
+                                          onClick={() =>
+                                            handleDeleteClick(record)
+                                          }
+                                          size='icon-sm'
+                                          type='button'
+                                          variant='ghost'
+                                        >
+                                          <Trash2 className='size-4' />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side='top'>
+                                        {t('common.delete')}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                </TooltipProvider>
                               </div>
                             </div>
                           </Card>
@@ -753,6 +894,44 @@ const AnalyticsRoute = () => {
         onSelectHistoryItem={selectConversation}
         title={activeConversation?.title}
       />
+
+      <AlertDialog
+        onOpenChange={isOpen => {
+          if (!isOpen && deletingUrl) {
+            return
+          }
+          if (!isOpen) {
+            setDeleteTarget(null)
+          }
+        }}
+        open={Boolean(deleteTarget)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('savedTabs.url.deleteConfirmTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('savedTabs.url.deleteConfirmDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={event => {
+                event.preventDefault()
+                if (!deleteTarget) {
+                  return
+                }
+
+                void performDelete(deleteTarget)
+              }}
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
