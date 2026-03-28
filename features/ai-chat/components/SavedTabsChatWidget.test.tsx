@@ -366,6 +366,23 @@ describe('SavedTabsChatWidget', () => {
     expect(screen.getByLabelText('AI chat sidebar').style.width).toBe('500px')
   })
 
+  it('renders the resize handle as a full-height sidebar boundary', async () => {
+    mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
+
+    render(<SavedTabsChatWidget />)
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Open AI chat',
+      }),
+    )
+
+    const resizeHandle = screen.getByLabelText('Resize the AI chat width')
+
+    expect(resizeHandle.className).toContain('self-stretch')
+    expect(resizeHandle.className).not.toContain('h-9')
+  })
+
   it('shows a text send button at narrow widths while keeping the input UI', async () => {
     mocked.getUserSettings.mockResolvedValue(buildConfiguredSettings())
     window.localStorage.setItem('tabbin-ai-chat-sidebar-width', '320')

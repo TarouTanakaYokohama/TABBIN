@@ -1825,10 +1825,11 @@ const SavedTabsChatPanel = ({
     <div className='sticky top-0 z-50 flex h-screen max-w-[calc(100vw-24px)] shrink-0 self-start overflow-hidden overscroll-none'>
       <Button
         aria-label={t('aiChat.resizeAria')}
-        className={`relative w-4 shrink-0 cursor-col-resize touch-none ${
+        className={`relative min-h-0 w-4 shrink-0 cursor-col-resize touch-none self-stretch rounded-none border-0 bg-transparent ${
           isResizing ? 'bg-primary/10' : 'bg-transparent'
         }`}
         onPointerDown={onResizeStart}
+        size='unstyled'
         type='button'
         variant='ghost'
       >
