@@ -26,7 +26,7 @@ vi.mock('@dnd-kit/utilities', () => ({
   },
 }))
 
-vi.mock('@/utils/savedTimeDisplay', () => ({
+vi.mock('@/utils/datetime', () => ({
   formatDatetime: vi.fn((timestamp?: number) => `formatted:${timestamp}`),
   TimeRemaining: ({
     savedAt,
@@ -62,7 +62,7 @@ vi.mock('@/features/i18n/context/I18nProvider', async () => {
   }
 })
 
-import { formatDatetime } from '@/utils/savedTimeDisplay'
+import { formatDatetime } from '@/utils/datetime'
 import { SortableUrlItem } from './SortableUrlItem'
 
 const sendMessageMock = vi.fn()

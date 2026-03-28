@@ -26,7 +26,7 @@ vi.mock('@dnd-kit/utilities', () => ({
   },
 }))
 
-vi.mock('@/utils/savedTimeDisplay', () => ({
+vi.mock('@/utils/datetime', () => ({
   formatDatetime: vi.fn(),
   TimeRemaining: () => null,
 }))
