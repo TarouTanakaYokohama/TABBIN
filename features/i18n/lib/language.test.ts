@@ -33,6 +33,12 @@ describe('language helpers', () => {
     )
   })
 
+  it('未解決のプレースホルダは空文字にせず保持する', () => {
+    expect(getMessage('ja', 'analytics.summary')).toBe(
+      '{{count}} 件の保存データから「{{title}}」を作成しました。',
+    )
+  })
+
   it('日本語に未翻訳のキーがあれば英語へフォールバックする', () => {
     vi.spyOn(messagesModule, 'getMessages').mockImplementation(language => {
       if (language === 'ja') {

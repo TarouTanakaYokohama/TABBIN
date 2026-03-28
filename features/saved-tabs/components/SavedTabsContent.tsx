@@ -209,7 +209,9 @@ export const SortableCategorySection = ({
               {t('savedTabs.openAllConfirmTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t('savedTabs.openAllConfirmDescription')}
+              {t('savedTabs.openAllConfirmDescription', undefined, {
+                count: '10',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
