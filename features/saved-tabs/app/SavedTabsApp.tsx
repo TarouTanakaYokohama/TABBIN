@@ -61,6 +61,7 @@ import {
   removeUrlIdsFromTabGroup,
   removeUrlsFromTabGroup,
 } from '@/lib/storage/tabs'
+import { getUrlRecords } from '@/lib/storage/urls'
 import type {
   ParentCategory,
   TabGroup,
@@ -300,21 +301,71 @@ const sortCategorizedGroups = (
     })
   }
 }
-const removeMatchingUrlsFromGroup = async (
-  group: TabGroup,
-  urlSet: Set<string>,
-): Promise<void> => {
-  if (!group.urlIds || group.urlIds.length === 0) {
-    return
-  }
-  const groupUrls = await getTabGroupUrls(group)
-  const targets = groupUrls
-    .filter(item => urlSet.has(item.url))
-    .map(item => item.url)
+const removeUrlIdsFromSavedTabs = (
+  savedTabs: TabGroup[],
+  idsToRemove: ReadonlySet<string>,
+): {
+  updatedSavedTabs: TabGroup[]
+  hasChanges: boolean
+} => {
+  let hasChanges = false
+  const updatedSavedTabs: TabGroup[] = []
 
-  if (targets.length > 0) {
-    await removeUrlsFromTabGroup(group.id, targets)
+  for (const group of savedTabs) {
+    if (!(group.urlIds && group.urlIds.length > 0)) {
+      updatedSavedTabs.push(group)
+      continue
+    }
+
+    const remainingUrlIds = group.urlIds.filter(id => !idsToRemove.has(id))
+    if (remainingUrlIds.length === group.urlIds.length) {
+      updatedSavedTabs.push(group)
+      continue
+    }
+
+    hasChanges = true
+    if (remainingUrlIds.length === 0) {
+      continue
+    }
+
+    const updatedGroup = buildUpdatedGroupAfterUrlIdRemoval(
+      group,
+      remainingUrlIds,
+      idsToRemove,
+    )
+
+    updatedSavedTabs.push(updatedGroup)
   }
+
+  return {
+    updatedSavedTabs,
+    hasChanges,
+  }
+}
+const buildUpdatedGroupAfterUrlIdRemoval = (
+  group: TabGroup,
+  remainingUrlIds: string[],
+  idsToRemove: ReadonlySet<string>,
+): TabGroup => {
+  const updatedGroup: TabGroup = {
+    ...group,
+    urlIds: remainingUrlIds,
+  }
+
+  if (!group.urlSubCategories) {
+    return updatedGroup
+  }
+
+  const nextUrlSubCategories = { ...group.urlSubCategories }
+  for (const id of idsToRemove) {
+    delete nextUrlSubCategories[id]
+  }
+  updatedGroup.urlSubCategories =
+    Object.keys(nextUrlSubCategories).length > 0
+      ? nextUrlSubCategories
+      : undefined
+
+  return updatedGroup
 }
 interface CategorySyncState {
   updatedSavedTabs: TabGroup[]
@@ -588,16 +639,47 @@ const SavedTabsApp = ({
         return
       }
       const uniqueUrlSet = new Set(urlsToRemove)
-      const storageResult = await chrome.storage.local.get<{
-        savedTabs?: import('@/types/storage').TabGroup[]
-      }>('savedTabs')
+      const [storageResult, urlRecords] = await Promise.all([
+        chrome.storage.local.get<{
+          savedTabs?: import('@/types/storage').TabGroup[]
+        }>('savedTabs'),
+        getUrlRecords(),
+      ])
       const savedTabs: TabGroup[] = Array.isArray(storageResult.savedTabs)
         ? storageResult.savedTabs
         : []
-      for (const group of savedTabs) {
-        await removeMatchingUrlsFromGroup(group, uniqueUrlSet)
+
+      const urlIdsToRemove = new Set(
+        urlRecords
+          .filter(record => uniqueUrlSet.has(record.url))
+          .map(record => record.id),
+      )
+      if (urlIdsToRemove.size === 0) {
+        return
       }
-      await refreshTabGroupsWithUrls()
+
+      const { updatedSavedTabs, hasChanges } = removeUrlIdsFromSavedTabs(
+        savedTabs,
+        urlIdsToRemove,
+      )
+      if (!hasChanges) {
+        return
+      }
+
+      await chrome.storage.local.set({
+        savedTabs: updatedSavedTabs,
+      })
+
+      try {
+        await removeUrlIdsFromAllCustomProjects([...urlIdsToRemove])
+      } catch (error) {
+        console.error(
+          'カスタムプロジェクトからの複数URL ID同期削除に失敗しました:',
+          error,
+        )
+      }
+
+      await refreshTabGroupsWithUrls(updatedSavedTabs)
     },
     [refreshTabGroupsWithUrls],
   )
