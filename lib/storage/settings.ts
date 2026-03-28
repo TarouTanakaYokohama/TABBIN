@@ -1,3 +1,4 @@
+import { DEFAULT_FONT_SIZE_PERCENT } from '@/constants/fontSize'
 import {
   DEFAULT_AI_SYSTEM_PROMPT_PRESET_ID,
   DEFAULT_AI_SYSTEM_PROMPT_TEMPLATE,
@@ -32,6 +33,7 @@ export const defaultSettings: UserSettings = {
   confirmDeleteAll: false,
   // デフォルト: 確認しない
   confirmDeleteEach: false,
+  fontSizePercent: DEFAULT_FONT_SIZE_PERCENT,
   // デフォルト: 確認しない
   colors: {}, // デフォルト: カラー設定まとめ
   aiChatEnabled: false,

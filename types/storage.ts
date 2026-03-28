@@ -68,6 +68,7 @@ export interface UserSettings {
   openAllInNewWindow: boolean // 「すべてのタブを開く」を別ウィンドウで開くかどうか
   confirmDeleteAll: boolean // すべて削除前に確認するかどうか
   confirmDeleteEach: boolean // URL削除前に個別確認するかどうか
+  fontSizePercent?: number
   colors?: Record<string, string> // ユーザー設定: カラー設定まとめ
   aiChatEnabled?: boolean
   aiProvider?: 'none' | 'ollama'

@@ -1,4 +1,5 @@
 import { Plus, RotateCcw, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,13 @@ import { Toaster } from '@/components/ui/sonner'
 import { clickBehaviorOptions } from '@/constants/clickBehaviorOptions'
 import { colorOptions } from '@/constants/colorOptions'
 import { getDefaultColor } from '@/constants/defaultColors'
+import {
+  DEFAULT_FONT_SIZE_PERCENT,
+  FONT_SIZE_PERCENT_STEP,
+  MAX_FONT_SIZE_PERCENT,
+  MIN_FONT_SIZE_PERCENT,
+  normalizeFontSizePercent,
+} from '@/constants/fontSize'
 import { LanguageSelect } from '@/features/i18n/components/LanguageSelect'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { useColorSettings } from '@/features/options/hooks/useColorSettings'
@@ -53,6 +61,69 @@ export const OptionsRoute = () => {
     settings,
     setSettings,
   )
+  const fontSizePercent = normalizeFontSizePercent(settings.fontSizePercent)
+  const [fontSizeSliderValue, setFontSizeSliderValue] = useState(
+    String(fontSizePercent),
+  )
+  const [fontSizeInputValue, setFontSizeInputValue] = useState(
+    String(fontSizePercent),
+  )
+
+  useEffect(() => {
+    setFontSizeSliderValue(String(fontSizePercent))
+    setFontSizeInputValue(String(fontSizePercent))
+  }, [fontSizePercent])
+
+  const applyFontSizePreview = (value: number) => {
+    document.documentElement.style.setProperty(
+      '--app-font-scale',
+      String(normalizeFontSizePercent(value) / 100),
+    )
+  }
+
+  const updateFontSizePercent = async (value: number) => {
+    const normalizedValue = normalizeFontSizePercent(value)
+    setFontSizeInputValue(String(normalizedValue))
+    applyFontSizePreview(normalizedValue)
+    await updateSetting('fontSizePercent', normalizedValue)
+  }
+
+  const handleFontSizeSliderChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    setFontSizeSliderValue(event.target.value)
+    setFontSizeInputValue(event.target.value)
+  }
+
+  const commitFontSizeSliderValue = async () => {
+    await updateFontSizePercent(Number(fontSizeSliderValue))
+  }
+
+  const handleFontSizeInputChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    setFontSizeInputValue(event.target.value)
+  }
+
+  const commitFontSizeInputValue = async () => {
+    const trimmedValue = fontSizeInputValue.trim()
+    if (!trimmedValue) {
+      setFontSizeInputValue(String(fontSizePercent))
+      return
+    }
+
+    const nextValue = Number(trimmedValue)
+    if (Number.isNaN(nextValue)) {
+      setFontSizeInputValue(String(fontSizePercent))
+      return
+    }
+
+    await updateFontSizePercent(nextValue)
+  }
+
+  const handleResetFontSize = async () => {
+    await updateFontSizePercent(DEFAULT_FONT_SIZE_PERCENT)
+  }
 
   const handleClickBehaviorChange = async (value: string) => {
     await updateSetting('clickBehavior', value as UserSettings['clickBehavior'])
@@ -386,6 +457,115 @@ export const OptionsRoute = () => {
             <p className='mt-1 text-muted-foreground text-sm'>
               {t('options.excludePatterns.help')}
             </p>
+          </div>
+        </div>
+
+        <div className='mb-8 rounded-lg border border-border bg-card p-6 shadow-md'>
+          <div className='mb-4 flex items-center justify-between gap-4'>
+            <div>
+              <h2 className='font-semibold text-foreground text-xl'>
+                {t('options.previewFontSizeCustomization')}
+              </h2>
+              <p className='mt-1 text-muted-foreground text-sm'>
+                {t('options.fontSize.description')}
+              </p>
+            </div>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={handleResetFontSize}
+              className='flex cursor-pointer items-center gap-1'
+            >
+              <RotateCcw size={16} />
+              {t('common.reset')}
+            </Button>
+          </div>
+
+          <div className='grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_200px]'>
+            <div>
+              <Label
+                htmlFor='font-size-range'
+                className='mb-2 block text-foreground'
+              >
+                {t('options.fontSize.rangeLabel')}
+              </Label>
+              <input
+                id='font-size-range'
+                aria-label={t('options.fontSize.rangeLabel')}
+                type='range'
+                min={MIN_FONT_SIZE_PERCENT}
+                max={MAX_FONT_SIZE_PERCENT}
+                step={FONT_SIZE_PERCENT_STEP}
+                value={fontSizeSliderValue}
+                onChange={event => {
+                  void handleFontSizeSliderChange(event)
+                }}
+                onMouseUp={() => {
+                  void commitFontSizeSliderValue()
+                }}
+                onTouchEnd={() => {
+                  void commitFontSizeSliderValue()
+                }}
+                onBlur={() => {
+                  void commitFontSizeSliderValue()
+                }}
+                onKeyUp={event => {
+                  if (
+                    ![
+                      'ArrowLeft',
+                      'ArrowRight',
+                      'ArrowUp',
+                      'ArrowDown',
+                      'Home',
+                      'End',
+                      'PageUp',
+                      'PageDown',
+                    ].includes(event.key)
+                  ) {
+                    return
+                  }
+
+                  void commitFontSizeSliderValue()
+                }}
+                className='h-9 w-full cursor-pointer accent-primary'
+              />
+            </div>
+
+            <div>
+              <Label
+                htmlFor='font-size-percent'
+                className='mb-2 block text-foreground'
+              >
+                {t('options.fontSize.inputLabel')}
+              </Label>
+              <div className='flex items-center gap-2'>
+                <Input
+                  id='font-size-percent'
+                  type='number'
+                  inputMode='numeric'
+                  min={MIN_FONT_SIZE_PERCENT}
+                  max={MAX_FONT_SIZE_PERCENT}
+                  step={FONT_SIZE_PERCENT_STEP}
+                  value={fontSizeInputValue}
+                  onChange={event => {
+                    void handleFontSizeInputChange(event)
+                  }}
+                  onBlur={() => {
+                    void commitFontSizeInputValue()
+                  }}
+                  onKeyDown={event => {
+                    if (event.key !== 'Enter') {
+                      return
+                    }
+
+                    event.preventDefault()
+                    void commitFontSizeInputValue()
+                  }}
+                  className='bg-background text-foreground'
+                />
+                <span className='text-muted-foreground text-sm'>%</span>
+              </div>
+            </div>
           </div>
         </div>
 
