@@ -5,8 +5,9 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Check, X } from 'lucide-react'
-import type { ComponentProps } from 'react'
+import { type ComponentProps, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
+import { LoadingState } from '@/components/ui/loading-state'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { CategoryGroup } from '@/features/saved-tabs/components/CategoryGroup'
@@ -94,12 +95,23 @@ export const DomainModeContainer = ({
   hasContentTabGroupsCount,
 }: DomainModeContainerProps) => {
   const { t } = useI18n()
+  const categoryMap = useMemo(
+    () => new Map(categories.map(category => [category.id, category])),
+    [categories],
+  )
+  const handleMoveDomainToCategoryWithTabGroups = useCallback(
+    (domainId: string, fromCategoryId: string | null, toCategoryId: string) =>
+      handleMoveDomainToCategory(
+        domainId,
+        fromCategoryId,
+        toCategoryId,
+        tabGroups,
+      ),
+    [handleMoveDomainToCategory, tabGroups],
+  )
+
   if (isLoading) {
-    return (
-      <div className='flex min-h-[200px] items-center justify-center'>
-        <div className='text-foreground text-xl'>{t('common.loading')}</div>
-      </div>
-    )
+    return <LoadingState />
   }
 
   return (
@@ -119,7 +131,7 @@ export const DomainModeContainer = ({
                 if (!categoryId) {
                   return null
                 }
-                const category = categories.find(c => c.id === categoryId)
+                const category = categoryMap.get(categoryId)
                 if (!category) {
                   return null
                 }
@@ -140,17 +152,8 @@ export const DomainModeContainer = ({
                     handleOpenTab={handleOpenTab}
                     handleUpdateUrls={handleUpdateUrls}
                     handleUpdateDomainsOrder={handleUpdateDomainsOrder}
-                    handleMoveDomainToCategory={(
-                      domainId,
-                      fromCategoryId,
-                      toCategoryId,
-                    ) =>
-                      handleMoveDomainToCategory(
-                        domainId,
-                        fromCategoryId,
-                        toCategoryId,
-                        tabGroups,
-                      )
+                    handleMoveDomainToCategory={
+                      handleMoveDomainToCategoryWithTabGroups
                     }
                     handleDeleteCategory={handleDeleteCategory}
                     settings={settings}

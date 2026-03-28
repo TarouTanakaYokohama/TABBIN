@@ -4,7 +4,17 @@ vi.mock('@/lib/storage/settings', () => ({
   getUserSettings: vi.fn(),
 }))
 
+vi.mock('@/lib/storage/projects', () => ({
+  removeUrlFromAllCustomProjects: vi.fn(),
+}))
+
+vi.mock('@/lib/storage/urls', () => ({
+  deleteUrlRecord: vi.fn(),
+}))
+
+import { removeUrlFromAllCustomProjects } from '@/lib/storage/projects'
 import { getUserSettings } from '@/lib/storage/settings'
+import { deleteUrlRecord } from '@/lib/storage/urls'
 import {
   clearDraggedUrlInfo,
   getDraggedUrlInfo,
@@ -658,6 +668,36 @@ describe('url-storage', () => {
         },
       ],
     })
+  })
+
+  it('urlIdsベース削除ではカスタムプロジェクト同期後に未参照URLレコードも削除する', async () => {
+    storageState = {
+      savedTabs: [
+        {
+          id: 'group-target',
+          domain: 'target.example.com',
+          urlIds: ['url-id-1'],
+        },
+      ],
+      parentCategories: [],
+      urls: [
+        {
+          id: 'url-id-1',
+          url: 'https://target.example.com/page',
+          title: 'Target',
+          savedAt: 1,
+        },
+      ],
+    }
+    setupChromeMock()
+    vi.mocked(deleteUrlRecord).mockResolvedValue(true)
+
+    await removeUrlFromStorage('https://target.example.com/page')
+
+    expect(removeUrlFromAllCustomProjects).toHaveBeenCalledWith(
+      'https://target.example.com/page',
+    )
+    expect(deleteUrlRecord).toHaveBeenCalledWith('url-id-1')
   })
 
   it('urlIdsベースで対象URLを削除しても他URLが残る場合はグループを維持する', async () => {

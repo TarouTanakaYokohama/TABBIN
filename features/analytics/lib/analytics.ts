@@ -3,6 +3,12 @@ import type {
   AiChartType,
   AiSavedUrlRecord,
 } from '@/features/ai-chat/types'
+import {
+  getLocalDateKey,
+  getLocalMonthKey,
+  getLocalWeekStartKey,
+  isTimestampInLocalDateRange,
+} from '@/utils/localDateTime'
 
 type AnalyticsMode = 'both' | 'custom' | 'domain'
 type AnalyticsGroupBy =
@@ -76,6 +82,7 @@ interface AnalyticsResult {
 interface GenerateAnalyticsResultOptions {
   messages?: Partial<AnalyticsMessages>
   now?: number
+  timeZone?: string
 }
 
 interface AnalyticsMessages {
@@ -173,35 +180,17 @@ const normalizeAnalyticsQuery = (
   groupBy: query.groupBy === 'time' ? 'timeRecent' : query.groupBy,
 })
 
-const parseLocalDateString = (value: string | undefined): number | null => {
-  if (!value) {
-    return null
-  }
-
-  const parts = value.split('-').map(Number)
-  if (parts.length !== 3) {
-    return null
-  }
-
-  return new Date(parts[0] ?? 0, (parts[1] ?? 1) - 1, parts[2] ?? 1).getTime()
-}
-
 const isWithinCustomDateRange = (
   savedAt: number,
   customDateRange: AnalyticsDateRange | undefined,
+  timeZone?: string,
 ): boolean => {
-  const from = parseLocalDateString(
-    customDateRange?.from ?? customDateRange?.to,
+  return isTimestampInLocalDateRange(
+    savedAt,
+    customDateRange?.from,
+    customDateRange?.to,
+    timeZone,
   )
-  const to = parseLocalDateString(customDateRange?.to ?? customDateRange?.from)
-
-  if (from === null || to === null) {
-    return true
-  }
-
-  const start = Math.min(from, to)
-  const end = Math.max(from, to) + 24 * 60 * 60 * 1000 - 1
-  return savedAt >= start && savedAt <= end
 }
 
 const matchesMode = (
@@ -224,19 +213,29 @@ const matchesMode = (
 
 const isWithinTimeRange = (
   savedAt: number,
-  customDateRange: AnalyticsDateRange | undefined,
-  timeRange: AnalyticsTimeRange,
-  now: number,
+  options: {
+    customDateRange: AnalyticsDateRange | undefined
+    now: number
+    timeRange: AnalyticsTimeRange
+    timeZone?: string
+  },
 ): boolean => {
-  if (timeRange === 'all') {
+  if (options.timeRange === 'all') {
     return true
   }
 
-  if (timeRange === 'custom') {
-    return isWithinCustomDateRange(savedAt, customDateRange)
+  if (options.timeRange === 'custom') {
+    return isWithinCustomDateRange(
+      savedAt,
+      options.customDateRange,
+      options.timeZone,
+    )
   }
 
-  return savedAt >= now - RANGE_IN_DAYS[timeRange] * 24 * 60 * 60 * 1000
+  return (
+    savedAt >=
+    options.now - RANGE_IN_DAYS[options.timeRange] * 24 * 60 * 60 * 1000
+  )
 }
 
 const arrayMatchesFilters = (
@@ -325,36 +324,20 @@ const sortEntries = (
   })
 }
 
-const formatDayBucket = (value: number): string =>
-  new Date(value).toISOString().slice(0, 10)
-
-const formatMonthBucket = (value: number): string =>
-  new Date(value).toISOString().slice(0, 7)
-
-const getWeekStart = (value: number): number => {
-  const date = new Date(value)
-  const utcDate = new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-  )
-  const day = utcDate.getUTCDay()
-  const diff = day === 0 ? -6 : 1 - day
-  utcDate.setUTCDate(utcDate.getUTCDate() + diff)
-  return utcDate.getTime()
-}
-
 const getTimeBucketLabel = (
   savedAt: number,
   bucket: AnalyticsTimeBucket,
+  timeZone?: string,
 ): string => {
   if (bucket === 'month') {
-    return formatMonthBucket(savedAt)
+    return getLocalMonthKey(savedAt, timeZone)
   }
 
   if (bucket === 'week') {
-    return formatDayBucket(getWeekStart(savedAt))
+    return getLocalWeekStartKey(savedAt, timeZone)
   }
 
-  return formatDayBucket(savedAt)
+  return getLocalDateKey(savedAt, timeZone)
 }
 
 const getLabelsForGroup = (
@@ -469,6 +452,7 @@ const createSingleSeriesChart = (
   filteredRecords: AiSavedUrlRecord[],
   query: AnalyticsQuery,
   messages: AnalyticsMessages,
+  timeZone?: string,
 ): AiChartSpec => {
   const bucketMap = new Map<string, number>()
   const timeGroupBy = getTimeGroupByVariant(query.groupBy)
@@ -476,7 +460,7 @@ const createSingleSeriesChart = (
 
   for (const record of filteredRecords) {
     const labels = isTimeSeries
-      ? [getTimeBucketLabel(record.savedAt, query.timeBucket)]
+      ? [getTimeBucketLabel(record.savedAt, query.timeBucket, timeZone)]
       : getLabelsForGroup(record, query.groupBy, messages.uncategorizedLabel)
 
     for (const label of labels) {
@@ -534,6 +518,7 @@ const createModeComparisonChart = (
   filteredRecords: AiSavedUrlRecord[],
   query: AnalyticsQuery,
   messages: AnalyticsMessages,
+  timeZone?: string,
 ): AiChartSpec => {
   const timeGroupBy = getTimeGroupByVariant(query.groupBy)
   const isTimeSeries = timeGroupBy !== null
@@ -547,7 +532,7 @@ const createModeComparisonChart = (
 
   for (const record of filteredRecords) {
     const label = isTimeSeries
-      ? getTimeBucketLabel(record.savedAt, query.timeBucket)
+      ? getTimeBucketLabel(record.savedAt, query.timeBucket, timeZone)
       : record.domain
     const current = buckets.get(label) ?? {
       custom: 0,
@@ -616,6 +601,35 @@ const createModeComparisonChart = (
   }
 }
 
+const filterAnalyticsRecords = (
+  records: AiSavedUrlRecord[],
+  query: AnalyticsQueryInput,
+  options: GenerateAnalyticsResultOptions = {},
+): AiSavedUrlRecord[] => {
+  const normalizedQuery = normalizeAnalyticsQuery(query)
+  const now = options.now ?? Date.now()
+  const messages = {
+    ...DEFAULT_ANALYTICS_MESSAGES,
+    ...options.messages,
+  }
+
+  return records.filter(
+    record =>
+      matchesMode(record, normalizedQuery.mode) &&
+      isWithinTimeRange(record.savedAt, {
+        customDateRange: normalizedQuery.customDateRange,
+        now,
+        timeRange: normalizedQuery.timeRange,
+        timeZone: options.timeZone,
+      }) &&
+      matchesFilters(
+        record,
+        normalizedQuery.filters,
+        messages.uncategorizedLabel,
+      ),
+  )
+}
+
 const generateAnalyticsResult = (
   records: AiSavedUrlRecord[],
   query: AnalyticsQueryInput,
@@ -627,26 +641,25 @@ const generateAnalyticsResult = (
     ...DEFAULT_ANALYTICS_MESSAGES,
     ...options.messages,
   }
-  const filteredRecords = records.filter(
-    record =>
-      matchesMode(record, normalizedQuery.mode) &&
-      isWithinTimeRange(
-        record.savedAt,
-        normalizedQuery.customDateRange,
-        normalizedQuery.timeRange,
-        now,
-      ) &&
-      matchesFilters(
-        record,
-        normalizedQuery.filters,
-        messages.uncategorizedLabel,
-      ),
-  )
+  const filteredRecords = filterAnalyticsRecords(records, normalizedQuery, {
+    ...options,
+    now,
+  })
 
   const chartSpec =
     normalizedQuery.compareBy === 'mode'
-      ? createModeComparisonChart(filteredRecords, normalizedQuery, messages)
-      : createSingleSeriesChart(filteredRecords, normalizedQuery, messages)
+      ? createModeComparisonChart(
+          filteredRecords,
+          normalizedQuery,
+          messages,
+          options.timeZone,
+        )
+      : createSingleSeriesChart(
+          filteredRecords,
+          normalizedQuery,
+          messages,
+          options.timeZone,
+        )
 
   return {
     chartSpecs: [chartSpec],
@@ -807,6 +820,7 @@ export type {
 }
 export {
   UNCATEGORIZED_LABEL,
+  filterAnalyticsRecords,
   generateAnalyticsResult,
   getAnalyticsPresets,
   getDefaultAnalyticsQuery,

@@ -7,6 +7,7 @@ import {
   PromptInputSelectValue,
 } from '@/components/ai-elements/prompt-input'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import {
   OllamaErrorNotice,
   type OllamaErrorPlatform,
@@ -100,7 +101,7 @@ const renderFetchButton = ({
       disabled={isLoading || isSaving}
       className={cn('w-full cursor-pointer', !isCompactLayout && 'sm:w-auto')}
     >
-      {isLoading ? t('aiChat.ollama.loading') : t('aiChat.ollama.loadModels')}
+      {isLoading ? <Spinner /> : t('aiChat.ollama.loadModels')}
     </Button>
   )
 }
@@ -124,9 +125,7 @@ const renderModelOptions = ({
 
   return (
     <PromptInputSelectItem disabled value={EMPTY_MODEL_VALUE}>
-      {isLoading
-        ? t('aiChat.ollama.loadingModelList')
-        : t('aiChat.ollama.noModelsFound')}
+      {isLoading ? <Spinner /> : t('aiChat.ollama.noModelsFound')}
     </PromptInputSelectItem>
   )
 }

@@ -13,34 +13,30 @@ import { Children, Fragment, type ReactNode, isValidElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AiSavedUrlRecord } from '@/features/ai-chat/types'
 import type { SavedAnalyticsView } from '@/lib/storage/analytics'
+import { defaultSettings } from '@/lib/storage/settings'
 import { AnalyticsRoute } from './AnalyticsRoute'
 
 const analyticsRouteMocks = vi.hoisted(() => ({
   deleteViewMock: vi.fn(),
   language: 'en' as 'en' | 'ja',
   loadRecordsMock: vi.fn<() => Promise<AiSavedUrlRecord[]>>(),
+  loadSettingsMock: vi.fn(),
   loadViewsMock: vi.fn<() => Promise<SavedAnalyticsView[]>>(),
   saveViewsMock: vi.fn(),
+  sendMessageMock: vi.fn(),
   updateMessagesMock: vi.fn(),
 }))
 
 vi.mock('@/features/i18n/context/I18nProvider', async () => {
-  const { getMessages } = await vi.importActual<
-    typeof import('@/features/i18n/messages')
-  >('@/features/i18n/messages')
+  const { getMessage } = await vi.importActual<
+    typeof import('@/features/i18n/lib/language')
+  >('@/features/i18n/lib/language')
 
   return {
     useI18n: () => ({
       language: analyticsRouteMocks.language,
-      t: (key: string, fallback?: string, values?: Record<string, string>) => {
-        const messages = getMessages(analyticsRouteMocks.language)
-        const template =
-          messages[key as keyof typeof messages] ?? fallback ?? key
-        return template.replaceAll(
-          /\{\{(\w+)\}\}/g,
-          (_, token) => values?.[token] ?? '',
-        )
-      },
+      t: (key: string, fallback?: string, values?: Record<string, string>) =>
+        getMessage(analyticsRouteMocks.language, key, fallback, values),
     }),
   }
 })
@@ -48,6 +44,17 @@ vi.mock('@/features/i18n/context/I18nProvider', async () => {
 vi.mock('@/features/analytics/lib/loadAnalyticsRecords', () => ({
   loadAnalyticsRecords: analyticsRouteMocks.loadRecordsMock,
 }))
+
+vi.mock('@/lib/storage/settings', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/storage/settings')>(
+    '@/lib/storage/settings',
+  )
+
+  return {
+    ...actual,
+    getUserSettings: analyticsRouteMocks.loadSettingsMock,
+  }
+})
 
 vi.mock('@/components/ui/select', () => {
   const SelectTrigger = ({ children }: { children?: ReactNode }) => (
@@ -321,6 +328,13 @@ vi.mock('@/lib/storage/analytics', () => ({
   saveSavedAnalyticsViews: analyticsRouteMocks.saveViewsMock,
 }))
 
+vi.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+}))
+
 const records: AiSavedUrlRecord[] = [
   {
     id: '1',
@@ -351,11 +365,31 @@ const records: AiSavedUrlRecord[] = [
 describe('AnalyticsRoute', () => {
   beforeEach(() => {
     analyticsRouteMocks.language = 'en'
-    analyticsRouteMocks.loadRecordsMock.mockResolvedValue(records)
-    analyticsRouteMocks.loadViewsMock.mockResolvedValue([])
     analyticsRouteMocks.deleteViewMock.mockReset()
+    analyticsRouteMocks.loadRecordsMock.mockReset()
+    analyticsRouteMocks.loadSettingsMock.mockReset()
+    analyticsRouteMocks.loadViewsMock.mockReset()
     analyticsRouteMocks.saveViewsMock.mockReset()
+    analyticsRouteMocks.sendMessageMock.mockReset()
     analyticsRouteMocks.updateMessagesMock.mockReset()
+    analyticsRouteMocks.loadRecordsMock.mockResolvedValue(records)
+    analyticsRouteMocks.loadSettingsMock.mockResolvedValue(defaultSettings)
+    analyticsRouteMocks.loadViewsMock.mockResolvedValue([])
+    analyticsRouteMocks.sendMessageMock.mockImplementation(
+      (
+        _message: unknown,
+        callback?: (response: { status: string }) => void,
+      ) => {
+        callback?.({ status: 'removed' })
+      },
+    )
+
+    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
+    chromeGlobal.chrome = {
+      runtime: {
+        sendMessage: analyticsRouteMocks.sendMessageMock,
+      },
+    } as unknown as typeof chrome
   })
 
   afterEach(() => {
@@ -384,6 +418,9 @@ describe('AnalyticsRoute', () => {
 
     expect(await screen.findByText('Analysis conditions')).toBeTruthy()
     expect(await screen.findByText('Saved count by domain')).toBeTruthy()
+    expect(
+      screen.getByText('Created Saved count by domain from 2 saved records.'),
+    ).toBeTruthy()
     expect(screen.queryByText('Date range')).toBeNull()
     expect(screen.queryByText('Current range: All time')).toBeNull()
     expect(
@@ -411,6 +448,11 @@ describe('AnalyticsRoute', () => {
 
     expect(await screen.findByText('分析条件')).toBeTruthy()
     expect(screen.getByText('分析キャンバス')).toBeTruthy()
+    expect(
+      screen.getByText(
+        '2 件の保存データから「ドメインごとの保存数」を作成しました。',
+      ),
+    ).toBeTruthy()
     expect(screen.getByLabelText('ビュー名')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'リセット' })).toBeTruthy()
   })
@@ -670,8 +712,50 @@ describe('AnalyticsRoute', () => {
     const savedAtText = new Date(records[0].savedAt).toLocaleString('en-US')
     expect(screen.getByText(savedAtText)).toBeTruthy()
     const openLink = screen.getByRole('link', { name: 'Open Example Docs' })
+    const deleteButton = screen.getByRole('button', { name: 'Delete tab' })
+    const source = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), './AnalyticsRoute.tsx'),
+      {
+        encoding: 'utf8',
+      },
+    )
     expect(openLink).toBeTruthy()
-    expect(openLink.closest('div')?.className.includes('shrink-0')).toBe(true)
+    expect(openLink.className.includes('size-8')).toBe(true)
+    expect(deleteButton.className.includes('size-8')).toBe(true)
+    expect(source).toContain("from '@/components/ui/tooltip'")
+    expect(source).toContain("t('analytics.open')")
+    expect(source).toContain("t('common.delete')")
+    expect(
+      openLink.closest('div')?.parentElement?.className.includes('shrink-0'),
+    ).toBe(true)
+  })
+
+  it('ドリルダウンは現在の分析条件で絞り込まれた保存タブだけを表示する', async () => {
+    analyticsRouteMocks.loadRecordsMock.mockResolvedValue([
+      ...records,
+      {
+        id: '3',
+        url: 'https://docs.example.com/old',
+        title: 'Old Docs',
+        domain: 'docs.example.com',
+        savedAt: Date.UTC(2025, 0, 1),
+        savedInTabGroups: ['docs.example.com'],
+        savedInProjects: [],
+        subCategories: ['Docs'],
+        projectCategories: [],
+        parentCategories: ['Work'],
+      },
+    ])
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-ai-chart' }))
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+
+    expect(await screen.findByText('Saved tabs in this item')).toBeTruthy()
+    expect(screen.getByText('Example Docs')).toBeTruthy()
+    expect(screen.queryByText('Old Docs')).toBeNull()
   })
 
   it('長いタイトルでもドリルダウンの操作列が見切れないレイアウトを使う', async () => {
@@ -692,14 +776,112 @@ describe('AnalyticsRoute', () => {
     const openLink = await screen.findByRole('link', {
       name: 'Open Extremely long analytics drilldown title that should never push the action area out of view even when the canvas is narrow',
     })
+    const deleteButton = screen.getByRole('button', { name: 'Delete tab' })
 
-    const actionColumn = openLink.closest('div')
+    const buttonRow = openLink.closest('div')
+    const actionColumn = buttonRow?.parentElement
     const cardLayout = actionColumn?.parentElement
 
     expect(cardLayout?.className.includes('grid')).toBe(true)
     expect(
       cardLayout?.className.includes('sm:grid-cols-[minmax(0,1fr)_auto]'),
     ).toBe(true)
+    expect(buttonRow?.className.includes('items-center')).toBe(true)
+    expect(buttonRow?.className.includes('justify-end')).toBe(true)
+    expect(deleteButton.parentElement).toBe(buttonRow)
     expect(actionColumn?.className.includes('sm:items-end')).toBe(true)
+  })
+
+  it('ドリルダウン各行に削除ボタンを表示する', async () => {
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+
+    expect(
+      await screen.findByRole('button', { name: 'Delete tab' }),
+    ).toBeTruthy()
+  })
+
+  it('confirmDeleteEach=false のとき即時削除して一覧を再読込する', async () => {
+    analyticsRouteMocks.loadRecordsMock
+      .mockResolvedValueOnce(records)
+      .mockResolvedValueOnce([records[1]])
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete tab' }))
+
+    await waitFor(() => {
+      expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledWith(
+        {
+          action: 'removeUrlFromStorage',
+          url: 'https://docs.example.com/a',
+        },
+        expect.any(Function),
+      )
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByText('Example Docs')).toBeNull()
+    })
+    expect(screen.queryByRole('link', { name: 'Open Example Docs' })).toBeNull()
+    expect(
+      screen.getByText('Created Saved count by domain from 1 saved records.'),
+    ).toBeTruthy()
+  })
+
+  it('confirmDeleteEach=true のとき確認ダイアログ経由で削除する', async () => {
+    analyticsRouteMocks.loadSettingsMock.mockResolvedValue({
+      ...defaultSettings,
+      confirmDeleteEach: true,
+    })
+    analyticsRouteMocks.loadRecordsMock
+      .mockResolvedValueOnce(records)
+      .mockResolvedValueOnce([records[1]])
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete tab' }))
+
+    expect(await screen.findByText('Delete this tab?')).toBeTruthy()
+    expect(analyticsRouteMocks.sendMessageMock).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => {
+      expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('削除中は二重送信しない', async () => {
+    let resolveRemoval: ((value: { status: string }) => void) | undefined
+    analyticsRouteMocks.sendMessageMock.mockImplementation(
+      (
+        _message: unknown,
+        callback?: (response: { status: string }) => void,
+      ) => {
+        resolveRemoval = callback
+      },
+    )
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+
+    const deleteButton = await screen.findByRole('button', {
+      name: 'Delete tab',
+    })
+    fireEvent.click(deleteButton)
+    fireEvent.click(deleteButton)
+
+    expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(1)
+
+    resolveRemoval?.({ status: 'removed' })
   })
 })

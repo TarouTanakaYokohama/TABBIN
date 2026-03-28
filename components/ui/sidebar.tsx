@@ -355,7 +355,7 @@ const Sidebar = React.forwardRef<
           type='button'
           aria-label={sidebarResizeLabel}
           className={cn(
-            'relative w-4 shrink-0 touch-none',
+            'relative shrink-0 touch-none',
             side === 'left' ? 'cursor-col-resize' : 'cursor-col-resize',
             !open ? 'pointer-events-none opacity-0' : 'bg-transparent',
           )}

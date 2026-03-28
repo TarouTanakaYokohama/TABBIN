@@ -2,7 +2,9 @@
  * URL・ストレージ操作モジュール
  */
 
+import { removeUrlFromAllCustomProjects } from '@/lib/storage/projects'
 import { getUserSettings } from '@/lib/storage/settings'
+import { deleteUrlRecord } from '@/lib/storage/urls'
 import type { DraggedUrlInfo } from '@/types/background'
 import type { ParentCategory, TabGroup } from '@/types/storage'
 
@@ -139,6 +141,12 @@ const removeUrlFromStorage = async (url: string): Promise<void> => {
     await chrome.storage.local.set({
       savedTabs: updatedGroups,
     })
+
+    if (matchedUrlId) {
+      await removeUrlFromAllCustomProjects(url)
+      await deleteUrlRecord(matchedUrlId)
+    }
+
     console.log(`ストレージからURL ${url} を削除しました`)
   } catch (error) {
     console.error('URLの削除中にエラーが発生しました:', error)

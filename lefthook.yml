@@ -15,6 +15,6 @@ pre-push:
     compile:
       run: bun run compile
     check_unused:
-      run: bun run check:unused
+      run: bun run knip
     check_duplication:
       run: bun run check:duplication

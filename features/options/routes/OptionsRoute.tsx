@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LoadingState } from '@/components/ui/loading-state'
 import {
   Select,
   SelectContent,
@@ -101,16 +102,12 @@ export const OptionsRoute = () => {
   }
 
   if (isLoading) {
-    return (
-      <div className='flex min-h-[300px] items-center justify-center'>
-        <div className='text-foreground text-xl'>{t('common.loading')}</div>
-      </div>
-    )
+    return <LoadingState minHeightClassName='min-h-[300px]' />
   }
 
   return (
-    <div className='min-h-0 flex-1 overflow-y-auto bg-background'>
-      <div className='mx-auto w-full max-w-5xl px-6 py-8 md:px-10 md:pt-10'>
+    <div className='flex h-screen items-stretch overflow-hidden p-4'>
+      <div className='min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain'>
         <Toaster position='top-right' />
 
         <header className='mb-8 flex items-center justify-between gap-4'>

@@ -5,6 +5,7 @@ import type {
   TabGroup,
   UrlRecord,
 } from '@/types/storage'
+import { isTimestampInLocalMonth } from '@/utils/localDateTime'
 
 const getDomainFromUrl = (value: string): string => {
   try {
@@ -78,12 +79,10 @@ export const findUrlsAddedInMonth = (
   records: AiSavedUrlRecord[],
   year: number,
   month: number,
+  timeZone?: string,
 ): AiSavedUrlRecord[] => {
-  const start = Date.UTC(year, month - 1, 1)
-  const end = Date.UTC(year, month, 1)
-
-  return records.filter(
-    record => record.savedAt >= start && record.savedAt < end,
+  return records.filter(record =>
+    isTimestampInLocalMonth(record.savedAt, year, month, timeZone),
   )
 }
 

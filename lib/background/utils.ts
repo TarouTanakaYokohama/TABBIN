@@ -3,6 +3,7 @@
  */
 
 import { getUserSettings } from '@/lib/storage/settings'
+import { filterItemsBySavableUrl } from '@/lib/url-filter'
 import { showNotification } from './alarm-notification'
 
 /**
@@ -29,14 +30,10 @@ export const filterTabsByUserSettings = async (
     }
 
     // 除外パターンに一致するタブもフィルタリング
-    filteredTabs = filteredTabs.filter(tab => {
-      if (!tab.url) {
-        return false
-      }
-      return !settings.excludePatterns.some(pattern =>
-        tab.url?.includes(pattern),
-      )
-    })
+    filteredTabs = filterItemsBySavableUrl(
+      filteredTabs,
+      settings.excludePatterns,
+    )
     return filteredTabs
   } catch (error) {
     console.error('タブフィルタリングエラー:', error)

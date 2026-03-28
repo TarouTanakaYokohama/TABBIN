@@ -294,6 +294,7 @@ vi.mock('@/lib/storage/tabs', () => ({
 }))
 
 import { handleTabGroupRemoval } from '@/features/saved-tabs/lib/tab-operations'
+import { saveParentCategories } from '@/lib/storage/categories'
 import {
   removeUrlFromAllCustomProjects,
   removeUrlIdsFromAllCustomProjects,
@@ -305,6 +306,14 @@ import { SavedTabsApp } from './SavedTabsApp'
 describe('SavedTabsApp custom search', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocked.categoryState.categories = []
+    mocked.categoryState.categoryOrder = []
+    mocked.categoryState.tempCategoryOrder = []
+    mocked.projectState.viewMode = 'custom'
+    mocked.projectState.viewModeRef = { current: 'custom' }
+    mocked.tabDataState.tabGroups = []
+    mocked.tabDataState.tabGroupsWithUrls = []
+    mocked.tabDataState.isLoading = false
     const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
     chromeGlobal.chrome = {
       storage: {
@@ -404,6 +413,110 @@ describe('SavedTabsApp custom search', () => {
         showSidebarTrigger: undefined,
       }),
     )
+  })
+
+  it('ドメインモードでは親カテゴリ名検索で一致したグループを保持する', async () => {
+    const group: TabGroup = {
+      id: 'group-1',
+      domain: 'example.com',
+      urls: [
+        {
+          id: 'url-1',
+          url: 'https://example.com/a',
+          title: 'Unrelated title',
+        },
+      ],
+      urlIds: ['url-1'],
+    }
+    mocked.projectState.viewMode = 'domain'
+    mocked.projectState.viewModeRef = { current: 'domain' }
+    mocked.categoryState.categories = [
+      {
+        id: 'category-1',
+        name: 'Reading',
+        domains: ['group-1'],
+        domainNames: [],
+      },
+    ]
+    mocked.categoryState.categoryOrder = ['category-1']
+    mocked.tabDataState.tabGroups = [group]
+    mocked.tabDataState.tabGroupsWithUrls = [group]
+
+    render(<SavedTabsApp initialViewMode='domain' />)
+
+    fireEvent.change(screen.getByLabelText('search'), {
+      target: { value: 'Reading' },
+    })
+
+    await waitFor(() => {
+      expect(mocked.domainModeContainerSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          hasContentTabGroupsCount: 1,
+        }),
+      )
+    })
+  })
+
+  it('既に ID で紐付いたカテゴリは domainNames 同期で再保存しない', async () => {
+    const group: TabGroup = {
+      id: 'group-1',
+      domain: 'example.com',
+      parentCategoryId: 'category-1',
+      urls: [
+        {
+          id: 'url-1',
+          url: 'https://example.com/a',
+          title: 'A',
+        },
+      ],
+      urlIds: ['url-1'],
+    }
+    mocked.projectState.viewMode = 'domain'
+    mocked.projectState.viewModeRef = { current: 'domain' }
+    mocked.categoryState.categories = [
+      {
+        id: 'category-1',
+        name: 'Reading',
+        domains: ['group-1'],
+        domainNames: ['example.com'],
+      },
+    ]
+    mocked.categoryState.categoryOrder = ['category-1']
+    mocked.tabDataState.tabGroups = [group]
+    mocked.tabDataState.tabGroupsWithUrls = [group]
+
+    const chromeSetMock = vi.fn()
+    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
+    chromeGlobal.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => ({ savedTabs: [group] })),
+          set: chromeSetMock,
+        },
+        onChanged: {
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        },
+      },
+      tabs: {
+        create: vi.fn(),
+      },
+      windows: {
+        create: vi.fn(),
+      },
+      runtime: {
+        getURL: vi.fn(),
+      },
+    } as unknown as typeof chrome
+
+    render(<SavedTabsApp initialViewMode='domain' />)
+
+    await waitFor(() => {
+      expect(mocked.domainModeContainerSpy).toHaveBeenCalled()
+    })
+
+    expect(saveParentCategories).not.toHaveBeenCalled()
+    expect(chromeSetMock).not.toHaveBeenCalled()
   })
 
   it('ドメイン全削除ではカスタムプロジェクト同期を URL ごとではなく一括で実行する', async () => {

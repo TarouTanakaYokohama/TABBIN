@@ -319,6 +319,13 @@ const addUrlsToUncategorizedProject = async (
       urlId = existingRecord.id
     }
 
+    removeUrlIdFromOtherProjects(
+      projects,
+      urlId,
+      CUSTOM_UNCATEGORIZED_PROJECT_ID,
+      now,
+    )
+
     if (urlIdSet.has(urlId)) {
       continue
     }
@@ -363,6 +370,44 @@ const addUrlIdToProject = (project: CustomProject, urlId: string): boolean => {
   urlIds.push(urlId)
   return true
 }
+
+const removeUrlIdFromProject = (
+  project: CustomProject,
+  urlId: string,
+  updatedAt: number,
+): boolean => {
+  if (!project.urlIds?.includes(urlId)) {
+    return false
+  }
+
+  project.urlIds = project.urlIds.filter(id => id !== urlId)
+  if (project.urlMetadata?.[urlId]) {
+    delete project.urlMetadata[urlId]
+  }
+  project.updatedAt = updatedAt
+  return true
+}
+
+const removeUrlIdFromOtherProjects = (
+  projects: CustomProject[],
+  urlId: string,
+  keepProjectId: string,
+  updatedAt = Date.now(),
+): boolean => {
+  let hasChanges = false
+  for (const project of projects) {
+    if (project.id === keepProjectId) {
+      continue
+    }
+
+    if (removeUrlIdFromProject(project, urlId, updatedAt)) {
+      hasChanges = true
+    }
+  }
+
+  return hasChanges
+}
+
 const setProjectUrlMetadata = (
   project: CustomProject,
   urlId: string,
@@ -440,6 +485,7 @@ const addUrlToCustomProject = async (
 
     // URLレコードを作成または更新
     const urlRecord = await createOrUpdateUrlRecord(url, title)
+    removeUrlIdFromOtherProjects(projects, urlRecord.id, projectId)
     const isNewUrl = addUrlIdToProject(project, urlRecord.id)
     setProjectUrlMetadata(
       project,

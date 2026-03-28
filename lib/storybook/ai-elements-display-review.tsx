@@ -31,19 +31,6 @@ import {
   Attachments,
 } from '@/components/ai-elements/attachments'
 import {
-  AudioPlayer,
-  AudioPlayerControlBar,
-  AudioPlayerDurationDisplay,
-  AudioPlayerElement,
-  AudioPlayerMuteButton,
-  AudioPlayerPlayButton,
-  AudioPlayerSeekBackwardButton,
-  AudioPlayerSeekForwardButton,
-  AudioPlayerTimeDisplay,
-  AudioPlayerTimeRange,
-  AudioPlayerVolumeRange,
-} from '@/components/ai-elements/audio-player'
-import {
   Checkpoint,
   CheckpointIcon,
   CheckpointTrigger,
@@ -73,8 +60,6 @@ import {
 
 const samplePng =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4////fwAJ+AP7m8kG6QAAAABJRU5ErkJggg=='
-const sampleAudio =
-  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='
 
 const sampleTool = {
   description: 'Cluster tabs by project and urgency',
@@ -236,22 +221,8 @@ const ReviewArtifacts = () => (
       </div>
     </Section>
 
-    <Section title='Audio + Transcription + Persona'>
+    <Section title='Transcription + Persona'>
       <div className='space-y-4'>
-        <AudioPlayer className='w-full rounded-lg border p-3'>
-          <AudioPlayerElement src={sampleAudio} />
-          <AudioPlayerControlBar>
-            <AudioPlayerPlayButton />
-            <AudioPlayerSeekBackwardButton />
-            <AudioPlayerSeekForwardButton />
-            <AudioPlayerTimeDisplay />
-            <AudioPlayerTimeRange />
-            <AudioPlayerDurationDisplay />
-            <AudioPlayerMuteButton />
-            <AudioPlayerVolumeRange />
-          </AudioPlayerControlBar>
-        </AudioPlayer>
-
         <Transcription
           className='rounded-lg border p-3'
           currentTime={4}

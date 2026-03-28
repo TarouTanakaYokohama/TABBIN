@@ -1,3 +1,4 @@
+import { LoadingState } from '@/components/ui/loading-state'
 import { Toaster } from '@/components/ui/sonner'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { ExtensionPageHeader } from '@/features/navigation/components/ExtensionPageHeader'
@@ -17,11 +18,7 @@ export const PeriodicExecutionRoute = () => {
   } = useAutoDeletePeriod(settings, setSettings)
 
   if (isLoading) {
-    return (
-      <div className='flex min-h-[300px] items-center justify-center'>
-        <div className='text-foreground text-xl'>{t('common.loading')}</div>
-      </div>
-    )
+    return <LoadingState minHeightClassName='min-h-[300px]' />
   }
 
   return (

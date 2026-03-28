@@ -6,13 +6,13 @@ import { useTabData } from './useTabData'
 
 const {
   getParentCategoriesMock,
-  getTabGroupUrlsMock,
+  resolveTabGroupsWithUrlsMock,
   getUserSettingsMock,
   migrateParentCategoriesToDomainNamesMock,
   migrateToUrlsStorageMock,
 } = vi.hoisted(() => ({
   getParentCategoriesMock: vi.fn().mockResolvedValue([]),
-  getTabGroupUrlsMock: vi.fn(),
+  resolveTabGroupsWithUrlsMock: vi.fn(),
   getUserSettingsMock: vi.fn().mockResolvedValue({} as UserSettings),
   migrateParentCategoriesToDomainNamesMock: vi
     .fn()
@@ -35,7 +35,7 @@ vi.mock('@/lib/storage/settings', () => ({
 }))
 
 vi.mock('@/lib/storage/tabs', () => ({
-  getTabGroupUrls: getTabGroupUrlsMock,
+  resolveTabGroupsWithUrls: resolveTabGroupsWithUrlsMock,
 }))
 
 describe('useTabData', () => {
@@ -66,11 +66,16 @@ describe('useTabData', () => {
       urlIds: ['url-1'],
     }
 
-    getTabGroupUrlsMock.mockResolvedValue([
+    resolveTabGroupsWithUrlsMock.mockResolvedValue([
       {
-        id: 'url-1',
-        url: 'https://example.com/a',
-        title: 'A',
+        ...group,
+        urls: [
+          {
+            id: 'url-1',
+            url: 'https://example.com/a',
+            title: 'A',
+          },
+        ],
       },
     ])
 
@@ -80,7 +85,7 @@ describe('useTabData', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    getTabGroupUrlsMock.mockClear()
+    resolveTabGroupsWithUrlsMock.mockClear()
 
     await act(async () => {
       await result.current.refreshTabGroupsWithUrls([group])
@@ -101,7 +106,7 @@ describe('useTabData', () => {
       ])
     })
 
-    expect(getTabGroupUrlsMock).toHaveBeenCalledTimes(1)
-    expect(getTabGroupUrlsMock).toHaveBeenCalledWith(group)
+    expect(resolveTabGroupsWithUrlsMock).toHaveBeenCalledTimes(1)
+    expect(resolveTabGroupsWithUrlsMock).toHaveBeenCalledWith([group])
   })
 })

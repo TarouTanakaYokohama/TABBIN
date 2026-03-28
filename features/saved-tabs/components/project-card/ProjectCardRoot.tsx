@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Spinner } from '@/components/ui/spinner'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { useDragHandlers } from '../../contexts/DragHandlersContext'
 import { useCustomProjectCard } from '../../hooks/useCustomProjectCard'
@@ -303,8 +304,8 @@ export const ProjectCardRoot = ({
 
               {/* ローディング状態 */}
               {urls.isLoadingUrls && (
-                <div className='py-4 text-center text-muted-foreground'>
-                  {t('savedTabs.project.loadingTabs')}
+                <div className='flex justify-center py-4 text-muted-foreground'>
+                  <Spinner className='size-5' />
                 </div>
               )}
 

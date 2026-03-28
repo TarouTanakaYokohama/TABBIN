@@ -6,6 +6,10 @@ import { getMessage } from '@/features/i18n/lib/language'
 import { saveTabsWithAutoCategory } from '@/lib/storage/migration'
 import { saveUrlsToCustomProjects } from '@/lib/storage/projects'
 import { getUserSettings } from '@/lib/storage/settings'
+import {
+  filterItemsBySavableUrl,
+  normalizeUrlCandidate,
+} from '@/lib/url-filter'
 import { getBackgroundLanguage } from './i18n'
 import { openSavedTabsPage } from './saved-tabs-page'
 import { filterTabsByUserSettings, showNotification } from './utils'
@@ -43,7 +47,42 @@ const getAllTabsAcrossWindows = async (): Promise<chrome.tabs.Tab[]> => {
   return chrome.tabs.query({})
 }
 
-const toSavedTabItems = (
+const toSavedTabItems = async (
+  tabs: Array<{
+    url?: string
+    title?: string
+  }>,
+): Promise<
+  Array<{
+    url: string
+    title: string
+  }>
+> => {
+  const { excludePatterns } = await getUserSettings()
+
+  return filterItemsBySavableUrl(tabs, excludePatterns ?? [])
+    .map(tab => {
+      const normalizedUrl = normalizeUrlCandidate(tab.url)
+      if (!normalizedUrl) {
+        return null
+      }
+
+      return {
+        url: normalizedUrl,
+        title: tab.title || '',
+      }
+    })
+    .filter(
+      (
+        item,
+      ): item is {
+        url: string
+        title: string
+      } => item !== null,
+    )
+}
+
+const toResultItems = (
   tabs: Array<{
     url?: string
     title?: string
@@ -53,10 +92,21 @@ const toSavedTabItems = (
   title: string
 }> => {
   return tabs
-    .filter(tab => typeof tab.url === 'string' && tab.url.length > 0)
     .map(tab => ({
-      url: tab.url as string,
+      normalizedUrl: normalizeUrlCandidate(tab.url),
       title: tab.title || '',
+    }))
+    .filter(
+      (
+        tab,
+      ): tab is {
+        normalizedUrl: string
+        title: string
+      } => Boolean(tab.normalizedUrl),
+    )
+    .map(tab => ({
+      url: tab.normalizedUrl,
+      title: tab.title,
     }))
 }
 
@@ -66,7 +116,7 @@ const syncSavedTabsToCustomMode = async (
     title?: string
   }>,
 ): Promise<void> => {
-  const savedTabItems = toSavedTabItems(tabs)
+  const savedTabItems = await toSavedTabItems(tabs)
   if (savedTabItems.length === 0) {
     return
   }
@@ -158,13 +208,7 @@ export const handleSaveCurrentTab = async (): Promise<
       console.error('タブを閉じる際にエラー:', error)
     }
   }
-  return [
-    {
-      // filterTabsByUserSettings で URL なしタブは除外済み
-      url: activeTab.url as string,
-      title: activeTab.title || '',
-    },
-  ]
+  return toResultItems([activeTab])
 }
 /**
  * 現在のドメインのタブをすべて保存
@@ -245,11 +289,7 @@ export const handleSaveSameDomainTabs = async (): Promise<
         console.error('タブを閉じる際にエラー:', error)
       }
     }
-    return filteredTabs.map(tab => ({
-      // filterTabsByUserSettings と同一ドメイン抽出で URL なしタブは除外済み
-      url: tab.url as string,
-      title: tab.title || '',
-    }))
+    return toResultItems(filteredTabs)
   } catch (error) {
     console.error('ドメインタブ保存エラー:', error)
     return []
@@ -305,11 +345,7 @@ export const handleSaveAllWindowsTabs = async (): Promise<
         console.error('タブを閉じる際にエラー:', error)
       }
     }
-    return filteredTabs.map(tab => ({
-      // filterTabsByUserSettings で URL なしタブは除外済み
-      url: tab.url as string,
-      title: tab.title || '',
-    }))
+    return toResultItems(filteredTabs)
   } catch (error) {
     console.error('すべてのタブ保存エラー:', error)
     return []
@@ -382,9 +418,5 @@ export const handleSaveWindowTabs = async (): Promise<
   } else {
     console.log('閉じるべきタブはありません')
   }
-  return filteredTabs.map(tab => ({
-    // filterTabsByUserSettings で URL なしタブは除外済み
-    url: tab.url as string,
-    title: tab.title || '',
-  }))
+  return toResultItems(filteredTabs)
 }

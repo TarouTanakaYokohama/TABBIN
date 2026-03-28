@@ -1,4 +1,4 @@
-import { useI18n } from '@/features/i18n/context/I18nProvider'
+import { LoadingState } from '@/components/ui/loading-state'
 import { CustomProjectSection } from '@/features/saved-tabs/components/CustomProjectSection'
 import type {
   CustomProject,
@@ -84,13 +84,8 @@ export const CustomModeContainer = ({
   handleReorderProjects,
   handleRenameCategory,
 }: CustomModeContainerProps) => {
-  const { t } = useI18n()
   if (isLoading) {
-    return (
-      <div className='flex min-h-[200px] items-center justify-center'>
-        <div className='text-foreground text-xl'>{t('common.loading')}</div>
-      </div>
-    )
+    return <LoadingState />
   }
 
   return (

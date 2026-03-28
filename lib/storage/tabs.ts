@@ -8,7 +8,49 @@ import {
   removeUrlIdsFromAllCustomProjects,
 } from './projects'
 import { migrateToUrlsStorage } from './url-migration'
-import { createOrUpdateUrlRecord, getUrlRecordsByIds } from './urls'
+import {
+  createOrUpdateUrlRecord,
+  getUrlRecords,
+  getUrlRecordsByIds,
+} from './urls'
+
+type ResolvedTabGroupUrl = UrlRecord & {
+  subCategory?: string
+}
+
+const resolveTabGroupUrlsFromMap = (
+  tabGroup: TabGroup,
+  urlRecordMap: ReadonlyMap<string, UrlRecord>,
+): ResolvedTabGroupUrl[] => {
+  if (!(tabGroup.urlIds && tabGroup.urlIds.length > 0)) {
+    return []
+  }
+
+  return tabGroup.urlIds
+    .map(id => urlRecordMap.get(id))
+    .filter((record): record is UrlRecord => Boolean(record))
+    .map(record => ({
+      ...record,
+      subCategory: tabGroup.urlSubCategories?.[record.id],
+    }))
+}
+
+const resolveTabGroupsWithUrls = async (
+  groups: TabGroup[],
+): Promise<TabGroup[]> => {
+  if (groups.length === 0) {
+    return []
+  }
+
+  await migrateToUrlsStorage()
+  const urlRecords = await getUrlRecords()
+  const urlRecordMap = new Map(urlRecords.map(record => [record.id, record]))
+
+  return groups.map(group => ({
+    ...group,
+    urls: resolveTabGroupUrlsFromMap(group, urlRecordMap),
+  }))
+}
 
 /**
  * TabGroupからURLデータを取得する（新旧形式対応）
@@ -28,10 +70,8 @@ const getTabGroupUrls = async (
   // 新形式のみサポート: URLIDsから参照して取得
   if (tabGroup.urlIds && tabGroup.urlIds.length > 0) {
     const urlRecords = await getUrlRecordsByIds(tabGroup.urlIds)
-    return urlRecords.map(record => ({
-      ...record,
-      subCategory: tabGroup.urlSubCategories?.[record.id],
-    }))
+    const urlRecordMap = new Map(urlRecords.map(record => [record.id, record]))
+    return resolveTabGroupUrlsFromMap(tabGroup, urlRecordMap)
   }
   return []
 }
@@ -631,6 +671,7 @@ export {
   removeUrlIdsFromTabGroup,
   removeUrlsFromTabGroup,
   reorderTabGroupUrls,
+  resolveTabGroupsWithUrls,
   restoreCategorySettings,
   setCategoryKeywords,
   setUrlSubCategory,

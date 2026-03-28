@@ -327,7 +327,8 @@ describe('ProjectCardRoot', () => {
       </ProjectCardRoot>,
     )
 
-    expect(screen.getByText('タブを読み込み中...')).toBeTruthy()
+    expect(screen.getByRole('status')).toBeTruthy()
+    expect(screen.queryByText('タブを読み込み中...')).toBeNull()
     expect(
       screen.queryByText('このプロジェクトにはタブがありません。'),
     ).toBeNull()
@@ -350,7 +351,8 @@ describe('ProjectCardRoot', () => {
       </ProjectCardRoot>,
     )
 
-    expect(screen.getByText('Loading tabs...')).toBeTruthy()
+    expect(screen.getByRole('status')).toBeTruthy()
+    expect(screen.queryByText('Loading tabs...')).toBeNull()
 
     useCustomProjectCardMock.mockReturnValue(
       createHookState({
