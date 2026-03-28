@@ -1065,9 +1065,9 @@ const ChatHistoryDropdown = ({
                       : 'border-transparent hover:bg-muted/40',
                   )}
                 >
-                  <div className='flex items-start gap-2'>
+                  <div className='grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2'>
                     <Button
-                      className='min-w-0 flex-1 justify-start px-0 text-left hover:bg-transparent'
+                      className='h-auto w-full min-w-0 flex-col items-start justify-start overflow-hidden whitespace-normal px-0 text-left hover:bg-transparent'
                       onClick={() => {
                         onSelectHistoryItem?.(historyItem.id)
                         setIsOpen(false)
@@ -1075,10 +1075,10 @@ const ChatHistoryDropdown = ({
                       type='button'
                       variant='ghost'
                     >
-                      <p className='truncate font-medium text-sm'>
+                      <p className='w-full min-w-0 truncate font-medium text-sm'>
                         {historyItem.title}
                       </p>
-                      <p className='mt-1 line-clamp-2 text-muted-foreground text-xs leading-5'>
+                      <p className='wrap-anywhere mt-1 line-clamp-2 w-full min-w-0 overflow-hidden text-muted-foreground text-xs leading-5'>
                         {historyItem.preview}
                       </p>
                     </Button>
@@ -1092,7 +1092,7 @@ const ChatHistoryDropdown = ({
                           undefined,
                           { title: historyItem.title },
                         )}
-                        className='shrink-0 text-muted-foreground hover:text-destructive'
+                        className='shrink-0 justify-self-end text-muted-foreground hover:text-destructive'
                         onClick={event => {
                           event.stopPropagation()
                           setIsOpen(false)

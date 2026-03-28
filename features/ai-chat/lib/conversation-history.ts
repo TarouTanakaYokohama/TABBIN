@@ -17,6 +17,10 @@ interface ConversationHistoryState {
 }
 
 const DEFAULT_CONVERSATION_TITLE = getMessage('ja', 'aiChat.newConversation')
+const DEFAULT_INTERRUPTED_RESPONSE_MESSAGE = getMessage(
+  'en',
+  'aiChat.interruptedResponse',
+)
 
 const createConversationId = (): string =>
   `conversation-${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -65,8 +69,75 @@ const createDefaultConversationHistory = (
   }
 }
 
+const normalizeInterruptedMessageContent = (
+  content: string,
+  interruptedMessage: string,
+): string => {
+  const trimmedContent = content.trim()
+
+  if (trimmedContent.length === 0) {
+    return interruptedMessage
+  }
+
+  if (trimmedContent.includes(interruptedMessage)) {
+    return content
+  }
+
+  return `${trimmedContent}\n\n${interruptedMessage}`
+}
+
+const normalizeConversationHistory = ({
+  conversations,
+  interruptedMessage,
+}: {
+  conversations: AiChatConversation[]
+  interruptedMessage: string
+}): {
+  conversations: AiChatConversation[]
+  hasChanges: boolean
+} => {
+  let hasChanges = false
+
+  const normalizedConversations = conversations.map(conversation => {
+    let conversationChanged = false
+
+    const messages = conversation.messages.map(message => {
+      if (message.role !== 'assistant' || message.isStreaming !== true) {
+        return message
+      }
+
+      conversationChanged = true
+      hasChanges = true
+
+      return {
+        ...message,
+        content: normalizeInterruptedMessageContent(
+          message.content,
+          interruptedMessage,
+        ),
+        isStreaming: false,
+      }
+    })
+
+    if (!conversationChanged) {
+      return conversation
+    }
+
+    return {
+      ...conversation,
+      messages,
+    }
+  })
+
+  return {
+    conversations: normalizedConversations,
+    hasChanges,
+  }
+}
+
 const loadConversationHistory = async (
   defaultTitle = DEFAULT_CONVERSATION_TITLE,
+  interruptedMessage = DEFAULT_INTERRUPTED_RESPONSE_MESSAGE,
 ): Promise<ConversationHistoryState> => {
   const storageLocal = getChromeStorageLocal()
   if (!storageLocal) {
@@ -87,18 +158,30 @@ const loadConversationHistory = async (
     return createDefaultConversationHistory(defaultTitle)
   }
 
+  const normalizedHistory = normalizeConversationHistory({
+    conversations,
+    interruptedMessage,
+  })
+
   const activeConversationId =
     typeof stored[ACTIVE_AI_CHAT_CONVERSATION_ID_KEY] === 'string' &&
-    conversations.some(
+    normalizedHistory.conversations.some(
       conversation =>
         conversation.id === stored[ACTIVE_AI_CHAT_CONVERSATION_ID_KEY],
     )
       ? (stored[ACTIVE_AI_CHAT_CONVERSATION_ID_KEY] as string)
-      : conversations[0].id
+      : normalizedHistory.conversations[0].id
+
+  if (normalizedHistory.hasChanges) {
+    await storageLocal.set({
+      [ACTIVE_AI_CHAT_CONVERSATION_ID_KEY]: activeConversationId,
+      [AI_CHAT_CONVERSATIONS_KEY]: normalizedHistory.conversations,
+    })
+  }
 
   return {
     activeConversationId,
-    conversations,
+    conversations: normalizedHistory.conversations,
   }
 }
 
