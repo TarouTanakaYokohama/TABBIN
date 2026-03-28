@@ -293,6 +293,10 @@ vi.mock('@/lib/storage/tabs', () => ({
   removeUrlsFromTabGroup: vi.fn(),
 }))
 
+vi.mock('@/lib/storage/urls', () => ({
+  getUrlRecords: vi.fn(async () => []),
+}))
+
 import { handleTabGroupRemoval } from '@/features/saved-tabs/lib/tab-operations'
 import { saveParentCategories } from '@/lib/storage/categories'
 import {
@@ -301,11 +305,16 @@ import {
   removeUrlsFromAllCustomProjects,
 } from '@/lib/storage/projects'
 import { getTabGroupUrls, removeUrlIdsFromTabGroup } from '@/lib/storage/tabs'
+import { getUrlRecords } from '@/lib/storage/urls'
 import { SavedTabsApp } from './SavedTabsApp'
 
 describe('SavedTabsApp custom search', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocked.settings.enableCategories = true
+    mocked.settings.openUrlInBackground = false
+    mocked.settings.removeTabAfterOpen = false
+    mocked.settings.openAllInNewWindow = false
     mocked.categoryState.categories = []
     mocked.categoryState.categoryOrder = []
     mocked.categoryState.tempCategoryOrder = []
@@ -335,6 +344,7 @@ describe('SavedTabsApp custom search', () => {
         getURL: vi.fn(),
       },
     } as unknown as typeof chrome
+    vi.mocked(getUrlRecords).mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -650,5 +660,94 @@ describe('SavedTabsApp custom search', () => {
       'url-b',
     ])
     expect(mocked.tabDataState.refreshTabGroupsWithUrls).not.toHaveBeenCalled()
+  })
+
+  it('すべて開く後の自動削除は一致グループを一括更新し、グループごとの削除APIを繰り返さない', async () => {
+    mocked.settings.removeTabAfterOpen = true
+    mocked.settings.openAllInNewWindow = false
+    mocked.settings.openUrlInBackground = false
+    mocked.projectState.viewMode = 'domain'
+    mocked.projectState.viewModeRef = { current: 'domain' }
+
+    const group1: TabGroup = {
+      id: 'group-1',
+      domain: 'example.com',
+      urlIds: ['url-a', 'url-b'],
+      urls: [
+        { id: 'url-a', url: 'https://example.com/a', title: 'A' },
+        { id: 'url-b', url: 'https://example.com/b', title: 'B' },
+      ],
+      urlSubCategories: {
+        'url-a': 'news',
+        'url-b': 'docs',
+      },
+    }
+    const group2: TabGroup = {
+      id: 'group-2',
+      domain: 'other.com',
+      urlIds: ['url-c'],
+      urls: [{ id: 'url-c', url: 'https://other.com/c', title: 'C' }],
+    }
+
+    mocked.tabDataState.tabGroups = [group1, group2]
+    mocked.tabDataState.tabGroupsWithUrls = [group1, group2]
+
+    const chromeSetMock = vi.fn()
+    const chromeTabsCreateMock = vi.fn()
+    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
+    chromeGlobal.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => ({ savedTabs: [group1, group2] })),
+          set: chromeSetMock,
+        },
+        onChanged: {
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        },
+      },
+      tabs: {
+        create: chromeTabsCreateMock,
+      },
+      windows: {
+        create: vi.fn(),
+      },
+      runtime: {
+        getURL: vi.fn(),
+      },
+    } as unknown as typeof chrome
+
+    vi.mocked(getUrlRecords).mockResolvedValue([
+      { id: 'url-a', url: 'https://example.com/a', title: 'A', savedAt: 1 },
+      { id: 'url-b', url: 'https://example.com/b', title: 'B', savedAt: 2 },
+      { id: 'url-c', url: 'https://other.com/c', title: 'C', savedAt: 3 },
+    ] satisfies UrlRecord[])
+
+    render(<SavedTabsApp initialViewMode='domain' />)
+
+    const domainProps = mocked.domainModeContainerSpy.mock.calls.at(
+      -1,
+    )?.[0] as {
+      handleOpenAllTabs: (
+        urls: Array<{ url: string; title: string }>,
+      ) => Promise<void>
+    }
+
+    await domainProps.handleOpenAllTabs([
+      { url: 'https://example.com/a', title: 'A' },
+      { url: 'https://example.com/b', title: 'B' },
+    ])
+
+    expect(chromeTabsCreateMock).toHaveBeenCalledTimes(2)
+    expect(chromeSetMock).toHaveBeenCalledWith({
+      savedTabs: [group2],
+    })
+    expect(removeUrlIdsFromAllCustomProjects).toHaveBeenCalledTimes(1)
+    expect(removeUrlIdsFromAllCustomProjects).toHaveBeenCalledWith([
+      'url-a',
+      'url-b',
+    ])
+    expect(getTabGroupUrls).not.toHaveBeenCalled()
+    expect(removeUrlFromAllCustomProjects).not.toHaveBeenCalled()
   })
 })
