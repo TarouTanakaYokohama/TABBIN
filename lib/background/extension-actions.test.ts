@@ -342,10 +342,6 @@ describe('extension-actions モジュール', () => {
           title: 'Same2',
         },
         {
-          url: 'https://ignore.example/page',
-          title: 'Ignored',
-        },
-        {
           url: 'https://same.example/no-id',
           title: 'NoId',
         },
@@ -385,11 +381,17 @@ describe('extension-actions モジュール', () => {
         .mockResolvedValueOnce([active])
         .mockResolvedValueOnce([active])
       mocked.filterTabsByUserSettings.mockResolvedValueOnce([active])
-      mocked.getUserSettings.mockResolvedValueOnce(
-        buildSettings({
-          excludePatterns: ['same.example'],
-        }),
-      )
+      mocked.getUserSettings
+        .mockResolvedValueOnce(
+          buildSettings({
+            excludePatterns: ['same.example'],
+          }),
+        )
+        .mockResolvedValueOnce(
+          buildSettings({
+            excludePatterns: ['same.example'],
+          }),
+        )
       await expect(handleSaveSameDomainTabs()).resolves.toEqual([
         {
           url: 'https://same.example/page',
@@ -824,10 +826,6 @@ describe('extension-actions モジュール', () => {
           title: 'One',
         },
         {
-          url: 'https://ignore.example/2',
-          title: 'Ignored',
-        },
-        {
           url: 'https://saved-tabs.example',
           title: 'Saved Page',
         },
@@ -849,6 +847,49 @@ describe('extension-actions モジュール', () => {
         {
           url: 'https://saved-tabs.example',
           title: 'Saved Page',
+        },
+      ])
+    })
+    it('カスタム同期時に除外パターンと不正URLを再適用する', async () => {
+      const chromeTabs = createChromeTabsHarness()
+      const queriedTabs = [
+        tab({
+          id: 90,
+          url: 'https://allowed.example/page',
+          title: 'Allowed',
+        }),
+        tab({
+          id: 91,
+          url: 'about:blank',
+          title: 'About',
+        }),
+        tab({
+          id: 92,
+          url: 'not-a-valid-url',
+          title: 'Invalid',
+        }),
+      ]
+      chromeTabs.query.mockResolvedValueOnce(queriedTabs)
+      mocked.filterTabsByUserSettings.mockResolvedValueOnce(queriedTabs)
+      mocked.openSavedTabsPage.mockResolvedValueOnce(999)
+      mocked.getUserSettings
+        .mockResolvedValueOnce(
+          buildSettings({
+            excludePatterns: ['about:'],
+          }),
+        )
+        .mockResolvedValueOnce(
+          buildSettings({
+            excludePatterns: ['about:'],
+          }),
+        )
+
+      await handleSaveWindowTabs()
+
+      expect(mocked.saveUrlsToCustomProjects).toHaveBeenCalledWith([
+        {
+          url: 'https://allowed.example/page',
+          title: 'Allowed',
         },
       ])
     })
@@ -950,11 +991,17 @@ describe('extension-actions モジュール', () => {
       chromeTabs.query.mockResolvedValueOnce([activeTab])
       mocked.filterTabsByUserSettings.mockResolvedValueOnce([activeTab])
       mocked.getUserSettings.mockReset()
-      mocked.getUserSettings.mockResolvedValueOnce(
-        buildSettings({
-          clickBehavior: 'saveCurrentTab',
-        }),
-      )
+      mocked.getUserSettings
+        .mockResolvedValueOnce(
+          buildSettings({
+            clickBehavior: 'saveCurrentTab',
+          }),
+        )
+        .mockResolvedValueOnce(
+          buildSettings({
+            clickBehavior: 'saveCurrentTab',
+          }),
+        )
       await expect(handleExtensionActionClick()).resolves.toBeUndefined()
       expect(mocked.saveTabsWithAutoCategory).toHaveBeenCalledWith([activeTab])
       expect(mocked.saveUrlsToCustomProjects).toHaveBeenCalledWith([

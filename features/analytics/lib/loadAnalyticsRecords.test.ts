@@ -1,11 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { UserSettings } from '@/types/storage'
 import { loadAnalyticsRecords } from './loadAnalyticsRecords'
 
 const mocks = vi.hoisted(() => ({
   buildAiSavedUrlRecords: vi.fn(() => [{ id: 'record-1' }]),
   getCustomProjects: vi.fn(async () => [{ id: 'project-1' }]),
   getParentCategories: vi.fn(async () => [{ id: 'category-1' }]),
-  getUrlRecords: vi.fn(async () => [{ id: 'url-1' }]),
+  getUserSettings: vi.fn<() => Promise<Pick<UserSettings, 'excludePatterns'>>>(
+    async () => ({
+      excludePatterns: [],
+    }),
+  ),
+  getUrlRecords: vi.fn(async () => [
+    {
+      id: 'url-1',
+      savedAt: 1,
+      title: 'Allowed',
+      url: 'https://allowed.example',
+    },
+  ]),
 }))
 
 vi.mock('@/features/ai-chat/lib/buildAiContext', () => ({
@@ -14,6 +27,10 @@ vi.mock('@/features/ai-chat/lib/buildAiContext', () => ({
 
 vi.mock('@/lib/storage/categories', () => ({
   getParentCategories: mocks.getParentCategories,
+}))
+
+vi.mock('@/lib/storage/settings', () => ({
+  getUserSettings: mocks.getUserSettings,
 }))
 
 vi.mock('@/lib/storage/projects', () => ({
@@ -45,7 +62,56 @@ describe('loadAnalyticsRecords', () => {
       customProjects: [{ id: 'project-1' }],
       parentCategories: [{ id: 'category-1' }],
       savedTabs: [{ id: 'group-1' }],
-      urlRecords: [{ id: 'url-1' }],
+      urlRecords: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'Allowed',
+          url: 'https://allowed.example',
+        },
+      ],
+    })
+  })
+
+  it('excludePatterns に一致するURLと不正URLを分析対象から除外する', async () => {
+    mocks.getUserSettings.mockResolvedValueOnce({
+      excludePatterns: ['blocked.example'],
+    })
+    mocks.getUrlRecords.mockResolvedValueOnce([
+      {
+        id: 'url-1',
+        savedAt: 1,
+        title: 'Allowed',
+        url: 'https://allowed.example',
+      },
+      {
+        id: 'url-2',
+        savedAt: 2,
+        title: 'Blocked',
+        url: 'https://blocked.example',
+      },
+      {
+        id: 'url-3',
+        savedAt: 3,
+        title: 'Invalid',
+        url: 'not-a-valid-url',
+      },
+    ])
+
+    await loadAnalyticsRecords()
+
+    expect(mocks.buildAiSavedUrlRecords).toHaveBeenCalledWith({
+      customProjects: [{ id: 'project-1' }],
+      parentCategories: [{ id: 'category-1' }],
+      savedTabs: [{ id: 'group-1' }],
+      urlRecords: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'Allowed',
+          url: 'https://allowed.example',
+        },
+      ],
     })
   })
 })

@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid'
+import { filterItemsBySavableUrl } from '@/lib/url-filter'
 import type {
   DomainParentCategoryMapping,
   ParentCategory,
@@ -10,6 +11,7 @@ import {
   saveParentCategories,
   updateDomainCategoryMapping,
 } from './categories'
+import { getUserSettings } from './settings'
 import { autoCategorizeTabs, restoreCategorySettings } from './tabs'
 import { createOrUpdateUrlRecord } from './urls'
 
@@ -342,15 +344,24 @@ const getTabDomain = (tabUrl: string): string | null => {
 } // saveTabs関数の実装（1つだけ残す）
 const saveTabs = async (tabs: chrome.tabs.Tab[]) => {
   console.log('タブを保存します:', tabs.length)
-  const [savedTabsResult, domainCategoryMappings, initialParentCategories] =
-    await Promise.all([
-      chrome.storage.local.get<{
-        savedTabs?: import('@/types/storage').TabGroup[]
-      }>('savedTabs'),
-      getDomainCategoryMappings(),
-      getParentCategories(),
-    ])
+  const [
+    savedTabsResult,
+    domainCategoryMappings,
+    initialParentCategories,
+    settings,
+  ] = await Promise.all([
+    chrome.storage.local.get<{
+      savedTabs?: import('@/types/storage').TabGroup[]
+    }>('savedTabs'),
+    getDomainCategoryMappings(),
+    getParentCategories(),
+    getUserSettings(),
+  ])
   const { savedTabs = [] } = savedTabsResult
+  const filteredTabs = filterItemsBySavableUrl(
+    tabs,
+    settings.excludePatterns ?? [],
+  )
   const groupedTabs = buildGroupedTabsByDomain(savedTabs)
   console.log('既存タブグループ数:', savedTabs.length)
   console.log('重複除外済みタブグループ数:', groupedTabs.size)
@@ -359,8 +370,8 @@ const saveTabs = async (tabs: chrome.tabs.Tab[]) => {
     initialParentCategories,
   )
   logParentCategorySnapshot(parentCategories)
-  for (const tab of tabs) {
-    if (!tab.url || tab.url.startsWith('chrome-extension://')) {
+  for (const tab of filteredTabs) {
+    if (!tab.url) {
       continue
     }
     const domain = getTabDomain(tab.url)
@@ -396,6 +407,11 @@ const saveTabs = async (tabs: chrome.tabs.Tab[]) => {
 } // タブ保存時に自動分類も行うようにsaveTabsを拡張
 const saveTabsWithAutoCategory = async (tabs: chrome.tabs.Tab[]) => {
   await saveTabs(tabs)
+  const settings = await getUserSettings()
+  const filteredTabs = filterItemsBySavableUrl(
+    tabs,
+    settings.excludePatterns ?? [],
+  )
 
   // 保存したタブグループのIDを取得
   const { savedTabs = [] } = await chrome.storage.local.get<{
@@ -422,7 +438,7 @@ const saveTabsWithAutoCategory = async (tabs: chrome.tabs.Tab[]) => {
     })
   }
   const uniqueDomains = new Set(
-    tabs
+    filteredTabs
       .map(tab => {
         try {
           const url = new URL(tab.url || '')

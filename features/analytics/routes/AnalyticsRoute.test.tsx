@@ -674,6 +674,34 @@ describe('AnalyticsRoute', () => {
     expect(openLink.closest('div')?.className.includes('shrink-0')).toBe(true)
   })
 
+  it('ドリルダウンは現在の分析条件で絞り込まれた保存タブだけを表示する', async () => {
+    analyticsRouteMocks.loadRecordsMock.mockResolvedValue([
+      ...records,
+      {
+        id: '3',
+        url: 'https://docs.example.com/old',
+        title: 'Old Docs',
+        domain: 'docs.example.com',
+        savedAt: Date.UTC(2025, 0, 1),
+        savedInTabGroups: ['docs.example.com'],
+        savedInProjects: [],
+        subCategories: ['Docs'],
+        projectCategories: [],
+        parentCategories: ['Work'],
+      },
+    ])
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-ai-chart' }))
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+
+    expect(await screen.findByText('Saved tabs in this item')).toBeTruthy()
+    expect(screen.getByText('Example Docs')).toBeTruthy()
+    expect(screen.queryByText('Old Docs')).toBeNull()
+  })
+
   it('長いタイトルでもドリルダウンの操作列が見切れないレイアウトを使う', async () => {
     analyticsRouteMocks.loadRecordsMock.mockResolvedValue([
       {
