@@ -36,22 +36,15 @@ vi.mock('@/lib/storage/tabs', () => ({
 }))
 
 vi.mock('@/features/i18n/context/I18nProvider', async () => {
-  const { getMessages } = await vi.importActual<
-    typeof import('@/features/i18n/messages')
-  >('@/features/i18n/messages')
+  const { getMessage } = await vi.importActual<
+    typeof import('@/features/i18n/lib/language')
+  >('@/features/i18n/lib/language')
 
   return {
     useI18n: () => ({
       language: savedTabsContentI18nState.language,
-      t: (key: string, fallback?: string, values?: Record<string, string>) => {
-        const messages = getMessages(savedTabsContentI18nState.language)
-        const template =
-          messages[key as keyof typeof messages] ?? fallback ?? key
-        return template.replaceAll(
-          /\{\{(\w+)\}\}/g,
-          (_, token) => values?.[token] ?? '',
-        )
-      },
+      t: (key: string, fallback?: string, values?: Record<string, string>) =>
+        getMessage(savedTabsContentI18nState.language, key, fallback, values),
     }),
   }
 })
@@ -296,6 +289,11 @@ describe('SavedTabsContent.tsx (legacy SortableCategorySection)', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /すべて開く/ }))
+    expect(
+      await screen.findByText(
+        '10個以上のタブを開こうとしています。続行しますか？',
+      ),
+    ).toBeTruthy()
     const openButton = await screen.findByRole('button', { name: '開く' })
     fireEvent.click(openButton)
 

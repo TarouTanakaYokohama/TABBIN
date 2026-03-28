@@ -25,22 +25,15 @@ const analyticsRouteMocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/features/i18n/context/I18nProvider', async () => {
-  const { getMessages } = await vi.importActual<
-    typeof import('@/features/i18n/messages')
-  >('@/features/i18n/messages')
+  const { getMessage } = await vi.importActual<
+    typeof import('@/features/i18n/lib/language')
+  >('@/features/i18n/lib/language')
 
   return {
     useI18n: () => ({
       language: analyticsRouteMocks.language,
-      t: (key: string, fallback?: string, values?: Record<string, string>) => {
-        const messages = getMessages(analyticsRouteMocks.language)
-        const template =
-          messages[key as keyof typeof messages] ?? fallback ?? key
-        return template.replaceAll(
-          /\{\{(\w+)\}\}/g,
-          (_, token) => values?.[token] ?? '',
-        )
-      },
+      t: (key: string, fallback?: string, values?: Record<string, string>) =>
+        getMessage(analyticsRouteMocks.language, key, fallback, values),
     }),
   }
 })
@@ -384,6 +377,9 @@ describe('AnalyticsRoute', () => {
 
     expect(await screen.findByText('Analysis conditions')).toBeTruthy()
     expect(await screen.findByText('Saved count by domain')).toBeTruthy()
+    expect(
+      screen.getByText('Created Saved count by domain from 2 saved records.'),
+    ).toBeTruthy()
     expect(screen.queryByText('Date range')).toBeNull()
     expect(screen.queryByText('Current range: All time')).toBeNull()
     expect(
@@ -411,6 +407,11 @@ describe('AnalyticsRoute', () => {
 
     expect(await screen.findByText('分析条件')).toBeTruthy()
     expect(screen.getByText('分析キャンバス')).toBeTruthy()
+    expect(
+      screen.getByText(
+        '2 件の保存データから「ドメインごとの保存数」を作成しました。',
+      ),
+    ).toBeTruthy()
     expect(screen.getByLabelText('ビュー名')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'リセット' })).toBeTruthy()
   })

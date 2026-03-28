@@ -45,6 +45,6 @@ export const getMessage = (
 
   return template.replaceAll(
     /\{\{(\w+)\}\}/g,
-    (_: string, token: string) => values?.[token] ?? '',
+    (match: string, token: string) => values?.[token] ?? match,
   )
 }
