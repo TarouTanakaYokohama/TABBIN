@@ -14,6 +14,8 @@ export interface DomainCardContextType {
   settings: UserSettings
   /** 親カテゴリID */
   categoryId?: string
+  /** 検索クエリ */
+  searchQuery: string
   /** 表示中の子カテゴリ数 */
   visibleSubCategoryCount: number
   /** 並び替えモード状態 */

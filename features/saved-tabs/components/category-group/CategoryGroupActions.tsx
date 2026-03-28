@@ -2,20 +2,51 @@ import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { CardGroupActions } from '../shared/CardGroupActions'
 import { useCategoryGroup } from './CategoryGroupContext'
 
+const getVisibleUrls = (group: {
+  urls?: Array<{
+    url: string
+  }>
+}): string[] => (group.urls || []).map(item => item.url)
+
+const deleteVisibleUrlsByGroup = async (
+  groups: Array<{
+    id: string
+    urls?: Array<{
+      url: string
+    }>
+  }>,
+  handleDeleteUrls: (groupId: string, urls: string[]) => Promise<void>,
+): Promise<void> => {
+  for (const group of groups) {
+    const visibleUrls = getVisibleUrls(group)
+    if (visibleUrls.length === 0) {
+      continue
+    }
+    await handleDeleteUrls(group.id, visibleUrls)
+  }
+}
+
 /**
  * CategoryGroup の操作ボタン群
  * 親カテゴリ管理、すべて開く、すべて削除を含む
  */
 export const CategoryGroupActions = () => {
   const { t } = useI18n()
-  const { state, category, domains, settings, handlers } = useCategoryGroup()
+  const { state, category, domains, settings, searchQuery, handlers } =
+    useCategoryGroup()
   const { modal, reorder } = state
 
   const domainsToUse = reorder.isReorderMode ? reorder.tempDomainOrder : domains
   const urlsToOpen = domainsToUse.flatMap(group => group.urls || [])
+  const hasSearchQuery = searchQuery.trim().length > 0
 
   /** カテゴリ内の全ドメインを削除する処理（確認済みの場合） */
   const executeDeleteAll = async () => {
+    if (hasSearchQuery && handlers.handleDeleteUrls) {
+      await deleteVisibleUrlsByGroup(domainsToUse, handlers.handleDeleteUrls)
+      return
+    }
+
     const domainsToDelete = reorder.isReorderMode
       ? reorder.tempDomainOrder
       : domains

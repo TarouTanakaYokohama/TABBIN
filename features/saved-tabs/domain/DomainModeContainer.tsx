@@ -65,6 +65,22 @@ interface DomainModeContainerProps {
   hasContentTabGroupsCount: number
 }
 
+const getVisibleGroupUrls = (group: TabGroup): string[] =>
+  (group.urls || []).map(item => item.url)
+
+const deleteVisibleUrlsForGroups = async (
+  groups: TabGroup[],
+  handleDeleteUrls: (groupId: string, urls: string[]) => Promise<void>,
+): Promise<void> => {
+  for (const group of groups) {
+    const visibleUrls = getVisibleGroupUrls(group)
+    if (visibleUrls.length === 0) {
+      continue
+    }
+    await handleDeleteUrls(group.id, visibleUrls)
+  }
+}
+
 export const DomainModeContainer = ({
   isLoading,
   settings,
@@ -121,6 +137,14 @@ export const DomainModeContainer = ({
     void handleOpenAllTabs(uncategorizedUrlsToOpen)
   }, [handleOpenAllTabs, uncategorizedUrlsToOpen])
   const handleDeleteAllUncategorized = useCallback(async () => {
+    if (searchQuery.trim().length > 0 && handleDeleteUrls) {
+      await deleteVisibleUrlsForGroups(
+        uncategorizedForDisplay,
+        handleDeleteUrls,
+      )
+      return
+    }
+
     const uncategorizedIds = uncategorizedForDisplay.map(group => group.id)
     if (uncategorizedIds.length === 0) {
       return
