@@ -8,6 +8,7 @@ const mocked = vi.hoisted(() => ({
   confirmationConfirm: vi.fn(),
   handleSelectAutoDelete: vi.fn(),
   hideConfirmation: vi.fn(),
+  isLoading: false,
   prepareAutoDeletePeriod: vi.fn(),
   settings: {
     aiChatEnabled: true,
@@ -130,6 +131,7 @@ vi.mock('@/features/i18n/context/I18nProvider', () => ({
           'common.cancel': 'Cancel',
           'common.confirm': 'Confirm',
           'common.loading': 'Loading...',
+          'common.loadingLabel': 'Loading',
           'options.autoDelete.allWindows': 'Open all tabs in a new window',
           'options.autoDelete.allWindowsDescription':
             'When enabled, the "Open all" button opens tabs in a new window.',
@@ -188,7 +190,7 @@ vi.mock('@/features/options/hooks/useSettings', () => ({
   useSettings: () => ({
     handleExcludePatternsBlur: vi.fn(),
     handleExcludePatternsChange: vi.fn(),
-    isLoading: false,
+    isLoading: mocked.isLoading,
     setSettings: mocked.setSettings,
     settings: mocked.settings,
     updateSetting: vi.fn(),
@@ -215,6 +217,7 @@ describe('PeriodicExecutionRoute', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocked.selectContentProps = []
+    mocked.isLoading = false
   })
 
   afterEach(() => {
@@ -232,6 +235,15 @@ describe('PeriodicExecutionRoute', () => {
         'Saved tabs are deleted automatically after the selected period.',
       ),
     ).toBeTruthy()
+  })
+
+  it('loading 中は spinner のみを表示する', () => {
+    mocked.isLoading = true
+
+    render(createElement(PeriodicExecutionRoute))
+
+    expect(screen.getByRole('status')).toBeTruthy()
+    expect(screen.queryByText('Loading...')).toBeNull()
   })
 
   it('自動削除期間の変更と確認操作を処理する', () => {
