@@ -616,18 +616,19 @@ const createModeComparisonChart = (
   }
 }
 
-const generateAnalyticsResult = (
+const filterAnalyticsRecords = (
   records: AiSavedUrlRecord[],
   query: AnalyticsQueryInput,
   options: GenerateAnalyticsResultOptions = {},
-): AnalyticsResult => {
+): AiSavedUrlRecord[] => {
   const normalizedQuery = normalizeAnalyticsQuery(query)
   const now = options.now ?? Date.now()
   const messages = {
     ...DEFAULT_ANALYTICS_MESSAGES,
     ...options.messages,
   }
-  const filteredRecords = records.filter(
+
+  return records.filter(
     record =>
       matchesMode(record, normalizedQuery.mode) &&
       isWithinTimeRange(
@@ -642,6 +643,23 @@ const generateAnalyticsResult = (
         messages.uncategorizedLabel,
       ),
   )
+}
+
+const generateAnalyticsResult = (
+  records: AiSavedUrlRecord[],
+  query: AnalyticsQueryInput,
+  options: GenerateAnalyticsResultOptions = {},
+): AnalyticsResult => {
+  const normalizedQuery = normalizeAnalyticsQuery(query)
+  const now = options.now ?? Date.now()
+  const messages = {
+    ...DEFAULT_ANALYTICS_MESSAGES,
+    ...options.messages,
+  }
+  const filteredRecords = filterAnalyticsRecords(records, normalizedQuery, {
+    ...options,
+    now,
+  })
 
   const chartSpec =
     normalizedQuery.compareBy === 'mode'
@@ -807,6 +825,7 @@ export type {
 }
 export {
   UNCATEGORIZED_LABEL,
+  filterAnalyticsRecords,
   generateAnalyticsResult,
   getAnalyticsPresets,
   getDefaultAnalyticsQuery,

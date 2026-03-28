@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AiSavedUrlRecord } from '@/features/ai-chat/types'
 import {
+  filterAnalyticsRecords,
   generateAnalyticsResult,
   getAnalyticsPresets,
   getDefaultAnalyticsQuery,
@@ -277,6 +278,59 @@ describe('analytics', () => {
     expect(result.chartSpecs[0]?.data).toEqual([
       { count: 2, label: 'docs.example.com' },
       { count: 1, label: 'news.example.net' },
+    ])
+  })
+
+  it('drilldown 向けの共通絞り込みで時間条件とモード条件を適用する', () => {
+    const filtered = filterAnalyticsRecords(
+      [
+        ...records,
+        {
+          id: '5',
+          url: 'https://docs.example.com/old',
+          title: 'Old Docs',
+          domain: 'docs.example.com',
+          savedAt: NOW - 60 * DAY_MS,
+          savedInTabGroups: ['docs.example.com'],
+          savedInProjects: [],
+          subCategories: ['Docs'],
+          projectCategories: [],
+          parentCategories: ['Work'],
+        },
+        {
+          id: '6',
+          url: 'https://docs.example.com/custom-only',
+          title: 'Custom Only Docs',
+          domain: 'docs.example.com',
+          savedAt: NOW - DAY_MS,
+          savedInTabGroups: [],
+          savedInProjects: ['Research'],
+          subCategories: [],
+          projectCategories: ['Reading'],
+          parentCategories: [],
+        },
+      ],
+      {
+        ...getDefaultAnalyticsQuery(),
+        filters: {
+          ...getDefaultAnalyticsQuery().filters,
+          includedDomains: ['docs.example.com'],
+        },
+        mode: 'domain',
+        timeRange: '30d',
+      },
+      {
+        now: NOW,
+      },
+    )
+
+    expect(filtered).toEqual([
+      expect.objectContaining({
+        id: '1',
+      }),
+      expect.objectContaining({
+        id: '2',
+      }),
     ])
   })
 

@@ -92,6 +92,39 @@ describe('filterTabsByUserSettings関数', () => {
     expect(result).toEqual([pinnedTab, normalTab])
   })
 
+  it('除外パターン未設定でも有効なURLは保持し、不正URLだけ除外する', async () => {
+    vi.mocked(getUserSettings).mockResolvedValue(
+      buildSettings({
+        excludePinnedTabs: false,
+        excludePatterns: [],
+      }),
+    )
+
+    const aboutTab = tab({
+      id: 14,
+      pinned: false,
+      url: 'about:blank',
+    })
+    const invalidTab = tab({
+      id: 15,
+      pinned: false,
+      url: 'not-a-valid-url',
+    })
+    const httpsTab = tab({
+      id: 16,
+      pinned: false,
+      url: 'https://allowed.example/path',
+    })
+
+    const result = await filterTabsByUserSettings([
+      aboutTab,
+      invalidTab,
+      httpsTab,
+    ])
+
+    expect(result).toEqual([aboutTab, httpsTab])
+  })
+
   it('ピン留めタブが除外されなかった場合はその除外ログを出力しない', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(
       buildSettings({

@@ -31,6 +31,7 @@ import type {
 } from '@/features/ai-chat/types'
 import {
   type AnalyticsQuery,
+  filterAnalyticsRecords,
   generateAnalyticsResult,
   getDefaultAnalyticsQuery,
   normalizeAnalyticsQuery,
@@ -329,6 +330,14 @@ const AnalyticsRoute = () => {
     setSummary(result.summary)
   }, [chartMessages, query, records])
 
+  const filteredRecords = useMemo(
+    () =>
+      filterAnalyticsRecords(records, query, {
+        messages: chartMessages,
+      }),
+    [chartMessages, query, records],
+  )
+
   const applyQuery = (nextQuery: AnalyticsQuery, nextViewName?: string) => {
     setIsUsingAiCharts(false)
     setAiChartSpecs([])
@@ -382,7 +391,7 @@ const AnalyticsRoute = () => {
     seriesKey,
     spec,
   }: AiChartPointSelection) => {
-    const matchingRecords = records.filter(record =>
+    const matchingRecords = filteredRecords.filter(record =>
       matchesDrilldownLabel({
         label,
         query,
