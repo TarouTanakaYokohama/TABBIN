@@ -1,5 +1,5 @@
 import { ExternalLink, Settings, Trash } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,11 +27,24 @@ import { useDomainCard } from './DomainCardContext'
  */
 export const DomainCardActions = () => {
   const { t } = useI18n()
-  const { state, group, settings, isReorderMode, handlers } = useDomainCard()
+  const { state, group, settings, isReorderMode, searchQuery, handlers } =
+    useDomainCard()
   const { keywordModal, parentCategories, categoryActions } = state
 
   const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const hasSearchQuery = searchQuery.trim().length > 0
+
+  const executeDeleteAll = useCallback(() => {
+    const visibleUrls = (group.urls || []).map(item => item.url)
+
+    if (hasSearchQuery && handlers.handleDeleteUrls && visibleUrls.length > 0) {
+      void handlers.handleDeleteUrls(group.id, visibleUrls)
+      return
+    }
+
+    handlers.handleDeleteGroup(group.id)
+  }, [group.id, group.urls, handlers, hasSearchQuery])
 
   return (
     <>
@@ -104,7 +117,7 @@ export const DomainCardActions = () => {
                 if (settings.confirmDeleteAll) {
                   setIsDeleteConfirmOpen(true)
                 } else {
-                  handlers.handleDeleteGroup(group.id)
+                  executeDeleteAll()
                   if (isReorderMode) {
                     console.log(
                       `並び替えモード中にドメイン ${group.domain} を削除しました`,
@@ -198,7 +211,7 @@ export const DomainCardActions = () => {
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                handlers.handleDeleteGroup(group.id)
+                executeDeleteAll()
                 if (isReorderMode) {
                   console.log(
                     `並び替えモード中にドメイン ${group.domain} を削除しました`,

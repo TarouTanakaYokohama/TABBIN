@@ -233,4 +233,49 @@ describe('DomainModeContainer', () => {
       expect(handleDeleteGroup).toHaveBeenNthCalledWith(2, 'group-2')
     })
   })
+
+  it('検索中の未分類ヘッダーのすべて削除は表示中URLだけを group 単位で削除する', async () => {
+    const handleDeleteUrls = vi.fn().mockResolvedValue(undefined)
+    const handleDeleteGroup = vi.fn()
+    const handleDeleteGroups = vi.fn()
+
+    render(
+      <DomainModeContainer
+        {...createProps()}
+        searchQuery='docs'
+        handleDeleteUrls={handleDeleteUrls}
+        handleDeleteGroup={handleDeleteGroup}
+        handleDeleteGroups={handleDeleteGroups}
+        shouldShowUncategorizedSectionHeader
+        shouldShowUncategorizedList
+        uncategorizedForDisplay={[
+          {
+            id: 'group-1',
+            domain: 'example.com',
+            urls: [{ url: 'https://example.com/docs', title: 'Docs' }],
+          },
+          {
+            id: 'group-2',
+            domain: 'sample.com',
+            urls: [{ url: 'https://sample.com/docs', title: 'Guide' }],
+          },
+        ]}
+        hasContentTabGroupsCount={2}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'すべて削除' }))
+
+    await waitFor(() => {
+      expect(handleDeleteUrls).toHaveBeenNthCalledWith(1, 'group-1', [
+        'https://example.com/docs',
+      ])
+      expect(handleDeleteUrls).toHaveBeenNthCalledWith(2, 'group-2', [
+        'https://sample.com/docs',
+      ])
+    })
+
+    expect(handleDeleteGroup).not.toHaveBeenCalled()
+    expect(handleDeleteGroups).not.toHaveBeenCalled()
+  })
 })
