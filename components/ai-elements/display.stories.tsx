@@ -1,7 +1,6 @@
 // @covers components/ai-elements/agent.tsx
 // @covers components/ai-elements/artifact.tsx
 // @covers components/ai-elements/attachments.tsx
-// @covers components/ai-elements/audio-player.tsx
 // @covers components/ai-elements/chain-of-thought.tsx
 // @covers components/ai-elements/checkpoint.tsx
 // @covers components/ai-elements/code-block.tsx
