@@ -392,8 +392,7 @@ const messages = {
     'options.contactDescription':
       'Google Forms is used. A Google account is required because image uploads are enabled.',
     'options.fontSize.currentValue': 'Current value: {{value}}%',
-    'options.fontSize.description':
-      'Adjust the font size used across the extension.',
+    'options.fontSize.description': 'Adjust the font size used.',
     'options.fontSize.inputLabel': 'Font size percentage',
     'options.fontSize.rangeLabel': 'Font size slider',
     'options.excludePatterns.add': 'Add',
@@ -1166,8 +1165,7 @@ const messages = {
     'options.contactDescription':
       'Google Formsを使用します。※画像アップロード可能な設定ですので、Googleアカウントでのログインが必要です。',
     'options.fontSize.currentValue': '現在の値: {{value}}%',
-    'options.fontSize.description':
-      '拡張機能全体で使うフォントサイズを調整できます。',
+    'options.fontSize.description': 'フォントサイズを調整できます。',
     'options.fontSize.inputLabel': 'フォントサイズ (%)',
     'options.fontSize.rangeLabel': 'フォントサイズスライダー',
     'options.excludePatterns.add': '追加',
