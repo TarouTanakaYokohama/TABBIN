@@ -5,6 +5,34 @@
 // タブ作成を制御するためのフラグ
 let isCreatingSavedTabsPage = false
 let savedTabsPageId: number | null = null
+
+const isSavedTabsPageUrl = (value?: string): boolean => {
+  if (!value) {
+    return false
+  }
+
+  try {
+    const url = new URL(value)
+    const normalizedPath = url.pathname.split('/').at(-1) ?? ''
+
+    if (normalizedPath === 'saved-tabs.html') {
+      return true
+    }
+
+    if (normalizedPath !== 'app.html') {
+      return false
+    }
+
+    const hashPath = url.hash.replace(/^#/, '')
+    return hashPath === '/saved-tabs' || hashPath.startsWith('/saved-tabs?')
+  } catch {
+    return (
+      value.includes('saved-tabs.html') ||
+      value.includes('app.html#/saved-tabs')
+    )
+  }
+}
+
 const activateAndPinTabIfNeeded = async (
   tabId: number,
   isPinned: boolean,
@@ -44,9 +72,7 @@ const reuseStoredSavedTabsPageId = async (): Promise<number | null> => {
 }
 const findSavedTabsPages = (allTabs: chrome.tabs.Tab[]): chrome.tabs.Tab[] => {
   return allTabs.filter(
-    tab =>
-      tab.url?.includes('saved-tabs.html') ||
-      tab.pendingUrl?.includes('saved-tabs.html'),
+    tab => isSavedTabsPageUrl(tab.url) || isSavedTabsPageUrl(tab.pendingUrl),
   )
 }
 const reuseExistingSavedTabsPage = async (
