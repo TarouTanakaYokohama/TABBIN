@@ -18,7 +18,7 @@ import {
   migrateToUrlsStorage,
 } from '@/lib/storage/migration'
 import { getUserSettings } from '@/lib/storage/settings'
-import { getTabGroupUrls } from '@/lib/storage/tabs'
+import { resolveTabGroupsWithUrls } from '@/lib/storage/tabs'
 import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
 
 /** useTabData フックの戻り値型 */
@@ -167,40 +167,20 @@ const useTabData = (
         return []
       }
       console.log('タブグループのURL取得を開始...')
-      const groupsWithUrls = await Promise.all(
-        groups.map(async group => {
-          try {
-            if (group.urlIds && group.urlIds.length > 0) {
-              // 新形式: getTabGroupUrlsを使用してURLデータを取得
-              const urls = await getTabGroupUrls(group)
-              console.log(
-                `グループ ${group.domain}: ${urls.length}個のURLを取得`,
-              )
-              return {
-                ...group,
-                urls,
-              }
-            }
-            if (group.urls && group.urls.length > 0) {
-              // 旧形式: そのまま使用
-              console.log(`グループ ${group.domain}: 旧形式のまま使用`)
-              return group
-            }
-            // URLがない場合
-            console.log(`グループ ${group.domain}: URLなし`)
-            return {
-              ...group,
-              urls: [],
-            }
-          } catch (error) {
-            console.error(`グループ ${group.domain} のURL取得エラー:`, error)
-            return {
-              ...group,
-              urls: [],
-            }
-          }
-        }),
-      )
+      const groupsWithUrls = await resolveTabGroupsWithUrls(groups)
+      for (const group of groupsWithUrls) {
+        if (group.urlIds && group.urlIds.length > 0) {
+          console.log(
+            `グループ ${group.domain}: ${group.urls?.length || 0}個のURLを取得`,
+          )
+          continue
+        }
+        if (group.urls && group.urls.length > 0) {
+          console.log(`グループ ${group.domain}: 旧形式のまま使用`)
+          continue
+        }
+        console.log(`グループ ${group.domain}: URLなし`)
+      }
       return groupsWithUrls
     },
     [],
