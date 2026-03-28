@@ -32,6 +32,7 @@ vi.mock('@/features/i18n/context/I18nProvider', () => ({
             'aiChat.historyTitle': 'Recent conversations',
             'common.delete': 'Delete',
             'common.cancel': 'Cancel',
+            'common.loadingLabel': 'Loading',
           } satisfies Record<string, string>
         )[key] ??
         fallback ??
@@ -169,6 +170,23 @@ describe('AiChatRoute', () => {
     fireEvent.click(screen.getByText('toggle-history'))
 
     expect(screen.getByText('Recent conversations')).toBeTruthy()
+  })
+
+  it('loading 中は spinner のみを表示する', () => {
+    mocked.useSharedAiChatHistory.mockReturnValue({
+      activeConversation: null,
+      createConversation: mocked.createConversation,
+      deleteConversation: mocked.deleteConversation,
+      historyItems: [],
+      isLoading: true,
+      selectConversation: mocked.selectConversation,
+      updateMessages: mocked.updateMessages,
+    })
+
+    render(createElement(AiChatRoute))
+
+    expect(screen.getByRole('status')).toBeTruthy()
+    expect(screen.queryByText('Loading...')).toBeNull()
   })
 
   it('履歴削除ボタンから確認モーダルを開き、削除を実行できる', () => {

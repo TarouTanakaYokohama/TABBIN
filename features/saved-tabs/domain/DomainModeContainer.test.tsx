@@ -129,4 +129,11 @@ describe('DomainModeContainer', () => {
       ),
     ).toBeTruthy()
   })
+
+  it('renders a spinner-only loading state', () => {
+    render(<DomainModeContainer {...createProps()} isLoading />)
+
+    expect(screen.getByRole('status')).toBeTruthy()
+    expect(screen.queryByText('No saved tabs')).toBeNull()
+  })
 })

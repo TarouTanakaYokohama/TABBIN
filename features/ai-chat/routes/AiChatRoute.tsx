@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { LoadingState } from '@/components/ui/loading-state'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { SavedTabsChatWidget } from '@/features/ai-chat/components/SavedTabsChatWidget'
 import { useSharedAiChatHistory } from '@/features/ai-chat/hooks/useSharedAiChatHistory'
@@ -55,11 +56,7 @@ export const AiChatRoute = () => {
   }, [])
 
   if (isLoading || !activeConversation) {
-    return (
-      <div className='flex min-h-[300px] items-center justify-center'>
-        <div className='text-foreground text-xl'>{t('common.loading')}</div>
-      </div>
-    )
+    return <LoadingState minHeightClassName='min-h-[300px]' />
   }
 
   return (

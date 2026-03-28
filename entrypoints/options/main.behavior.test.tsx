@@ -383,7 +383,8 @@ describe('options route behavior', () => {
 
     render(createElement(OptionsPage))
 
-    expect(screen.getByText('Loading...')).toBeTruthy()
+    expect(screen.getByRole('status')).toBeTruthy()
+    expect(screen.queryByText('Loading...')).toBeNull()
   })
 
   it('各種ハンドラを UI から呼び出す', () => {

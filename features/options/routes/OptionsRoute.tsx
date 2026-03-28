@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LoadingState } from '@/components/ui/loading-state'
 import {
   Select,
   SelectContent,
@@ -101,11 +102,7 @@ export const OptionsRoute = () => {
   }
 
   if (isLoading) {
-    return (
-      <div className='flex min-h-[300px] items-center justify-center'>
-        <div className='text-foreground text-xl'>{t('common.loading')}</div>
-      </div>
-    )
+    return <LoadingState minHeightClassName='min-h-[300px]' />
   }
 
   return (
