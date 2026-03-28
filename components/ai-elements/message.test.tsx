@@ -54,7 +54,10 @@ describe('Message', () => {
     expect(responseRoot?.className).toContain('[&_pre]:whitespace-pre-wrap')
     expect(responseRoot?.className).toContain('[&_pre]:wrap-anywhere')
     expect(responseRoot?.className).toContain(
-      '[&_[data-streamdown=code-block-body]]:overflow-x-hidden',
+      'data-[streamdown=code-block-body]:max-w-full',
+    )
+    expect(responseRoot?.className).toContain(
+      'data-[streamdown=code-block-body]:overflow-x-hidden',
     )
   })
 })
