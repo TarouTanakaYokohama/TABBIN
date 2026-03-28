@@ -115,7 +115,7 @@ describe('findSavedUrlsAddedInMonthPage', () => {
     const records = [
       createRecord('url-1', Date.UTC(2026, 2, 1, 0, 0, 0), 'March A'),
       createRecord('url-2', Date.UTC(2026, 2, 5, 0, 0, 0), 'March B'),
-      createRecord('url-3', Date.UTC(2026, 1, 28, 23, 59, 59), 'February'),
+      createRecord('url-3', Date.UTC(2026, 1, 28, 14, 59, 59), 'February'),
     ]
 
     expect(

@@ -64,6 +64,7 @@ import {
 } from '@/lib/storage/analytics'
 import { defaultSettings, getUserSettings } from '@/lib/storage/settings'
 import type { AiChatToolTrace } from '@/types/background'
+import { formatLocaleDateTime } from '@/utils/localDateTime'
 
 const defaultAnalyticsQuery = getDefaultAnalyticsQuery()
 
@@ -815,7 +816,8 @@ const AnalyticsRoute = () => {
                               </div>
                               <div className='flex shrink-0 flex-col gap-2 sm:items-end'>
                                 <time className='text-muted-foreground text-xs'>
-                                  {new Date(record.savedAt).toLocaleString(
+                                  {formatLocaleDateTime(
+                                    record.savedAt,
                                     language === 'ja' ? 'ja-JP' : 'en-US',
                                   )}
                                 </time>

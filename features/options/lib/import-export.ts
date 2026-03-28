@@ -26,6 +26,7 @@ import type {
   UrlRecord,
   UserSettings,
 } from '@/types/storage'
+import { formatLocaleDateTime } from '@/utils/localDateTime'
 
 // バックアップデータの型定義
 interface BackupData {
@@ -2205,15 +2206,18 @@ const importWithOverwrite = async ({
     translate,
   )
   await migrateToUrlsStorage()
+  const formattedTimestamp = formatLocaleDateTime(
+    new Date(importedData.timestamp).getTime(),
+  )
   return {
     success: true,
     message: translate
       ? translate('options.importExport.replaceSuccess', undefined, {
           version: importedData.version,
-          timestamp: new Date(importedData.timestamp).toLocaleString(),
+          timestamp: formattedTimestamp,
           unresolved: unresolvedWarning,
         })
-      : `設定とタブデータを置き換えました（バージョン: ${importedData.version}、作成日時: ${new Date(importedData.timestamp).toLocaleString()}）${unresolvedWarning}`,
+      : `設定とタブデータを置き換えました（バージョン: ${importedData.version}、作成日時: ${formattedTimestamp}）${unresolvedWarning}`,
   }
 }
 const importSettings = async (

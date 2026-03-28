@@ -151,7 +151,7 @@ describe('findUrlsAddedInMonth', () => {
         url: 'https://vercel.com/blog/ai',
         title: 'AI Blog',
         domain: 'vercel.com',
-        savedAt: new Date('2026-02-28T23:59:59.000Z').getTime(),
+        savedAt: new Date('2026-02-28T14:59:59.000Z').getTime(),
         savedInTabGroups: [],
         savedInProjects: [],
         subCategories: [],
@@ -161,6 +161,39 @@ describe('findUrlsAddedInMonth', () => {
     ]
 
     expect(findUrlsAddedInMonth(records, 2026, 3)).toEqual([records[0]])
+  })
+
+  it('指定した月をタイムゾーン基準で判定する', () => {
+    const records = [
+      {
+        id: 'url-1',
+        url: 'https://react.dev/learn',
+        title: 'React Learn',
+        domain: 'react.dev',
+        savedAt: new Date('2026-02-28T15:30:00.000Z').getTime(),
+        savedInTabGroups: [],
+        savedInProjects: [],
+        subCategories: [],
+        projectCategories: [],
+        parentCategories: [],
+      },
+      {
+        id: 'url-2',
+        url: 'https://vercel.com/blog/ai',
+        title: 'AI Blog',
+        domain: 'vercel.com',
+        savedAt: new Date('2026-02-28T14:30:00.000Z').getTime(),
+        savedInTabGroups: [],
+        savedInProjects: [],
+        subCategories: [],
+        projectCategories: [],
+        parentCategories: [],
+      },
+    ]
+
+    expect(findUrlsAddedInMonth(records, 2026, 3, 'Asia/Tokyo')).toEqual([
+      records[0],
+    ])
   })
 })
 
