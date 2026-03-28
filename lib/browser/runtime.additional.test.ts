@@ -19,7 +19,7 @@ const originalChrome = globalWithApis.chrome
 
 afterEach(() => {
   vi.resetModules()
-  vi.unmock('webextension-polyfill')
+  vi.doUnmock('webextension-polyfill')
   globalWithApis.browser = originalBrowser
   globalWithApis.chrome = originalChrome
 })

@@ -12,6 +12,7 @@ export default {
     '../features/**/*.stories.@(js|jsx|mjs|ts|tsx)',
   ],
   addons: ['@chromatic-com/storybook', '@storybook/addon-vitest'],
+  refs: {},
   framework: {
     name: '@storybook/react-vite',
     options: {},
