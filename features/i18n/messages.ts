@@ -391,6 +391,11 @@ const messages = {
     'options.contact': 'Contact',
     'options.contactDescription':
       'Google Forms is used. A Google account is required because image uploads are enabled.',
+    'options.fontSize.currentValue': 'Current value: {{value}}%',
+    'options.fontSize.description':
+      'Adjust the font size used across the extension.',
+    'options.fontSize.inputLabel': 'Font size percentage',
+    'options.fontSize.rangeLabel': 'Font size slider',
     'options.excludePatterns.add': 'Add',
     'options.excludePatterns.empty': 'No exclude patterns',
     'options.excludePatterns.help':
@@ -447,6 +452,7 @@ const messages = {
     'options.categories.addError': 'Could not add the category.',
     'options.previewColorCustomization': '(preview) Color customization',
     'options.previewColorCustomizationReset': 'Reset',
+    'options.previewFontSizeCustomization': '(preview) Font size',
     'options.releaseNotes': 'Release Notes',
     'options.showSavedTime': 'Show saved time',
     'options.showSavedTimeDescription':
@@ -1159,6 +1165,11 @@ const messages = {
     'options.contact': 'お問い合わせ',
     'options.contactDescription':
       'Google Formsを使用します。※画像アップロード可能な設定ですので、Googleアカウントでのログインが必要です。',
+    'options.fontSize.currentValue': '現在の値: {{value}}%',
+    'options.fontSize.description':
+      '拡張機能全体で使うフォントサイズを調整できます。',
+    'options.fontSize.inputLabel': 'フォントサイズ (%)',
+    'options.fontSize.rangeLabel': 'フォントサイズスライダー',
     'options.excludePatterns.add': '追加',
     'options.excludePatterns.empty': '除外パターンはありません',
     'options.excludePatterns.help':
@@ -1211,6 +1222,7 @@ const messages = {
     'options.categories.addError': 'カテゴリの追加に失敗しました。',
     'options.previewColorCustomization': '(preview)カラーカスタマイズ',
     'options.previewColorCustomizationReset': 'リセット',
+    'options.previewFontSizeCustomization': '(preview)フォントサイズ',
     'options.releaseNotes': 'リリースノート',
     'options.showSavedTime': '保存日時を表示する',
     'options.showSavedTimeDescription':

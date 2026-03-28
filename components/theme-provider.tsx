@@ -6,6 +6,8 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { colorOptions } from '@/constants/colorOptions'
+import { toFontScaleValue } from '@/constants/fontSize'
 import {
   getChromeStorageLocal,
   getChromeStorageOnChanged,
@@ -28,6 +30,35 @@ const initialState: ThemeProviderState = {
   setTheme: () => null,
 }
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
+
+const clearUserThemeColors = (root: HTMLElement) => {
+  for (const { key } of colorOptions) {
+    root.style.removeProperty(`--${key}`)
+  }
+}
+
+const applyUserSettingsToRoot = (
+  root: HTMLElement,
+  userSettings?: UserSettings,
+  shouldApplyColors = false,
+) => {
+  root.style.setProperty(
+    '--app-font-scale',
+    toFontScaleValue(userSettings?.fontSizePercent),
+  )
+
+  if (!shouldApplyColors) {
+    clearUserThemeColors(root)
+    return
+  }
+
+  clearUserThemeColors(root)
+  const { colors = {} } = userSettings ?? {}
+  for (const [key, val] of Object.entries(colors)) {
+    root.style.setProperty(`--${key}`, val)
+  }
+}
+
 export const ThemeProvider = ({
   children,
   defaultTheme = 'system',
@@ -74,19 +105,16 @@ export const ThemeProvider = ({
   }, [storageKey])
   useEffect(() => {
     const root = window.document.documentElement
-    // 既存のインラインスタイルをクリア
-    root.removeAttribute('style')
     // ライト/ダークのクラス除去
     root.classList.remove('light', 'dark')
+    applyUserSettingsToRoot(root)
     if (theme === 'system') {
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
         .matches
         ? 'dark'
         : 'light'
       root.classList.add(systemTheme)
-      return
-    }
-    if (theme === 'user') {
+    } else if (theme === 'user') {
       const storageLocal = getChromeStorageLocal()
       if (!storageLocal) {
         warnMissingChromeStorage('ユーザーテーマ適用')
@@ -95,20 +123,23 @@ export const ThemeProvider = ({
       storageLocal
         .get('userSettings')
         .then((result: { userSettings?: UserSettings }) => {
-          const userSettings = result.userSettings
-          if (!userSettings) {
-            return
-          }
-          const { colors = {} } = userSettings
-          for (const [key, val] of Object.entries(colors)) {
-            root.style.setProperty(`--${key}`, val)
-          }
+          applyUserSettingsToRoot(root, result.userSettings, true)
         })
       return
+    } else {
+      // dark または light モードの直接適用
+      root.classList.add(theme)
     }
 
-    // dark または light モードの直接適用
-    root.classList.add(theme)
+    const storageLocal = getChromeStorageLocal()
+    if (!storageLocal) {
+      return
+    }
+    storageLocal
+      .get('userSettings')
+      .then((result: { userSettings?: UserSettings }) => {
+        applyUserSettingsToRoot(root, result.userSettings)
+      })
   }, [theme])
 
   // ユーザー設定のカラー変更を監視し、即座にCSS変数を更新
@@ -119,13 +150,12 @@ export const ThemeProvider = ({
       },
       areaName: string,
     ) => {
-      if (areaName === 'local' && theme === 'user' && changes.userSettings) {
-        const updated = changes.userSettings.newValue as UserSettings
-        const { colors = {} } = updated
+      if (areaName === 'local' && changes.userSettings) {
+        const updated = changes.userSettings.newValue as
+          | UserSettings
+          | undefined
         const root = window.document.documentElement
-        for (const [key, val] of Object.entries(colors)) {
-          root.style.setProperty(`--${key}`, val)
-        }
+        applyUserSettingsToRoot(root, updated, theme === 'user')
       }
     }
     const storageOnChanged = getChromeStorageOnChanged()

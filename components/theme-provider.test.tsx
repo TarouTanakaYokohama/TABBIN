@@ -253,6 +253,9 @@ describe('ThemeProvider', () => {
     })
 
     expect(document.documentElement.style.getPropertyValue('--accent')).toBe('')
+    expect(
+      document.documentElement.style.getPropertyValue('--app-font-scale'),
+    ).toBe('1')
   })
 
   it('user テーマの色適用と userSettings 変更イベントを反映する', async () => {
@@ -261,6 +264,7 @@ describe('ThemeProvider', () => {
         accent: '#111111',
         surface: '#f5f5f5',
       },
+      fontSizePercent: 125,
     }
 
     render(
@@ -293,6 +297,9 @@ describe('ThemeProvider', () => {
         '#111111',
       )
     })
+    expect(
+      document.documentElement.style.getPropertyValue('--app-font-scale'),
+    ).toBe('1.25')
     expect(document.documentElement.style.getPropertyValue('--surface')).toBe(
       '#f5f5f5',
     )
@@ -326,6 +333,7 @@ describe('ThemeProvider', () => {
                 accent: '#333333',
                 surface: '#eeeeee',
               },
+              fontSizePercent: 150,
             },
           },
         },
@@ -339,6 +347,49 @@ describe('ThemeProvider', () => {
     expect(document.documentElement.style.getPropertyValue('--surface')).toBe(
       '#eeeeee',
     )
+    expect(
+      document.documentElement.style.getPropertyValue('--app-font-scale'),
+    ).toBe('1.5')
+  })
+
+  it('system テーマでもフォント倍率を初期読込と設定変更で反映する', async () => {
+    storageValues.userSettings = {
+      fontSizePercent: 140,
+    }
+
+    render(
+      <ThemeProvider defaultTheme='system'>
+        <div>system-theme</div>
+      </ThemeProvider>,
+    )
+
+    await waitFor(() => {
+      expect(
+        document.documentElement.style.getPropertyValue('--app-font-scale'),
+      ).toBe('1.4')
+    })
+
+    const userSettingsListener = storageListeners[1]
+
+    act(() => {
+      userSettingsListener(
+        {
+          userSettings: {
+            oldValue: {
+              fontSizePercent: 140,
+            },
+            newValue: {
+              fontSizePercent: 160,
+            },
+          },
+        },
+        'local',
+      )
+    })
+
+    expect(
+      document.documentElement.style.getPropertyValue('--app-font-scale'),
+    ).toBe('1.6')
   })
 })
 
