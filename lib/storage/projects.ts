@@ -4,7 +4,6 @@ import type {
   ProjectKeywordSettings,
   TabGroup,
   UrlRecord,
-  ViewMode,
 } from '@/types/storage'
 import {
   findMatchingProjectIdForSavedTab,
@@ -141,20 +140,6 @@ const saveCustomProjects = async (projects: CustomProject[]): Promise<void> => {
     console.error('カスタムプロジェクト保存エラー:', error)
     throw error
   }
-} // 現在のビューモードを取得する関数
-const getViewMode = async (): Promise<ViewMode> => {
-  try {
-    const { viewMode = 'domain' } = await chrome.storage.local.get('viewMode')
-    return viewMode as ViewMode
-  } catch (error) {
-    console.error('ビューモード取得エラー:', error)
-    return 'domain' // エラー時はデフォルト値を返す
-  }
-} // ビューモードを保存する関数
-const saveViewMode = async (mode: ViewMode): Promise<void> => {
-  await chrome.storage.local.set({
-    viewMode: mode,
-  })
 } // 新しいカスタムプロジェクトを作成する関数
 const createCustomProject = async (name: string): Promise<CustomProject> => {
   const projects = await getCustomProjects()
@@ -1265,7 +1250,6 @@ export {
   getCustomProjects,
   getOrCreateUncategorizedProject,
   getProjectUrls,
-  getViewMode,
   moveUrlBetweenCustomProjects,
   removeCategoryFromProject,
   removeUrlFromAllCustomProjects,
@@ -1277,7 +1261,6 @@ export {
   reorderProjectUrls,
   saveCustomProjects,
   saveUrlsToCustomProjects,
-  saveViewMode,
   setUrlCategory,
   updateCategoryOrder,
   updateCustomProjectName,

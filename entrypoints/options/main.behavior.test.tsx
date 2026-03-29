@@ -22,8 +22,6 @@ const mocked = vi.hoisted(() => ({
   setExcludePatternInput: vi.fn(),
   setSettings: vi.fn(),
   settings: {
-    aiChatEnabled: true,
-    aiProvider: 'ollama',
     autoDeletePeriod: 'never',
     clickBehavior: 'saveSameDomainTabs',
     colors: {},

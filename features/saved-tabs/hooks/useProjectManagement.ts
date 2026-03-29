@@ -20,13 +20,11 @@ import {
   createCustomProject,
   deleteCustomProject,
   getCustomProjects,
-  getViewMode,
   removeCategoryFromProject,
   removeUrlFromCustomProject,
   removeUrlsFromCustomProject,
   renameCategoryInProject,
   reorderProjectUrls,
-  saveViewMode,
   setUrlCategory,
   updateCategoryOrder,
   updateCustomProjectName,
@@ -231,7 +229,6 @@ const useProjectManagement = (
       try {
         console.log(`ビューモードを ${mode} に変更します`)
         setViewMode(mode)
-        await saveViewMode(mode)
         if (mode !== 'custom') {
           return
         }
@@ -634,17 +631,15 @@ const useProjectManagement = (
 
   // ビューモードと既存のカスタムプロジェクトをロード（初回のみ）
   useEffect(() => {
-    const loadViewMode = async () => {
+    let isActive = true
+
+    const loadProjects = async () => {
       try {
         console.log(
           '初回ロード: ビューモードとカスタムプロジェクトを取得します',
         )
-        // 最初にビューモードを取得
-        const mode = initialViewMode ?? (await getViewMode())
+        const mode = initialViewMode ?? 'domain'
         setViewMode(mode)
-        if (initialViewMode) {
-          await saveViewMode(initialViewMode)
-        }
         console.log(`ビューモード: ${mode}`)
 
         // カスタムプロジェクトを読み込む
@@ -652,14 +647,19 @@ const useProjectManagement = (
         console.log(`カスタムプロジェクト数: ${projects.length}`)
 
         // UIを更新
-        setCustomProjects(projects)
+        if (isActive) {
+          setCustomProjects(projects)
+        }
         console.log('初回ロード完了')
       } catch (error) {
         console.error('ビューモードの読み込みエラー:', error)
       }
     }
-    loadViewMode()
-  }, [initialViewMode, syncDomainDataToCustomProjects])
+    void loadProjects()
+    return () => {
+      isActive = false
+    }
+  }, [initialViewMode])
   return {
     customProjects,
     setCustomProjects,
