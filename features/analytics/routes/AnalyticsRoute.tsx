@@ -63,6 +63,7 @@ import {
   saveSavedAnalyticsViews,
 } from '@/lib/storage/analytics'
 import { defaultSettings, getUserSettings } from '@/lib/storage/settings'
+import { cn } from '@/lib/utils'
 import type { AiChatToolTrace } from '@/types/background'
 import { formatLocaleDateTime } from '@/utils/localDateTime'
 
@@ -168,6 +169,8 @@ interface AnalyticsDrilldownSelection {
   specTitle: string
 }
 
+type ViewNameValidationError = 'duplicate' | 'required'
+
 type AnalyticsChartMessages = NonNullable<
   Parameters<typeof generateAnalyticsResult>[2]
 >['messages']
@@ -270,6 +273,24 @@ const matchesDrilldownLabel = ({
   ).some(value => value.toLowerCase() === normalizedLabel)
 }
 
+const getViewNameValidationError = ({
+  savedViews,
+  viewName,
+}: {
+  savedViews: SavedAnalyticsView[]
+  viewName: string
+}): ViewNameValidationError | null => {
+  const trimmedViewName = viewName.trim()
+
+  if (!trimmedViewName) {
+    return 'required'
+  }
+
+  return savedViews.some(view => view.name.trim() === trimmedViewName)
+    ? 'duplicate'
+    : null
+}
+
 const AnalyticsRoute = () => {
   const { language, t } = useI18n()
   const {
@@ -287,6 +308,8 @@ const AnalyticsRoute = () => {
     normalizeAnalyticsRouteQuery(defaultAnalyticsQuery),
   )
   const [viewName, setViewName] = useState('')
+  const [viewNameError, setViewNameError] =
+    useState<ViewNameValidationError | null>(null)
   const [summary, setSummary] = useState('')
   const [generatedChartSpecs, setGeneratedChartSpecs] = useState<AiChartSpec[]>(
     [],
@@ -401,10 +424,16 @@ const AnalyticsRoute = () => {
 
   const handleSaveView = async () => {
     const trimmedName = viewName.trim()
-    if (!trimmedName) {
+    const nextError = getViewNameValidationError({
+      savedViews,
+      viewName,
+    })
+    if (nextError) {
+      setViewNameError(nextError)
       return
     }
 
+    setViewNameError(null)
     const nextView = createSavedAnalyticsView({
       name: trimmedName,
       query,
@@ -412,6 +441,7 @@ const AnalyticsRoute = () => {
     const nextViews = [...savedViews, nextView]
     setSavedViews(nextViews)
     await saveSavedAnalyticsViews(nextViews)
+    setViewName('')
   }
 
   const handleDeleteView = async (viewId: string) => {
@@ -616,11 +646,43 @@ const AnalyticsRoute = () => {
                         </Label>
                         <Input
                           aria-label={t('analytics.viewName')}
-                          className='rounded-xl bg-background'
+                          aria-describedby={
+                            viewNameError
+                              ? 'analytics-view-name-error'
+                              : undefined
+                          }
+                          aria-invalid={viewNameError !== null}
+                          className={cn(
+                            'rounded-xl bg-background',
+                            viewNameError &&
+                              'border-destructive focus-visible:ring-destructive/20',
+                          )}
                           id='analytics-view-name'
-                          onChange={event => setViewName(event.target.value)}
+                          onChange={event => {
+                            const nextValue = event.target.value
+                            setViewName(nextValue)
+                            setViewNameError(currentError =>
+                              currentError
+                                ? getViewNameValidationError({
+                                    savedViews,
+                                    viewName: nextValue,
+                                  })
+                                : currentError,
+                            )
+                          }}
                           value={viewName}
                         />
+                        {viewNameError ? (
+                          <p
+                            className='text-destructive text-sm'
+                            id='analytics-view-name-error'
+                            role='alert'
+                          >
+                            {viewNameError === 'required'
+                              ? t('analytics.viewNameRequired')
+                              : t('analytics.viewNameDuplicate')}
+                          </p>
+                        ) : null}
                       </div>
                       <div className='grid gap-1.5'>
                         <Label className='text-sm' htmlFor='analytics-group-by'>

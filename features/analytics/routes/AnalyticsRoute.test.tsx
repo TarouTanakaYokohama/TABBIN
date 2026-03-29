@@ -583,6 +583,158 @@ describe('AnalyticsRoute', () => {
     })
   })
 
+  it('保存成功後にビュー名をクリアする', async () => {
+    render(<AnalyticsRoute />)
+
+    await screen.findByText('Analysis conditions')
+
+    const viewNameInput = screen.getByLabelText('View name') as HTMLInputElement
+
+    fireEvent.change(viewNameInput, {
+      target: { value: 'My Analytics' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(analyticsRouteMocks.saveViewsMock).toHaveBeenCalledTimes(1)
+    })
+
+    expect(viewNameInput.value).toBe('')
+  })
+
+  it('ビュー名が空のまま保存するとエラーを表示する', async () => {
+    render(<AnalyticsRoute />)
+
+    await screen.findByText('Analysis conditions')
+
+    const viewNameInput = screen.getByLabelText('View name')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(analyticsRouteMocks.saveViewsMock).not.toHaveBeenCalled()
+    expect(viewNameInput.getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByText('Enter a view name')).toBeTruthy()
+
+    fireEvent.change(viewNameInput, {
+      target: { value: 'My Analytics' },
+    })
+
+    expect(viewNameInput.getAttribute('aria-invalid')).toBe('false')
+    expect(screen.queryByText('Enter a view name')).toBeNull()
+  })
+
+  it('既存ビューと同名では保存できず重複エラーを表示する', async () => {
+    analyticsRouteMocks.loadViewsMock.mockResolvedValue([
+      {
+        createdAt: 1,
+        id: 'view-existing',
+        name: 'My Analytics',
+        query: {
+          chartType: 'bar',
+          compareBy: 'none',
+          filters: {
+            excludedDomains: [],
+            excludedParentCategories: [],
+            excludedProjectCategories: [],
+            excludedProjects: [],
+            excludedSubCategories: [],
+            includedDomains: [],
+            includedParentCategories: [],
+            includedProjectCategories: [],
+            includedProjects: [],
+            includedSubCategories: [],
+          },
+          groupBy: 'domain',
+          limit: 8,
+          mode: 'both',
+          normalize: false,
+          sort: 'value-desc',
+          stacked: false,
+          timeBucket: 'day',
+          timeRange: '30d',
+        },
+        updatedAt: 1,
+      },
+    ])
+
+    render(<AnalyticsRoute />)
+
+    await screen.findByRole('button', { name: 'My Analytics' })
+
+    const viewNameInput = screen.getByLabelText('View name')
+
+    fireEvent.change(viewNameInput, {
+      target: { value: '  My Analytics  ' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(analyticsRouteMocks.saveViewsMock).not.toHaveBeenCalled()
+    expect(viewNameInput.getAttribute('aria-invalid')).toBe('true')
+    expect(
+      screen.getByText('A view with this name already exists'),
+    ).toBeTruthy()
+
+    fireEvent.change(viewNameInput, {
+      target: { value: 'My Analytics 2' },
+    })
+
+    expect(viewNameInput.getAttribute('aria-invalid')).toBe('false')
+    expect(
+      screen.queryByText('A view with this name already exists'),
+    ).toBeNull()
+  })
+
+  it('大文字小文字だけが異なるビュー名は別名として保存できる', async () => {
+    analyticsRouteMocks.loadViewsMock.mockResolvedValue([
+      {
+        createdAt: 1,
+        id: 'view-existing',
+        name: 'My Analytics',
+        query: {
+          chartType: 'bar',
+          compareBy: 'none',
+          filters: {
+            excludedDomains: [],
+            excludedParentCategories: [],
+            excludedProjectCategories: [],
+            excludedProjects: [],
+            excludedSubCategories: [],
+            includedDomains: [],
+            includedParentCategories: [],
+            includedProjectCategories: [],
+            includedProjects: [],
+            includedSubCategories: [],
+          },
+          groupBy: 'domain',
+          limit: 8,
+          mode: 'both',
+          normalize: false,
+          sort: 'value-desc',
+          stacked: false,
+          timeBucket: 'day',
+          timeRange: '30d',
+        },
+        updatedAt: 1,
+      },
+    ])
+
+    render(<AnalyticsRoute />)
+
+    await screen.findByRole('button', { name: 'My Analytics' })
+
+    fireEvent.change(screen.getByLabelText('View name'), {
+      target: { value: 'my analytics' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(analyticsRouteMocks.saveViewsMock).toHaveBeenCalledTimes(1)
+    })
+    expect(
+      screen.queryByText('A view with this name already exists'),
+    ).toBeNull()
+  })
+
   it('保存済みビューを読み込み、削除できる', async () => {
     analyticsRouteMocks.loadViewsMock.mockResolvedValue([
       {
