@@ -1405,6 +1405,9 @@ describe('import-export ユーティリティ', () => {
       'https://restored.example.com/path',
       'Restored',
       undefined,
+      {
+        preserveExistingOnDuplicate: true,
+      },
     )
 
     const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
@@ -1470,6 +1473,9 @@ describe('import-export ユーティリティ', () => {
       'https://restored-titleless.example.com/path',
       '',
       undefined,
+      {
+        preserveExistingOnDuplicate: true,
+      },
     )
   })
 
@@ -2719,6 +2725,12 @@ describe('import-export ユーティリティ', () => {
 
     expect(result.success).toBe(true)
     expect(createOrUpdateUrlRecordsBatch).toHaveBeenCalledTimes(1)
+    expect(createOrUpdateUrlRecordsBatch).toHaveBeenCalledWith(
+      expect.any(Array),
+      {
+        preserveExistingOnDuplicate: true,
+      },
+    )
     expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
     expect(store.customProjects).toEqual([
       buildCustomProject({

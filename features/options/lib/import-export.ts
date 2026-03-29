@@ -28,6 +28,10 @@ import type {
 } from '@/types/storage'
 import { formatLocaleDateTime } from '@/utils/localDateTime'
 
+const IMPORT_URL_RECORD_OPTIONS = {
+  preserveExistingOnDuplicate: true,
+} as const
+
 // バックアップデータの型定義
 interface BackupData {
   version: string
@@ -422,6 +426,7 @@ const convertImportedUrlsToNewFormat = async (
         urlData.url,
         urlData.title || '',
         urlData.favIconUrl,
+        IMPORT_URL_RECORD_OPTIONS,
       )
       urlRecordMapByUrlFromSingleUpdate.set(
         normalizeUrlKey(urlData.url),
@@ -1045,7 +1050,12 @@ const convertImportedCustomProjectUrlsToStorage = async (
       const preloadedUrlRecord = urlRecordMapByUrl?.get(normalizedUrl)
       const urlRecord =
         preloadedUrlRecord ||
-        (await createOrUpdateUrlRecord(urlData.url, urlData.title || ''))
+        (await createOrUpdateUrlRecord(
+          urlData.url,
+          urlData.title || '',
+          undefined,
+          IMPORT_URL_RECORD_OPTIONS,
+        ))
       urlIds.push(urlRecord.id)
       if (urlData.notes || urlData.category) {
         urlMetadata[urlRecord.id] = {
@@ -1856,7 +1866,10 @@ const buildBulkUrlRecordMap = async (
     return undefined
   }
   console.log(`インポートURLを一括変換します: ${importedUrlItems.length}件`)
-  return createOrUpdateUrlRecordsBatch(importedUrlItems)
+  return createOrUpdateUrlRecordsBatch(
+    importedUrlItems,
+    IMPORT_URL_RECORD_OPTIONS,
+  )
 }
 const shouldImportCustomProjects = (importedData: BackupData): boolean => {
   return Array.isArray(importedData.customProjects)
