@@ -10,6 +10,10 @@ interface UrlRecordInput {
   favIconUrl?: string
 }
 
+interface CreateOrUpdateUrlRecordOptions {
+  preserveExistingOnDuplicate?: boolean
+}
+
 /** キャッシュを無効化する（書き込み後・外部更新検知後に呼ぶ） */
 const invalidateUrlCache = (): void => {
   urlRecordsCache = null
@@ -77,12 +81,17 @@ const createOrUpdateUrlRecord = async (
   url: string,
   title: string,
   favIconUrl?: string,
+  options: CreateOrUpdateUrlRecordOptions = {},
 ): Promise<UrlRecord> => {
   const urlRecords = await getUrlRecords()
 
   // 既存のURLレコードを検索
   const existingRecord = urlRecords.find(record => record.url === url)
   if (existingRecord) {
+    if (options.preserveExistingOnDuplicate) {
+      return existingRecord
+    }
+
     // 既存のレコードを更新
     const updatedRecord: UrlRecord = {
       ...existingRecord,
@@ -113,6 +122,7 @@ const createOrUpdateUrlRecord = async (
  */
 const createOrUpdateUrlRecordsBatch = async (
   inputs: UrlRecordInput[],
+  options: CreateOrUpdateUrlRecordOptions = {},
 ): Promise<Map<string, UrlRecord>> => {
   const normalizedInputs = inputs
     .map(input => ({
@@ -152,6 +162,11 @@ const createOrUpdateUrlRecordsBatch = async (
     }
 
     const existingRecord = records[recordIndex]
+    if (options.preserveExistingOnDuplicate) {
+      resolvedRecordByUrl.set(input.url, existingRecord)
+      continue
+    }
+
     const updatedRecord: UrlRecord = {
       ...existingRecord,
       title: input.title,

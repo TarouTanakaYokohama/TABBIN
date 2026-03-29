@@ -189,6 +189,108 @@ describe('urls storage', () => {
     ])
   })
 
+  it('インポート用オプションでは重複URLの既存レコードを保持する', async () => {
+    const state: StorageState = {
+      urls: [
+        {
+          id: 'existing-1',
+          savedAt: 1,
+          title: 'Existing',
+          url: 'https://example.com',
+          favIconUrl: 'icon-existing',
+        },
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const {
+      createOrUpdateUrlRecord,
+      createOrUpdateUrlRecordsBatch,
+      getUrlRecords,
+    } = await loadUrlsModule()
+
+    vi.spyOn(Date, 'now').mockReturnValue(500)
+
+    const preserved = await createOrUpdateUrlRecord(
+      'https://example.com',
+      'Imported',
+      'icon-imported',
+      {
+        preserveExistingOnDuplicate: true,
+      },
+    )
+
+    expect(preserved).toEqual({
+      id: 'existing-1',
+      savedAt: 1,
+      title: 'Existing',
+      url: 'https://example.com',
+      favIconUrl: 'icon-existing',
+    })
+
+    const records = await createOrUpdateUrlRecordsBatch(
+      [
+        {
+          title: 'Imported',
+          url: 'https://example.com',
+          favIconUrl: 'icon-imported',
+        },
+        {
+          title: 'Second',
+          url: 'https://second.com',
+          favIconUrl: 'icon-2',
+        },
+      ],
+      {
+        preserveExistingOnDuplicate: true,
+      },
+    )
+
+    expect([...records.entries()]).toEqual([
+      [
+        'https://example.com',
+        {
+          id: 'existing-1',
+          savedAt: 1,
+          title: 'Existing',
+          url: 'https://example.com',
+          favIconUrl: 'icon-existing',
+        },
+      ],
+      [
+        'https://second.com',
+        {
+          id: 'uuid-1',
+          savedAt: 500,
+          title: 'Second',
+          url: 'https://second.com',
+          favIconUrl: 'icon-2',
+        },
+      ],
+    ])
+
+    await expect(getUrlRecords()).resolves.toEqual([
+      {
+        id: 'existing-1',
+        savedAt: 1,
+        title: 'Existing',
+        url: 'https://example.com',
+        favIconUrl: 'icon-existing',
+      },
+      {
+        id: 'uuid-1',
+        savedAt: 500,
+        title: 'Second',
+        url: 'https://second.com',
+        favIconUrl: 'icon-2',
+      },
+    ])
+  })
+
   it('参照されるURLは削除せず未参照URLだけ削除・クリーンアップする', async () => {
     const state: StorageState = {
       customProjects: [
