@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
 
@@ -110,6 +116,22 @@ const createProps = () => ({
   hasContentTabGroupsCount: 0,
 })
 
+const uncategorizedGroups: TabGroup[] = [
+  {
+    id: 'group-1',
+    domain: 'example.com',
+    urls: [
+      { url: 'https://example.com/a', title: 'A' },
+      { url: 'https://example.com/b', title: 'B' },
+    ],
+  },
+  {
+    id: 'group-2',
+    domain: 'sample.com',
+    urls: [{ url: 'https://sample.com/a', title: 'C' }],
+  },
+]
+
 describe('DomainModeContainer', () => {
   afterEach(() => {
     cleanup()
@@ -135,5 +157,125 @@ describe('DomainModeContainer', () => {
 
     expect(screen.getByRole('status')).toBeTruthy()
     expect(screen.queryByText('No saved tabs')).toBeNull()
+  })
+
+  it('未分類ヘッダーに表示中のタブ数とドメイン数を表示する', () => {
+    render(
+      <DomainModeContainer
+        {...createProps()}
+        shouldShowUncategorizedSectionHeader
+        shouldShowUncategorizedList
+        uncategorizedForDisplay={uncategorizedGroups}
+        hasContentTabGroupsCount={uncategorizedGroups.length}
+      />,
+    )
+
+    const tabCount = screen.getByText('3')
+    const domainCount = screen.getByText('2')
+
+    expect(screen.getByText('未分類のドメイン')).toBeTruthy()
+    expect(tabCount).toBeTruthy()
+    expect(domainCount).toBeTruthy()
+    expect(screen.getByText('タブ数')).toBeTruthy()
+    expect(screen.getByText('ドメイン数')).toBeTruthy()
+    expect(tabCount.className).toContain('inline-flex')
+    expect(tabCount.className).toContain('bg-secondary')
+    expect(domainCount.className).toContain('inline-flex')
+    expect(domainCount.className).toContain('bg-secondary')
+    expect(
+      screen.getByRole('button', { name: 'すべてのタブを開く' }),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'すべて削除' })).toBeTruthy()
+  })
+
+  it('未分類ヘッダーのすべて開くは表示中の未分類タブだけを開く', () => {
+    const handleOpenAllTabs = vi.fn()
+
+    render(
+      <DomainModeContainer
+        {...createProps()}
+        handleOpenAllTabs={handleOpenAllTabs}
+        shouldShowUncategorizedSectionHeader
+        shouldShowUncategorizedList
+        uncategorizedForDisplay={uncategorizedGroups}
+        hasContentTabGroupsCount={uncategorizedGroups.length}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'すべてのタブを開く' }))
+
+    expect(handleOpenAllTabs).toHaveBeenCalledWith([
+      { url: 'https://example.com/a', title: 'A' },
+      { url: 'https://example.com/b', title: 'B' },
+      { url: 'https://sample.com/a', title: 'C' },
+    ])
+  })
+
+  it('未分類ヘッダーのすべて削除は一括削除ハンドラがなければ単体削除にフォールバックする', async () => {
+    const handleDeleteGroup = vi.fn()
+
+    render(
+      <DomainModeContainer
+        {...createProps()}
+        handleDeleteGroup={handleDeleteGroup}
+        handleDeleteGroups={undefined}
+        shouldShowUncategorizedSectionHeader
+        shouldShowUncategorizedList
+        uncategorizedForDisplay={uncategorizedGroups}
+        hasContentTabGroupsCount={uncategorizedGroups.length}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'すべて削除' }))
+
+    await waitFor(() => {
+      expect(handleDeleteGroup).toHaveBeenNthCalledWith(1, 'group-1')
+      expect(handleDeleteGroup).toHaveBeenNthCalledWith(2, 'group-2')
+    })
+  })
+
+  it('検索中の未分類ヘッダーのすべて削除は表示中URLだけを group 単位で削除する', async () => {
+    const handleDeleteUrls = vi.fn().mockResolvedValue(undefined)
+    const handleDeleteGroup = vi.fn()
+    const handleDeleteGroups = vi.fn()
+
+    render(
+      <DomainModeContainer
+        {...createProps()}
+        searchQuery='docs'
+        handleDeleteUrls={handleDeleteUrls}
+        handleDeleteGroup={handleDeleteGroup}
+        handleDeleteGroups={handleDeleteGroups}
+        shouldShowUncategorizedSectionHeader
+        shouldShowUncategorizedList
+        uncategorizedForDisplay={[
+          {
+            id: 'group-1',
+            domain: 'example.com',
+            urls: [{ url: 'https://example.com/docs', title: 'Docs' }],
+          },
+          {
+            id: 'group-2',
+            domain: 'sample.com',
+            urls: [{ url: 'https://sample.com/docs', title: 'Guide' }],
+          },
+        ]}
+        hasContentTabGroupsCount={2}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'すべて削除' }))
+
+    await waitFor(() => {
+      expect(handleDeleteUrls).toHaveBeenNthCalledWith(1, 'group-1', [
+        'https://example.com/docs',
+      ])
+      expect(handleDeleteUrls).toHaveBeenNthCalledWith(2, 'group-2', [
+        'https://sample.com/docs',
+      ])
+    })
+
+    expect(handleDeleteGroup).not.toHaveBeenCalled()
+    expect(handleDeleteGroups).not.toHaveBeenCalled()
   })
 })

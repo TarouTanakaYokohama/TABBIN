@@ -88,6 +88,7 @@ const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
   const { t } = useI18n()
   const newConversationTitle = t('aiChat.newConversation')
   const historyStartPrompt = t('aiChat.history.startPrompt')
+  const interruptedResponseMessage = t('aiChat.interruptedResponse')
   const [historyState, setHistoryState] =
     useState<ConversationHistoryState | null>(null)
   const [activeConversationId, setActiveConversationId] = useState<
@@ -100,7 +101,10 @@ const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
   useEffect(() => {
     let isMounted = true
 
-    void loadConversationHistory(newConversationTitle).then(nextState => {
+    void loadConversationHistory(
+      newConversationTitle,
+      interruptedResponseMessage,
+    ).then(nextState => {
       if (!isMounted) {
         return
       }
@@ -115,7 +119,7 @@ const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
     return () => {
       isMounted = false
     }
-  }, [newConversationTitle])
+  }, [interruptedResponseMessage, newConversationTitle])
 
   const persistHistory = useCallback(
     (
@@ -231,10 +235,31 @@ const useSharedAiChatHistory = (): UseSharedAiChatHistoryResult => {
         })
 
         setPendingConversationId(null)
-        persistHistory(current => ({
-          activeConversationId: conversation.id,
-          conversations: [conversation, ...current.conversations],
-        }))
+        persistHistory(current => {
+          const existingConversation = current.conversations.find(
+            currentConversation =>
+              currentConversation.id === pendingConversationId,
+          )
+
+          return {
+            activeConversationId: conversation.id,
+            conversations: existingConversation
+              ? current.conversations.map(currentConversation =>
+                  currentConversation.id === pendingConversationId
+                    ? {
+                        ...currentConversation,
+                        messages,
+                        title: buildConversationTitle(
+                          messages,
+                          newConversationTitle,
+                        ),
+                        updatedAt: Date.now(),
+                      }
+                    : currentConversation,
+                )
+              : [conversation, ...current.conversations],
+          }
+        })
         return
       }
 

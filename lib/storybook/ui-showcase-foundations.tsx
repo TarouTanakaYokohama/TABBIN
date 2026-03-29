@@ -49,6 +49,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from '@/components/ui/field'
+import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
@@ -109,10 +115,13 @@ const UiShowcase = () => {
     <div className='space-y-6'>
       <Section title='Forms'>
         <div className='grid gap-4 md:grid-cols-2'>
-          <div className='space-y-2'>
-            <Label htmlFor='showcase-name'>Project name</Label>
+          <Field className='gap-2'>
+            <FieldLabel htmlFor='showcase-name'>Project name</FieldLabel>
             <Input id='showcase-name' defaultValue='TABBIN' />
-          </div>
+            <FieldDescription>
+              Shown to teammates in saved tab lists.
+            </FieldDescription>
+          </Field>
           <div className='space-y-2'>
             <Label htmlFor='showcase-desc'>Notes</Label>
             <Textarea
@@ -121,6 +130,22 @@ const UiShowcase = () => {
             />
           </div>
         </div>
+
+        <Field className='max-w-md gap-2' data-invalid={true}>
+          <FieldLabel htmlFor='showcase-invalid'>Workspace name</FieldLabel>
+          <Input
+            aria-describedby='showcase-invalid-error'
+            aria-invalid={true}
+            id='showcase-invalid'
+            defaultValue='tabbin'
+          />
+          <FieldDescription>
+            Use a unique name for cross-team analytics views.
+          </FieldDescription>
+          <FieldError id='showcase-invalid-error'>
+            This workspace name is already in use.
+          </FieldError>
+        </Field>
 
         <InputGroup>
           <InputGroupAddon>

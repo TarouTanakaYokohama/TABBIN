@@ -6,12 +6,14 @@ import {
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Check, X } from 'lucide-react'
 import { type ComponentProps, useCallback, useMemo } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { LoadingState } from '@/components/ui/loading-state'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { CategoryGroup } from '@/features/saved-tabs/components/CategoryGroup'
 import { SortableDomainCard } from '@/features/saved-tabs/components/SortableDomainCard'
+import { CardGroupActions } from '@/features/saved-tabs/components/shared/CardGroupActions'
 import {
   SavedTabsResponsiveLabel,
   SavedTabsResponsiveTooltipContent,
@@ -63,6 +65,22 @@ interface DomainModeContainerProps {
   hasContentTabGroupsCount: number
 }
 
+const getVisibleGroupUrls = (group: TabGroup): string[] =>
+  (group.urls || []).map(item => item.url)
+
+const deleteVisibleUrlsForGroups = async (
+  groups: TabGroup[],
+  handleDeleteUrls: (groupId: string, urls: string[]) => Promise<void>,
+): Promise<void> => {
+  for (const group of groups) {
+    const visibleUrls = getVisibleGroupUrls(group)
+    if (visibleUrls.length === 0) {
+      continue
+    }
+    await handleDeleteUrls(group.id, visibleUrls)
+  }
+}
+
 export const DomainModeContainer = ({
   isLoading,
   settings,
@@ -109,6 +127,36 @@ export const DomainModeContainer = ({
       ),
     [handleMoveDomainToCategory, tabGroups],
   )
+  const displayedUncategorizedDomainCount = uncategorizedForDisplay.length
+  const uncategorizedUrlsToOpen = useMemo(
+    () => uncategorizedForDisplay.flatMap(group => group.urls || []),
+    [uncategorizedForDisplay],
+  )
+  const displayedUncategorizedTabCount = uncategorizedUrlsToOpen.length
+  const handleOpenAllUncategorized = useCallback(() => {
+    void handleOpenAllTabs(uncategorizedUrlsToOpen)
+  }, [handleOpenAllTabs, uncategorizedUrlsToOpen])
+  const handleDeleteAllUncategorized = useCallback(async () => {
+    if (searchQuery.trim().length > 0 && handleDeleteUrls) {
+      await deleteVisibleUrlsForGroups(
+        uncategorizedForDisplay,
+        handleDeleteUrls,
+      )
+      return
+    }
+
+    const uncategorizedIds = uncategorizedForDisplay.map(group => group.id)
+    if (uncategorizedIds.length === 0) {
+      return
+    }
+    if (handleDeleteGroups) {
+      await handleDeleteGroups(uncategorizedIds)
+      return
+    }
+    for (const id of uncategorizedIds) {
+      await handleDeleteGroup(id)
+    }
+  }, [handleDeleteGroup, handleDeleteGroups, uncategorizedForDisplay])
 
   if (isLoading) {
     return <LoadingState />
@@ -171,53 +219,97 @@ export const DomainModeContainer = ({
         <div
           className={`sticky top-0 z-50 flex items-center justify-between bg-card ${hasVisibleCategoryGroups ? 'mt-6' : 'mt-2'}`}
         >
-          <h2 className='font-bold text-foreground text-xl'>
-            {t('savedTabs.uncategorizedDomainsTitle')}
-          </h2>
+          <div className='flex min-w-0 items-center gap-3'>
+            <h2 className='font-bold text-foreground text-xl'>
+              {t('savedTabs.uncategorizedDomainsTitle')}
+            </h2>
+            {displayedUncategorizedDomainCount > 0 && (
+              <div className='flex items-center gap-3 text-muted-foreground text-sm'>
+                <span className='text-muted-foreground text-sm'>
+                  <Tooltip>
+                    <TooltipTrigger asChild={true}>
+                      <Badge variant='secondary'>
+                        {displayedUncategorizedTabCount}
+                      </Badge>
+                    </TooltipTrigger>
+                    <SavedTabsResponsiveTooltipContent side='top'>
+                      タブ数
+                    </SavedTabsResponsiveTooltipContent>
+                  </Tooltip>
+                </span>
+                <span className='text-muted-foreground text-sm'>
+                  <Tooltip>
+                    <TooltipTrigger asChild={true}>
+                      <Badge variant='secondary'>
+                        {displayedUncategorizedDomainCount}
+                      </Badge>
+                    </TooltipTrigger>
+                    <SavedTabsResponsiveTooltipContent side='top'>
+                      ドメイン数
+                    </SavedTabsResponsiveTooltipContent>
+                  </Tooltip>
+                </span>
+              </div>
+            )}
+          </div>
 
-          {isUncategorizedReorderMode && (
-            <div className='pointer-events-auto ml-2 flex shrink-0 gap-2'>
-              <Tooltip>
-                <TooltipTrigger asChild={true}>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={handleCancelUncategorizedReorder}
-                    className='flex cursor-pointer items-center gap-1'
-                    aria-label={t('savedTabs.reorder.cancelAria')}
-                  >
-                    <X size={14} />
-                    <SavedTabsResponsiveLabel>
-                      {t('savedTabs.reorder.cancel')}
-                    </SavedTabsResponsiveLabel>
-                  </Button>
-                </TooltipTrigger>
-                <SavedTabsResponsiveTooltipContent side='top'>
-                  {t('savedTabs.reorder.cancelAria')}
-                </SavedTabsResponsiveTooltipContent>
-              </Tooltip>
+          <div className='flex items-center'>
+            {displayedUncategorizedDomainCount > 0 && (
+              <CardGroupActions
+                onOpenAll={handleOpenAllUncategorized}
+                onDeleteAll={handleDeleteAllUncategorized}
+                onConfirmOpenAll={displayedUncategorizedTabCount >= 10}
+                onConfirmDeleteAll={settings.confirmDeleteAll}
+                openAllThreshold={10}
+                itemName={t('savedTabs.uncategorizedDomainsTitle')}
+                warningMessage={t('savedTabs.domain.deleteAllWarning')}
+              />
+            )}
 
-              <Tooltip>
-                <TooltipTrigger asChild={true}>
-                  <Button
-                    variant='default'
-                    size='sm'
-                    onClick={handleConfirmUncategorizedReorder}
-                    className='flex cursor-pointer items-center gap-1'
-                    aria-label={t('savedTabs.reorder.confirmAria')}
-                  >
-                    <Check size={14} />
-                    <SavedTabsResponsiveLabel>
-                      {t('savedTabs.reorder.confirm')}
-                    </SavedTabsResponsiveLabel>
-                  </Button>
-                </TooltipTrigger>
-                <SavedTabsResponsiveTooltipContent side='top'>
-                  {t('savedTabs.reorder.confirmAria')}
-                </SavedTabsResponsiveTooltipContent>
-              </Tooltip>
-            </div>
-          )}
+            {isUncategorizedReorderMode && (
+              <div className='pointer-events-auto ml-2 flex shrink-0 gap-2'>
+                <Tooltip>
+                  <TooltipTrigger asChild={true}>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={handleCancelUncategorizedReorder}
+                      className='flex cursor-pointer items-center gap-1'
+                      aria-label={t('savedTabs.reorder.cancelAria')}
+                    >
+                      <X size={14} />
+                      <SavedTabsResponsiveLabel>
+                        {t('savedTabs.reorder.cancel')}
+                      </SavedTabsResponsiveLabel>
+                    </Button>
+                  </TooltipTrigger>
+                  <SavedTabsResponsiveTooltipContent side='top'>
+                    {t('savedTabs.reorder.cancelAria')}
+                  </SavedTabsResponsiveTooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild={true}>
+                    <Button
+                      variant='default'
+                      size='sm'
+                      onClick={handleConfirmUncategorizedReorder}
+                      className='flex cursor-pointer items-center gap-1'
+                      aria-label={t('savedTabs.reorder.confirmAria')}
+                    >
+                      <Check size={14} />
+                      <SavedTabsResponsiveLabel>
+                        {t('savedTabs.reorder.confirm')}
+                      </SavedTabsResponsiveLabel>
+                    </Button>
+                  </TooltipTrigger>
+                  <SavedTabsResponsiveTooltipContent side='top'>
+                    {t('savedTabs.reorder.confirmAria')}
+                  </SavedTabsResponsiveTooltipContent>
+                </Tooltip>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

@@ -139,7 +139,11 @@ export const ToolInput = ({ className, input, ...props }: ToolInputProps) => {
         {t('common.parameters')}
       </h4>
       <div className='rounded-md bg-muted/50'>
-        <CodeBlock code={JSON.stringify(input, null, 2)} language='json' />
+        <CodeBlock
+          code={JSON.stringify(input, null, 2)}
+          language='json'
+          wrapLongLines
+        />
       </div>
     </div>
   )
@@ -162,14 +166,22 @@ export const ToolOutput = ({
     return null
   }
 
-  let Output = <div>{output as ReactNode}</div>
+  let Output = (
+    <div className='wrap-anywhere whitespace-pre-wrap break-words'>
+      {output as ReactNode}
+    </div>
+  )
 
   if (typeof output === 'object' && !isValidElement(output)) {
     Output = (
-      <CodeBlock code={JSON.stringify(output, null, 2)} language='json' />
+      <CodeBlock
+        code={JSON.stringify(output, null, 2)}
+        language='json'
+        wrapLongLines
+      />
     )
   } else if (typeof output === 'string') {
-    Output = <CodeBlock code={output} language='json' />
+    Output = <CodeBlock code={output} language='json' wrapLongLines />
   }
 
   return (
@@ -179,13 +191,17 @@ export const ToolOutput = ({
       </h4>
       <div
         className={cn(
-          'overflow-x-auto rounded-md text-xs [&_table]:w-full',
+          'overflow-hidden rounded-md text-xs [&_table]:w-full',
           errorText
             ? 'bg-destructive/10 text-destructive'
             : 'bg-muted/50 text-foreground',
         )}
       >
-        {errorText && <div>{errorText}</div>}
+        {errorText && (
+          <div className='wrap-anywhere whitespace-pre-wrap break-words'>
+            {errorText}
+          </div>
+        )}
         {Output}
       </div>
     </div>

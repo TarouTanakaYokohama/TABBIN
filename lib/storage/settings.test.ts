@@ -36,6 +36,7 @@ describe('settings storage', () => {
     const { defaultSettings, getUserSettings } = await loadModule()
 
     await expect(getUserSettings()).resolves.toEqual(defaultSettings)
+    expect(defaultSettings.fontSizePercent).toBe(100)
     expect(defaultSettings.language).toBe('system')
     expect(mocks.warnMissingChromeStorage).toHaveBeenCalledWith('設定読み込み')
   })
@@ -45,20 +46,29 @@ describe('settings storage', () => {
       get: vi.fn(async () => ({
         userSettings: {
           aiChatEnabled: true,
+          aiProvider: 'ollama',
           excludePinnedTabs: false,
+          fontSizePercent: 125,
           language: 'en',
         },
       })),
+      set: vi.fn(async () => undefined),
     }
     mocks.getChromeStorageLocal.mockReturnValue(storageLocal)
 
     const { getUserSettings } = await loadModule()
 
     await expect(getUserSettings()).resolves.toMatchObject({
-      aiChatEnabled: true,
       excludePinnedTabs: false,
+      fontSizePercent: 125,
       language: 'en',
       normalized: true,
+    })
+    expect(storageLocal.set).toHaveBeenCalledWith({
+      userSettings: expect.not.objectContaining({
+        aiChatEnabled: true,
+        aiProvider: 'ollama',
+      }),
     })
   })
 

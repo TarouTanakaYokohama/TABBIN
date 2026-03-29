@@ -1,3 +1,4 @@
+import { DEFAULT_FONT_SIZE_PERCENT } from '@/constants/fontSize'
 import {
   DEFAULT_AI_SYSTEM_PROMPT_PRESET_ID,
   DEFAULT_AI_SYSTEM_PROMPT_TEMPLATE,
@@ -8,6 +9,26 @@ import {
   warnMissingChromeStorage,
 } from '@/lib/browser/chrome-storage'
 import type { UserSettings } from '@/types/storage'
+
+type LegacyUserSettings = UserSettings & {
+  aiChatEnabled?: boolean
+  aiProvider?: 'none' | 'ollama'
+}
+
+const stripLegacyUserSettings = (
+  settings: LegacyUserSettings,
+): UserSettings => {
+  const {
+    aiChatEnabled: _aiChatEnabled,
+    aiProvider: _aiProvider,
+    ...rest
+  } = settings
+  return rest
+}
+
+const hasLegacyUserSettingsKeys = (
+  settings: Record<string, unknown>,
+): boolean => 'aiChatEnabled' in settings || 'aiProvider' in settings
 
 // デフォルト設定
 export const defaultSettings: UserSettings = {
@@ -32,10 +53,9 @@ export const defaultSettings: UserSettings = {
   confirmDeleteAll: false,
   // デフォルト: 確認しない
   confirmDeleteEach: false,
+  fontSizePercent: DEFAULT_FONT_SIZE_PERCENT,
   // デフォルト: 確認しない
   colors: {}, // デフォルト: カラー設定まとめ
-  aiChatEnabled: false,
-  aiProvider: 'none',
   ollamaModel: '',
   activeAiSystemPromptId: DEFAULT_AI_SYSTEM_PROMPT_PRESET_ID,
   aiSystemPrompts: [
@@ -64,13 +84,22 @@ export const getUserSettings = async (): Promise<UserSettings> => {
     console.log('取得した設定データ:', data)
     if (data.userSettings) {
       console.log('保存された設定を使用:', data.userSettings)
-      // デフォルト値とマージして返す
-      return {
-        ...normalizeAiSystemPromptSettings({
-          ...defaultSettings,
-          ...data.userSettings,
-        }),
+      const sanitizedStoredSettings = stripLegacyUserSettings(
+        data.userSettings as LegacyUserSettings,
+      )
+      const normalizedSettings = normalizeAiSystemPromptSettings({
+        ...defaultSettings,
+        ...sanitizedStoredSettings,
+      })
+      if (
+        hasLegacyUserSettingsKeys(data.userSettings as Record<string, unknown>)
+      ) {
+        await storageLocal.set({
+          userSettings: normalizedSettings,
+        })
       }
+      // デフォルト値とマージして返す
+      return { ...normalizedSettings }
     }
     console.log('設定が見つからないためデフォルト値を使用')
     return {

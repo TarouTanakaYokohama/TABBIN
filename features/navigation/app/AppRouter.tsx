@@ -17,8 +17,6 @@ import {
 import { OptionsRoute } from '@/features/options/routes/OptionsRoute'
 import { PeriodicExecutionRoute } from '@/features/periodic-execution/routes/PeriodicExecutionRoute'
 import { SavedTabsRoute } from '@/features/saved-tabs/routes/SavedTabsRoute'
-import { getViewMode } from '@/lib/storage/projects'
-import type { ViewMode } from '@/types/storage'
 import { AppLayout } from './AppLayout'
 
 interface AppRouterProps {
@@ -45,27 +43,20 @@ const SavedTabsRoutePage = () => {
     if (hasModeQuery) {
       return
     }
-
-    let isCancelled = false
-
-    const resolveViewMode = async () => {
-      const mode = await getViewMode().catch((): ViewMode => 'domain')
-      const nextRoute = getSavedTabsHrefForMode(mode)
-      const currentRoute = `${location.pathname}${location.search}`
-
-      if (isCancelled || currentRoute === nextRoute) {
-        return
-      }
-
-      navigate(nextRoute, { replace: true })
+    const nextRoute = getSavedTabsHrefForMode('domain')
+    const currentRoute = `${location.pathname}${location.search}`
+    if (currentRoute === nextRoute) {
+      return
     }
-
-    void resolveViewMode()
-
-    return () => {
-      isCancelled = true
-    }
+    navigate(nextRoute, { replace: true })
   }, [hasModeQuery, location.pathname, location.search, navigate])
+
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.storage?.local?.remove) {
+      return
+    }
+    void chrome.storage.local.remove('viewMode')
+  }, [])
 
   if (!hasModeQuery) {
     return null

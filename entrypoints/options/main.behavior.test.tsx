@@ -12,6 +12,7 @@ const mocked = vi.hoisted(() => ({
   handleColorChange: vi.fn(),
   handleExcludePatternInputChange: vi.fn(),
   handleResetColors: vi.fn(),
+  handleResetFontSize: vi.fn(),
   handleSelectAutoDelete: vi.fn(),
   handleSelectClickBehavior: vi.fn(),
   hideConfirmation: vi.fn(),
@@ -21,8 +22,6 @@ const mocked = vi.hoisted(() => ({
   setExcludePatternInput: vi.fn(),
   setSettings: vi.fn(),
   settings: {
-    aiChatEnabled: true,
-    aiProvider: 'ollama',
     autoDeletePeriod: 'never',
     clickBehavior: 'saveSameDomainTabs',
     colors: {},
@@ -31,6 +30,7 @@ const mocked = vi.hoisted(() => ({
     enableCategories: true,
     excludePatterns: ['chrome://'],
     excludePinnedTabs: false,
+    fontSizePercent: 100,
     ollamaModel: 'llama3.2',
     openAllInNewWindow: false,
     openUrlInBackground: false,
@@ -299,6 +299,11 @@ vi.mock('@/features/i18n/context/I18nProvider', () => ({
         'options.contact': 'Contact',
         'options.contactDescription':
           'Google Forms is used. A Google account is required because image uploads are enabled.',
+        'options.fontSize.currentValue': 'Current value',
+        'options.fontSize.description':
+          'Adjust the font size used across the extension.',
+        'options.fontSize.inputLabel': 'Font size percentage',
+        'options.fontSize.rangeLabel': 'Font size slider',
         'options.excludePatterns.add': 'Add',
         'options.excludePatterns.empty': 'No exclude patterns',
         'options.excludePatterns.help':
@@ -310,6 +315,7 @@ vi.mock('@/features/i18n/context/I18nProvider', () => ({
         'options.excludePatterns.removeAria':
           'Remove exclude pattern {{pattern}}',
         'options.previewColorCustomization': '(preview) Color customization',
+        'options.previewFontSizeCustomization': '(preview) Font size',
         'options.previewColorCustomizationReset': 'Reset',
         'options.releaseNotes': 'Release Notes',
         'options.showSavedTimeDescription':
@@ -336,6 +342,7 @@ const resetHookState = () => {
   mocked.updateSetting.mockResolvedValue(true)
   mocked.handleColorChange.mockReset()
   mocked.handleResetColors.mockReset()
+  mocked.handleResetFontSize.mockReset()
   mocked.hideConfirmation.mockReset()
   mocked.inputProps = []
   mocked.selectContentProps = []
@@ -389,6 +396,8 @@ describe('options route behavior', () => {
 
   it('各種ハンドラを UI から呼び出す', () => {
     render(createElement(OptionsPage))
+
+    expect(screen.queryByText('Current value')).toBeNull()
 
     fireEvent.click(
       screen.getAllByTestId('mock-select-change')[0] as HTMLElement,
@@ -455,7 +464,32 @@ describe('options route behavior', () => {
     )
     expect(mocked.removeExcludePattern).toHaveBeenCalledWith('chrome://')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+    const resetButtons = screen.getAllByRole('button', { name: 'Reset' })
+
+    fireEvent.click(resetButtons[0] as HTMLElement)
+    expect(mocked.updateSetting).toHaveBeenCalledWith('fontSizePercent', 100)
+
+    const fontSizeSlider = screen.getByLabelText('Font size slider')
+    const updateSettingCallCount = mocked.updateSetting.mock.calls.length
+
+    fireEvent.change(fontSizeSlider, {
+      target: { value: '125' },
+    })
+    expect(mocked.updateSetting).toHaveBeenCalledTimes(updateSettingCallCount)
+    expect(
+      (screen.getByLabelText('Font size percentage') as HTMLInputElement).value,
+    ).toBe('125')
+
+    fireEvent.mouseUp(fontSizeSlider)
+    expect(mocked.updateSetting).toHaveBeenCalledWith('fontSizePercent', 125)
+
+    fireEvent.change(screen.getByLabelText('Font size percentage'), {
+      target: { value: '501' },
+    })
+    fireEvent.blur(screen.getByLabelText('Font size percentage'))
+    expect(mocked.updateSetting).toHaveBeenCalledWith('fontSizePercent', 500)
+
+    fireEvent.click(resetButtons[1] as HTMLElement)
     expect(mocked.handleResetColors).toHaveBeenCalledTimes(1)
 
     const colorInput = document.querySelector('input[type="color"]')
@@ -480,7 +514,7 @@ describe('options route behavior', () => {
       'chrome-extension://id/changelog.html',
       '_blank',
     )
-  })
+  }, 10000)
 
   it('Enter 以外のキー入力では除外パターンを追加しない', () => {
     render(createElement(OptionsPage))

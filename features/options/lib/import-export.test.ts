@@ -32,8 +32,6 @@ vi.mock('@/lib/storage/settings', () => {
     confirmDeleteAll: false,
     confirmDeleteEach: false,
     colors: {},
-    aiChatEnabled: false,
-    aiProvider: 'none',
     ollamaModel: '',
   }
 
@@ -150,8 +148,6 @@ const buildFullUserSettings = (
   confirmDeleteAll: false,
   confirmDeleteEach: false,
   colors: {},
-  aiChatEnabled: false,
-  aiProvider: 'none',
   ollamaModel: '',
   ...override,
 })
@@ -692,8 +688,6 @@ describe('import-export ユーティリティ', () => {
 
     const importedSettings = buildFullUserSettings({
       activeAiSystemPromptId: 'research-system-prompt',
-      aiChatEnabled: true,
-      aiProvider: 'ollama',
       aiSystemPrompts: [
         {
           createdAt: 0,
@@ -730,8 +724,6 @@ describe('import-export ユーティリティ', () => {
     expect(saveUserSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         activeAiSystemPromptId: 'research-system-prompt',
-        aiChatEnabled: true,
-        aiProvider: 'ollama',
         aiSystemPrompts: [
           expect.objectContaining({
             id: 'default-system-prompt',
@@ -1413,6 +1405,9 @@ describe('import-export ユーティリティ', () => {
       'https://restored.example.com/path',
       'Restored',
       undefined,
+      {
+        preserveExistingOnDuplicate: true,
+      },
     )
 
     const savedTabsArg = set.mock.calls[0]?.[0]?.savedTabs as Record<
@@ -1478,6 +1473,9 @@ describe('import-export ユーティリティ', () => {
       'https://restored-titleless.example.com/path',
       '',
       undefined,
+      {
+        preserveExistingOnDuplicate: true,
+      },
     )
   })
 
@@ -2727,6 +2725,12 @@ describe('import-export ユーティリティ', () => {
 
     expect(result.success).toBe(true)
     expect(createOrUpdateUrlRecordsBatch).toHaveBeenCalledTimes(1)
+    expect(createOrUpdateUrlRecordsBatch).toHaveBeenCalledWith(
+      expect.any(Array),
+      {
+        preserveExistingOnDuplicate: true,
+      },
+    )
     expect(createOrUpdateUrlRecord).not.toHaveBeenCalled()
     expect(store.customProjects).toEqual([
       buildCustomProject({

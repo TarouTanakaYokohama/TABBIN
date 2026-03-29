@@ -1,10 +1,6 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-const storageMocks = vi.hoisted(() => ({
-  getViewMode: vi.fn(),
-}))
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
@@ -83,15 +79,10 @@ vi.mock('@/features/options/routes/OptionsRoute', () => ({
   OptionsRoute: () => <div>options-route</div>,
 }))
 
-vi.mock('@/lib/storage/projects', () => ({
-  getViewMode: storageMocks.getViewMode,
-}))
-
 import { AppRouter } from './AppRouter'
 
 describe('AppRouter', () => {
   beforeEach(() => {
-    storageMocks.getViewMode.mockReset()
     window.history.replaceState({}, '', '/')
   })
 
@@ -99,13 +90,11 @@ describe('AppRouter', () => {
     cleanup()
   })
 
-  it('ルートパスは保存済み viewMode の saved-tabs に redirect する', async () => {
-    storageMocks.getViewMode.mockResolvedValue('custom')
-
+  it('ルートパスは domain mode の saved-tabs に redirect する', async () => {
     render(<AppRouter initialEntries={['/']} />)
 
     expect(
-      await screen.findByText('saved-tabs-route:?mode=custom'),
+      await screen.findByText('saved-tabs-route:?mode=domain'),
     ).toBeTruthy()
   })
 
@@ -172,9 +161,15 @@ describe('AppRouter', () => {
     expect(screen.getByText('saved-tabs-route:?mode=domain')).toBeTruthy()
   })
 
-  it('不明なルートは viewMode 取得失敗時に domain で開く', async () => {
-    storageMocks.getViewMode.mockRejectedValue(new Error('storage failed'))
+  it('mode 指定が無い saved-tabs route は domain で開く', async () => {
+    render(<AppRouter initialEntries={['/saved-tabs']} />)
 
+    expect(
+      await screen.findByText('saved-tabs-route:?mode=domain'),
+    ).toBeTruthy()
+  })
+
+  it('不明なルートは domain で開く', async () => {
     render(<AppRouter initialEntries={['/unknown']} />)
 
     expect(
@@ -188,25 +183,5 @@ describe('AppRouter', () => {
     render(<AppRouter />)
 
     expect(screen.getByText('saved-tabs-route:?mode=custom')).toBeTruthy()
-  })
-
-  it('unmount 後に viewMode が解決しても navigate しない', async () => {
-    let resolveViewMode: ((mode: 'custom' | 'domain') => void) | undefined
-    storageMocks.getViewMode.mockReturnValue(
-      new Promise<'custom' | 'domain'>(resolve => {
-        resolveViewMode = resolve
-      }),
-    )
-
-    const { unmount } = render(<AppRouter initialEntries={['/unknown']} />)
-
-    unmount()
-
-    await act(async () => {
-      resolveViewMode?.('custom')
-      await Promise.resolve()
-    })
-
-    expect(storageMocks.getViewMode).toHaveBeenCalledTimes(1)
   })
 })

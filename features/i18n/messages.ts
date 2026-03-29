@@ -78,6 +78,8 @@ const messages = {
     'aiChat.systemPrompt.settingsTooltip': 'System prompt settings',
     'aiChat.systemPrompt.copySuffix': ' copy',
     'aiChat.responseError': 'Could not get a response from AI.',
+    'aiChat.interruptedResponse':
+      'The previous response was interrupted. Send your message again if needed.',
     'aiChat.modelListLoadError': 'Could not load the model list',
     'aiChat.modelSettingsSaveError': 'Could not save model settings',
     'aiChat.history.resumeHint': 'Resume from a saved conversation',
@@ -189,6 +191,8 @@ const messages = {
     'analytics.aiSummary': 'This is an AI-generated analytics chart.',
     'analytics.conditionsTitle': 'Analysis conditions',
     'analytics.viewName': 'View name',
+    'analytics.viewNameDuplicate': 'A view with this name already exists',
+    'analytics.viewNameRequired': 'Enter a view name',
     'analytics.groupByLabel': 'Group by',
     'analytics.chartTypeLabel': 'Chart type',
     'analytics.limitLabel': 'Top count',
@@ -203,7 +207,9 @@ const messages = {
     'analytics.drilldownCount': '{{count}} items',
     'analytics.drilldownEmpty': 'No matching saved tabs were found.',
     'analytics.open': 'Open',
+    'analytics.openAllAria': 'Open all tabs in this item',
     'analytics.openAria': 'Open {{title}}',
+    'analytics.deleteAllAria': 'Delete all tabs in this item',
     'analytics.chart.savedCountByDomain': 'Saved count by domain',
     'analytics.chart.savedCountByParentCategory':
       'Saved count by parent category',
@@ -389,6 +395,10 @@ const messages = {
     'options.contact': 'Contact',
     'options.contactDescription':
       'Google Forms is used. A Google account is required because image uploads are enabled.',
+    'options.fontSize.currentValue': 'Current value: {{value}}%',
+    'options.fontSize.description': 'Adjust the font size used.',
+    'options.fontSize.inputLabel': 'Font size percentage',
+    'options.fontSize.rangeLabel': 'Font size slider',
     'options.excludePatterns.add': 'Add',
     'options.excludePatterns.empty': 'No exclude patterns',
     'options.excludePatterns.help':
@@ -445,6 +455,7 @@ const messages = {
     'options.categories.addError': 'Could not add the category.',
     'options.previewColorCustomization': '(preview) Color customization',
     'options.previewColorCustomizationReset': 'Reset',
+    'options.previewFontSizeCustomization': '(preview) Font size',
     'options.releaseNotes': 'Release Notes',
     'options.showSavedTime': 'Show saved time',
     'options.showSavedTimeDescription':
@@ -845,6 +856,8 @@ const messages = {
     'aiChat.systemPrompt.settingsTooltip': 'システムプロンプト設定',
     'aiChat.systemPrompt.copySuffix': ' のコピー',
     'aiChat.responseError': 'AI からの応答を取得できませんでした。',
+    'aiChat.interruptedResponse':
+      '前回の応答は途中で中断されました。必要であれば、もう一度送信してください。',
     'aiChat.modelListLoadError': 'モデル一覧を取得できませんでした',
     'aiChat.modelSettingsSaveError': 'モデル設定を保存できませんでした',
     'aiChat.history.resumeHint': '保存済みの会話から再開できます',
@@ -953,6 +966,8 @@ const messages = {
     'analytics.aiSummary': 'AI が生成した分析チャートです。',
     'analytics.conditionsTitle': '分析条件',
     'analytics.viewName': 'ビュー名',
+    'analytics.viewNameDuplicate': 'このビュー名は既に存在しています',
+    'analytics.viewNameRequired': 'ビュー名を入力してください',
     'analytics.groupByLabel': '集計軸',
     'analytics.chartTypeLabel': 'グラフ種別',
     'analytics.limitLabel': '上位件数',
@@ -967,7 +982,9 @@ const messages = {
     'analytics.drilldownCount': '{{count}}件',
     'analytics.drilldownEmpty': '該当する保存タブはありません。',
     'analytics.open': '開く',
+    'analytics.openAllAria': 'この項目のタブをすべて開く',
     'analytics.openAria': '{{title}} を開く',
+    'analytics.deleteAllAria': 'この項目のタブをすべて削除',
     'analytics.chart.savedCountByDomain': 'ドメインごとの保存数',
     'analytics.chart.savedCountByParentCategory': '親カテゴリごとの保存数',
     'analytics.chart.savedCountBySubCategory': '子カテゴリごとの保存数',
@@ -1155,6 +1172,10 @@ const messages = {
     'options.contact': 'お問い合わせ',
     'options.contactDescription':
       'Google Formsを使用します。※画像アップロード可能な設定ですので、Googleアカウントでのログインが必要です。',
+    'options.fontSize.currentValue': '現在の値: {{value}}%',
+    'options.fontSize.description': 'フォントサイズを調整できます。',
+    'options.fontSize.inputLabel': 'フォントサイズ (%)',
+    'options.fontSize.rangeLabel': 'フォントサイズスライダー',
     'options.excludePatterns.add': '追加',
     'options.excludePatterns.empty': '除外パターンはありません',
     'options.excludePatterns.help':
@@ -1207,6 +1228,7 @@ const messages = {
     'options.categories.addError': 'カテゴリの追加に失敗しました。',
     'options.previewColorCustomization': '(preview)カラーカスタマイズ',
     'options.previewColorCustomizationReset': 'リセット',
+    'options.previewFontSizeCustomization': '(preview)フォントサイズ',
     'options.releaseNotes': 'リリースノート',
     'options.showSavedTime': '保存日時を表示する',
     'options.showSavedTimeDescription':

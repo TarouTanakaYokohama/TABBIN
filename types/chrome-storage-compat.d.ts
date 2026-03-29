@@ -8,7 +8,6 @@ interface LocalStorageSchema {
   customProjects: import('./storage').CustomProject[]
   customProjectOrder: string[]
   urls: import('./storage').UrlRecord[]
-  viewMode: import('./storage').ViewMode
   userSettings: import('./storage').UserSettings
   domainCategorySettings: import('./storage').DomainCategorySettings[]
   domainCategoryMappings: import('./storage').DomainParentCategoryMapping[]

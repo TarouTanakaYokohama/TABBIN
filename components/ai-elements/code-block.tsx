@@ -95,6 +95,7 @@ type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
   code: string
   language: BundledLanguage
   showLineNumbers?: boolean
+  wrapLongLines?: boolean
 }
 
 interface TokenizedCode {
@@ -246,10 +247,12 @@ const CodeBlockBody = memo(
   ({
     tokenized,
     showLineNumbers,
+    wrapLongLines,
     className,
   }: {
     tokenized: TokenizedCode
     showLineNumbers: boolean
+    wrapLongLines: boolean
     className?: string
   }) => {
     const preStyle = useMemo(
@@ -269,6 +272,7 @@ const CodeBlockBody = memo(
       <pre
         className={cn(
           'm-0 p-4 text-sm dark:bg-(--shiki-dark-bg)! dark:text-(--shiki-dark)!',
+          wrapLongLines && 'wrap-anywhere whitespace-pre-wrap break-words',
           className,
         )}
         style={preStyle}
@@ -373,10 +377,12 @@ export const CodeBlockContent = ({
   code,
   language,
   showLineNumbers = false,
+  wrapLongLines = false,
 }: {
   code: string
   language: BundledLanguage
   showLineNumbers?: boolean
+  wrapLongLines?: boolean
 }) => {
   // Memoized raw tokens for immediate display
   const rawTokens = useMemo(() => createRawTokens(code), [code])
@@ -405,8 +411,17 @@ export const CodeBlockContent = ({
   }, [code, language, rawTokens])
 
   return (
-    <div className='relative overflow-auto'>
-      <CodeBlockBody showLineNumbers={showLineNumbers} tokenized={tokenized} />
+    <div
+      className={cn(
+        'relative overflow-auto',
+        wrapLongLines && 'overflow-x-hidden',
+      )}
+    >
+      <CodeBlockBody
+        showLineNumbers={showLineNumbers}
+        tokenized={tokenized}
+        wrapLongLines={wrapLongLines}
+      />
     </div>
   )
 }
@@ -415,6 +430,7 @@ export const CodeBlock = ({
   code,
   language,
   showLineNumbers = false,
+  wrapLongLines = false,
   className,
   children,
   ...props
@@ -429,6 +445,7 @@ export const CodeBlock = ({
           code={code}
           language={language}
           showLineNumbers={showLineNumbers}
+          wrapLongLines={wrapLongLines}
         />
       </CodeBlockContainer>
     </CodeBlockContext.Provider>
