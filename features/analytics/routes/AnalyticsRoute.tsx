@@ -133,6 +133,9 @@ const getLatestAssistantCharts = (
 const awaitableEmptyRecords: Awaited<ReturnType<typeof loadAnalyticsRecords>> =
   []
 
+const shouldConfirmBulkOpen = (recordCount: number): boolean =>
+  recordCount >= 10
+
 const removeUrlFromStorage = async (url: string): Promise<void> =>
   new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
@@ -295,6 +298,9 @@ const AnalyticsRoute = () => {
     null,
   )
   const [deletingUrl, setDeletingUrl] = useState<string | null>(null)
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
   const [isUsingAiCharts, setIsUsingAiCharts] = useState(false)
   const chartMessages = useMemo<AnalyticsChartMessages>(
     () => ({
@@ -486,7 +492,7 @@ const AnalyticsRoute = () => {
   }
 
   const performDelete = async (record: AiSavedUrlRecord) => {
-    if (deletingUrl) {
+    if (deletingUrl || isBulkDeleting) {
       return
     }
 
@@ -504,7 +510,7 @@ const AnalyticsRoute = () => {
   }
 
   const handleDeleteClick = (record: AiSavedUrlRecord) => {
-    if (deletingUrl) {
+    if (deletingUrl || isBulkDeleting) {
       return
     }
 
@@ -515,6 +521,67 @@ const AnalyticsRoute = () => {
 
     void performDelete(record)
   }
+
+  const handleOpenAllDrilldownRecords = () => {
+    const matchingRecords = drilldownSelection?.matchingRecords ?? []
+    for (const record of matchingRecords) {
+      window.open(record.url, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  const handleOpenAllClick = () => {
+    const recordCount = drilldownSelection?.matchingRecords.length ?? 0
+    if (recordCount === 0) {
+      return
+    }
+
+    if (shouldConfirmBulkOpen(recordCount)) {
+      setIsOpenAllConfirmOpen(true)
+      return
+    }
+
+    handleOpenAllDrilldownRecords()
+  }
+
+  const performBulkDelete = async () => {
+    const matchingRecords = drilldownSelection?.matchingRecords ?? []
+    if (matchingRecords.length === 0 || deletingUrl || isBulkDeleting) {
+      return
+    }
+
+    try {
+      setIsBulkDeleting(true)
+      for (const record of matchingRecords) {
+        await removeUrlFromStorage(record.url)
+      }
+      const nextRecords = await refreshRecords()
+      rebuildDrilldownSelection(nextRecords)
+    } catch (error) {
+      console.error('Failed to bulk delete analytics drilldown urls:', error)
+    } finally {
+      setIsBulkDeleting(false)
+      setIsBulkDeleteConfirmOpen(false)
+    }
+  }
+
+  const handleDeleteAllClick = () => {
+    if (deletingUrl || isBulkDeleting) {
+      return
+    }
+
+    if (!drilldownSelection?.matchingRecords.length) {
+      return
+    }
+
+    if (settings.confirmDeleteAll) {
+      setIsBulkDeleteConfirmOpen(true)
+      return
+    }
+
+    void performBulkDelete()
+  }
+
+  const isDeleteActionDisabled = deletingUrl !== null || isBulkDeleting
 
   return (
     <div
@@ -755,7 +822,7 @@ const AnalyticsRoute = () => {
                 </div>
                 {drilldownSelection ? (
                   <Card className='mt-4 rounded-3xl bg-background p-4 shadow-none'>
-                    <div>
+                    <div className='flex flex-wrap items-start justify-between gap-3'>
                       <div>
                         <h3 className='font-semibold text-base'>
                           {t('analytics.drilldownTitle')}
@@ -770,6 +837,45 @@ const AnalyticsRoute = () => {
                           })}
                         </p>
                       </div>
+                      {drilldownSelection.matchingRecords.length > 0 ? (
+                        <TooltipProvider delayDuration={0}>
+                          <div className='flex shrink-0 items-center gap-1'>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  aria-label={t('analytics.openAllAria')}
+                                  onClick={handleOpenAllClick}
+                                  size='icon-sm'
+                                  type='button'
+                                  variant='ghost'
+                                >
+                                  <ExternalLink className='size-4' />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side='top'>
+                                {t('savedTabs.openAll')}
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  aria-label={t('analytics.deleteAllAria')}
+                                  disabled={isDeleteActionDisabled}
+                                  onClick={handleDeleteAllClick}
+                                  size='icon-sm'
+                                  type='button'
+                                  variant='ghost'
+                                >
+                                  <Trash2 className='size-4' />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side='top'>
+                                {t('savedTabs.deleteAll')}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
+                      ) : null}
                     </div>
                     <div className='mt-4 space-y-3'>
                       {drilldownSelection.matchingRecords.length === 0 ? (
@@ -854,7 +960,10 @@ const AnalyticsRoute = () => {
                                           aria-label={t(
                                             'savedTabs.url.deleteAria',
                                           )}
-                                          disabled={deletingUrl === record.url}
+                                          disabled={
+                                            isDeleteActionDisabled ||
+                                            deletingUrl === record.url
+                                          }
                                           onClick={() =>
                                             handleDeleteClick(record)
                                           }
@@ -896,6 +1005,66 @@ const AnalyticsRoute = () => {
         onSelectHistoryItem={selectConversation}
         title={activeConversation?.title}
       />
+
+      <AlertDialog
+        onOpenChange={isOpen => {
+          if (!isOpen && isBulkDeleting) {
+            return
+          }
+          setIsBulkDeleteConfirmOpen(isOpen)
+        }}
+        open={isBulkDeleteConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('savedTabs.deleteAllConfirmTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('savedTabs.deleteAllDefaultWarning')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={event => {
+                event.preventDefault()
+                void performBulkDelete()
+              }}
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        onOpenChange={setIsOpenAllConfirmOpen}
+        open={isOpenAllConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('savedTabs.openAllConfirmTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('savedTabs.openAllConfirmDescription', undefined, {
+                count: '10',
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                handleOpenAllDrilldownRecords()
+              }}
+            >
+              {t('common.open')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         onOpenChange={isOpen => {

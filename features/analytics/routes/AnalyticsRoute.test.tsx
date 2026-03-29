@@ -803,6 +803,102 @@ describe('AnalyticsRoute', () => {
     ).toBeTruthy()
   })
 
+  it('ドリルダウン見出しにすべて開く・すべて削除ボタンを表示する', async () => {
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+
+    expect(
+      await screen.findByRole('button', { name: 'Open all tabs in this item' }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Delete all tabs in this item' }),
+    ).toBeTruthy()
+  })
+
+  it('ドリルダウンのすべて開くで対象URLを一括で開く', async () => {
+    const openSpy = vi
+      .spyOn(window, 'open')
+      .mockImplementation(vi.fn() as never)
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open all tabs in this item' }),
+    )
+
+    expect(openSpy).toHaveBeenCalledTimes(1)
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://docs.example.com/a',
+      '_blank',
+      'noopener,noreferrer',
+    )
+  })
+
+  it('confirmDeleteAll=false のときドリルダウンのすべて削除で即時削除する', async () => {
+    analyticsRouteMocks.loadRecordsMock
+      .mockResolvedValueOnce(records)
+      .mockResolvedValueOnce([records[1]])
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Delete all tabs in this item',
+      }),
+    )
+
+    await waitFor(() => {
+      expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledWith(
+        {
+          action: 'removeUrlFromStorage',
+          url: 'https://docs.example.com/a',
+        },
+        expect.any(Function),
+      )
+    })
+  })
+
+  it('confirmDeleteAll=true のときドリルダウンのすべて削除は確認ダイアログを経由する', async () => {
+    analyticsRouteMocks.loadSettingsMock.mockResolvedValue({
+      ...defaultSettings,
+      confirmDeleteAll: true,
+    })
+    analyticsRouteMocks.loadRecordsMock
+      .mockResolvedValueOnce(records)
+      .mockResolvedValueOnce([records[1]])
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Delete all tabs in this item',
+      }),
+    )
+
+    expect(await screen.findByText('Delete all tabs?')).toBeTruthy()
+    expect(analyticsRouteMocks.sendMessageMock).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => {
+      expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledWith(
+        {
+          action: 'removeUrlFromStorage',
+          url: 'https://docs.example.com/a',
+        },
+        expect.any(Function),
+      )
+    })
+  })
+
   it('confirmDeleteEach=false のとき即時削除して一覧を再読込する', async () => {
     analyticsRouteMocks.loadRecordsMock
       .mockResolvedValueOnce(records)
