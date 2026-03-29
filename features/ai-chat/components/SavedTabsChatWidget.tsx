@@ -2154,7 +2154,6 @@ const SavedTabsChatWidget = ({
   const handleSelectModel = async (modelName: string): Promise<boolean> => {
     const nextSettings = normalizeAiSystemPromptSettings({
       ...resolvedSettings,
-      aiProvider: 'ollama' as const,
       ollamaModel: modelName,
     })
 

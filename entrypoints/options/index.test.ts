@@ -8,8 +8,6 @@ vi.mock('@/features/options/hooks/useSettings', () => ({
     excludePatternInput: '',
     handleExcludePatternInputChange: vi.fn(),
     settings: {
-      aiChatEnabled: false,
-      aiProvider: 'none',
       autoDeletePeriod: 'never',
       clickBehavior: 'saveSameDomainTabs',
       colors: {},

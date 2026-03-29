@@ -362,8 +362,6 @@ describe('runAiChatRequest', () => {
       ],
     })
     mocked.getUserSettings.mockResolvedValue({
-      aiChatEnabled: false,
-      aiProvider: 'none',
       ollamaModel: 'llama3.2',
     })
     mocked.getUrlRecords.mockResolvedValue([
@@ -482,8 +480,6 @@ describe('runAiChatRequest', () => {
   it('active system prompt template を使い、placeholder に context を差し込む', async () => {
     mocked.getUserSettings.mockResolvedValue({
       activeAiSystemPromptId: 'prompt-2',
-      aiChatEnabled: false,
-      aiProvider: 'none',
       aiSystemPrompts: [
         {
           createdAt: 1,
@@ -827,8 +823,6 @@ describe('runAiChatRequest', () => {
 
   it('Ollama 設定が未完了なら実行前に失敗する', async () => {
     mocked.getUserSettings.mockResolvedValue({
-      aiChatEnabled: true,
-      aiProvider: 'ollama',
       ollamaModel: '',
     })
 
@@ -843,8 +837,6 @@ describe('runAiChatRequest', () => {
 
   it('provider 状態に関係なくモデルがあれば実行できる', async () => {
     mocked.getUserSettings.mockResolvedValue({
-      aiChatEnabled: false,
-      aiProvider: 'none',
       ollamaModel: 'llama3.2',
     })
 

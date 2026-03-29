@@ -42,7 +42,6 @@ const createSavedTabSeed = () => ({
     },
   ],
   userSettings: {
-    aiProvider: 'none',
     autoDeletePeriod: 'never',
     clickBehavior: 'saveSameDomainTabs',
     colors: {},
@@ -79,7 +78,6 @@ test.describe('saved-tabs stories', () => {
       'tab-manager-theme': 'system',
       urls: [],
       userSettings: {
-        aiProvider: 'none',
         autoDeletePeriod: 'never',
         clickBehavior: 'saveSameDomainTabs',
         colors: {},

@@ -32,8 +32,6 @@ vi.mock('@/lib/storage/settings', () => {
     confirmDeleteAll: false,
     confirmDeleteEach: false,
     colors: {},
-    aiChatEnabled: false,
-    aiProvider: 'none',
     ollamaModel: '',
   }
 
@@ -150,8 +148,6 @@ const buildFullUserSettings = (
   confirmDeleteAll: false,
   confirmDeleteEach: false,
   colors: {},
-  aiChatEnabled: false,
-  aiProvider: 'none',
   ollamaModel: '',
   ...override,
 })
@@ -692,8 +688,6 @@ describe('import-export ユーティリティ', () => {
 
     const importedSettings = buildFullUserSettings({
       activeAiSystemPromptId: 'research-system-prompt',
-      aiChatEnabled: true,
-      aiProvider: 'ollama',
       aiSystemPrompts: [
         {
           createdAt: 0,
@@ -730,8 +724,6 @@ describe('import-export ユーティリティ', () => {
     expect(saveUserSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         activeAiSystemPromptId: 'research-system-prompt',
-        aiChatEnabled: true,
-        aiProvider: 'ollama',
         aiSystemPrompts: [
           expect.objectContaining({
             id: 'default-system-prompt',

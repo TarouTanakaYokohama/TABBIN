@@ -11,8 +11,6 @@ const mocked = vi.hoisted(() => ({
   isLoading: false,
   prepareAutoDeletePeriod: vi.fn(),
   settings: {
-    aiChatEnabled: true,
-    aiProvider: 'ollama',
     autoDeletePeriod: 'never',
     clickBehavior: 'saveSameDomainTabs',
     colors: {},

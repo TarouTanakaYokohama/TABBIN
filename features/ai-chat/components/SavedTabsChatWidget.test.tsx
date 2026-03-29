@@ -42,8 +42,6 @@ vi.mock('@/lib/storage/settings', () => ({
     confirmDeleteAll: false,
     confirmDeleteEach: false,
     colors: {},
-    aiChatEnabled: false,
-    aiProvider: 'none',
     activeAiSystemPromptId: 'default-system-prompt',
     aiSystemPrompts: [
       {
@@ -163,8 +161,6 @@ const createChromeMock = () =>
 const buildConfiguredSettings = (): UserSettings =>
   ({
     activeAiSystemPromptId: 'default-system-prompt',
-    aiChatEnabled: false,
-    aiProvider: 'none',
     aiSystemPrompts: [
       {
         createdAt: 0,
@@ -2202,7 +2198,6 @@ describe('SavedTabsChatWidget', () => {
     await waitFor(() => {
       expect(mocked.saveUserSettings).toHaveBeenCalledWith(
         expect.objectContaining({
-          aiProvider: 'ollama',
           ollamaModel: 'llama3.2',
         }),
       )
