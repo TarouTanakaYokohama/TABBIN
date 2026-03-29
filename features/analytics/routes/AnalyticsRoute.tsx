@@ -19,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -63,7 +64,6 @@ import {
   saveSavedAnalyticsViews,
 } from '@/lib/storage/analytics'
 import { defaultSettings, getUserSettings } from '@/lib/storage/settings'
-import { cn } from '@/lib/utils'
 import type { AiChatToolTrace } from '@/types/background'
 import { formatLocaleDateTime } from '@/utils/localDateTime'
 
@@ -637,13 +637,16 @@ const AnalyticsRoute = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className='mt-4 grid gap-3 p-0'>
-                      <div className='grid gap-1.5'>
-                        <Label
+                      <Field
+                        className='gap-1.5'
+                        data-invalid={viewNameError !== null}
+                      >
+                        <FieldLabel
                           className='text-sm'
                           htmlFor='analytics-view-name'
                         >
                           {t('analytics.viewName')}
-                        </Label>
+                        </FieldLabel>
                         <Input
                           aria-label={t('analytics.viewName')}
                           aria-describedby={
@@ -652,11 +655,7 @@ const AnalyticsRoute = () => {
                               : undefined
                           }
                           aria-invalid={viewNameError !== null}
-                          className={cn(
-                            'rounded-xl bg-background',
-                            viewNameError &&
-                              'border-destructive focus-visible:ring-destructive/20',
-                          )}
+                          className='rounded-xl bg-background'
                           id='analytics-view-name'
                           onChange={event => {
                             const nextValue = event.target.value
@@ -673,17 +672,13 @@ const AnalyticsRoute = () => {
                           value={viewName}
                         />
                         {viewNameError ? (
-                          <p
-                            className='text-destructive text-sm'
-                            id='analytics-view-name-error'
-                            role='alert'
-                          >
+                          <FieldError id='analytics-view-name-error'>
                             {viewNameError === 'required'
                               ? t('analytics.viewNameRequired')
                               : t('analytics.viewNameDuplicate')}
-                          </p>
+                          </FieldError>
                         ) : null}
-                      </div>
+                      </Field>
                       <div className='grid gap-1.5'>
                         <Label className='text-sm' htmlFor='analytics-group-by'>
                           {t('analytics.groupByLabel')}

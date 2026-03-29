@@ -10,6 +10,7 @@
 // @covers components/ui/collapsible.tsx
 // @covers components/ui/command.tsx
 // @covers components/ui/dropdown-menu.tsx
+// @covers components/ui/field.tsx
 // @covers components/ui/hover-card.tsx
 // @covers components/ui/input-group.tsx
 // @covers components/ui/input.tsx

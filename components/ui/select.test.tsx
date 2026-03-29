@@ -112,4 +112,23 @@ describe('select ui', () => {
       'min-w-(--radix-select-trigger-width)',
     )
   })
+
+  it('SelectTrigger は aria-invalid=true のときエラー表示用クラスを持つ', () => {
+    render(
+      <Select>
+        <SelectTrigger aria-invalid={true}>
+          <SelectValue>Invalid Value</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value='item-1'>Item 1</SelectItem>
+        </SelectContent>
+      </Select>,
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Invalid Value' })
+    expect(trigger.getAttribute('aria-invalid')).toBe('true')
+    expect(trigger.className).toContain('aria-invalid:border-destructive')
+    expect(trigger.className).toContain('aria-invalid:ring-destructive/20')
+    expect(trigger.className).toContain('dark:aria-invalid:ring-destructive/40')
+  })
 })
