@@ -79,7 +79,7 @@ export const SavedTabsRoute = ({
 
   return (
     <div
-      className='mx-4 flex h-screen items-stretch overflow-hidden'
+      className='flex h-screen items-stretch overflow-hidden'
       data-testid='saved-tabs-page-layout'
     >
       <div

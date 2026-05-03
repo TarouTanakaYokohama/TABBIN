@@ -618,7 +618,7 @@ const AnalyticsRoute = () => {
       className='flex h-screen min-h-0 min-w-0 items-stretch overflow-hidden bg-background'
       data-testid='analytics-page-layout'
     >
-      <main className='min-h-0 min-w-0 flex-1 overflow-hidden bg-muted/10 p-4'>
+      <main className='min-h-0 min-w-0 flex-1 overflow-hidden bg-muted/10'>
         <div className='mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-4'>
           <section className='grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)] gap-4'>
             <aside

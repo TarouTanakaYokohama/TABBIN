@@ -364,6 +364,11 @@ const records: AiSavedUrlRecord[] = [
 
 describe('AnalyticsRoute', () => {
   beforeEach(() => {
+    vi.useFakeTimers({
+      shouldAdvanceTime: true,
+    })
+    vi.setSystemTime(new Date(Date.UTC(2026, 2, 14, 0, 0, 0)))
+
     analyticsRouteMocks.language = 'en'
     analyticsRouteMocks.deleteViewMock.mockReset()
     analyticsRouteMocks.loadRecordsMock.mockReset()
@@ -394,6 +399,7 @@ describe('AnalyticsRoute', () => {
 
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
   })
 
   it('shared ui コンポーネントを利用する実装になっている', () => {
