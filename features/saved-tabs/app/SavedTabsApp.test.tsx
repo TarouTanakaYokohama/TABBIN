@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -153,13 +154,19 @@ vi.mock('@dnd-kit/core', () => ({
 }))
 
 vi.mock('@dnd-kit/sortable', () => ({
-  arrayMove: <T,>(items: T[]) => items,
+  arrayMove: <T,>(items: T[], from: number, to: number) => {
+    const nextItems = [...items]
+    const [moved] = nextItems.splice(from, 1)
+    nextItems.splice(to, 0, moved)
+    return nextItems
+  },
   sortableKeyboardCoordinates: vi.fn(),
 }))
 
 vi.mock('sonner', () => ({
   toast: {
     error: vi.fn(),
+    info: vi.fn(),
     success: vi.fn(),
   },
 }))
@@ -224,8 +231,9 @@ vi.mock('@/features/saved-tabs/components/Header', () => ({
 }))
 
 vi.mock('@/features/saved-tabs/custom/CustomModeContainer', () => ({
-  CustomModeContainer: ({ projects }: { projects: CustomProject[] }) => {
-    mocked.customModeContainerSpy(projects)
+  CustomModeContainer: (props: { projects: CustomProject[] }) => {
+    const { projects } = props
+    mocked.customModeContainerSpy(props)
     return (
       <div data-testid='custom-projects'>
         {projects.map(project => (
@@ -297,14 +305,20 @@ vi.mock('@/lib/storage/urls', () => ({
   getUrlRecords: vi.fn(async () => []),
 }))
 
+import { moveCustomProjectUrlAndSyncState } from '@/features/saved-tabs/lib/custom-project-move'
 import { handleTabGroupRemoval } from '@/features/saved-tabs/lib/tab-operations'
+import { syncStorageChanges } from '@/features/saved-tabs/shared/services/modeSyncService'
 import { saveParentCategories } from '@/lib/storage/categories'
 import {
   removeUrlFromAllCustomProjects,
   removeUrlIdsFromAllCustomProjects,
   removeUrlsFromAllCustomProjects,
 } from '@/lib/storage/projects'
-import { getTabGroupUrls, removeUrlIdsFromTabGroup } from '@/lib/storage/tabs'
+import {
+  getTabGroupUrls,
+  removeUrlIdsFromTabGroup,
+  removeUrlsFromTabGroup,
+} from '@/lib/storage/tabs'
 import { getUrlRecords } from '@/lib/storage/urls'
 import { SavedTabsApp } from './SavedTabsApp'
 
@@ -749,5 +763,394 @@ describe('SavedTabsApp custom search', () => {
     ])
     expect(getTabGroupUrls).not.toHaveBeenCalled()
     expect(removeUrlFromAllCustomProjects).not.toHaveBeenCalled()
+  })
+
+  it('custom mode props はURL open/delete/move handlers を実行する', async () => {
+    const chromeTabsCreateMock = vi.fn()
+    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
+    chromeGlobal.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => ({ savedTabs: [] })),
+          set: vi.fn(),
+        },
+        onChanged: {
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        },
+      },
+      tabs: {
+        create: chromeTabsCreateMock,
+      },
+      windows: {
+        create: vi.fn(),
+      },
+      runtime: {
+        getURL: vi.fn(),
+      },
+    } as unknown as typeof chrome
+    vi.mocked(getUrlRecords).mockResolvedValue([
+      {
+        id: 'url-1',
+        savedAt: 1,
+        title: 'Doc',
+        url: 'https://example.com/doc',
+      },
+    ])
+    vi.mocked(moveCustomProjectUrlAndSyncState).mockResolvedValue(undefined)
+
+    render(<SavedTabsApp />)
+
+    const customProps = mocked.customModeContainerSpy.mock.calls.at(
+      -1,
+    )?.[0] as {
+      handleDeleteUrl: (projectId: string, url: string) => Promise<void>
+      handleMoveUrlBetweenProjects: (
+        sourceProjectId: string,
+        targetProjectId: string,
+        url: string,
+      ) => Promise<null>
+      handleOpenAllUrls: (
+        urls: Array<{ url: string; title: string }>,
+      ) => Promise<void>
+      handleOpenUrl: (url: string) => Promise<void>
+    }
+
+    await customProps.handleOpenUrl('https://example.com/doc')
+    await customProps.handleOpenAllUrls([
+      {
+        title: 'Doc',
+        url: 'https://example.com/doc',
+      },
+    ])
+    await customProps.handleDeleteUrl('project-1', 'https://example.com/doc')
+    await expect(
+      customProps.handleMoveUrlBetweenProjects(
+        'project-1',
+        'project-2',
+        'https://example.com/doc',
+      ),
+    ).resolves.toBeNull()
+
+    expect(chromeTabsCreateMock).toHaveBeenCalledWith({
+      active: false,
+      url: 'https://example.com/doc',
+    })
+    expect(mocked.projectState.handleDeleteUrlFromProject).toHaveBeenCalledWith(
+      'project-1',
+      'https://example.com/doc',
+    )
+    expect(moveCustomProjectUrlAndSyncState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceProjectId: 'project-1',
+        targetProjectId: 'project-2',
+        url: 'https://example.com/doc',
+      }),
+    )
+  })
+
+  it('custom URL移動エラーは toast error に落として null を返す', async () => {
+    vi.mocked(moveCustomProjectUrlAndSyncState).mockRejectedValue(
+      new Error('move failed'),
+    )
+
+    render(<SavedTabsApp />)
+
+    const customProps = mocked.customModeContainerSpy.mock.calls.at(
+      -1,
+    )?.[0] as {
+      handleMoveUrlBetweenProjects: (
+        sourceProjectId: string,
+        targetProjectId: string,
+        url: string,
+      ) => Promise<null>
+    }
+
+    await expect(
+      customProps.handleMoveUrlBetweenProjects(
+        'project-1',
+        'project-2',
+        'https://example.com/doc',
+      ),
+    ).resolves.toBeNull()
+  })
+
+  it('複数ドメイン削除はURL IDと旧URL形式をまとめて同期削除する', async () => {
+    const groupWithIds: TabGroup = {
+      domain: 'example.com',
+      id: 'group-1',
+      urlIds: ['url-a'],
+    }
+    const legacyGroup: TabGroup = {
+      domain: 'legacy.example.com',
+      id: 'group-2',
+      urls: [
+        {
+          title: 'Legacy',
+          url: 'https://legacy.example.com/a',
+        },
+      ],
+    }
+    mocked.projectState.viewMode = 'domain'
+    mocked.projectState.viewModeRef = { current: 'domain' }
+    mocked.tabDataState.tabGroups = [groupWithIds, legacyGroup]
+    mocked.tabDataState.tabGroupsWithUrls = [groupWithIds, legacyGroup]
+    const chromeSetMock = vi.fn()
+    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
+    chromeGlobal.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => ({
+            savedTabs: [groupWithIds, legacyGroup],
+          })),
+          set: chromeSetMock,
+        },
+        onChanged: {
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        },
+      },
+      tabs: {
+        create: vi.fn(),
+      },
+      windows: {
+        create: vi.fn(),
+      },
+      runtime: {
+        getURL: vi.fn(),
+      },
+    } as unknown as typeof chrome
+    vi.mocked(getTabGroupUrls).mockResolvedValue([
+      {
+        id: 'legacy-url',
+        savedAt: 1,
+        title: 'Legacy',
+        url: 'https://legacy.example.com/a',
+      },
+    ])
+
+    render(<SavedTabsApp initialViewMode='domain' />)
+
+    const domainProps = mocked.domainModeContainerSpy.mock.calls.at(
+      -1,
+    )?.[0] as {
+      handleDeleteGroups: (ids: string[]) => Promise<void>
+    }
+
+    await domainProps.handleDeleteGroups([])
+    await domainProps.handleDeleteGroups(['group-1', 'group-2'])
+
+    expect(handleTabGroupRemoval).toHaveBeenCalledWith('group-1')
+    expect(handleTabGroupRemoval).toHaveBeenCalledWith('group-2')
+    expect(removeUrlIdsFromAllCustomProjects).toHaveBeenCalledWith(['url-a'])
+    expect(removeUrlsFromAllCustomProjects).toHaveBeenCalledWith([
+      'https://legacy.example.com/a',
+    ])
+    expect(chromeSetMock).toHaveBeenCalledWith({
+      savedTabs: [],
+    })
+  })
+
+  it('URL一括削除はID解決できない場合 URL 文字列削除へフォールバックする', async () => {
+    const group: TabGroup = {
+      domain: 'example.com',
+      id: 'group-1',
+      urls: [
+        {
+          id: 'url-a',
+          title: 'A',
+          url: 'https://example.com/a',
+        },
+        {
+          title: 'No ID',
+          url: 'https://example.com/no-id',
+        },
+      ],
+    }
+    mocked.projectState.viewMode = 'domain'
+    mocked.projectState.viewModeRef = { current: 'domain' }
+    mocked.tabDataState.tabGroups = [group]
+    mocked.tabDataState.tabGroupsWithUrls = [group]
+
+    render(<SavedTabsApp initialViewMode='domain' />)
+
+    const domainProps = mocked.domainModeContainerSpy.mock.calls.at(
+      -1,
+    )?.[0] as {
+      handleDeleteUrls: (groupId: string, urls: string[]) => Promise<void>
+    }
+
+    await domainProps.handleDeleteUrls('group-1', [
+      'https://example.com/a',
+      'https://example.com/no-id',
+    ])
+
+    expect(removeUrlsFromTabGroup).toHaveBeenCalledWith('group-1', [
+      'https://example.com/a',
+      'https://example.com/no-id',
+    ])
+  })
+
+  it('未分類ドメインの並び替えを確定/キャンセルできる', async () => {
+    const group1: TabGroup = {
+      domain: 'a.example.com',
+      id: 'group-1',
+      urlIds: ['url-1'],
+    }
+    const group2: TabGroup = {
+      domain: 'b.example.com',
+      id: 'group-2',
+      urlIds: ['url-2'],
+    }
+    mocked.projectState.viewMode = 'domain'
+    mocked.projectState.viewModeRef = { current: 'domain' }
+    mocked.tabDataState.tabGroups = [group1, group2]
+    mocked.tabDataState.tabGroupsWithUrls = [group1, group2]
+    const chromeSetMock = vi.fn()
+    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
+    chromeGlobal.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => ({ savedTabs: [group1, group2] })),
+          set: chromeSetMock,
+        },
+        onChanged: {
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        },
+      },
+      tabs: {
+        create: vi.fn(),
+      },
+      windows: {
+        create: vi.fn(),
+      },
+      runtime: {
+        getURL: vi.fn(),
+      },
+    } as unknown as typeof chrome
+
+    render(<SavedTabsApp initialViewMode='domain' />)
+
+    let domainProps = mocked.domainModeContainerSpy.mock.calls.at(-1)?.[0] as {
+      handleCancelUncategorizedReorder: () => void
+      handleConfirmUncategorizedReorder: () => Promise<void>
+      handleUncategorizedDragEnd: (event: {
+        active: { id: string }
+        over: { id: string }
+      }) => void
+    }
+
+    fireEvent.change(screen.getByLabelText('search'), {
+      target: { value: '' },
+    })
+
+    act(() => {
+      domainProps.handleUncategorizedDragEnd({
+        active: { id: 'group-1' },
+        over: { id: 'group-2' },
+      })
+    })
+    await waitFor(() => {
+      expect(
+        (
+          mocked.domainModeContainerSpy.mock.calls.at(-1)?.[0] as {
+            isUncategorizedReorderMode: boolean
+          }
+        ).isUncategorizedReorderMode,
+      ).toBe(true)
+    })
+    domainProps = mocked.domainModeContainerSpy.mock.calls.at(
+      -1,
+    )?.[0] as typeof domainProps
+    await domainProps.handleConfirmUncategorizedReorder()
+
+    expect(chromeSetMock).toHaveBeenCalledWith({
+      savedTabs: [group2, group1],
+    })
+    await waitFor(() => {
+      expect(
+        (
+          mocked.domainModeContainerSpy.mock.calls.at(-1)?.[0] as {
+            isUncategorizedReorderMode: boolean
+          }
+        ).isUncategorizedReorderMode,
+      ).toBe(false)
+    })
+    domainProps = mocked.domainModeContainerSpy.mock.calls.at(
+      -1,
+    )?.[0] as typeof domainProps
+
+    act(() => {
+      domainProps.handleUncategorizedDragEnd({
+        active: { id: 'group-2' },
+        over: { id: 'group-1' },
+      })
+    })
+    await waitFor(() => {
+      expect(
+        (
+          mocked.domainModeContainerSpy.mock.calls.at(-1)?.[0] as {
+            isUncategorizedReorderMode: boolean
+          }
+        ).isUncategorizedReorderMode,
+      ).toBe(true)
+    })
+    domainProps = mocked.domainModeContainerSpy.mock.calls.at(
+      -1,
+    )?.[0] as typeof domainProps
+    domainProps.handleCancelUncategorizedReorder()
+  })
+
+  it('storage change listener は mode sync service に委譲し解除される', async () => {
+    const addListener = vi.fn()
+    const removeListener = vi.fn()
+    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
+    chromeGlobal.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => ({ savedTabs: [] })),
+          set: vi.fn(),
+        },
+        onChanged: {
+          addListener,
+          removeListener,
+        },
+      },
+      tabs: {
+        create: vi.fn(),
+      },
+      windows: {
+        create: vi.fn(),
+      },
+      runtime: {
+        getURL: vi.fn(),
+      },
+    } as unknown as typeof chrome
+
+    const { unmount } = render(<SavedTabsApp />)
+    const listener = addListener.mock.calls[0]?.[0] as (changes: {
+      [key: string]: chrome.storage.StorageChange
+    }) => Promise<void>
+
+    await listener({
+      savedTabs: {
+        newValue: [],
+        oldValue: [],
+      },
+    })
+    unmount()
+
+    expect(syncStorageChanges).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changes: {
+          savedTabs: {
+            newValue: [],
+            oldValue: [],
+          },
+        },
+      }),
+    )
+    expect(removeListener).toHaveBeenCalledWith(listener)
   })
 })
