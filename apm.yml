@@ -1,0 +1,30 @@
+name: TABBIN
+version: 1.0.0
+description: Shared agent context, skills, prompts, and rules for TABBIN
+author: TarouTanakaYokohama
+license: UNLICENSED
+type: hybrid
+target:
+  - codex
+  - claude
+  - cursor
+  - gemini
+  - copilot
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts:
+  validate: apm compile --validate
+  preview: apm compile --dry-run --verbose
+  install: apm install
+  compile: apm compile
+compilation:
+  strategy: distributed
+  source_attribution: true
+  exclude:
+    - apm_modules/**
+    - .output/**
+    - coverage/**
+    - playwright-report/**
+    - test-results/**
