@@ -91,6 +91,11 @@ describe('select ui', () => {
     expect(item?.className).toContain('item-extra')
     expect(group?.querySelector('.separator-extra')).toBeTruthy()
     expect(content.className).toContain('content-extra')
+    expect(content.className).toContain(
+      'max-h-(--radix-select-content-available-height)',
+    )
+    expect(content.className).toContain('overflow-y-auto')
+    expect(content.className).toContain('overflow-x-hidden')
     expect(viewport.className).toContain('min-w-(--radix-select-trigger-width)')
   })
 
