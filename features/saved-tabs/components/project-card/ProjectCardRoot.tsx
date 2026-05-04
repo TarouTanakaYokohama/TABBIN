@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
@@ -123,7 +123,9 @@ export const ProjectCardRoot = ({
     },
   })
 
-  const style = {
+  const style: CSSProperties = {
+    containIntrinsicSize: '360px',
+    contentVisibility: 'auto',
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,

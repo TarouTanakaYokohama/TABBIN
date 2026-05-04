@@ -18,6 +18,8 @@ const messages = {
     'aiChat.inputPlaceholder': 'Ask about your saved tabs',
     'aiChat.inputPlaceholderSelectModel':
       'Select an Ollama model in the lower-left corner',
+    'aiChat.dataScope':
+      'AI answers use your saved URLs, titles, categories, projects, attachments, and the selected local Ollama model.',
     'aiChat.emptySelectModel': 'Select a model',
     'aiChat.intro': 'Ask questions about your saved tabs.',
     'aiChat.suggestion.recentTabs': 'Show me the tabs I added this month',
@@ -268,6 +270,7 @@ const messages = {
     'common.stop': 'Stop',
     'common.submit': 'Submit',
     'common.togglePlan': 'Toggle plan',
+    'common.undo': 'Undo',
     'common.thinking': 'Thinking...',
     'common.thoughtForFewSeconds': 'Thought for a few seconds',
     'common.thoughtForSeconds': 'Thought for {{count}} seconds',
@@ -415,6 +418,9 @@ const messages = {
     'options.importExport.dialogTitle': 'Import settings and tab data',
     'options.importExport.dropActive': 'Drop the file here',
     'options.importExport.dropIdle': 'Drag and drop a JSON file',
+    'options.importExport.scopeDescription':
+      'Backups include saved URLs, categories, custom projects, analytics data, AI chat history, and AI settings.',
+    'options.importExport.scopeTitle': 'Backup scope',
     'options.importExport.export': 'Export settings and tab data',
     'options.importExport.exporting': 'Exporting...',
     'options.importExport.exportError':
@@ -692,6 +698,7 @@ const messages = {
     'savedTabs.scrollControls.previousProject': 'Scroll to previous project',
     'savedTabs.scrollControls.bottom': 'Scroll to bottom',
     'savedTabs.scrollControls.top': 'Scroll to top',
+    'savedTabs.searchClear': 'Clear search',
     'savedTabs.searchPlaceholder': 'Search',
     'savedTabs.sort.asc': 'Saved date ascending',
     'savedTabs.sort.default': 'Default',
@@ -700,6 +707,12 @@ const messages = {
     'savedTabs.sortableCategory.bulkDeleteDescription':
       'Delete all tabs in "{{name}}"?',
     'savedTabs.sortableCategory.bulkOpenTitle': 'Open multiple tabs',
+    'savedTabs.undo.removedAfterOpen':
+      'Removed {{count}} opened tabs from saved data',
+    'savedTabs.undo.deletedTabs':
+      'You can restore {{count}} deleted tabs to saved data',
+    'savedTabs.undo.restoreError': 'Could not restore saved data',
+    'savedTabs.undo.restored': 'Restored saved data',
     'savedTabs.sortableCategory.tabCountLabel': 'Tabs',
     'savedTabs.subCategory.deleteSelected': 'Delete the selected subcategory',
     'savedTabs.subCategory.addPlaceholder': 'e.g. News, Blog, Column',
@@ -807,6 +820,8 @@ const messages = {
     'aiChat.inputPlaceholder': '保存済みタブについて質問してください',
     'aiChat.inputPlaceholderSelectModel':
       '左下で Ollama モデルを選択してください',
+    'aiChat.dataScope':
+      'AIの回答には、保存済みURL、タイトル、カテゴリ、プロジェクト、添付ファイル、選択中のローカル Ollama モデルを使用します。',
     'aiChat.emptySelectModel': 'モデルを選択してください',
     'aiChat.intro': '保存済みタブを質問できます。',
     'aiChat.suggestion.recentTabs': '今月追加したタブを教えて',
@@ -1054,6 +1069,7 @@ const messages = {
     'common.stop': '停止',
     'common.submit': '送信',
     'common.togglePlan': 'プランを切り替え',
+    'common.undo': '元に戻す',
     'common.thinking': '考え中...',
     'common.thoughtForFewSeconds': '数秒考えました',
     'common.thoughtForSeconds': '{{count}} 秒考えました',
@@ -1203,6 +1219,9 @@ const messages = {
     'options.importExport.dialogTitle': '設定とタブデータのインポート',
     'options.importExport.dropActive': 'ファイルをドロップ',
     'options.importExport.dropIdle': 'JSONファイルをドラッグ&ドロップ',
+    'options.importExport.scopeDescription':
+      'バックアップには、保存済みURL、カテゴリ、カスタムプロジェクト、分析データ、AIチャット履歴、AI設定が含まれます。',
+    'options.importExport.scopeTitle': 'バックアップ対象',
     'options.importExport.export': '設定とタブデータをエクスポート',
     'options.importExport.exporting': 'エクスポート中...',
     'options.importExport.exportError': 'エクスポート中にエラーが発生しました',
@@ -1474,6 +1493,7 @@ const messages = {
     'savedTabs.scrollControls.previousProject': '上のプロジェクトへ移動',
     'savedTabs.scrollControls.bottom': '最下部へ移動',
     'savedTabs.scrollControls.top': '最上部へ移動',
+    'savedTabs.searchClear': '検索をクリア',
     'savedTabs.searchPlaceholder': '検索',
     'savedTabs.sort.asc': '保存日時の昇順',
     'savedTabs.sort.default': 'デフォルト',
@@ -1482,6 +1502,12 @@ const messages = {
     'savedTabs.sortableCategory.bulkDeleteDescription':
       '「{{name}}」のタブをすべて削除しますか？',
     'savedTabs.sortableCategory.bulkOpenTitle': '複数タブを開く',
+    'savedTabs.undo.removedAfterOpen':
+      '開いた{{count}}件のタブを保存データから削除しました',
+    'savedTabs.undo.deletedTabs':
+      '削除した{{count}}件のタブを保存データに戻せます',
+    'savedTabs.undo.restoreError': '保存データを復元できませんでした',
+    'savedTabs.undo.restored': '保存データを復元しました',
     'savedTabs.sortableCategory.tabCountLabel': 'タブ数',
     'savedTabs.subCategory.deleteSelected': '選択中の子カテゴリを削除',
     'savedTabs.subCategory.addPlaceholder': '例: ニュース、ブログ、コラム',

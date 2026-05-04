@@ -1,7 +1,7 @@
 import { useDndMonitor } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useMemo } from 'react'
+import { type CSSProperties, useMemo } from 'react'
 import type { SortableDomainCardProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
 import { useDomainCardState } from '../../hooks/useDomainCardState'
@@ -58,7 +58,9 @@ export const DomainCardRoot = ({
   // グローバルドラッグ監視
   useDndMonitor(state.dndMonitorHandlers)
 
-  const style = {
+  const style: CSSProperties = {
+    containIntrinsicSize: '360px',
+    contentVisibility: 'auto',
     transform: CSS.Transform.toString(transform),
     transition,
   }
