@@ -26,6 +26,7 @@ import {
   handleUrlDragStarted,
   handleUrlDropped,
   removeUrlFromStorage,
+  removeUrlRecordsFromStorage,
 } from './url-storage'
 
 const getOllamaErrorDetails = (
@@ -70,6 +71,9 @@ const setupMessageListener = (): void => {
         return true
       case 'removeUrlFromStorage':
         handleRemoveUrlMessage(typedMessage.url, sendResponse)
+        return true
+      case 'removeUrlRecordsFromStorage':
+        handleRemoveUrlRecordsMessage(typedMessage.urlIds, sendResponse)
         return true
       case 'calculateTimeRemaining':
         handleCalculateTimeRemainingMessage(typedMessage, sendResponse)
@@ -171,6 +175,25 @@ const handleRemoveUrlMessage = (
       sendResponse({
         status: 'error',
         error,
+      }),
+    )
+}
+
+const handleRemoveUrlRecordsMessage = (
+  urlIds: string[],
+  sendResponse: (response: StatusResponse) => void,
+): void => {
+  removeUrlRecordsFromStorage(Array.isArray(urlIds) ? urlIds : [])
+    .then(removedCount =>
+      sendResponse({
+        removedCount,
+        status: 'removed',
+      }),
+    )
+    .catch(error =>
+      sendResponse({
+        status: 'error',
+        error: error instanceof Error ? error.message : String(error),
       }),
     )
 }
