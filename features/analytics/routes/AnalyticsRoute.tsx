@@ -67,7 +67,12 @@ import {
 } from '@/lib/storage/analytics'
 import { defaultSettings, getUserSettings } from '@/lib/storage/settings'
 import type { AiChatToolTrace } from '@/types/background'
-import type { CustomProject, ParentCategory, TabGroup } from '@/types/storage'
+import type {
+  CustomProject,
+  ParentCategory,
+  TabGroup,
+  UrlRecord,
+} from '@/types/storage'
 import { formatLocaleDateTime } from '@/utils/localDateTime'
 
 const defaultAnalyticsQuery = getDefaultAnalyticsQuery()
@@ -187,6 +192,7 @@ interface AnalyticsDeleteUndoSnapshot {
   customProjects?: CustomProject[]
   parentCategories?: ParentCategory[]
   savedTabs?: TabGroup[]
+  urls?: UrlRecord[]
 }
 
 interface AnalyticsDeleteUndoPayload {
@@ -194,6 +200,7 @@ interface AnalyticsDeleteUndoPayload {
   customProjects?: CustomProject[]
   parentCategories?: ParentCategory[]
   savedTabs?: TabGroup[]
+  urls?: UrlRecord[]
 }
 
 const getAnalyticsDeleteUndoSnapshot =
@@ -203,6 +210,7 @@ const getAnalyticsDeleteUndoSnapshot =
       'customProjects',
       'customProjectOrder',
       'parentCategories',
+      'urls',
     ])
 
 const getSnapshotArray = <T,>(value: T[] | undefined): T[] | undefined =>
@@ -216,6 +224,7 @@ const createAnalyticsDeleteUndoPayload = (
   const customProjects = getSnapshotArray(snapshot.customProjects)
   const customProjectOrder = getSnapshotArray(snapshot.customProjectOrder)
   const parentCategories = getSnapshotArray(snapshot.parentCategories)
+  const urls = getSnapshotArray(snapshot.urls)
 
   if (savedTabs) {
     payload.savedTabs = savedTabs
@@ -228,6 +237,9 @@ const createAnalyticsDeleteUndoPayload = (
   }
   if (parentCategories) {
     payload.parentCategories = parentCategories
+  }
+  if (urls) {
+    payload.urls = urls
   }
 
   return payload

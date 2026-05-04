@@ -434,6 +434,14 @@ describe('AnalyticsRoute', () => {
           urlIds: ['url-1'],
         },
       ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'Example Docs',
+          url: 'https://docs.example.com/a',
+        },
+      ],
     })
     analyticsRouteMocks.sendMessageMock.mockImplementation(
       (
