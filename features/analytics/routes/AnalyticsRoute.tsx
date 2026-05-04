@@ -162,6 +162,26 @@ const removeUrlFromStorage = async (url: string): Promise<void> =>
     )
   })
 
+const removeUrlRecordsFromStorage = async (urlIds: string[]): Promise<void> =>
+  new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      {
+        action: 'removeUrlRecordsFromStorage',
+        urlIds,
+      },
+      (response?: { error?: string; status?: string }) => {
+        if (response?.status === 'removed') {
+          resolve()
+          return
+        }
+
+        reject(
+          new Error(response?.error || 'removeUrlRecordsFromStorage failed'),
+        )
+      },
+    )
+  })
+
 interface AnalyticsDeleteUndoSnapshot {
   customProjectOrder?: string[]
   customProjects?: CustomProject[]
@@ -680,9 +700,9 @@ const AnalyticsRoute = () => {
     try {
       setIsBulkDeleting(true)
       const undoSnapshot = await getAnalyticsDeleteUndoSnapshot()
-      for (const record of matchingRecords) {
-        await removeUrlFromStorage(record.url)
-      }
+      await removeUrlRecordsFromStorage(
+        matchingRecords.map(record => record.id),
+      )
       const nextRecords = await refreshRecords()
       rebuildDrilldownSelection(nextRecords)
       showDeleteUndoToast({

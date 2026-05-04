@@ -22,6 +22,7 @@ export type MessageAction =
   | 'urlDragStarted'
   | 'urlDropped'
   | 'removeUrlFromStorage'
+  | 'removeUrlRecordsFromStorage'
   | 'calculateTimeRemaining'
   | 'checkExpiredTabs'
   | 'updateTabTimestamps'
@@ -59,6 +60,11 @@ export interface UrlDroppedMessage extends BaseMessage {
 export interface RemoveUrlMessage extends BaseMessage {
   action: 'removeUrlFromStorage'
   url: string
+}
+
+export interface RemoveUrlRecordsMessage extends BaseMessage {
+  action: 'removeUrlRecordsFromStorage'
+  urlIds: string[]
 }
 
 /**
@@ -116,6 +122,7 @@ export type BackgroundMessage =
   | UrlDragStartedMessage
   | UrlDroppedMessage
   | RemoveUrlMessage
+  | RemoveUrlRecordsMessage
   | CalculateTimeRemainingMessage
   | CheckExpiredTabsMessage
   | UpdateTabTimestampsMessage
@@ -130,6 +137,7 @@ export interface StatusResponse {
   status: string
   success?: boolean
   result?: unknown
+  removedCount?: number
   error?: string
 }
 

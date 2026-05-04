@@ -377,6 +377,23 @@ const records: AiSavedUrlRecord[] = [
   },
 ]
 
+const bulkDeleteRecords: AiSavedUrlRecord[] = [
+  records[0],
+  {
+    id: '3',
+    url: 'https://docs.example.com/b',
+    title: 'Example Docs B',
+    domain: 'docs.example.com',
+    savedAt: Date.UTC(2026, 2, 11),
+    savedInTabGroups: ['docs.example.com'],
+    savedInProjects: ['Research'],
+    subCategories: ['Docs'],
+    projectCategories: ['Reading'],
+    parentCategories: ['Work'],
+  },
+  records[1],
+]
+
 describe('AnalyticsRoute', () => {
   beforeEach(() => {
     vi.useFakeTimers({
@@ -1048,9 +1065,9 @@ describe('AnalyticsRoute', () => {
     )
   })
 
-  it('confirmDeleteAll=false のときドリルダウンのすべて削除で即時削除する', async () => {
+  it('confirmDeleteAll=false のときドリルダウンのすべて削除で対象URL IDを一括削除する', async () => {
     analyticsRouteMocks.loadRecordsMock
-      .mockResolvedValueOnce(records)
+      .mockResolvedValueOnce(bulkDeleteRecords)
       .mockResolvedValueOnce([records[1]])
 
     render(<AnalyticsRoute />)
@@ -1066,14 +1083,15 @@ describe('AnalyticsRoute', () => {
     await waitFor(() => {
       expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledWith(
         {
-          action: 'removeUrlFromStorage',
-          url: 'https://docs.example.com/a',
+          action: 'removeUrlRecordsFromStorage',
+          urlIds: ['1', '3'],
         },
         expect.any(Function),
       )
     })
+    expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(1)
     expect(toast.info).toHaveBeenCalledWith(
-      'You can restore 1 deleted tabs to saved data',
+      'You can restore 2 deleted tabs to saved data',
       expect.objectContaining({
         action: expect.objectContaining({
           label: 'Undo',
@@ -1088,7 +1106,7 @@ describe('AnalyticsRoute', () => {
       confirmDeleteAll: true,
     })
     analyticsRouteMocks.loadRecordsMock
-      .mockResolvedValueOnce(records)
+      .mockResolvedValueOnce(bulkDeleteRecords)
       .mockResolvedValueOnce([records[1]])
 
     render(<AnalyticsRoute />)
@@ -1109,12 +1127,13 @@ describe('AnalyticsRoute', () => {
     await waitFor(() => {
       expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledWith(
         {
-          action: 'removeUrlFromStorage',
-          url: 'https://docs.example.com/a',
+          action: 'removeUrlRecordsFromStorage',
+          urlIds: ['1', '3'],
         },
         expect.any(Function),
       )
     })
+    expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(1)
   })
 
   it('confirmDeleteEach=false のとき即時削除して一覧を再読込する', async () => {

@@ -4,9 +4,14 @@
 
 import { removeUrlFromAllCustomProjects } from '@/lib/storage/projects'
 import { getUserSettings } from '@/lib/storage/settings'
-import { deleteUrlRecord } from '@/lib/storage/urls'
+import { deleteUrlRecord, invalidateUrlCache } from '@/lib/storage/urls'
 import type { DraggedUrlInfo } from '@/types/background'
-import type { ParentCategory, TabGroup } from '@/types/storage'
+import type {
+  CustomProject,
+  ParentCategory,
+  TabGroup,
+  UrlRecord,
+} from '@/types/storage'
 
 // ドラッグされたURL情報を一時保存するためのストア
 let draggedUrlInfo: DraggedUrlInfo | null = null
@@ -109,6 +114,197 @@ const updateGroupAfterUrlRemoval = (
   }
   return removeLegacyUrlFromGroup(group, url, removedGroupIds)
 }
+
+interface BulkUrlRemovalStorage {
+  customProjects?: CustomProject[]
+  parentCategories?: ParentCategory[]
+  savedTabs?: TabGroup[]
+  urls?: UrlRecord[]
+}
+
+interface BulkSavedTabsRemovalResult {
+  hasChanges: boolean
+  removedGroupIds: string[]
+  savedTabs: TabGroup[]
+}
+
+interface BulkCustomProjectsRemovalResult {
+  customProjects: CustomProject[]
+  hasChanges: boolean
+}
+
+interface BulkParentCategoriesRemovalResult {
+  hasChanges: boolean
+  parentCategories: ParentCategory[]
+}
+
+const createUrlIdSet = (urlIds: string[]): Set<string> =>
+  new Set(urlIds.filter(id => typeof id === 'string' && id.length > 0))
+
+const removeUrlIdsFromRecord = <T>(
+  record: Record<string, T> | undefined,
+  urlIds: Set<string>,
+): {
+  hasChanges: boolean
+  record?: Record<string, T>
+} => {
+  if (!record) {
+    return { hasChanges: false }
+  }
+
+  const entries = Object.entries(record).filter(([urlId]) => !urlIds.has(urlId))
+  const hasChanges = entries.length !== Object.keys(record).length
+  if (entries.length === 0) {
+    return { hasChanges, record: undefined }
+  }
+
+  return {
+    hasChanges,
+    record: Object.fromEntries(entries) as Record<string, T>,
+  }
+}
+
+const removeUrlIdsFromSavedTabs = (
+  savedTabs: TabGroup[],
+  urlIds: Set<string>,
+): BulkSavedTabsRemovalResult => {
+  let hasChanges = false
+  const removedGroupIds: string[] = []
+  const updatedTabs: TabGroup[] = []
+
+  for (const group of savedTabs) {
+    if (!Array.isArray(group.urlIds)) {
+      updatedTabs.push(group)
+      continue
+    }
+
+    const updatedUrlIds = group.urlIds.filter(id => !urlIds.has(id))
+    if (updatedUrlIds.length === group.urlIds.length) {
+      updatedTabs.push(group)
+      continue
+    }
+
+    hasChanges = true
+    if (updatedUrlIds.length === 0) {
+      removedGroupIds.push(group.id)
+      continue
+    }
+
+    const {
+      hasChanges: hasSubCategoryChanges,
+      record: updatedUrlSubCategories,
+    } = removeUrlIdsFromRecord(group.urlSubCategories, urlIds)
+    const { urlSubCategories: _urlSubCategories, ...groupWithoutMetadata } =
+      group
+
+    updatedTabs.push({
+      ...groupWithoutMetadata,
+      urlIds: updatedUrlIds,
+      ...(hasSubCategoryChanges && updatedUrlSubCategories
+        ? { urlSubCategories: updatedUrlSubCategories }
+        : {}),
+      ...(!hasSubCategoryChanges && group.urlSubCategories
+        ? { urlSubCategories: group.urlSubCategories }
+        : {}),
+    })
+  }
+
+  return {
+    hasChanges,
+    removedGroupIds,
+    savedTabs: updatedTabs,
+  }
+}
+
+const removeUrlIdsFromCustomProjects = (
+  customProjects: CustomProject[],
+  urlIds: Set<string>,
+): BulkCustomProjectsRemovalResult => {
+  const now = Date.now()
+  let hasChanges = false
+
+  const updatedProjects = customProjects.map(project => {
+    const currentUrlIds = Array.isArray(project.urlIds) ? project.urlIds : []
+    const updatedUrlIds = currentUrlIds.filter(id => !urlIds.has(id))
+    const { hasChanges: hasMetadataChanges, record: updatedUrlMetadata } =
+      removeUrlIdsFromRecord(project.urlMetadata, urlIds)
+    const hasUrlIdChanges = updatedUrlIds.length !== currentUrlIds.length
+
+    if (!(hasUrlIdChanges || hasMetadataChanges)) {
+      return project
+    }
+
+    hasChanges = true
+    const { urlMetadata: _urlMetadata, ...projectWithoutMetadata } = project
+    return {
+      ...projectWithoutMetadata,
+      updatedAt: now,
+      urlIds: updatedUrlIds,
+      ...(updatedUrlMetadata ? { urlMetadata: updatedUrlMetadata } : {}),
+    }
+  })
+
+  return {
+    customProjects: updatedProjects,
+    hasChanges,
+  }
+}
+
+const removeGroupsFromParentCategories = (
+  parentCategories: ParentCategory[],
+  groupIds: string[],
+): BulkParentCategoriesRemovalResult => {
+  if (groupIds.length === 0) {
+    return {
+      hasChanges: false,
+      parentCategories,
+    }
+  }
+
+  const groupIdsToRemove = new Set(groupIds)
+  let hasChanges = false
+  const updatedCategories = parentCategories.map(category => {
+    if (!Array.isArray(category.domains)) {
+      return category
+    }
+
+    const updatedDomains = category.domains.filter(
+      id => !groupIdsToRemove.has(id),
+    )
+    if (updatedDomains.length === category.domains.length) {
+      return category
+    }
+
+    hasChanges = true
+    return {
+      ...category,
+      domains: updatedDomains,
+    }
+  })
+
+  return {
+    hasChanges,
+    parentCategories: updatedCategories,
+  }
+}
+
+const removeUrlRecordsById = (
+  urls: UrlRecord[],
+  urlIds: Set<string>,
+): {
+  hasChanges: boolean
+  removedCount: number
+  urls: UrlRecord[]
+} => {
+  const updatedUrls = urls.filter(record => !urlIds.has(record.id))
+
+  return {
+    hasChanges: updatedUrls.length !== urls.length,
+    removedCount: urls.length - updatedUrls.length,
+    urls: updatedUrls,
+  }
+}
+
 /**
  * URLをストレージから削除する関数（カテゴリ設定とマッピングを保持）
  */
@@ -150,6 +346,69 @@ const removeUrlFromStorage = async (url: string): Promise<void> => {
     console.log(`ストレージからURL ${url} を削除しました`)
   } catch (error) {
     console.error('URLの削除中にエラーが発生しました:', error)
+    throw error
+  }
+}
+
+const removeUrlRecordsFromStorage = async (
+  urlIds: string[],
+): Promise<number> => {
+  const targetUrlIds = createUrlIdSet(urlIds)
+  if (targetUrlIds.size === 0) {
+    return 0
+  }
+
+  try {
+    const storageResult = await chrome.storage.local.get<BulkUrlRemovalStorage>(
+      ['savedTabs', 'urls', 'customProjects', 'parentCategories'],
+    )
+    const savedTabs = Array.isArray(storageResult.savedTabs)
+      ? storageResult.savedTabs
+      : []
+    const urls = Array.isArray(storageResult.urls) ? storageResult.urls : []
+    const customProjects = Array.isArray(storageResult.customProjects)
+      ? storageResult.customProjects
+      : []
+    const parentCategories = Array.isArray(storageResult.parentCategories)
+      ? storageResult.parentCategories
+      : []
+
+    const savedTabsResult = removeUrlIdsFromSavedTabs(savedTabs, targetUrlIds)
+    const customProjectsResult = removeUrlIdsFromCustomProjects(
+      customProjects,
+      targetUrlIds,
+    )
+    const parentCategoriesResult = removeGroupsFromParentCategories(
+      parentCategories,
+      savedTabsResult.removedGroupIds,
+    )
+    const urlsResult = removeUrlRecordsById(urls, targetUrlIds)
+    const payload: BulkUrlRemovalStorage = {}
+
+    if (savedTabsResult.hasChanges) {
+      payload.savedTabs = savedTabsResult.savedTabs
+    }
+    if (customProjectsResult.hasChanges) {
+      payload.customProjects = customProjectsResult.customProjects
+    }
+    if (parentCategoriesResult.hasChanges) {
+      payload.parentCategories = parentCategoriesResult.parentCategories
+    }
+    if (urlsResult.hasChanges) {
+      payload.urls = urlsResult.urls
+    }
+
+    if (Object.keys(payload).length > 0) {
+      await chrome.storage.local.set(payload)
+      if (urlsResult.hasChanges) {
+        invalidateUrlCache()
+      }
+    }
+
+    console.log(`${urlsResult.removedCount}件のURLレコードを一括削除しました`)
+    return urlsResult.removedCount
+  } catch (error) {
+    console.error('URLレコードの一括削除中にエラーが発生しました:', error)
     throw error
   }
 }
@@ -343,5 +602,6 @@ export {
   handleUrlDropped,
   normalizeUrl,
   removeUrlFromStorage,
+  removeUrlRecordsFromStorage,
   setDraggedUrlInfo,
 }
