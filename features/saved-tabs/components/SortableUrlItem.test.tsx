@@ -143,7 +143,7 @@ describe('SortableUrlItem', () => {
   })
 
   it('削除ボタンを初期描画時からDOMに保持し行hover/focus用クラスを持つ', () => {
-    render(<SortableUrlItem {...createProps()} />)
+    const { container } = render(<SortableUrlItem {...createProps()} />)
 
     const deleteButton = getDeleteButton()
     expect(deleteButton).toBeTruthy()
@@ -154,6 +154,12 @@ describe('SortableUrlItem', () => {
     const row = getLink().closest('li')
     expect(row).toBeTruthy()
     expect(row?.className).toContain('group')
+
+    const dragHandle = container.querySelector('svg')?.parentElement
+    expect(dragHandle?.className).not.toContain('opacity-')
+    expect(dragHandle?.className).not.toContain('/40')
+    expect(dragHandle?.className).not.toContain('/60')
+    expect(dragHandle?.className).not.toContain('/80')
   })
 
   it('confirmDeleteEachがfalseのとき削除ボタンで即時削除する', () => {
