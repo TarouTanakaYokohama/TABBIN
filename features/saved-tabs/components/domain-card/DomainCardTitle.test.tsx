@@ -58,9 +58,11 @@ describe('DomainCardTitle', () => {
       },
     })
 
-    render(<DomainCardTitle />)
+    const { container } = render(<DomainCardTitle />)
 
     expect(screen.getByText('example.com')).toBeTruthy()
+    const dragHandle = container.querySelector('svg')?.parentElement
+    expect(dragHandle?.className).not.toContain('/80')
     expect(screen.getByText('1')).toBeTruthy()
     expect(screen.getByText('タブ数')).toBeTruthy()
     expect(screen.getByText('2')).toBeTruthy()

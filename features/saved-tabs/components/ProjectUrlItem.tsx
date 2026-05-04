@@ -207,7 +207,7 @@ const ProjectUrlItemComponent = ({
         <div
           {...attributes}
           {...listeners}
-          className='cursor-grab p-1 opacity-30 active:cursor-grabbing group-hover:opacity-100'
+          className='cursor-grab p-1 active:cursor-grabbing'
         >
           <GripVertical size={16} className='text-muted-foreground' />
         </div>

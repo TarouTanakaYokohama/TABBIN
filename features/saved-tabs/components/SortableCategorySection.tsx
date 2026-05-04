@@ -303,7 +303,7 @@ export const SortableCategorySection = ({
             {...attributes}
             {...listeners}
           >
-            <div className='text-muted-foreground/60'>
+            <div className='text-muted-foreground'>
               <GripVertical size={16} aria-hidden='true' />
             </div>
             <h3 className='font-medium text-foreground'>

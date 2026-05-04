@@ -27,7 +27,11 @@ export const CardGroupTitle = ({
       {...sortableAttributes}
       {...sortableListeners}
     >
-      <GripVertical size={16} aria-hidden='true' className='shrink-0' />
+      <GripVertical
+        size={16}
+        aria-hidden='true'
+        className='shrink-0 text-muted-foreground'
+      />
       <div className='flex min-w-0 items-center gap-2'>
         <h2 className='truncate font-bold text-foreground text-xl'>{title}</h2>
         {badges && (

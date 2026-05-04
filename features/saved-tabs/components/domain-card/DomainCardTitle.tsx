@@ -18,7 +18,7 @@ export const DomainCardTitle = () => {
       {...sortable.attributes}
       {...sortable.listeners}
     >
-      <div className='shrink-0 text-muted-foreground/80'>
+      <div className='shrink-0 text-muted-foreground'>
         <GripVertical size={16} aria-hidden='true' />
       </div>
       <h2 className='truncate font-semibold text-foreground text-lg'>

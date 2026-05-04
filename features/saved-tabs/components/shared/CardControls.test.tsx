@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SortOrder } from '@/features/saved-tabs/hooks/useSortOrder'
 import { CardCollapseControl } from './CardCollapseControl'
+import { CardGroupTitle } from './CardGroupTitle'
 import { CardReorderControls } from './CardReorderControls'
 import { CardSortControl } from './CardSortControl'
 
@@ -125,6 +126,15 @@ describe('CardCollapseControl', () => {
     expect(setIsCollapsed).not.toHaveBeenCalled()
     expect(setUserCollapsedState).not.toHaveBeenCalled()
     expect(screen.getByText('並び替えモード中')).toBeTruthy()
+  })
+})
+
+describe('CardGroupTitle', () => {
+  it('ドラッグハンドルを muted foreground 色で描画する', () => {
+    const { container } = render(<CardGroupTitle title='動画' />)
+
+    const dragHandle = container.querySelector('svg')
+    expect(dragHandle?.className.baseVal).toContain('text-muted-foreground')
   })
 })
 
