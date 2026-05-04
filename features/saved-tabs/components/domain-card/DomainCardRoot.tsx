@@ -110,6 +110,7 @@ export const DomainCardRoot = ({
         style={style}
         className='shadow-md'
         data-category-id={categoryId}
+        data-saved-tabs-scroll-target='domain'
         data-urls-count={group.urls?.length || 0}
       >
         {children}

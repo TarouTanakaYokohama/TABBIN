@@ -233,6 +233,7 @@ export const ProjectCardRoot = ({
             ? 'border-2 border-primary bg-primary/5 shadow-lg'
             : ''
         }`}
+        data-saved-tabs-scroll-target='project'
         ref={setCombinedRefs}
         style={style}
       >
