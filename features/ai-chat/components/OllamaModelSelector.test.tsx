@@ -43,7 +43,13 @@ vi.mock('@/components/ai-elements/prompt-input', () => ({
   }: {
     children: React.ReactNode
   } & Record<string, unknown>) => (
-    <button aria-expanded={false} role='combobox' type='button' {...props}>
+    <button
+      aria-controls='ollama-model-selector-options'
+      aria-expanded={false}
+      role='combobox'
+      type='button'
+      {...props}
+    >
       {children}
     </button>
   ),
@@ -51,7 +57,7 @@ vi.mock('@/components/ai-elements/prompt-input', () => ({
     <span>{placeholder}</span>
   ),
   PromptInputSelectContent: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
+    <div id='ollama-model-selector-options'>{children}</div>
   ),
   PromptInputSelectItem: ({
     children,
@@ -60,7 +66,7 @@ vi.mock('@/components/ai-elements/prompt-input', () => ({
     children: React.ReactNode
     value: string
   }) => (
-    <div role='option' aria-label={value} tabIndex={-1}>
+    <div aria-label={value} aria-selected={false} role='option' tabIndex={-1}>
       {children}
     </div>
   ),

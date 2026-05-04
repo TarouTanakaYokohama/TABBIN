@@ -36,6 +36,9 @@ vi.mock('@/features/i18n/context/I18nProvider', () => ({
         'options.importExport.dialogTitle': 'Import settings and tab data',
         'options.importExport.dropActive': 'Drop the file here',
         'options.importExport.dropIdle': 'Drag and drop a JSON file',
+        'options.importExport.scopeDescription':
+          'Backups include saved URLs, categories, custom projects, analytics data, AI chat history, and AI settings.',
+        'options.importExport.scopeTitle': 'Backup scope',
         'options.importExport.export': 'Export settings and tab data',
         'options.importExport.exporting': 'Exporting...',
         'options.importExport.exportError': 'An error occurred while exporting',
@@ -197,6 +200,17 @@ describe('ImportExportSettingsコンポーネント', () => {
       /^tab-manager-backup-\d{4}-\d{2}-\d{2}\.json$/,
     )
     expect(toast.success).toHaveBeenCalledWith('Exported settings and tab data')
+  })
+
+  it('バックアップに含まれるデータ範囲を表示する', () => {
+    render(<ImportExportSettings />)
+
+    expect(screen.getByText('Backup scope')).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Backups include saved URLs, categories, custom projects, analytics data, AI chat history, and AI settings.',
+      ),
+    ).toBeTruthy()
   })
 
   it('エクスポート失敗時にエラートーストを表示する', async () => {

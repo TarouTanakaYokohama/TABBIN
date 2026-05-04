@@ -1,5 +1,6 @@
 import { ExternalLink, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Toaster } from '@/components/ui/sonner'
 import {
   Tooltip,
   TooltipContent,
@@ -65,9 +67,14 @@ import {
 } from '@/lib/storage/analytics'
 import { defaultSettings, getUserSettings } from '@/lib/storage/settings'
 import type { AiChatToolTrace } from '@/types/background'
+import type { CustomProject, ParentCategory, TabGroup } from '@/types/storage'
 import { formatLocaleDateTime } from '@/utils/localDateTime'
 
 const defaultAnalyticsQuery = getDefaultAnalyticsQuery()
+const deferredDrilldownCardStyle: CSSProperties = {
+  containIntrinsicSize: '96px',
+  contentVisibility: 'auto',
+}
 
 const isAnalyticsQuery = (value: unknown): value is AnalyticsQuery => {
   if (!value || typeof value !== 'object') {
@@ -154,6 +161,57 @@ const removeUrlFromStorage = async (url: string): Promise<void> =>
       },
     )
   })
+
+interface AnalyticsDeleteUndoSnapshot {
+  customProjectOrder?: string[]
+  customProjects?: CustomProject[]
+  parentCategories?: ParentCategory[]
+  savedTabs?: TabGroup[]
+}
+
+interface AnalyticsDeleteUndoPayload {
+  customProjectOrder?: string[]
+  customProjects?: CustomProject[]
+  parentCategories?: ParentCategory[]
+  savedTabs?: TabGroup[]
+}
+
+const getAnalyticsDeleteUndoSnapshot =
+  async (): Promise<AnalyticsDeleteUndoSnapshot> =>
+    chrome.storage.local.get<AnalyticsDeleteUndoSnapshot>([
+      'savedTabs',
+      'customProjects',
+      'customProjectOrder',
+      'parentCategories',
+    ])
+
+const getSnapshotArray = <T,>(value: T[] | undefined): T[] | undefined =>
+  Array.isArray(value) ? value : undefined
+
+const createAnalyticsDeleteUndoPayload = (
+  snapshot: AnalyticsDeleteUndoSnapshot,
+): AnalyticsDeleteUndoPayload => {
+  const payload: AnalyticsDeleteUndoPayload = {}
+  const savedTabs = getSnapshotArray(snapshot.savedTabs)
+  const customProjects = getSnapshotArray(snapshot.customProjects)
+  const customProjectOrder = getSnapshotArray(snapshot.customProjectOrder)
+  const parentCategories = getSnapshotArray(snapshot.parentCategories)
+
+  if (savedTabs) {
+    payload.savedTabs = savedTabs
+  }
+  if (customProjects) {
+    payload.customProjects = customProjects
+  }
+  if (customProjectOrder) {
+    payload.customProjectOrder = customProjectOrder
+  }
+  if (parentCategories) {
+    payload.parentCategories = parentCategories
+  }
+
+  return payload
+}
 
 const normalizeAnalyticsRouteQuery = (
   analyticsQuery: AnalyticsQuery,
@@ -521,6 +579,41 @@ const AnalyticsRoute = () => {
     })
   }
 
+  const showDeleteUndoToast = ({
+    count,
+    snapshot,
+  }: {
+    count: number
+    snapshot: AnalyticsDeleteUndoSnapshot
+  }) => {
+    toast.info(
+      t('savedTabs.undo.deletedTabs', undefined, {
+        count: String(count),
+      }),
+      {
+        action: {
+          label: t('common.undo'),
+          onClick: async () => {
+            try {
+              await chrome.storage.local.set(
+                createAnalyticsDeleteUndoPayload(snapshot),
+              )
+              const nextRecords = await refreshRecords()
+              rebuildDrilldownSelection(nextRecords)
+              toast.success(t('savedTabs.undo.restored'))
+            } catch (error) {
+              console.error(
+                'Failed to restore analytics drilldown urls:',
+                error,
+              )
+              toast.error(t('savedTabs.undo.restoreError'))
+            }
+          },
+        },
+      },
+    )
+  }
+
   const performDelete = async (record: AiSavedUrlRecord) => {
     if (deletingUrl || isBulkDeleting) {
       return
@@ -528,9 +621,14 @@ const AnalyticsRoute = () => {
 
     try {
       setDeletingUrl(record.url)
+      const undoSnapshot = await getAnalyticsDeleteUndoSnapshot()
       await removeUrlFromStorage(record.url)
       const nextRecords = await refreshRecords()
       rebuildDrilldownSelection(nextRecords)
+      showDeleteUndoToast({
+        count: 1,
+        snapshot: undoSnapshot,
+      })
     } catch (error) {
       console.error('Failed to delete analytics drilldown url:', error)
     } finally {
@@ -581,11 +679,16 @@ const AnalyticsRoute = () => {
 
     try {
       setIsBulkDeleting(true)
+      const undoSnapshot = await getAnalyticsDeleteUndoSnapshot()
       for (const record of matchingRecords) {
         await removeUrlFromStorage(record.url)
       }
       const nextRecords = await refreshRecords()
       rebuildDrilldownSelection(nextRecords)
+      showDeleteUndoToast({
+        count: matchingRecords.length,
+        snapshot: undoSnapshot,
+      })
     } catch (error) {
       console.error('Failed to bulk delete analytics drilldown urls:', error)
     } finally {
@@ -944,6 +1047,7 @@ const AnalyticsRoute = () => {
                           <Card
                             className='rounded-2xl border-border bg-card p-3 shadow-none'
                             key={record.id}
+                            style={deferredDrilldownCardStyle}
                           >
                             <div className='grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start'>
                               <div className='min-w-0 flex-1'>
@@ -1062,6 +1166,8 @@ const AnalyticsRoute = () => {
         onSelectHistoryItem={selectConversation}
         title={activeConversation?.title}
       />
+
+      <Toaster />
 
       <AlertDialog
         onOpenChange={isOpen => {

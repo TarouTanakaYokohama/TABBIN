@@ -727,6 +727,22 @@ const ChatPromptIntro = ({
   )
 }
 
+const ChatDataScopeNotice = ({ isVisible }: { isVisible: boolean }) => {
+  const { t } = useI18n()
+  if (!isVisible) {
+    return null
+  }
+
+  return (
+    <p
+      className='text-[11px] text-muted-foreground leading-4'
+      data-testid='ai-chat-data-scope'
+    >
+      {t('aiChat.dataScope')}
+    </p>
+  )
+}
+
 const SystemPromptSelector = ({
   isCompactLayout,
   prompts,
@@ -1794,6 +1810,8 @@ const SavedTabsChatPanel = ({
           ) : null}
 
           {chatErrorContent}
+
+          <ChatDataScopeNotice isVisible={isConfigured} />
 
           <ChatPromptComposer
             input={input}

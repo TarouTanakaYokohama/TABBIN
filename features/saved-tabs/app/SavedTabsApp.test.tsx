@@ -7,6 +7,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
+import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   CustomProject,
@@ -316,6 +317,7 @@ import {
 } from '@/lib/storage/projects'
 import {
   getTabGroupUrls,
+  removeUrlFromTabGroup,
   removeUrlIdsFromTabGroup,
   removeUrlsFromTabGroup,
 } from '@/lib/storage/tabs'
@@ -555,16 +557,38 @@ describe('SavedTabsApp custom search', () => {
     }
     mocked.projectState.viewMode = 'domain'
     mocked.projectState.viewModeRef = { current: 'domain' }
-    mocked.categoryState.categories = []
+    mocked.categoryState.categories = [
+      {
+        id: 'category-1',
+        name: 'Category',
+        domains: ['group-1'],
+        domainNames: ['example.com'],
+      },
+    ]
     mocked.tabDataState.tabGroups = [group]
     mocked.tabDataState.tabGroupsWithUrls = [group]
+    const customProjectsSnapshot: CustomProject[] = [
+      {
+        id: 'project-1',
+        name: 'Project A',
+        urlIds: ['url-a', 'url-b'],
+        categories: [],
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ]
 
+    const chromeSetMock = vi.fn()
     const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
     chromeGlobal.chrome = {
       storage: {
         local: {
-          get: vi.fn(async () => ({ savedTabs: [group] })),
-          set: vi.fn(),
+          get: vi.fn(async () => ({
+            customProjectOrder: ['project-1'],
+            customProjects: customProjectsSnapshot,
+            savedTabs: [group],
+          })),
+          set: chromeSetMock,
         },
         onChanged: {
           addListener: vi.fn(),
@@ -602,6 +626,37 @@ describe('SavedTabsApp custom search', () => {
       'url-a',
       'url-b',
     ])
+    expect(toast.info).toHaveBeenCalledWith(
+      '削除した2件のタブを保存データに戻せます',
+      expect.objectContaining({
+        action: expect.objectContaining({
+          label: '元に戻す',
+        }),
+      }),
+    )
+
+    const undoOptions = vi.mocked(toast.info).mock.calls.at(-1)?.[1] as
+      | {
+          action?: {
+            onClick?: () => Promise<void>
+          }
+        }
+      | undefined
+    await undoOptions?.action?.onClick?.()
+
+    expect(chromeSetMock).toHaveBeenLastCalledWith({
+      customProjectOrder: ['project-1'],
+      customProjects: customProjectsSnapshot,
+      parentCategories: mocked.categoryState.categories,
+      savedTabs: [group],
+    })
+    expect(mocked.projectState.setCustomProjects).toHaveBeenCalledWith(
+      customProjectsSnapshot,
+    )
+    expect(mocked.categoryState.setCategories).toHaveBeenCalledWith(
+      mocked.categoryState.categories,
+    )
+    expect(toast.success).toHaveBeenCalledWith('保存データを復元しました')
     expect(removeUrlsFromAllCustomProjects).not.toHaveBeenCalled()
     expect(removeUrlFromAllCustomProjects).not.toHaveBeenCalled()
   })
@@ -673,7 +728,107 @@ describe('SavedTabsApp custom search', () => {
       'url-a',
       'url-b',
     ])
+    expect(toast.info).toHaveBeenCalledWith(
+      '削除した2件のタブを保存データに戻せます',
+      expect.objectContaining({
+        action: expect.objectContaining({
+          label: '元に戻す',
+        }),
+      }),
+    )
     expect(mocked.tabDataState.refreshTabGroupsWithUrls).not.toHaveBeenCalled()
+  })
+
+  it('ドメイン内の単体タブ削除でも Undo で削除前の保存データを復元できる', async () => {
+    const group: TabGroup = {
+      id: 'group-1',
+      domain: 'example.com',
+      urls: [{ id: 'url-a', url: 'https://example.com/a', title: 'A' }],
+      urlIds: ['url-a'],
+    }
+    mocked.projectState.viewMode = 'domain'
+    mocked.projectState.viewModeRef = { current: 'domain' }
+    mocked.tabDataState.tabGroups = [group]
+    mocked.tabDataState.tabGroupsWithUrls = [group]
+    const customProjectsSnapshot: CustomProject[] = [
+      {
+        id: 'project-1',
+        name: 'Project A',
+        urlIds: ['url-a'],
+        categories: [],
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ]
+
+    const chromeSetMock = vi.fn()
+    const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
+    chromeGlobal.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => ({
+            customProjectOrder: ['project-1'],
+            customProjects: customProjectsSnapshot,
+            savedTabs: [group],
+          })),
+          set: chromeSetMock,
+        },
+        onChanged: {
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        },
+      },
+      tabs: {
+        create: vi.fn(),
+      },
+      windows: {
+        create: vi.fn(),
+      },
+      runtime: {
+        getURL: vi.fn(),
+      },
+    } as unknown as typeof chrome
+
+    render(<SavedTabsApp initialViewMode='domain' />)
+
+    const domainProps = mocked.domainModeContainerSpy.mock.calls.at(
+      -1,
+    )?.[0] as {
+      handleDeleteUrl: (groupId: string, url: string) => Promise<void>
+    }
+
+    await domainProps.handleDeleteUrl('group-1', 'https://example.com/a')
+
+    expect(removeUrlFromTabGroup).toHaveBeenCalledWith(
+      'group-1',
+      'https://example.com/a',
+    )
+    expect(toast.info).toHaveBeenCalledWith(
+      '削除した1件のタブを保存データに戻せます',
+      expect.objectContaining({
+        action: expect.objectContaining({
+          label: '元に戻す',
+        }),
+      }),
+    )
+
+    const undoOptions = vi.mocked(toast.info).mock.calls.at(-1)?.[1] as
+      | {
+          action?: {
+            onClick?: () => Promise<void>
+          }
+        }
+      | undefined
+    await undoOptions?.action?.onClick?.()
+
+    expect(chromeSetMock).toHaveBeenLastCalledWith({
+      customProjectOrder: ['project-1'],
+      customProjects: customProjectsSnapshot,
+      savedTabs: [group],
+    })
+    expect(mocked.projectState.setCustomProjects).toHaveBeenCalledWith(
+      customProjectsSnapshot,
+    )
   })
 
   it('すべて開く後の自動削除は一致グループを一括更新し、グループごとの削除APIを繰り返さない', async () => {
@@ -705,6 +860,16 @@ describe('SavedTabsApp custom search', () => {
 
     mocked.tabDataState.tabGroups = [group1, group2]
     mocked.tabDataState.tabGroupsWithUrls = [group1, group2]
+    const customProjectsSnapshot: CustomProject[] = [
+      {
+        id: 'project-1',
+        name: 'Project A',
+        urlIds: ['url-a', 'url-c'],
+        categories: [],
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ]
 
     const chromeSetMock = vi.fn()
     const chromeTabsCreateMock = vi.fn()
@@ -712,7 +877,11 @@ describe('SavedTabsApp custom search', () => {
     chromeGlobal.chrome = {
       storage: {
         local: {
-          get: vi.fn(async () => ({ savedTabs: [group1, group2] })),
+          get: vi.fn(async () => ({
+            customProjectOrder: ['project-1'],
+            customProjects: customProjectsSnapshot,
+            savedTabs: [group1, group2],
+          })),
           set: chromeSetMock,
         },
         onChanged: {
@@ -756,6 +925,33 @@ describe('SavedTabsApp custom search', () => {
     expect(chromeSetMock).toHaveBeenCalledWith({
       savedTabs: [group2],
     })
+    expect(toast.info).toHaveBeenCalledWith(
+      '開いた2件のタブを保存データから削除しました',
+      expect.objectContaining({
+        action: expect.objectContaining({
+          label: '元に戻す',
+        }),
+      }),
+    )
+
+    const undoOptions = vi.mocked(toast.info).mock.calls.at(-1)?.[1] as
+      | {
+          action?: {
+            onClick?: () => Promise<void>
+          }
+        }
+      | undefined
+    await undoOptions?.action?.onClick?.()
+
+    expect(chromeSetMock).toHaveBeenLastCalledWith({
+      customProjectOrder: ['project-1'],
+      customProjects: customProjectsSnapshot,
+      savedTabs: [group1, group2],
+    })
+    expect(mocked.projectState.setCustomProjects).toHaveBeenCalledWith(
+      customProjectsSnapshot,
+    )
+    expect(toast.success).toHaveBeenCalledWith('保存データを復元しました')
     expect(removeUrlIdsFromAllCustomProjects).toHaveBeenCalledTimes(1)
     expect(removeUrlIdsFromAllCustomProjects).toHaveBeenCalledWith([
       'url-a',
@@ -895,12 +1091,24 @@ describe('SavedTabsApp custom search', () => {
     mocked.projectState.viewModeRef = { current: 'domain' }
     mocked.tabDataState.tabGroups = [groupWithIds, legacyGroup]
     mocked.tabDataState.tabGroupsWithUrls = [groupWithIds, legacyGroup]
+    const customProjectsSnapshot: CustomProject[] = [
+      {
+        id: 'project-1',
+        name: 'Project A',
+        urlIds: ['url-a'],
+        categories: [],
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ]
     const chromeSetMock = vi.fn()
     const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
     chromeGlobal.chrome = {
       storage: {
         local: {
           get: vi.fn(async () => ({
+            customProjectOrder: ['project-1'],
+            customProjects: customProjectsSnapshot,
             savedTabs: [groupWithIds, legacyGroup],
           })),
           set: chromeSetMock,
@@ -948,6 +1156,30 @@ describe('SavedTabsApp custom search', () => {
     ])
     expect(chromeSetMock).toHaveBeenCalledWith({
       savedTabs: [],
+    })
+    expect(toast.info).toHaveBeenCalledWith(
+      '削除した2件のタブを保存データに戻せます',
+      expect.objectContaining({
+        action: expect.objectContaining({
+          label: '元に戻す',
+        }),
+      }),
+    )
+
+    const undoOptions = vi.mocked(toast.info).mock.calls.at(-1)?.[1] as
+      | {
+          action?: {
+            onClick?: () => Promise<void>
+          }
+        }
+      | undefined
+    await undoOptions?.action?.onClick?.()
+
+    expect(chromeSetMock).toHaveBeenLastCalledWith({
+      customProjectOrder: ['project-1'],
+      customProjects: customProjectsSnapshot,
+      parentCategories: [],
+      savedTabs: [groupWithIds, legacyGroup],
     })
   })
 
