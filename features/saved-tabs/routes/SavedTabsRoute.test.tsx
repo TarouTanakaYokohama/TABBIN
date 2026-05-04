@@ -58,12 +58,58 @@ vi.mock('@/features/saved-tabs/app/SavedTabsApp', () => ({
   }: {
     initialViewMode?: string
     isAiSidebarOpen?: boolean
-  }) =>
-    createElement(
+  }) => {
+    const viewMode = initialViewMode ?? 'none'
+    const scrollTargets =
+      viewMode === 'custom'
+        ? [
+            createElement('div', {
+              'data-saved-tabs-scroll-target': 'project',
+              'data-testid': 'project-previous',
+            }),
+            createElement('div', {
+              'data-saved-tabs-scroll-target': 'project',
+              'data-testid': 'project-next',
+            }),
+          ]
+        : [
+            createElement('div', {
+              'data-saved-tabs-scroll-target': 'parent',
+              'data-testid': 'parent-previous',
+            }),
+            createElement('div', {
+              'data-saved-tabs-scroll-target': 'parent',
+              'data-testid': 'parent-next',
+            }),
+            createElement('div', {
+              'data-saved-tabs-scroll-target': 'domain',
+              'data-testid': 'domain-previous',
+            }),
+            createElement('div', {
+              'data-saved-tabs-scroll-target': 'domain',
+              'data-testid': 'domain-next',
+            }),
+            createElement('div', {
+              'data-saved-tabs-scroll-target': 'child',
+              'data-testid': 'child-previous',
+            }),
+            createElement('div', {
+              'data-saved-tabs-scroll-target': 'child',
+              'data-testid': 'child-next',
+            }),
+          ]
+
+    return createElement(
       'div',
       null,
-      `SavedTabsApp:${String(Boolean(isAiSidebarOpen))}:${initialViewMode ?? 'none'}`,
-    ),
+      createElement(
+        'div',
+        null,
+        `SavedTabsApp:${String(Boolean(isAiSidebarOpen))}:${viewMode}`,
+      ),
+      ...scrollTargets,
+    )
+  },
   handleSavedTabsRender: vi.fn(),
   isDevProfileEnabled: false,
 }))
@@ -138,6 +184,7 @@ import { SavedTabsRoute } from './SavedTabsRoute'
 
 describe('SavedTabsRoute', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     resizeObserverState.reset()
     window.history.replaceState({}, '', '/saved-tabs.html')
     historyMock.useSharedAiChatHistory.mockReturnValue({
@@ -182,6 +229,7 @@ describe('SavedTabsRoute', () => {
 
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -213,6 +261,382 @@ describe('SavedTabsRoute', () => {
     expect(layout.className.includes('overflow-hidden')).toBe(true)
     expect(leftPane.className.includes('overflow-y-auto')).toBe(true)
     expect(leftPane.className.includes('overscroll-contain')).toBe(true)
+  })
+
+  it('左ペイン内のボタンで最上部と最下部へスクロールする', () => {
+    render(createElement(SavedTabsRoute))
+
+    const leftPane = screen.getByTestId('saved-tabs-left-pane')
+    const scrollTo = vi.fn()
+    Object.defineProperty(leftPane, 'scrollTop', {
+      configurable: true,
+      value: 100,
+      writable: true,
+    })
+    Object.defineProperty(leftPane, 'clientHeight', {
+      configurable: true,
+      value: 600,
+    })
+    Object.defineProperty(leftPane, 'scrollTo', {
+      configurable: true,
+      value: scrollTo,
+    })
+    Object.defineProperty(leftPane, 'clientHeight', {
+      configurable: true,
+      value: 600,
+    })
+    Object.defineProperty(leftPane, 'scrollHeight', {
+      configurable: true,
+      value: 2000,
+    })
+    Object.defineProperty(leftPane, 'scrollHeight', {
+      configurable: true,
+      value: 2400,
+    })
+    fireEvent.scroll(leftPane)
+
+    fireEvent.click(screen.getByLabelText('Scroll to top'))
+    expect(scrollTo).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      top: 0,
+    })
+
+    fireEvent.click(screen.getByLabelText('Scroll to bottom'))
+    expect(scrollTo).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      top: 2400,
+    })
+  })
+
+  it('左ペイン内のボタンで前後の親カテゴリ、ドメイン、子カテゴリへスクロールする', () => {
+    render(createElement(SavedTabsRoute))
+
+    const leftPane = screen.getByTestId('saved-tabs-left-pane')
+    const parentPrevious = screen.getByTestId('parent-previous')
+    const parentNext = screen.getByTestId('parent-next')
+    const domainPrevious = screen.getByTestId('domain-previous')
+    const domainNext = screen.getByTestId('domain-next')
+    const childPrevious = screen.getByTestId('child-previous')
+    const childNext = screen.getByTestId('child-next')
+    const scrollTo = vi.fn()
+
+    Object.defineProperty(leftPane, 'scrollTop', {
+      configurable: true,
+      value: 500,
+      writable: true,
+    })
+    Object.defineProperty(leftPane, 'clientHeight', {
+      configurable: true,
+      value: 600,
+    })
+    Object.defineProperty(leftPane, 'scrollHeight', {
+      configurable: true,
+      value: 2000,
+    })
+    Object.defineProperty(leftPane, 'scrollTo', {
+      configurable: true,
+      value: scrollTo,
+    })
+    vi.spyOn(leftPane, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+    } as DOMRect)
+    vi.spyOn(parentPrevious, 'getBoundingClientRect').mockReturnValue({
+      top: 20,
+    } as DOMRect)
+    vi.spyOn(parentNext, 'getBoundingClientRect').mockReturnValue({
+      top: 220,
+    } as DOMRect)
+    vi.spyOn(domainPrevious, 'getBoundingClientRect').mockReturnValue({
+      top: 30,
+    } as DOMRect)
+    vi.spyOn(domainNext, 'getBoundingClientRect').mockReturnValue({
+      top: 240,
+    } as DOMRect)
+    vi.spyOn(childPrevious, 'getBoundingClientRect').mockReturnValue({
+      top: 40,
+    } as DOMRect)
+    vi.spyOn(childNext, 'getBoundingClientRect').mockReturnValue({
+      top: 260,
+    } as DOMRect)
+    fireEvent.scroll(leftPane)
+
+    fireEvent.click(screen.getByLabelText('Scroll to previous parent category'))
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      top: 324,
+    })
+
+    fireEvent.click(screen.getByLabelText('Scroll to previous child category'))
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      top: 344,
+    })
+
+    fireEvent.click(screen.getByLabelText('Scroll to previous domain'))
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      top: 334,
+    })
+
+    fireEvent.click(screen.getByLabelText('Scroll to next parent category'))
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      top: 524,
+    })
+
+    fireEvent.click(screen.getByLabelText('Scroll to next child category'))
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      top: 564,
+    })
+
+    fireEvent.click(screen.getByLabelText('Scroll to next domain'))
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      top: 544,
+    })
+  })
+
+  it('押せない方向を無効化する', () => {
+    render(createElement(SavedTabsRoute))
+
+    const leftPane = screen.getByTestId('saved-tabs-left-pane')
+    const parentPrevious = screen.getByTestId('parent-previous')
+    const parentNext = screen.getByTestId('parent-next')
+    vi.spyOn(leftPane, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+    } as DOMRect)
+    vi.spyOn(parentPrevious, 'getBoundingClientRect').mockReturnValue({
+      top: 196,
+    } as DOMRect)
+    vi.spyOn(parentNext, 'getBoundingClientRect').mockReturnValue({
+      top: 220,
+    } as DOMRect)
+    Object.defineProperty(leftPane, 'scrollTop', {
+      configurable: true,
+      value: 0,
+      writable: true,
+    })
+    Object.defineProperty(leftPane, 'clientHeight', {
+      configurable: true,
+      value: 500,
+    })
+    Object.defineProperty(leftPane, 'scrollHeight', {
+      configurable: true,
+      value: 1200,
+    })
+    fireEvent.scroll(leftPane)
+
+    expect(
+      (screen.getByLabelText('Scroll to top') as HTMLButtonElement).disabled,
+    ).toBe(true)
+    expect(
+      (
+        screen.getByLabelText(
+          'Scroll to previous parent category',
+        ) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true)
+    expect(
+      (
+        screen.getByLabelText(
+          'Scroll to next parent category',
+        ) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false)
+    expect(
+      (screen.getByLabelText('Scroll to bottom') as HTMLButtonElement).disabled,
+    ).toBe(false)
+  })
+
+  it('カテゴリ移動後に対象をハイライトして通知する', () => {
+    render(createElement(SavedTabsRoute))
+
+    const leftPane = screen.getByTestId('saved-tabs-left-pane')
+    const parentNext = screen.getByTestId('parent-next')
+    Object.defineProperty(leftPane, 'scrollTo', {
+      configurable: true,
+      value: vi.fn(),
+    })
+    vi.spyOn(leftPane, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+    } as DOMRect)
+    vi.spyOn(parentNext, 'getBoundingClientRect').mockReturnValue({
+      top: 220,
+    } as DOMRect)
+    fireEvent.scroll(leftPane)
+
+    fireEvent.click(screen.getByLabelText('Scroll to next parent category'))
+
+    expect(parentNext.classList.contains('saved-tabs-scroll-highlight')).toBe(
+      true,
+    )
+    expect(screen.getByRole('status').textContent).toBe(
+      'Scroll to next parent category',
+    )
+
+    act(() => {
+      vi.runAllTimers()
+    })
+    expect(parentNext.classList.contains('saved-tabs-scroll-highlight')).toBe(
+      false,
+    )
+  })
+
+  it('キーボードショートカットで親カテゴリ、ドメイン、子カテゴリへ移動する', () => {
+    render(createElement(SavedTabsRoute))
+
+    const leftPane = screen.getByTestId('saved-tabs-left-pane')
+    const parentNext = screen.getByTestId('parent-next')
+    const domainNext = screen.getByTestId('domain-next')
+    const childNext = screen.getByTestId('child-next')
+    const scrollTo = vi.fn()
+    Object.defineProperty(leftPane, 'scrollTo', {
+      configurable: true,
+      value: scrollTo,
+    })
+    Object.defineProperty(leftPane, 'clientHeight', {
+      configurable: true,
+      value: 600,
+    })
+    Object.defineProperty(leftPane, 'scrollHeight', {
+      configurable: true,
+      value: 2000,
+    })
+    vi.spyOn(leftPane, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+    } as DOMRect)
+    vi.spyOn(parentNext, 'getBoundingClientRect').mockReturnValue({
+      top: 220,
+    } as DOMRect)
+    vi.spyOn(domainNext, 'getBoundingClientRect').mockReturnValue({
+      top: 240,
+    } as DOMRect)
+    vi.spyOn(childNext, 'getBoundingClientRect').mockReturnValue({
+      top: 260,
+    } as DOMRect)
+    fireEvent.scroll(leftPane)
+
+    fireEvent.keyDown(window, { altKey: true, key: 'ArrowDown' })
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      top: 24,
+    })
+
+    fireEvent.keyDown(window, { altKey: true, key: 'PageDown' })
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      top: 44,
+    })
+
+    fireEvent.keyDown(window, {
+      altKey: true,
+      key: 'ArrowDown',
+      shiftKey: true,
+    })
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      top: 64,
+    })
+  })
+
+  it('スクロール操作ボタンを指定順に表示する', () => {
+    render(createElement(SavedTabsRoute))
+
+    const labels = screen
+      .getAllByRole('button')
+      .map(button => button.getAttribute('aria-label'))
+      .filter(label => label?.startsWith('Scroll to'))
+
+    expect(labels).toEqual([
+      'Scroll to top',
+      'Scroll to previous parent category',
+      'Scroll to previous domain',
+      'Scroll to previous child category',
+      'Scroll to next child category',
+      'Scroll to next domain',
+      'Scroll to next parent category',
+      'Scroll to bottom',
+    ])
+  })
+
+  it('カスタムモードではプロジェクト移動ボタンだけを表示する', () => {
+    window.history.replaceState({}, '', '/saved-tabs.html?mode=custom')
+
+    render(createElement(SavedTabsRoute))
+
+    const labels = screen
+      .getAllByRole('button')
+      .map(button => button.getAttribute('aria-label'))
+      .filter(label => label?.startsWith('Scroll to'))
+
+    expect(labels).toEqual([
+      'Scroll to top',
+      'Scroll to previous project',
+      'Scroll to next project',
+      'Scroll to bottom',
+    ])
+  })
+
+  it('カスタムモードではプロジェクト単位でスクロールする', () => {
+    window.history.replaceState({}, '', '/saved-tabs.html?mode=custom')
+    render(createElement(SavedTabsRoute))
+
+    const leftPane = screen.getByTestId('saved-tabs-left-pane')
+    const projectPrevious = screen.getByTestId('project-previous')
+    const projectNext = screen.getByTestId('project-next')
+    const scrollTo = vi.fn()
+
+    Object.defineProperty(leftPane, 'scrollTop', {
+      configurable: true,
+      value: 500,
+      writable: true,
+    })
+    Object.defineProperty(leftPane, 'clientHeight', {
+      configurable: true,
+      value: 600,
+    })
+    Object.defineProperty(leftPane, 'scrollHeight', {
+      configurable: true,
+      value: 2000,
+    })
+    Object.defineProperty(leftPane, 'scrollTo', {
+      configurable: true,
+      value: scrollTo,
+    })
+    vi.spyOn(leftPane, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+    } as DOMRect)
+    vi.spyOn(projectPrevious, 'getBoundingClientRect').mockReturnValue({
+      top: 30,
+    } as DOMRect)
+    vi.spyOn(projectNext, 'getBoundingClientRect').mockReturnValue({
+      top: 240,
+    } as DOMRect)
+    fireEvent.scroll(leftPane)
+
+    fireEvent.click(screen.getByLabelText('Scroll to previous project'))
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      top: 334,
+    })
+
+    fireEvent.click(screen.getByLabelText('Scroll to next project'))
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      top: 544,
+    })
+  })
+
+  it('スクロール操作ボタンを hover なしでも常に明瞭に表示する', () => {
+    render(createElement(SavedTabsRoute))
+
+    const scrollButtonGroup =
+      screen.getByLabelText('Scroll to top').parentElement
+
+    expect(scrollButtonGroup?.className.includes('opacity-35')).toBe(false)
+    expect(scrollButtonGroup?.className.includes('opacity-70')).toBe(false)
+    expect(scrollButtonGroup?.className.includes('opacity-100')).toBe(true)
   })
 
   it('AI サイドバーの open 状態を SavedTabsApp へ渡す', () => {

@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "async": true,
+            "command": "./scripts/format-write.sh",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "./scripts/stop-verify.sh",
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  }
+}

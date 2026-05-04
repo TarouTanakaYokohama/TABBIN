@@ -218,6 +218,7 @@ export const DomainModeContainer = ({
       {shouldShowUncategorizedSectionHeader && (
         <div
           className={`sticky top-0 z-50 flex items-center justify-between bg-card ${hasVisibleCategoryGroups ? 'mt-6' : 'mt-2'}`}
+          data-saved-tabs-scroll-target='parent'
         >
           <div className='flex min-w-0 items-center gap-3'>
             <h2 className='font-bold text-foreground text-xl'>

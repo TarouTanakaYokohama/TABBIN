@@ -155,7 +155,7 @@ export const SortableUrlItem = ({
         data-category-context={categoryContext} // カテゴリコンテキストをdata属性に追加
       >
         <div
-          className='z-10 shrink-0 cursor-grab px-2.5 text-muted-foreground/40 hover:cursor-grab active:cursor-grabbing'
+          className='z-10 shrink-0 cursor-grab px-2.5 text-muted-foreground hover:cursor-grab active:cursor-grabbing'
           {...attributes}
           {...listeners}
         >

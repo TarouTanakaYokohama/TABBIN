@@ -117,6 +117,7 @@ export const CategoryGroupRoot = ({
         ref={setNodeRef}
         style={style}
         className='m-0 min-w-0 border-0 p-0'
+        data-saved-tabs-scroll-target='parent'
         aria-label={t('savedTabs.categoryGroupAria', undefined, {
           name: category.name,
         })}

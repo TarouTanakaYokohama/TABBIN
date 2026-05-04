@@ -39,6 +39,82 @@ import type {
   ViewMode,
 } from '@/types/storage'
 
+interface CustomProjectUndoSnapshot {
+  customProjectOrder?: string[]
+  customProjects?: CustomProject[]
+}
+
+interface CustomProjectUndoPayload {
+  customProjectOrder?: string[]
+  customProjects: CustomProject[]
+}
+
+const getArraySnapshot = <T>(value: T[] | undefined): T[] | undefined =>
+  Array.isArray(value) ? value : undefined
+
+const getCustomProjectUndoSnapshot =
+  async (): Promise<CustomProjectUndoSnapshot> =>
+    chrome.storage.local.get<CustomProjectUndoSnapshot>([
+      'customProjects',
+      'customProjectOrder',
+    ])
+
+const createCustomProjectUndoPayload = (
+  snapshot: CustomProjectUndoSnapshot,
+): CustomProjectUndoPayload | null => {
+  const customProjects = getArraySnapshot(snapshot.customProjects)
+  if (!customProjects) {
+    return null
+  }
+
+  const customProjectOrder = getArraySnapshot(snapshot.customProjectOrder)
+  return {
+    ...(customProjectOrder ? { customProjectOrder } : {}),
+    customProjects,
+  }
+}
+
+const showCustomProjectDeleteUndoToast = ({
+  count,
+  setCustomProjects,
+  snapshot,
+  t,
+}: {
+  count: number
+  setCustomProjects: Dispatch<SetStateAction<CustomProject[]>>
+  snapshot: CustomProjectUndoSnapshot
+  t: (key: string, fallback?: string, values?: Record<string, string>) => string
+}) => {
+  toast.info(
+    t('savedTabs.undo.deletedTabs', undefined, {
+      count: String(count),
+    }),
+    {
+      action: {
+        label: t('common.undo'),
+        onClick: async () => {
+          try {
+            const payload = createCustomProjectUndoPayload(snapshot)
+            if (!payload) {
+              return
+            }
+
+            await chrome.storage.local.set(payload)
+            setCustomProjects(payload.customProjects)
+            toast.success(t('savedTabs.undo.restored'))
+          } catch (error) {
+            console.error(
+              'カスタムプロジェクトURL削除の復元に失敗しました:',
+              error,
+            )
+            toast.error(t('savedTabs.undo.restoreError'))
+          }
+        },
+      },
+    },
+  )
+}
+
 /** useProjectManagement フックの戻り値型 */
 interface UseProjectManagementReturn {
   /** カスタムプロジェクト一覧 */
@@ -396,9 +472,16 @@ const useProjectManagement = (
   const handleDeleteUrlFromProject = useCallback(
     async (projectId: string, url: string): Promise<void> => {
       try {
+        const undoSnapshot = await getCustomProjectUndoSnapshot()
         await removeUrlFromCustomProject(projectId, url)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
+        showCustomProjectDeleteUndoToast({
+          count: 1,
+          setCustomProjects,
+          snapshot: undoSnapshot,
+          t,
+        })
         toast.success(t('savedTabs.tab.deleted'))
       } catch (error) {
         console.error('URL削除エラー:', error)
@@ -412,9 +495,16 @@ const useProjectManagement = (
   const handleDeleteUrlsFromProject = useCallback(
     async (projectId: string, urls: string[]): Promise<void> => {
       try {
+        const undoSnapshot = await getCustomProjectUndoSnapshot()
         await removeUrlsFromCustomProject(projectId, urls)
         const updatedProjects = await getCustomProjects()
         setCustomProjects(updatedProjects)
+        showCustomProjectDeleteUndoToast({
+          count: urls.length,
+          setCustomProjects,
+          snapshot: undoSnapshot,
+          t,
+        })
         toast.success(
           t('savedTabs.tabs.deletedCount', undefined, {
             count: String(urls.length),

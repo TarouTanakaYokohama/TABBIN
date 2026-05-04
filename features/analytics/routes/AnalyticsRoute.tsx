@@ -1,5 +1,6 @@
 import { ExternalLink, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Toaster } from '@/components/ui/sonner'
 import {
   Tooltip,
   TooltipContent,
@@ -65,9 +67,19 @@ import {
 } from '@/lib/storage/analytics'
 import { defaultSettings, getUserSettings } from '@/lib/storage/settings'
 import type { AiChatToolTrace } from '@/types/background'
+import type {
+  CustomProject,
+  ParentCategory,
+  TabGroup,
+  UrlRecord,
+} from '@/types/storage'
 import { formatLocaleDateTime } from '@/utils/localDateTime'
 
 const defaultAnalyticsQuery = getDefaultAnalyticsQuery()
+const deferredDrilldownCardStyle: CSSProperties = {
+  containIntrinsicSize: '96px',
+  contentVisibility: 'auto',
+}
 
 const isAnalyticsQuery = (value: unknown): value is AnalyticsQuery => {
   if (!value || typeof value !== 'object') {
@@ -154,6 +166,84 @@ const removeUrlFromStorage = async (url: string): Promise<void> =>
       },
     )
   })
+
+const removeUrlRecordsFromStorage = async (urlIds: string[]): Promise<void> =>
+  new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      {
+        action: 'removeUrlRecordsFromStorage',
+        urlIds,
+      },
+      (response?: { error?: string; status?: string }) => {
+        if (response?.status === 'removed') {
+          resolve()
+          return
+        }
+
+        reject(
+          new Error(response?.error || 'removeUrlRecordsFromStorage failed'),
+        )
+      },
+    )
+  })
+
+interface AnalyticsDeleteUndoSnapshot {
+  customProjectOrder?: string[]
+  customProjects?: CustomProject[]
+  parentCategories?: ParentCategory[]
+  savedTabs?: TabGroup[]
+  urls?: UrlRecord[]
+}
+
+interface AnalyticsDeleteUndoPayload {
+  customProjectOrder?: string[]
+  customProjects?: CustomProject[]
+  parentCategories?: ParentCategory[]
+  savedTabs?: TabGroup[]
+  urls?: UrlRecord[]
+}
+
+const getAnalyticsDeleteUndoSnapshot =
+  async (): Promise<AnalyticsDeleteUndoSnapshot> =>
+    chrome.storage.local.get<AnalyticsDeleteUndoSnapshot>([
+      'savedTabs',
+      'customProjects',
+      'customProjectOrder',
+      'parentCategories',
+      'urls',
+    ])
+
+const getSnapshotArray = <T,>(value: T[] | undefined): T[] | undefined =>
+  Array.isArray(value) ? value : undefined
+
+const createAnalyticsDeleteUndoPayload = (
+  snapshot: AnalyticsDeleteUndoSnapshot,
+): AnalyticsDeleteUndoPayload => {
+  const payload: AnalyticsDeleteUndoPayload = {}
+  const savedTabs = getSnapshotArray(snapshot.savedTabs)
+  const customProjects = getSnapshotArray(snapshot.customProjects)
+  const customProjectOrder = getSnapshotArray(snapshot.customProjectOrder)
+  const parentCategories = getSnapshotArray(snapshot.parentCategories)
+  const urls = getSnapshotArray(snapshot.urls)
+
+  if (savedTabs) {
+    payload.savedTabs = savedTabs
+  }
+  if (customProjects) {
+    payload.customProjects = customProjects
+  }
+  if (customProjectOrder) {
+    payload.customProjectOrder = customProjectOrder
+  }
+  if (parentCategories) {
+    payload.parentCategories = parentCategories
+  }
+  if (urls) {
+    payload.urls = urls
+  }
+
+  return payload
+}
 
 const normalizeAnalyticsRouteQuery = (
   analyticsQuery: AnalyticsQuery,
@@ -521,6 +611,41 @@ const AnalyticsRoute = () => {
     })
   }
 
+  const showDeleteUndoToast = ({
+    count,
+    snapshot,
+  }: {
+    count: number
+    snapshot: AnalyticsDeleteUndoSnapshot
+  }) => {
+    toast.info(
+      t('savedTabs.undo.deletedTabs', undefined, {
+        count: String(count),
+      }),
+      {
+        action: {
+          label: t('common.undo'),
+          onClick: async () => {
+            try {
+              await chrome.storage.local.set(
+                createAnalyticsDeleteUndoPayload(snapshot),
+              )
+              const nextRecords = await refreshRecords()
+              rebuildDrilldownSelection(nextRecords)
+              toast.success(t('savedTabs.undo.restored'))
+            } catch (error) {
+              console.error(
+                'Failed to restore analytics drilldown urls:',
+                error,
+              )
+              toast.error(t('savedTabs.undo.restoreError'))
+            }
+          },
+        },
+      },
+    )
+  }
+
   const performDelete = async (record: AiSavedUrlRecord) => {
     if (deletingUrl || isBulkDeleting) {
       return
@@ -528,9 +653,14 @@ const AnalyticsRoute = () => {
 
     try {
       setDeletingUrl(record.url)
+      const undoSnapshot = await getAnalyticsDeleteUndoSnapshot()
       await removeUrlFromStorage(record.url)
       const nextRecords = await refreshRecords()
       rebuildDrilldownSelection(nextRecords)
+      showDeleteUndoToast({
+        count: 1,
+        snapshot: undoSnapshot,
+      })
     } catch (error) {
       console.error('Failed to delete analytics drilldown url:', error)
     } finally {
@@ -581,11 +711,16 @@ const AnalyticsRoute = () => {
 
     try {
       setIsBulkDeleting(true)
-      for (const record of matchingRecords) {
-        await removeUrlFromStorage(record.url)
-      }
+      const undoSnapshot = await getAnalyticsDeleteUndoSnapshot()
+      await removeUrlRecordsFromStorage(
+        matchingRecords.map(record => record.id),
+      )
       const nextRecords = await refreshRecords()
       rebuildDrilldownSelection(nextRecords)
+      showDeleteUndoToast({
+        count: matchingRecords.length,
+        snapshot: undoSnapshot,
+      })
     } catch (error) {
       console.error('Failed to bulk delete analytics drilldown urls:', error)
     } finally {
@@ -618,7 +753,7 @@ const AnalyticsRoute = () => {
       className='flex h-screen min-h-0 min-w-0 items-stretch overflow-hidden bg-background'
       data-testid='analytics-page-layout'
     >
-      <main className='min-h-0 min-w-0 flex-1 overflow-hidden bg-muted/10 p-4'>
+      <main className='min-h-0 min-w-0 flex-1 overflow-hidden bg-muted/10'>
         <div className='mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-4'>
           <section className='grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)] gap-4'>
             <aside
@@ -944,6 +1079,7 @@ const AnalyticsRoute = () => {
                           <Card
                             className='rounded-2xl border-border bg-card p-3 shadow-none'
                             key={record.id}
+                            style={deferredDrilldownCardStyle}
                           >
                             <div className='grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start'>
                               <div className='min-w-0 flex-1'>
@@ -1062,6 +1198,8 @@ const AnalyticsRoute = () => {
         onSelectHistoryItem={selectConversation}
         title={activeConversation?.title}
       />
+
+      <Toaster />
 
       <AlertDialog
         onOpenChange={isOpen => {

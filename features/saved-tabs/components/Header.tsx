@@ -129,6 +129,8 @@ export const Header = ({
             <Button
               type='button'
               variant='ghost'
+              aria-label={t('savedTabs.searchClear')}
+              title={t('savedTabs.searchClear')}
               onClick={() => onSearchChange('')}
               className='absolute top-1/2 right-0 mr-0.5 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center'
             >

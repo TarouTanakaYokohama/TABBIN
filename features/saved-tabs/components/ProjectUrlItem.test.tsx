@@ -144,6 +144,12 @@ describe('ProjectUrlItem', () => {
     expect(listItem?.getAttribute('data-in-uncategorized')).toBe('false')
     expect(listItem?.className).not.toContain('pl-2')
     expect(listItem?.className).not.toContain('border-l-2')
+    const dragHandle = listItem?.querySelector('svg')?.parentElement
+    expect(dragHandle?.className).not.toContain('opacity-')
+    const actionBar = screen.getByRole('button', {
+      name: 'タブを削除',
+    }).parentElement
+    expect(actionBar?.className).toContain('group-focus-within:opacity-100')
 
     const link = screen.getByRole('link', { name: item.url })
     fireEvent.click(link)

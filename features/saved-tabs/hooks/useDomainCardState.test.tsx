@@ -21,6 +21,14 @@ vi.mock('@/lib/storage/tabs', () => ({
   removeUrlFromTabGroup: vi.fn().mockResolvedValue(undefined),
 }))
 
+vi.mock('sonner', () => ({
+  toast: {
+    error: vi.fn(),
+    info: vi.fn(),
+    success: vi.fn(),
+  },
+}))
+
 vi.mock('@/features/i18n/context/I18nProvider', async () => {
   const { getMessages } = await vi.importActual<
     typeof import('@/features/i18n/messages')
@@ -42,7 +50,12 @@ vi.mock('@/features/i18n/context/I18nProvider', async () => {
   }
 })
 
-import { getParentCategories } from '@/lib/storage/categories'
+import { toast } from 'sonner'
+import {
+  createParentCategory,
+  getParentCategories,
+} from '@/lib/storage/categories'
+import { assignDomainToCategory } from '@/lib/storage/migration'
 import { removeUrlFromTabGroup } from '@/lib/storage/tabs'
 
 const createGroup = (): TabGroup => ({
@@ -63,6 +76,16 @@ describe('useDomainCardState', () => {
       callback(0)
       return 1
     })
+    globalThis.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => ({
+            savedTabs: [createGroup()],
+          })),
+          set: vi.fn(),
+        },
+      },
+    } as unknown as typeof chrome
   })
 
   it('bulk delete handler があるときは子カテゴリ一括削除でそれを 1 回だけ使う', async () => {
@@ -160,5 +183,254 @@ describe('useDomainCardState', () => {
 
     expect(handleDeleteUrls).not.toHaveBeenCalled()
     expect(removeUrlFromTabGroup).not.toHaveBeenCalled()
+  })
+
+  it('URLを保存時刻で昇順/降順に並べてカテゴリ別に返す', async () => {
+    const group: TabGroup = {
+      ...createGroup(),
+      subCategories: ['news'],
+      urls: [
+        {
+          savedAt: 30,
+          subCategory: 'news',
+          title: 'Newer',
+          url: 'https://example.com/newer',
+        },
+        {
+          savedAt: 10,
+          subCategory: 'news',
+          title: 'Older',
+          url: 'https://example.com/older',
+        },
+        {
+          savedAt: 20,
+          title: 'Uncategorized',
+          url: 'https://example.com/uncategorized',
+        },
+      ],
+    }
+
+    const { result } = renderHook(() =>
+      useDomainCardState({
+        group,
+        handleDeleteCategory: vi.fn(),
+        isReorderMode: false,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(getParentCategories).toHaveBeenCalledTimes(1)
+    })
+
+    act(() => {
+      result.current.sort.setSortOrder('asc')
+    })
+    expect(
+      result.current.computed.categorizedUrls.news.map(item => item.title),
+    ).toEqual(['Older', 'Newer'])
+
+    act(() => {
+      result.current.sort.setSortOrder('desc')
+    })
+    expect(
+      result.current.computed.categorizedUrls.news.map(item => item.title),
+    ).toEqual(['Newer', 'Older'])
+    expect(result.current.computed.categorizedUrls.__uncategorized).toEqual([
+      expect.objectContaining({
+        title: 'Uncategorized',
+      }),
+    ])
+  })
+
+  it('保存済みカテゴリ順を読み込みドラッグ確定/キャンセルを処理する', async () => {
+    const group: TabGroup = {
+      ...createGroup(),
+      subCategoryOrderWithUncategorized: ['tech', 'news'],
+    }
+    const setStorage = vi.fn()
+    globalThis.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => ({
+            savedTabs: [group],
+          })),
+          set: setStorage,
+        },
+      },
+    } as unknown as typeof chrome
+
+    const { result } = renderHook(() =>
+      useDomainCardState({
+        group,
+        handleDeleteCategory: vi.fn(),
+        isReorderMode: false,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(result.current.categoryReorder.allCategoryIds).toEqual([
+        'tech',
+        'news',
+      ])
+    })
+
+    act(() => {
+      result.current.categoryReorder.handleCategoryDragEnd({
+        active: { id: 'tech' },
+        over: { id: 'news' },
+      })
+    })
+    expect(result.current.categoryReorder.tempCategoryOrder).toEqual([
+      'news',
+      'tech',
+    ])
+
+    await act(async () => {
+      await result.current.categoryReorder.handleConfirmCategoryReorder()
+    })
+    expect(setStorage).toHaveBeenCalledWith({
+      savedTabs: [
+        expect.objectContaining({
+          subCategoryOrder: ['news', 'tech'],
+          subCategoryOrderWithUncategorized: ['news', 'tech'],
+        }),
+      ],
+    })
+    expect(toast.success).toHaveBeenCalled()
+
+    act(() => {
+      result.current.categoryReorder.handleCategoryDragEnd({
+        active: { id: 'news' },
+        over: { id: 'tech' },
+      })
+    })
+    act(() => {
+      result.current.categoryReorder.handleCancelCategoryReorder()
+    })
+    expect(result.current.categoryReorder.isCategoryReorderMode).toBe(false)
+    expect(toast.info).toHaveBeenCalled()
+  })
+
+  it('カテゴリ変更・モーダル close・親カテゴリ操作をハンドラへ反映する', async () => {
+    const handleDeleteCategory = vi.fn()
+    vi.mocked(createParentCategory).mockResolvedValue({
+      domains: [],
+      domainNames: [],
+      id: 'parent-1',
+      name: 'Parent',
+    })
+    vi.mocked(assignDomainToCategory).mockResolvedValue(undefined)
+
+    const { result } = renderHook(() =>
+      useDomainCardState({
+        group: createGroup(),
+        handleDeleteCategory,
+        isReorderMode: false,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(getParentCategories).toHaveBeenCalledTimes(1)
+    })
+
+    act(() => {
+      result.current.keywordModal.setShowKeywordModal(true)
+    })
+    expect(result.current.keywordModal.showKeywordModal).toBe(true)
+
+    await act(async () => {
+      result.current.keywordModal.handleCloseKeywordModal()
+      await Promise.resolve()
+    })
+    expect(result.current.keywordModal.showKeywordModal).toBe(false)
+
+    act(() => {
+      result.current.categoryActions.handleCategoryDelete('group-1', 'news')
+    })
+    expect(handleDeleteCategory).toHaveBeenCalledWith('group-1', 'news')
+
+    await act(async () => {
+      await expect(
+        result.current.parentCategories.handleCreateParentCategory('Parent'),
+      ).resolves.toEqual(
+        expect.objectContaining({
+          id: 'parent-1',
+        }),
+      )
+    })
+    expect(result.current.parentCategories.categories).toEqual([
+      expect.objectContaining({
+        id: 'parent-1',
+      }),
+    ])
+
+    await act(async () => {
+      await result.current.parentCategories.handleAssignToParentCategory(
+        'group-1',
+        'parent-1',
+      )
+    })
+    expect(assignDomainToCategory).toHaveBeenCalledWith('group-1', 'parent-1')
+
+    act(() => {
+      result.current.parentCategories.handleUpdateParentCategories([
+        {
+          domains: [],
+          domainNames: [],
+          id: 'parent-2',
+          name: 'Manual',
+        },
+      ])
+    })
+    expect(result.current.parentCategories.categories).toEqual([
+      expect.objectContaining({
+        id: 'parent-2',
+      }),
+    ])
+  })
+
+  it('drag monitor はドラッグ中に折りたたみ、通常終了時にユーザー状態へ戻す', async () => {
+    const { result, rerender } = renderHook(
+      ({ isReorderMode }) =>
+        useDomainCardState({
+          group: createGroup(),
+          handleDeleteCategory: vi.fn(),
+          isReorderMode,
+        }),
+      {
+        initialProps: {
+          isReorderMode: false,
+        },
+      },
+    )
+
+    await waitFor(() => {
+      expect(getParentCategories).toHaveBeenCalledTimes(1)
+    })
+
+    act(() => {
+      result.current.collapse.setUserCollapsedState(true)
+    })
+    expect(result.current.collapse.isCollapsed).toBe(true)
+
+    act(() => {
+      result.current.dndMonitorHandlers.onDragStart()
+    })
+    expect(result.current.collapse.isCollapsed).toBe(true)
+
+    act(() => {
+      result.current.dndMonitorHandlers.onDragEnd()
+    })
+    expect(result.current.collapse.isCollapsed).toBe(true)
+
+    rerender({
+      isReorderMode: true,
+    })
+    expect(result.current.collapse.isCollapsed).toBe(true)
+
+    act(() => {
+      result.current.dndMonitorHandlers.onDragCancel()
+    })
+    expect(result.current.collapse.isCollapsed).toBe(true)
   })
 })

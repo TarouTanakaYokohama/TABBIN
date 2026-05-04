@@ -141,6 +141,14 @@ export const ImportExportSettings: React.FC = () => {
 
   return (
     <div className='space-y-4'>
+      <Alert>
+        <AlertCircle className='h-4 w-4' />
+        <AlertTitle>{t('options.importExport.scopeTitle')}</AlertTitle>
+        <AlertDescription>
+          {t('options.importExport.scopeDescription')}
+        </AlertDescription>
+      </Alert>
+
       <div className='flex flex-wrap gap-2'>
         <Button
           onClick={handleExport}

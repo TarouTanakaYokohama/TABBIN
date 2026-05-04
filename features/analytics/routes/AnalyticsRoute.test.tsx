@@ -10,6 +10,7 @@ import {
   waitFor,
 } from '@testing-library/react'
 import { Children, Fragment, type ReactNode, isValidElement } from 'react'
+import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AiSavedUrlRecord } from '@/features/ai-chat/types'
 import type { SavedAnalyticsView } from '@/lib/storage/analytics'
@@ -24,7 +25,21 @@ const analyticsRouteMocks = vi.hoisted(() => ({
   loadViewsMock: vi.fn<() => Promise<SavedAnalyticsView[]>>(),
   saveViewsMock: vi.fn(),
   sendMessageMock: vi.fn(),
+  storageGetMock: vi.fn(),
+  storageSetMock: vi.fn(),
   updateMessagesMock: vi.fn(),
+}))
+
+vi.mock('sonner', () => ({
+  toast: {
+    error: vi.fn(),
+    info: vi.fn(),
+    success: vi.fn(),
+  },
+}))
+
+vi.mock('@/components/ui/sonner', () => ({
+  Toaster: () => <div data-testid='analytics-toaster' />,
 }))
 
 vi.mock('@/features/i18n/context/I18nProvider', async () => {
@@ -362,8 +377,30 @@ const records: AiSavedUrlRecord[] = [
   },
 ]
 
+const bulkDeleteRecords: AiSavedUrlRecord[] = [
+  records[0],
+  {
+    id: '3',
+    url: 'https://docs.example.com/b',
+    title: 'Example Docs B',
+    domain: 'docs.example.com',
+    savedAt: Date.UTC(2026, 2, 11),
+    savedInTabGroups: ['docs.example.com'],
+    savedInProjects: ['Research'],
+    subCategories: ['Docs'],
+    projectCategories: ['Reading'],
+    parentCategories: ['Work'],
+  },
+  records[1],
+]
+
 describe('AnalyticsRoute', () => {
   beforeEach(() => {
+    vi.useFakeTimers({
+      shouldAdvanceTime: true,
+    })
+    vi.setSystemTime(new Date(Date.UTC(2026, 2, 14, 0, 0, 0)))
+
     analyticsRouteMocks.language = 'en'
     analyticsRouteMocks.deleteViewMock.mockReset()
     analyticsRouteMocks.loadRecordsMock.mockReset()
@@ -371,10 +408,41 @@ describe('AnalyticsRoute', () => {
     analyticsRouteMocks.loadViewsMock.mockReset()
     analyticsRouteMocks.saveViewsMock.mockReset()
     analyticsRouteMocks.sendMessageMock.mockReset()
+    analyticsRouteMocks.storageGetMock.mockReset()
+    analyticsRouteMocks.storageSetMock.mockReset()
     analyticsRouteMocks.updateMessagesMock.mockReset()
     analyticsRouteMocks.loadRecordsMock.mockResolvedValue(records)
     analyticsRouteMocks.loadSettingsMock.mockResolvedValue(defaultSettings)
     analyticsRouteMocks.loadViewsMock.mockResolvedValue([])
+    analyticsRouteMocks.storageGetMock.mockResolvedValue({
+      customProjectOrder: ['project-1'],
+      customProjects: [
+        {
+          id: 'project-1',
+          name: 'Project A',
+          urlIds: ['url-1'],
+          categories: [],
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'group-1',
+          domain: 'docs.example.com',
+          urlIds: ['url-1'],
+        },
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'Example Docs',
+          url: 'https://docs.example.com/a',
+        },
+      ],
+    })
     analyticsRouteMocks.sendMessageMock.mockImplementation(
       (
         _message: unknown,
@@ -389,11 +457,18 @@ describe('AnalyticsRoute', () => {
       runtime: {
         sendMessage: analyticsRouteMocks.sendMessageMock,
       },
+      storage: {
+        local: {
+          get: analyticsRouteMocks.storageGetMock,
+          set: analyticsRouteMocks.storageSetMock,
+        },
+      },
     } as unknown as typeof chrome
   })
 
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
   })
 
   it('shared ui コンポーネントを利用する実装になっている', () => {
@@ -411,6 +486,14 @@ describe('AnalyticsRoute', () => {
     expect(source).toContain("from '@/components/ui/select'")
     expect(source).toContain("from '@/components/ui/scroll-area'")
     expect(source).toContain("from '@/components/ui/badge'")
+    expect(source).toContain("contentVisibility: 'auto'")
+    expect(source).toContain("containIntrinsicSize: '96px'")
+  })
+
+  it('Undo トーストを表示するための Toaster を配置する', async () => {
+    render(<AnalyticsRoute />)
+
+    expect(await screen.findByTestId('analytics-toaster')).toBeTruthy()
   })
 
   it('初期条件でチャートを表示する', async () => {
@@ -990,9 +1073,9 @@ describe('AnalyticsRoute', () => {
     )
   })
 
-  it('confirmDeleteAll=false のときドリルダウンのすべて削除で即時削除する', async () => {
+  it('confirmDeleteAll=false のときドリルダウンのすべて削除で対象URL IDを一括削除する', async () => {
     analyticsRouteMocks.loadRecordsMock
-      .mockResolvedValueOnce(records)
+      .mockResolvedValueOnce(bulkDeleteRecords)
       .mockResolvedValueOnce([records[1]])
 
     render(<AnalyticsRoute />)
@@ -1008,12 +1091,21 @@ describe('AnalyticsRoute', () => {
     await waitFor(() => {
       expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledWith(
         {
-          action: 'removeUrlFromStorage',
-          url: 'https://docs.example.com/a',
+          action: 'removeUrlRecordsFromStorage',
+          urlIds: ['1', '3'],
         },
         expect.any(Function),
       )
     })
+    expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(1)
+    expect(toast.info).toHaveBeenCalledWith(
+      'You can restore 2 deleted tabs to saved data',
+      expect.objectContaining({
+        action: expect.objectContaining({
+          label: 'Undo',
+        }),
+      }),
+    )
   })
 
   it('confirmDeleteAll=true のときドリルダウンのすべて削除は確認ダイアログを経由する', async () => {
@@ -1022,7 +1114,7 @@ describe('AnalyticsRoute', () => {
       confirmDeleteAll: true,
     })
     analyticsRouteMocks.loadRecordsMock
-      .mockResolvedValueOnce(records)
+      .mockResolvedValueOnce(bulkDeleteRecords)
       .mockResolvedValueOnce([records[1]])
 
     render(<AnalyticsRoute />)
@@ -1043,12 +1135,13 @@ describe('AnalyticsRoute', () => {
     await waitFor(() => {
       expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledWith(
         {
-          action: 'removeUrlFromStorage',
-          url: 'https://docs.example.com/a',
+          action: 'removeUrlRecordsFromStorage',
+          urlIds: ['1', '3'],
         },
         expect.any(Function),
       )
     })
+    expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(1)
   })
 
   it('confirmDeleteEach=false のとき即時削除して一覧を再読込する', async () => {
@@ -1079,6 +1172,27 @@ describe('AnalyticsRoute', () => {
     expect(
       screen.getByText('Created Saved count by domain from 1 saved records.'),
     ).toBeTruthy()
+    expect(toast.info).toHaveBeenCalledWith(
+      'You can restore 1 deleted tabs to saved data',
+      expect.objectContaining({
+        action: expect.objectContaining({
+          label: 'Undo',
+        }),
+      }),
+    )
+
+    const undoOptions = vi.mocked(toast.info).mock.calls.at(-1)?.[1] as
+      | {
+          action?: {
+            onClick?: () => Promise<void>
+          }
+        }
+      | undefined
+    await undoOptions?.action?.onClick?.()
+
+    expect(analyticsRouteMocks.storageSetMock).toHaveBeenCalledWith(
+      await analyticsRouteMocks.storageGetMock.mock.results[0]?.value,
+    )
   })
 
   it('confirmDeleteEach=true のとき確認ダイアログ経由で削除する', async () => {
@@ -1128,7 +1242,9 @@ describe('AnalyticsRoute', () => {
     fireEvent.click(deleteButton)
     fireEvent.click(deleteButton)
 
-    expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(1)
+    })
 
     resolveRemoval?.({ status: 'removed' })
   })

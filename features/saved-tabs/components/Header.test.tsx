@@ -189,12 +189,7 @@ describe('Header', () => {
     })
     expect(onSearchChange).toHaveBeenCalledWith('next')
 
-    const buttons = screen.getAllByRole('button')
-    const clearButton = buttons[0]
-    expect(clearButton).toBeTruthy()
-    if (!clearButton) {
-      throw new Error('clear button not found')
-    }
+    const clearButton = screen.getByRole('button', { name: '検索をクリア' })
     fireEvent.click(clearButton)
     expect(onSearchChange).toHaveBeenCalledWith('')
 

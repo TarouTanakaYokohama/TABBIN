@@ -134,3 +134,20 @@
     margin: 0;
   }
 }
+
+@layer components {
+  .saved-tabs-scroll-highlight {
+    animation: saved-tabs-scroll-highlight 1200ms ease-out;
+    box-shadow: inset 3px 0 0
+      color-mix(in oklch, var(--primary) 65%, transparent);
+  }
+}
+
+@keyframes saved-tabs-scroll-highlight {
+  0% {
+    background-color: color-mix(in oklch, var(--primary) 12%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}

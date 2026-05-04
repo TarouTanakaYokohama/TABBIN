@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check"
+  short_description: "Run npm quality checks and auto-fix failures"
+  default_prompt: "Run npm run quality in this repository, automatically fix failures, and rerun until green or blocked."

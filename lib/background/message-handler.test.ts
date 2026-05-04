@@ -8,6 +8,7 @@ const mocked = vi.hoisted(() => ({
   handleUrlDropped: vi.fn(),
   isAutoDeletePeriod: vi.fn(),
   listLocalOllamaModels: vi.fn(),
+  removeUrlRecordsFromStorage: vi.fn(),
   removeUrlFromStorage: vi.fn(),
   runAiChatRequest: vi.fn(),
   updateTabTimestamps: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock('./expired-tabs', () => ({
 vi.mock('./url-storage', () => ({
   handleUrlDragStarted: mocked.handleUrlDragStarted,
   handleUrlDropped: mocked.handleUrlDropped,
+  removeUrlRecordsFromStorage: mocked.removeUrlRecordsFromStorage,
   removeUrlFromStorage: mocked.removeUrlFromStorage,
 }))
 
@@ -339,6 +341,65 @@ describe('setupMessageListener', () => {
     await vi.waitFor(() => {
       expect(removeErrorResponse).toHaveBeenCalledWith({
         error: 'remove failed',
+        status: 'error',
+      })
+    })
+  })
+
+  it('removeUrlRecordsFromStorage を処理する', async () => {
+    const { listener } = setupListener()
+    const bulkRemoveResponse = vi.fn()
+    const emptyBulkRemoveResponse = vi.fn()
+    const bulkRemoveErrorResponse = vi.fn()
+    mocked.removeUrlRecordsFromStorage.mockResolvedValueOnce(2)
+    mocked.removeUrlRecordsFromStorage.mockResolvedValueOnce(0)
+    mocked.removeUrlRecordsFromStorage.mockRejectedValueOnce('bulk failed')
+
+    listener(
+      {
+        action: 'removeUrlRecordsFromStorage',
+        urlIds: ['url-1', 'url-2'],
+      },
+      {} as chrome.runtime.MessageSender,
+      bulkRemoveResponse,
+    )
+    await vi.waitFor(() => {
+      expect(bulkRemoveResponse).toHaveBeenCalledWith({
+        removedCount: 2,
+        status: 'removed',
+      })
+    })
+    expect(mocked.removeUrlRecordsFromStorage).toHaveBeenCalledWith([
+      'url-1',
+      'url-2',
+    ])
+
+    listener(
+      {
+        action: 'removeUrlRecordsFromStorage',
+        urlIds: [],
+      },
+      {} as chrome.runtime.MessageSender,
+      emptyBulkRemoveResponse,
+    )
+    await vi.waitFor(() => {
+      expect(emptyBulkRemoveResponse).toHaveBeenCalledWith({
+        removedCount: 0,
+        status: 'removed',
+      })
+    })
+
+    listener(
+      {
+        action: 'removeUrlRecordsFromStorage',
+        urlIds: ['url-1'],
+      },
+      {} as chrome.runtime.MessageSender,
+      bulkRemoveErrorResponse,
+    )
+    await vi.waitFor(() => {
+      expect(bulkRemoveErrorResponse).toHaveBeenCalledWith({
+        error: 'bulk failed',
         status: 'error',
       })
     })

@@ -7,6 +7,7 @@ import {
   handleSavedTabsRender,
   isDevProfileEnabled,
 } from '@/features/saved-tabs/app/SavedTabsApp'
+import { SavedTabsScrollControls } from '@/features/saved-tabs/components/SavedTabsScrollControls'
 import { SavedTabsResponsiveLayoutProvider } from '@/features/saved-tabs/contexts/SavedTabsResponsiveLayoutContext'
 import type { ViewMode } from '@/types/storage'
 
@@ -79,34 +80,40 @@ export const SavedTabsRoute = ({
 
   return (
     <div
-      className='mx-4 flex h-screen items-stretch overflow-hidden'
+      className='flex h-screen items-stretch overflow-hidden'
       data-testid='saved-tabs-page-layout'
     >
-      <div
-        ref={leftPaneRef}
-        className='min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain'
-        data-saved-tabs-layout={isCompactLeftPaneLayout ? 'compact' : 'full'}
-        data-testid='saved-tabs-left-pane'
-      >
-        <SavedTabsResponsiveLayoutProvider
-          isCompactLayout={isCompactLeftPaneLayout}
+      <div className='flex min-w-0 flex-1'>
+        <div
+          ref={leftPaneRef}
+          className='h-full min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain'
+          data-saved-tabs-layout={isCompactLeftPaneLayout ? 'compact' : 'full'}
+          data-testid='saved-tabs-left-pane'
         >
-          {isDevProfileEnabled ? (
-            <Profiler id='SavedTabs' onRender={handleSavedTabsRender}>
+          <SavedTabsResponsiveLayoutProvider
+            isCompactLayout={isCompactLeftPaneLayout}
+          >
+            {isDevProfileEnabled ? (
+              <Profiler id='SavedTabs' onRender={handleSavedTabsRender}>
+                <SavedTabsApp
+                  initialViewMode={initialViewMode}
+                  isAiSidebarOpen={isAiSidebarOpen}
+                  onViewModeNavigate={onViewModeNavigate}
+                />
+              </Profiler>
+            ) : (
               <SavedTabsApp
                 initialViewMode={initialViewMode}
                 isAiSidebarOpen={isAiSidebarOpen}
                 onViewModeNavigate={onViewModeNavigate}
               />
-            </Profiler>
-          ) : (
-            <SavedTabsApp
-              initialViewMode={initialViewMode}
-              isAiSidebarOpen={isAiSidebarOpen}
-              onViewModeNavigate={onViewModeNavigate}
-            />
-          )}
-        </SavedTabsResponsiveLayoutProvider>
+            )}
+          </SavedTabsResponsiveLayoutProvider>
+        </div>
+        <SavedTabsScrollControls
+          scrollContainerRef={leftPaneRef}
+          viewMode={initialViewMode}
+        />
       </div>
       <SavedTabsChatWidget
         conversationId={activeConversation?.id}

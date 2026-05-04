@@ -207,7 +207,7 @@ const ProjectUrlItemComponent = ({
         <div
           {...attributes}
           {...listeners}
-          className='cursor-grab p-1 opacity-30 active:cursor-grabbing group-hover:opacity-100'
+          className='cursor-grab p-1 active:cursor-grabbing'
         >
           <GripVertical size={16} className='text-muted-foreground' />
         </div>
@@ -249,7 +249,7 @@ const ProjectUrlItemComponent = ({
           </Button>
         </div>
         {/* ボタン群 */}
-        <div className='flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100'>
+        <div className='flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100'>
           <Button
             variant='ghost'
             size='sm'

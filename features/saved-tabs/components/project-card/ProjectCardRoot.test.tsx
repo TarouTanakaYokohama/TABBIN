@@ -244,6 +244,8 @@ describe('ProjectCardRoot', () => {
 
     expect(screen.getByText('Project A')).toBeTruthy()
     expect(screen.queryByText('Project Description')).toBeNull()
+    expect(screen.getByTestId('card').style.contentVisibility).toBe('auto')
+    expect(screen.getByTestId('card').style.containIntrinsicSize).toBe('360px')
 
     // 以前はbutton要素でしたが、CardGroupTitle内でdiv要素に変更され、
     // aria-labelなどは付与されていないため、親の attributes から取得した属性で検証します

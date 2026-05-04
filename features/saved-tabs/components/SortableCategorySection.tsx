@@ -251,7 +251,12 @@ export const SortableCategorySection = ({
 
   return (
     <div>
-      <div ref={setNodeRef} style={style} className={sectionClassName}>
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={sectionClassName}
+        data-saved-tabs-scroll-target='child'
+      >
         <div
           className={`category-header sticky ${stickyTop} z-30 mb-0.5 flex items-center justify-between gap-2 bg-background pb-0.5`}
         >
@@ -298,7 +303,7 @@ export const SortableCategorySection = ({
             {...attributes}
             {...listeners}
           >
-            <div className='text-muted-foreground/60'>
+            <div className='text-muted-foreground'>
               <GripVertical size={16} aria-hidden='true' />
             </div>
             <h3 className='font-medium text-foreground'>
@@ -367,7 +372,12 @@ export const SortableCategorySection = ({
         </div>
 
         {!isCollapsed && (
-          <CategorySection {...props} urls={sortedUrls} settings={settings} />
+          <CategorySection
+            {...props}
+            urls={sortedUrls}
+            settings={settings}
+            scrollTarget={false}
+          />
         )}
       </div>
 

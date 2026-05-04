@@ -26,6 +26,7 @@ export const CategorySection = ({
   handleDeleteUrl,
   handleOpenTab,
   handleUpdateUrls,
+  scrollTarget = true,
   settings,
 }: CategorySectionProps) => {
   const [displayUrls, setDisplayUrls] = useState(urls)
@@ -79,7 +80,10 @@ export const CategorySection = ({
   // 表示名を設定
 
   return (
-    <div className='category-section mb-1'>
+    <div
+      className='category-section mb-1'
+      data-saved-tabs-scroll-target={scrollTarget ? 'child' : undefined}
+    >
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

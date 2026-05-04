@@ -32,6 +32,13 @@ lerna-debug.log*
 web-ext.config.ts
 .agents/
 .claude/
+.codex/
+.cursor/
+.gemini/
+.github/hooks/
+.github/instructions/
+.github/prompts/*.prompt.md
+.github/skills/
 
 # Editor directories and files
 .vscode/*
@@ -43,3 +50,7 @@ web-ext.config.ts
 *.njsproj
 *.sln
 *.sw?
+
+
+# APM dependencies
+apm_modules/
