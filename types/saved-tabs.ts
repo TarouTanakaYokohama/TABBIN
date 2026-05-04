@@ -53,6 +53,7 @@ export interface CategorySectionProps {
   handleOpenTab: (url: string) => void
   handleUpdateUrls: (groupId: string, updatedUrls: TabGroup['urls']) => void
   handleOpenAllTabs?: (urls: { url: string; title: string }[]) => void
+  scrollTarget?: boolean
   settings: UserSettings
 }
 
