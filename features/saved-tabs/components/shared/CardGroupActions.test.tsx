@@ -45,11 +45,13 @@ vi.mock('@/components/ui/alert-dialog', () => ({
   AlertDialogAction: ({
     children,
     onClick,
+    variant,
   }: {
     children: React.ReactNode
     onClick?: () => void
+    variant?: string
   }) => (
-    <button onClick={onClick} type='button'>
+    <button data-variant={variant} onClick={onClick} type='button'>
       {children}
     </button>
   ),
@@ -107,6 +109,14 @@ describe('CardGroupActions', () => {
     expect(onDeleteAll).toHaveBeenCalledTimes(1)
   })
 
+  it('一括削除ボタンは一覧上で通常のsecondary色で表示する', () => {
+    render(<CardGroupActions onDeleteAll={vi.fn()} />)
+
+    expect(
+      screen.getByRole('button', { name: 'すべて削除' }).className,
+    ).toContain('bg-secondary')
+  })
+
   it('確認が必要な場合はダイアログを開いてから実行する', () => {
     const onOpenAll = vi.fn()
     const onDeleteAll = vi.fn()
@@ -133,7 +143,9 @@ describe('CardGroupActions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'すべて削除' }))
     expect(screen.getByText('URLをすべて削除しますか？')).toBeTruthy()
     expect(screen.getByText('すべて削除します')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '削除' }))
+    const confirmDeleteButton = screen.getByRole('button', { name: '削除' })
+    expect(confirmDeleteButton.getAttribute('data-variant')).toBe('destructive')
+    fireEvent.click(confirmDeleteButton)
     expect(onDeleteAll).toHaveBeenCalledTimes(1)
   })
 })

@@ -389,7 +389,7 @@ const CategoryManageDialog = ({
             ) : (
               <div className='mt-2 flex justify-end'>
                 <Button
-                  variant='destructive'
+                  variant='secondary'
                   size='sm'
                   onClick={() => setShowDeleteConfirm(true)}
                 >
@@ -468,7 +468,10 @@ const CategoryBulkConfirmDialogs = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void onConfirmDeleteAll()}>
+            <AlertDialogAction
+              variant='destructive'
+              onClick={() => void onConfirmDeleteAll()}
+            >
               {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>

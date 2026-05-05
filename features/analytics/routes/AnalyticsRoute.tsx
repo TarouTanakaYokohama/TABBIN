@@ -963,11 +963,11 @@ const AnalyticsRoute = () => {
                                     undefined,
                                     { name: view.name },
                                   )}
-                                  className='cursor-pointer rounded-lg'
                                   onClick={() => void handleDeleteView(view.id)}
                                   size='sm'
                                   type='button'
                                   variant='outline'
+                                  className='cursor-pointer rounded-lg'
                                 >
                                   {t('common.delete')}
                                 </Button>
@@ -1222,6 +1222,7 @@ const AnalyticsRoute = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
+              variant='destructive'
               onClick={event => {
                 event.preventDefault()
                 void performBulkDelete()
@@ -1284,6 +1285,7 @@ const AnalyticsRoute = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
+              variant='destructive'
               onClick={event => {
                 event.preventDefault()
                 if (!deleteTarget) {

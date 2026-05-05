@@ -118,7 +118,7 @@ export const AutoDeleteSettingsCard = ({
                 </Button>
                 <Button
                   type='button'
-                  variant='default'
+                  variant='destructive'
                   onClick={confirmationState.onConfirm}
                 >
                   {t('common.confirm')}

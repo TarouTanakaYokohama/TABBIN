@@ -287,6 +287,7 @@ const ProjectUrlItemComponent = ({
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
+              variant='destructive'
               onClick={() => handleDeleteUrl(projectId, item.url)}
             >
               {t('common.delete')}

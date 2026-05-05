@@ -918,7 +918,7 @@ const SystemPromptManagerDialog = ({
                       </Button>
                       <Button
                         type='button'
-                        variant='ghost'
+                        variant='secondary'
                         size='sm'
                         disabled={isDeleteDisabled}
                         onClick={onDeletePrompt}

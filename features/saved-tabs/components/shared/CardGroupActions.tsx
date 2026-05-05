@@ -190,7 +190,7 @@ export const CardGroupActions = ({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-              <AlertDialogAction onClick={onDeleteAll}>
+              <AlertDialogAction variant='destructive' onClick={onDeleteAll}>
                 {t('common.delete')}
               </AlertDialogAction>
             </AlertDialogFooter>

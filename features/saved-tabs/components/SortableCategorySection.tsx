@@ -403,7 +403,10 @@ export const SortableCategorySection = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void onDeleteAllTabsConfirmed()}>
+            <AlertDialogAction
+              variant='destructive'
+              onClick={() => void onDeleteAllTabsConfirmed()}
+            >
               {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
