@@ -194,7 +194,7 @@ export const TerminalCopyButton = ({
   return (
     <Button
       className={cn(
-        'size-7 shrink-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100',
+        'size-7 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40',
         className,
       )}
       onClick={copyToClipboard}

@@ -229,7 +229,10 @@ export const SortableUrlItem = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => handleDeleteUrl(groupId, url)}>
+            <AlertDialogAction
+              variant='destructive'
+              onClick={() => handleDeleteUrl(groupId, url)}
+            >
               {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>

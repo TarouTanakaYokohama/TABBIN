@@ -210,6 +210,7 @@ export const DomainCardActions = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
+              variant='destructive'
               onClick={() => {
                 executeDeleteAll()
                 if (isReorderMode) {

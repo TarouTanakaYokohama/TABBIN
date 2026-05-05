@@ -343,15 +343,19 @@ export const AttachmentRemove = ({
           'absolute top-2 right-2 size-6 rounded-full p-0',
           'bg-background/80 backdrop-blur-sm',
           'opacity-0 transition-opacity group-hover:opacity-100',
-          'hover:bg-background',
+          'text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40',
           '[&>svg]:size-3',
         ],
         variant === 'inline' && [
           'size-5 rounded p-0',
           'opacity-0 transition-opacity group-hover:opacity-100',
+          'text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40',
           '[&>svg]:size-2.5',
         ],
-        variant === 'list' && ['size-8 shrink-0 rounded p-0', '[&>svg]:size-4'],
+        variant === 'list' && [
+          'size-8 shrink-0 rounded p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40',
+          '[&>svg]:size-4',
+        ],
         className,
       )}
       onClick={handleClick}
