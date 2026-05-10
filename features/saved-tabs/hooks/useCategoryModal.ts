@@ -33,10 +33,14 @@ const buildDomainCategoriesMap = (
   parentCategories: ParentCategory[],
 ): DomainCategoryMap => {
   const domainCategoriesMap: DomainCategoryMap = {}
+  const categoryByDomainName = new Map<string, ParentCategory>()
+  for (const category of parentCategories) {
+    for (const domainName of category.domainNames ?? []) {
+      categoryByDomainName.set(domainName, category)
+    }
+  }
   for (const group of tabGroups) {
-    const foundCategory = parentCategories.find(category =>
-      category.domainNames?.includes(group.domain),
-    )
+    const foundCategory = categoryByDomainName.get(group.domain)
     domainCategoriesMap[group.id] = foundCategory
       ? {
           id: foundCategory.id,
@@ -152,32 +156,48 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
   const [newCategoryName, setNewCategoryName] = useState('')
   const [nameError, setNameError] = useState<string | null>(null)
 
-  // --- カテゴリリスト状態 ---
-  const [categories, setCategories] = useState<ParentCategory[]>([])
-
-  // --- 選択中のカテゴリID ---
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
-    null,
+  // --- カテゴリリスト・選択状態 ---
+  const [categoryData, setCategoryData] = useState({
+    categories: [] as ParentCategory[],
+    domainCategories: {} as DomainCategoryMap,
+    selectedCategoryId: null as string | null,
+  })
+  const { categories, domainCategories, selectedCategoryId } = categoryData
+  const setCategories: Dispatch<SetStateAction<ParentCategory[]>> = useCallback(
+    action => {
+      setCategoryData(current => ({
+        ...current,
+        categories:
+          action instanceof Function ? action(current.categories) : action,
+      }))
+    },
+    [],
   )
+  const setDomainCategories: Dispatch<SetStateAction<DomainCategoryMap>> =
+    useCallback(action => {
+      setCategoryData(current => ({
+        ...current,
+        domainCategories:
+          action instanceof Function
+            ? action(current.domainCategories)
+            : action,
+      }))
+    }, [])
+  const setSelectedCategoryId = useCallback((nextCategoryId: string | null) => {
+    setCategoryData(current => ({
+      ...current,
+      selectedCategoryId: nextCategoryId,
+    }))
+  }, [])
 
   // --- ドメイン選択状態 ---
   const [selectedDomains, setSelectedDomains] = useState<
     Record<string, boolean>
   >({})
 
-  // --- ドメインの親カテゴリ情報 ---
-  const [domainCategories, setDomainCategories] = useState<
-    Record<
-      string,
-      {
-        id: string
-        name: string
-      } | null
-    >
-  >({})
-
   // --- 処理中状態 ---
-  const [isLoading, setIsLoading] = useState(false)
+  const [isCategoryUpdating, setIsCategoryUpdating] = useState(false)
+  const isLoading = isCategoryUpdating
 
   // --- 削除確認UI状態 ---
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -198,13 +218,16 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
   const updateSelectedDomains = useCallback(
     (category: ParentCategory | 'uncategorized') => {
       const newSelectedDomains: Record<string, boolean> = {}
+      const categoryDomainNames =
+        category === 'uncategorized'
+          ? null
+          : new Set(category.domainNames ?? [])
       for (const group of tabGroups) {
         if (category === 'uncategorized') {
           newSelectedDomains[group.id] = !domainCategories[group.id]
         } else {
-          const isDomainInCategory = category.domainNames?.includes(
-            group.domain,
-          )
+          const isDomainInCategory =
+            categoryDomainNames?.has(group.domain) ?? false
           newSelectedDomains[group.id] = isDomainInCategory
         }
       }
@@ -218,14 +241,15 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
     const loadCategories = async () => {
       try {
         const parentCategories = await getParentCategories()
-        setCategories(parentCategories)
-        setDomainCategories(
-          buildDomainCategoriesMap(tabGroups, parentCategories),
-        )
-        if (parentCategories.length > 0) {
-          setSelectedCategoryId(parentCategories[0].id)
-          // updateSelectedDomainsは初期ロード後に別のeffectで実行
-        }
+        setCategoryData({
+          categories: parentCategories,
+          domainCategories: buildDomainCategoriesMap(
+            tabGroups,
+            parentCategories,
+          ),
+          selectedCategoryId:
+            parentCategories.length > 0 ? parentCategories[0].id : null,
+        })
       } catch (error) {
         console.error('カテゴリの取得に失敗しました', error)
         toast.error(t('savedTabs.categoryModal.loadError'))
@@ -274,7 +298,7 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
     }
 
     try {
-      setIsLoading(true)
+      setIsCategoryUpdating(true)
       const newCategory = await createParentCategory(newCategoryName)
       setCategories(prev => [...prev, newCategory])
       setSelectedCategoryId(newCategory.id)
@@ -296,7 +320,7 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
         toast.error(t('savedTabs.categoryModal.createError'))
       }
     } finally {
-      setIsLoading(false)
+      setIsCategoryUpdating(false)
     }
   }, [newCategoryName, t, updateSelectedDomains, validateCategoryName])
 
@@ -344,7 +368,7 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
       return
     }
     try {
-      setIsLoading(true)
+      setIsCategoryUpdating(true)
       await deleteParentCategory(categoryToDelete.id)
       const updatedCategories = categories.filter(
         c => c.id !== categoryToDelete.id,
@@ -375,7 +399,7 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
       console.error('カテゴリの削除に失敗しました:', error)
       toast.error(t('savedTabs.categoryModal.deleteError'))
     } finally {
-      setIsLoading(false)
+      setIsCategoryUpdating(false)
       setShowDeleteConfirm(false)
     }
   }, [
@@ -432,7 +456,7 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
         rollbackSelection()
         return
       }
-      setIsLoading(true)
+      setIsCategoryUpdating(true)
       void applyDomainSelectionChange({
         domainId,
         newChecked,
@@ -450,7 +474,7 @@ export const useCategoryModal = ({ tabGroups }: UseCategoryModalParams) => {
           rollbackSelection()
         })
         .finally(() => {
-          setIsLoading(false)
+          setIsCategoryUpdating(false)
         })
     },
     [

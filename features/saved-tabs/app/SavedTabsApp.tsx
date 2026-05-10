@@ -400,10 +400,10 @@ const sortCategorizedGroups = (
     if (!(domains && domains.length > 0)) {
       continue
     }
-    const domainArray = [...domains]
+    const domainOrder = new Map(domains.map((domain, index) => [domain, index]))
     categorizedGroups[categoryId].sort((a, b) => {
-      const indexA = domainArray.indexOf(a.id)
-      const indexB = domainArray.indexOf(b.id)
+      const indexA = domainOrder.get(a.id) ?? -1
+      const indexB = domainOrder.get(b.id) ?? -1
       if (indexA === -1) {
         return 1
       }
@@ -575,13 +575,18 @@ const organizeTabGroupsWithCategories = ({
   const uncategorizedGroups: TabGroup[] = []
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const hasSearchQuery = normalizedQuery.length > 0
-  const groupsToOrganize = tabGroupsWithUrls
-    .map(group =>
-      hasSearchQuery
+  const groupsToOrganize = tabGroupsWithUrls.reduce<TabGroup[]>(
+    (groups, group) => {
+      const nextGroup = hasSearchQuery
         ? filterGroupByQuery(group, normalizedQuery, categoryLookup)
-        : group,
-    )
-    .filter(hasDisplayableUrls)
+        : group
+      if (hasDisplayableUrls(nextGroup)) {
+        groups.push(nextGroup)
+      }
+      return groups
+    },
+    [],
+  )
   console.log('groupsToOrganize:', groupsToOrganize)
   console.log('groupsToOrganize.length:', groupsToOrganize.length)
   for (const group of groupsToOrganize) {
@@ -663,15 +668,17 @@ const syncSavedTabsViewModeLocation = ({
   window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}`)
 }
 
-const SavedTabsApp = ({
-  initialViewMode,
-  isAiSidebarOpen = false,
-  onViewModeNavigate,
-}: {
+interface SavedTabsAppProps {
   initialViewMode?: ViewMode
   isAiSidebarOpen?: boolean
   onViewModeNavigate?: (mode: ViewMode) => void
-}) => {
+}
+
+const useSavedTabsAppView = ({
+  initialViewMode,
+  isAiSidebarOpen = false,
+  onViewModeNavigate,
+}: SavedTabsAppProps) => {
   const { t } = useI18n()
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [newSubCategory, setNewSubCategory] = useState('')
@@ -687,9 +694,6 @@ const SavedTabsApp = ({
   // 未分類ドメインの並び替えモード状態管理
   const [isUncategorizedReorderMode, setIsUncategorizedReorderMode] =
     useState(false)
-  const [_originalUncategorizedOrder, setOriginalUncategorizedOrder] = useState<
-    TabGroup[]
-  >([])
   const [tempUncategorizedOrder, setTempUncategorizedOrder] = useState<
     TabGroup[]
   >([])
@@ -1056,9 +1060,7 @@ const SavedTabsApp = ({
 
         console.log(`${groupsToDelete.length}件のグループを一括削除します`)
 
-        for (const id of ids) {
-          await handleTabGroupRemoval(id)
-        }
+        await Promise.all(ids.map(id => handleTabGroupRemoval(id)))
 
         await removeUrlsFromCustomProjectsForGroups(groupsToDelete)
 
@@ -1152,18 +1154,15 @@ const SavedTabsApp = ({
           group => group.id === groupId,
         )
         const resolvedUrlIds = (targetGroup?.urls || [])
-          .map(item => ({
-            id: item.id,
-            url: item.url,
-          }))
-          .filter(
-            (
-              item,
-            ): item is {
-              id: string
-              url: string
-            } => Boolean(item.id) && targetUrls.has(item.url),
-          )
+          .reduce<Array<{ id: string; url: string }>>((items, item) => {
+            if (item.id && targetUrls.has(item.url)) {
+              items.push({
+                id: item.id,
+                url: item.url,
+              })
+            }
+            return items
+          }, [])
           .map(item => item.id)
 
         if (resolvedUrlIds.length === urls.length) {
@@ -1251,7 +1250,6 @@ const SavedTabsApp = ({
 
     // 並び替えモードを終了
     setIsUncategorizedReorderMode(false)
-    setOriginalUncategorizedOrder([])
     toast.info(t('savedTabs.domainOrder.canceled'))
   }, [isUncategorizedReorderMode, t])
 
@@ -1345,7 +1343,6 @@ const SavedTabsApp = ({
           } else {
             // 初回の並び替え時：並び替えモードを開始
             setIsUncategorizedReorderMode(true)
-            setOriginalUncategorizedOrder([...uncategorized])
             setTempUncategorizedOrder(updatedOrder)
           }
         }
@@ -1373,7 +1370,6 @@ const SavedTabsApp = ({
 
       // 並び替えモードを終了
       setIsUncategorizedReorderMode(false)
-      setOriginalUncategorizedOrder([])
       setTempUncategorizedOrder([])
       toast.success(t('savedTabs.domainOrder.updated'))
     } catch (error) {
@@ -1546,45 +1542,42 @@ const SavedTabsApp = ({
     isUncategorizedReorderMode ? tempUncategorizedOrder : uncategorized
   ).filter(group => (group.urls || group.urlIds || []).length > 0)
 
-  const renderMainContent = () => {
-    if (viewMode === 'domain') {
-      return (
-        <DomainModeContainer
-          isLoading={isLoading}
-          settings={settings}
-          categories={categories}
-          categorized={categorized}
-          categoryOrderForDisplay={categoryOrderForDisplay}
-          tabGroups={tabGroups}
-          isCategoryReorderMode={isCategoryReorderMode}
-          searchQuery={searchQuery}
-          sensors={sensors}
-          handleCategoryDragEnd={handleCategoryDragEnd}
-          handleOpenAllTabs={handleOpenAllTabs}
-          handleDeleteGroup={handleDeleteGroup}
-          handleDeleteGroups={handleDeleteGroups}
-          handleDeleteUrl={handleDeleteUrl}
-          handleDeleteUrls={handleDeleteUrls}
-          handleOpenTab={handleOpenTab}
-          handleUpdateUrls={handleUpdateUrls}
-          handleUpdateDomainsOrder={handleUpdateDomainsOrder}
-          handleMoveDomainToCategory={handleMoveDomainToCategory}
-          handleDeleteCategory={handleDeleteCategoryWithRefresh}
-          shouldShowUncategorizedSectionHeader={
-            shouldShowUncategorizedSectionHeader
-          }
-          hasVisibleCategoryGroups={hasVisibleCategoryGroups}
-          isUncategorizedReorderMode={isUncategorizedReorderMode}
-          handleCancelUncategorizedReorder={handleCancelUncategorizedReorder}
-          handleConfirmUncategorizedReorder={handleConfirmUncategorizedReorder}
-          shouldShowUncategorizedList={shouldShowUncategorizedList}
-          uncategorizedForDisplay={uncategorizedForDisplay}
-          handleUncategorizedDragEnd={handleUncategorizedDragEnd}
-          hasContentTabGroupsCount={hasContentTabGroups.length}
-        />
-      )
-    }
-    return (
+  const mainContent =
+    viewMode === 'domain' ? (
+      <DomainModeContainer
+        state={{
+          hasVisibleCategoryGroups,
+          isCategoryReorderMode,
+          isLoading,
+          isUncategorizedReorderMode,
+          shouldShowUncategorizedList,
+          shouldShowUncategorizedSectionHeader,
+        }}
+        settings={settings}
+        categories={categories}
+        categorized={categorized}
+        categoryOrderForDisplay={categoryOrderForDisplay}
+        tabGroups={tabGroups}
+        searchQuery={searchQuery}
+        sensors={sensors}
+        handleCategoryDragEnd={handleCategoryDragEnd}
+        handleOpenAllTabs={handleOpenAllTabs}
+        handleDeleteGroup={handleDeleteGroup}
+        handleDeleteGroups={handleDeleteGroups}
+        handleDeleteUrl={handleDeleteUrl}
+        handleDeleteUrls={handleDeleteUrls}
+        handleOpenTab={handleOpenTab}
+        handleUpdateUrls={handleUpdateUrls}
+        handleUpdateDomainsOrder={handleUpdateDomainsOrder}
+        handleMoveDomainToCategory={handleMoveDomainToCategory}
+        handleDeleteCategory={handleDeleteCategoryWithRefresh}
+        handleCancelUncategorizedReorder={handleCancelUncategorizedReorder}
+        handleConfirmUncategorizedReorder={handleConfirmUncategorizedReorder}
+        uncategorizedForDisplay={uncategorizedForDisplay}
+        handleUncategorizedDragEnd={handleUncategorizedDragEnd}
+        hasContentTabGroupsCount={hasContentTabGroups.length}
+      />
+    ) : (
       <CustomModeContainer
         isLoading={isLoading}
         projects={customProjectsForDisplay}
@@ -1609,67 +1602,58 @@ const SavedTabsApp = ({
         handleRenameCategory={handleRenameCategory}
       />
     )
-  }
-  const renderSubCategoryModal = () => {
-    if (!showSubCategoryModal) {
-      return null
-    }
-    return (
-      <Dialog
-        open={showSubCategoryModal}
-        onOpenChange={setShowSubCategoryModal}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('savedTabs.subCategory.addTitle')}</DialogTitle>
-          </DialogHeader>
-          <Input
-            value={newSubCategory}
-            onChange={e => setNewSubCategory(e.target.value)}
-            placeholder={t('savedTabs.subCategory.addPlaceholder')}
-            className='mb-4 w-full rounded border p-2 text-foreground'
-            ref={inputRef}
-          />
-          <DialogFooter>
-            <Tooltip>
-              <TooltipTrigger asChild={true}>
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  onClick={() => setShowSubCategoryModal(false)}
-                  className='cursor-pointer rounded px-2 py-1 text-secondary-foreground'
-                >
-                  {t('common.cancel')}
-                </Button>
-              </TooltipTrigger>
-              <SavedTabsResponsiveTooltipContent side='top'>
+  const subCategoryModal = showSubCategoryModal ? (
+    <Dialog open={showSubCategoryModal} onOpenChange={setShowSubCategoryModal}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('savedTabs.subCategory.addTitle')}</DialogTitle>
+        </DialogHeader>
+        <Input
+          value={newSubCategory}
+          onChange={e => setNewSubCategory(e.target.value)}
+          placeholder={t('savedTabs.subCategory.addPlaceholder')}
+          className='mb-4 w-full rounded border p-2 text-foreground'
+          ref={inputRef}
+        />
+        <DialogFooter>
+          <Tooltip>
+            <TooltipTrigger asChild={true}>
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => setShowSubCategoryModal(false)}
+                className='cursor-pointer rounded px-2 py-1 text-secondary-foreground'
+              >
                 {t('common.cancel')}
-              </SavedTabsResponsiveTooltipContent>
-            </Tooltip>
+              </Button>
+            </TooltipTrigger>
+            <SavedTabsResponsiveTooltipContent side='top'>
+              {t('common.cancel')}
+            </SavedTabsResponsiveTooltipContent>
+          </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild={true}>
-                <Button
-                  variant='default'
-                  size='sm'
-                  onClick={handleAddSubCategory}
-                  className='flex cursor-pointer items-center gap-1 rounded text-primary-foreground'
-                >
-                  <Plus size={14} />
-                  <SavedTabsResponsiveLabel>
-                    {t('common.confirm')}
-                  </SavedTabsResponsiveLabel>
-                </Button>
-              </TooltipTrigger>
-              <SavedTabsResponsiveTooltipContent side='top'>
-                {t('common.confirm')}
-              </SavedTabsResponsiveTooltipContent>
-            </Tooltip>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    )
-  }
+          <Tooltip>
+            <TooltipTrigger asChild={true}>
+              <Button
+                variant='default'
+                size='sm'
+                onClick={handleAddSubCategory}
+                className='flex cursor-pointer items-center gap-1 rounded text-primary-foreground'
+              >
+                <Plus size={14} />
+                <SavedTabsResponsiveLabel>
+                  {t('common.confirm')}
+                </SavedTabsResponsiveLabel>
+              </Button>
+            </TooltipTrigger>
+            <SavedTabsResponsiveTooltipContent side='top'>
+              {t('common.confirm')}
+            </SavedTabsResponsiveTooltipContent>
+          </Tooltip>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ) : null
   return (
     <>
       <Toaster />
@@ -1691,8 +1675,8 @@ const SavedTabsApp = ({
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
-        {renderMainContent()}
-        {renderSubCategoryModal()}
+        {mainContent}
+        {subCategoryModal}
         {shouldShowCategoryReorderFooter && (
           <CategoryReorderFooter
             onConfirmCategoryReorder={handleConfirmCategoryReorder}
@@ -1703,5 +1687,7 @@ const SavedTabsApp = ({
     </>
   )
 }
+
+const SavedTabsApp = (props: SavedTabsAppProps) => useSavedTabsAppView(props)
 
 export { SavedTabsApp, handleSavedTabsRender, isDevProfileEnabled }

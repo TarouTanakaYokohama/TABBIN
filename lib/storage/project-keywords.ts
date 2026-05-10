@@ -81,11 +81,13 @@ const buildOrderedProjects = (
   projectOrder: string[],
 ): CustomProject[] => {
   const projectById = new Map(projects.map(project => [project.id, project]))
-  const orderedProjects = projectOrder
-    .map(projectId => projectById.get(projectId))
-    .filter((project): project is CustomProject => Boolean(project))
+  const projectOrderSet = new Set(projectOrder)
+  const orderedProjects = projectOrder.flatMap(projectId => {
+    const project = projectById.get(projectId)
+    return project ? [project] : []
+  })
   const remainingProjects = projects.filter(
-    project => !projectOrder.includes(project.id),
+    project => !projectOrderSet.has(project.id),
   )
   return [...orderedProjects, ...remainingProjects]
 }

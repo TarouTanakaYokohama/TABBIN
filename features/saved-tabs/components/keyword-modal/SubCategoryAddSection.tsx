@@ -12,7 +12,7 @@ export const SubCategoryAddSection = () => {
 
   return (
     <div className='mb-4'>
-      <h4 className='mb-2 font-medium text-gray-300 text-md'>
+      <h4 className='mb-2 font-medium text-md text-zinc-300'>
         {t('savedTabs.subCategory.addTitle')}
       </h4>
       <div className='flex flex-col'>

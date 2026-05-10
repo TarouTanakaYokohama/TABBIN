@@ -26,13 +26,17 @@ const resolveTabGroupUrlsFromMap = (
     return []
   }
 
-  return tabGroup.urlIds
-    .map(id => urlRecordMap.get(id))
-    .filter((record): record is UrlRecord => Boolean(record))
-    .map(record => ({
-      ...record,
-      subCategory: tabGroup.urlSubCategories?.[record.id],
-    }))
+  return tabGroup.urlIds.flatMap(id => {
+    const record = urlRecordMap.get(id)
+    return record
+      ? [
+          {
+            ...record,
+            subCategory: tabGroup.urlSubCategories?.[record.id],
+          },
+        ]
+      : []
+  })
 }
 
 const resolveTabGroupsWithUrls = async (
@@ -327,8 +331,8 @@ const categorizeUrlIdsByKeywords = (
   for (const urlRecord of urlRecords) {
     const title = urlRecord.title.toLowerCase()
     for (const categoryKeyword of categoryKeywords) {
-      const matchesKeyword = categoryKeyword.keywords.some((keyword: string) =>
-        title.includes(keyword.toLowerCase()),
+      const matchesKeyword = categoryKeyword.keywords.some(
+        (keyword: string) => title.split(keyword.toLowerCase()).length > 1,
       )
       if (matchesKeyword) {
         updatedSubCategories[urlRecord.id] = categoryKeyword.categoryName
@@ -428,17 +432,22 @@ const reorderTabGroupUrls = async (
     const urlRecords = await getUrlRecordsByIds(group.urlIds)
 
     // 新しい順序に基づいてURLIDsを並び替え
+    const groupUrlIds = new Set(group.urlIds)
+    const urlRecordsByUrl = new Map(
+      urlRecords.map(record => [record.url, record]),
+    )
     const reorderedUrlIds: string[] = []
     for (const url of newUrlOrder) {
-      const urlRecord = urlRecords.find(record => record.url === url)
-      if (urlRecord && group.urlIds.includes(urlRecord.id)) {
+      const urlRecord = urlRecordsByUrl.get(url)
+      if (urlRecord && groupUrlIds.has(urlRecord.id)) {
         reorderedUrlIds.push(urlRecord.id)
       }
     }
 
     // 新しい順序に含まれていないURLIDsを末尾に追加
+    const reorderedUrlIdSet = new Set(reorderedUrlIds)
     for (const urlId of group.urlIds) {
-      if (!reorderedUrlIds.includes(urlId)) {
+      if (!reorderedUrlIdSet.has(urlId)) {
         reorderedUrlIds.push(urlId)
       }
     }

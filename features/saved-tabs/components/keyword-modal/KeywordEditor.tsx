@@ -21,12 +21,12 @@ export const KeywordEditor = () => {
 
   return (
     <div className='mb-4'>
-      <Label htmlFor='keyword-input' className='block text-gray-400 text-sm'>
+      <Label htmlFor='keyword-input' className='block text-sm text-zinc-400'>
         {t('savedTabs.keywords.activeCategoryLabel', undefined, {
           name: subcategory.activeCategory,
         })}
       </Label>
-      <span className='mb-1 text-gray-500 text-xs'>
+      <span className='mb-1 text-xs text-zinc-500'>
         {t('savedTabs.keywords.autoAssignHint')}
       </span>
 
@@ -54,7 +54,7 @@ export const KeywordEditor = () => {
 
       <div className='flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded border p-2'>
         {keywordsState.keywords.length === 0 ? (
-          <p className='text-gray-500'>{t('savedTabs.keywords.empty')}</p>
+          <p className='text-zinc-500'>{t('savedTabs.keywords.empty')}</p>
         ) : (
           keywordsState.keywords.map(keyword => (
             <Badge
@@ -67,7 +67,7 @@ export const KeywordEditor = () => {
                 variant='ghost'
                 size='sm'
                 onClick={() => keywordsState.handleRemoveKeyword(keyword)}
-                className='ml-1 cursor-pointer text-gray-400 hover:text-gray-200'
+                className='ml-1 cursor-pointer text-zinc-400 hover:text-zinc-200'
                 aria-label={t('savedTabs.keywords.deleteAria')}
                 disabled={rename.isRenaming}
               >

@@ -238,7 +238,7 @@ const useCategoryManagement = (
       setCategoryOrder(tempCategoryOrder)
 
       // 新しい順序に基づいてカテゴリを並び替え
-      const orderedCategories = [...categories].sort(
+      const orderedCategories = categories.toSorted(
         (a, b) =>
           tempCategoryOrder.indexOf(a.id) - tempCategoryOrder.indexOf(b.id),
       )

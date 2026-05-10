@@ -140,9 +140,9 @@ export const ImportExportSettings: React.FC = () => {
   })
 
   return (
-    <div className='space-y-4'>
+    <div className='gap-y-4'>
       <Alert>
-        <AlertCircle className='h-4 w-4' />
+        <AlertCircle className='size-4' />
         <AlertTitle>{t('options.importExport.scopeTitle')}</AlertTitle>
         <AlertDescription>
           {t('options.importExport.scopeDescription')}
@@ -195,7 +195,7 @@ export const ImportExportSettings: React.FC = () => {
           <ScrollArea className='grow overflow-auto'>
             <div className='pr-4'>
               {/* マージオプションを追加 */}
-              <div className='mb-4 flex items-center space-x-2'>
+              <div className='mb-4 flex items-center gap-x-2'>
                 <Checkbox
                   id='merge-data'
                   checked={mergeData}
@@ -224,7 +224,7 @@ export const ImportExportSettings: React.FC = () => {
                 }`}
               >
                 <input {...getInputProps()} />
-                <Upload className='mx-auto mb-2 h-12 w-12 text-muted-foreground' />
+                <Upload className='mx-auto mb-2 size-12 text-muted-foreground' />
                 <p className='mb-1 font-medium text-sm'>
                   {isDragActive
                     ? t('options.importExport.dropActive')
@@ -239,7 +239,7 @@ export const ImportExportSettings: React.FC = () => {
                 variant={mergeData ? 'default' : 'destructive'}
                 className='my-4'
               >
-                <AlertCircle className='h-4 w-4' />
+                <AlertCircle className='size-4' />
                 <AlertTitle>
                   {mergeData
                     ? t('options.importExport.mergeLabel')

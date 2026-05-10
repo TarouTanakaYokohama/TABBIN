@@ -126,12 +126,6 @@ interface ImportedCustomProjectUrlData {
   category?: string
 }
 
-// インポート時のカテゴリキーワード形式に対応するインターフェース
-interface ImportedKeywordData {
-  categoryName: string // 必須プロパティに変更
-  keywords?: string[] // オプショナルのままにする
-  [key: string]: unknown // その他の可能性のあるプロパティ
-}
 interface ConvertedUrlData {
   urlIds: string[]
   urlSubCategories?: Record<string, string>
@@ -419,22 +413,27 @@ const convertImportedUrlsToNewFormat = async (
   }
 
   const urlRecordMapByUrlFromSingleUpdate = new Map<string, UrlRecord>()
-  for (const urlData of urls) {
-    try {
-      // URLレコードを作成または更新
-      const urlRecord = await createOrUpdateUrlRecord(
-        urlData.url,
-        urlData.title || '',
-        urlData.favIconUrl,
-        IMPORT_URL_RECORD_OPTIONS,
-      )
-      urlRecordMapByUrlFromSingleUpdate.set(
-        normalizeUrlKey(urlData.url),
-        urlRecord,
-      )
-      console.log(`URL変換完了: ${urlData.url} -> ${urlRecord.id}`)
-    } catch (error) {
-      console.error(`URL変換エラー: ${urlData.url}`, error)
+  const urlRecordEntries = await Promise.all(
+    urls.map(async urlData => {
+      try {
+        // URLレコードを作成または更新
+        const urlRecord = await createOrUpdateUrlRecord(
+          urlData.url,
+          urlData.title || '',
+          urlData.favIconUrl,
+          IMPORT_URL_RECORD_OPTIONS,
+        )
+        console.log(`URL変換完了: ${urlData.url} -> ${urlRecord.id}`)
+        return [normalizeUrlKey(urlData.url), urlRecord] as const
+      } catch (error) {
+        console.error(`URL変換エラー: ${urlData.url}`, error)
+        return null
+      }
+    }),
+  )
+  for (const entry of urlRecordEntries) {
+    if (entry) {
+      urlRecordMapByUrlFromSingleUpdate.set(entry[0], entry[1])
     }
   }
   return convertImportedUrlsWithPreloadedMap(
@@ -451,26 +450,27 @@ const normalizeCategoryKeywords = (
   if (!Array.isArray(keywords)) {
     return []
   }
-  return keywords
-    .filter(
-      (k): k is ImportedKeywordData =>
+  return keywords.reduce<SubCategoryKeyword[]>((items, k) => {
+    if (
+      !(
         typeof k === 'object' &&
         k !== null &&
         'categoryName' in k &&
-        typeof k.categoryName === 'string',
-    )
-    .map(k => {
-      const keywordData = k as {
-        categoryName: string
-        keywords?: unknown
-      }
-      return {
-        categoryName: k.categoryName,
-        keywords: Array.isArray(keywordData.keywords)
-          ? keywordData.keywords
-          : [],
-      }
+        typeof k.categoryName === 'string'
+      )
+    ) {
+      return items
+    }
+    const keywordData = k as {
+      categoryName: string
+      keywords?: unknown
+    }
+    items.push({
+      categoryName: k.categoryName,
+      keywords: Array.isArray(keywordData.keywords) ? keywordData.keywords : [],
     })
+    return items
+  }, [])
 }
 /**
  * サブカテゴリ配列を文字列配列に正規化する
@@ -628,17 +628,18 @@ const normalizeImportedCustomProject = (
     ? project.urlIds.filter((id): id is string => typeof id === 'string')
     : []
   const urls = Array.isArray(project.urls)
-    ? project.urls
-        .filter((item): item is NonNullable<CustomProject['urls']>[number] =>
-          Boolean(item?.url),
-        )
-        .map(item => ({
-          url: item.url,
-          title: item.title || '',
-          notes: item.notes,
-          savedAt: item.savedAt,
-          category: item.category,
-        }))
+    ? project.urls.reduce<NonNullable<CustomProject['urls']>>((items, item) => {
+        if (item?.url) {
+          items.push({
+            url: item.url,
+            title: item.title || '',
+            notes: item.notes,
+            savedAt: item.savedAt,
+            category: item.category,
+          })
+        }
+        return items
+      }, [])
     : undefined
   const urlMetadata =
     project.urlMetadata &&
@@ -758,11 +759,13 @@ const alignCustomProjectsWithSavedTabs = ({
   const projectById = new Map(
     normalizedProjects.map(project => [project.id, project]),
   )
-  const orderedProjects = normalizedOrder
-    .map(projectId => projectById.get(projectId))
-    .filter((project): project is CustomProject => Boolean(project))
+  const orderedProjects = normalizedOrder.flatMap(projectId => {
+    const project = projectById.get(projectId)
+    return project ? [project] : []
+  })
+  const normalizedOrderSet = new Set(normalizedOrder)
   const remainingProjects = normalizedProjects.filter(
-    project => !normalizedOrder.includes(project.id),
+    project => !normalizedOrderSet.has(project.id),
   )
   const allProjects = [...orderedProjects, ...remainingProjects]
   const assignedUrlIds = new Set<string>()
@@ -903,9 +906,13 @@ const normalizeCustomProjectOrder = (
   const normalizedOrder = Array.isArray(order)
     ? order.filter(id => typeof id === 'string' && existingIds.has(id))
     : []
-  const missingIds = projects
-    .map(project => project.id)
-    .filter(id => !normalizedOrder.includes(id))
+  const normalizedOrderSet = new Set(normalizedOrder)
+  const missingIds = projects.reduce<string[]>((ids, project) => {
+    if (!normalizedOrderSet.has(project.id)) {
+      ids.push(project.id)
+    }
+    return ids
+  }, [])
   return [...normalizedOrder, ...missingIds]
 }
 
@@ -939,12 +946,17 @@ const mergeImportedCustomProjects = (
     importedOrder,
     normalizedImportedProjects,
   )
+  const newProjectIds = new Set(newProjects.map(project => project.id))
   const appendedImportedIds = normalizedImportedOrder.filter(id =>
-    newProjects.some(project => project.id === id),
+    newProjectIds.has(id),
   )
-  const remainingIds = newProjects
-    .map(project => project.id)
-    .filter(id => !appendedImportedIds.includes(id))
+  const appendedImportedIdSet = new Set(appendedImportedIds)
+  const remainingIds = newProjects.reduce<string[]>((ids, project) => {
+    if (!appendedImportedIdSet.has(project.id)) {
+      ids.push(project.id)
+    }
+    return ids
+  }, [])
 
   return {
     customProjects: mergedProjects,
@@ -1041,30 +1053,47 @@ const convertImportedCustomProjectUrlsToStorage = async (
   urlIds: string[]
   urlMetadata?: CustomProject['urlMetadata']
 }> => {
+  const convertedUrls = await Promise.all(
+    urls.map(async urlData => {
+      try {
+        const normalizedUrl = normalizeUrlKey(urlData.url)
+        const preloadedUrlRecord = urlRecordMapByUrl?.get(normalizedUrl)
+        const urlRecord =
+          preloadedUrlRecord ||
+          (await createOrUpdateUrlRecord(
+            urlData.url,
+            urlData.title || '',
+            undefined,
+            IMPORT_URL_RECORD_OPTIONS,
+          ))
+        return {
+          id: urlRecord.id,
+          metadata:
+            urlData.notes || urlData.category
+              ? {
+                  ...(urlData.notes ? { notes: urlData.notes } : {}),
+                  ...(urlData.category ? { category: urlData.category } : {}),
+                }
+              : undefined,
+        }
+      } catch (error) {
+        console.error(
+          `カスタムプロジェクトURL変換エラー: ${urlData.url}`,
+          error,
+        )
+        return null
+      }
+    }),
+  )
   const urlIds: string[] = []
   const urlMetadata: NonNullable<CustomProject['urlMetadata']> = {}
-
-  for (const urlData of urls) {
-    try {
-      const normalizedUrl = normalizeUrlKey(urlData.url)
-      const preloadedUrlRecord = urlRecordMapByUrl?.get(normalizedUrl)
-      const urlRecord =
-        preloadedUrlRecord ||
-        (await createOrUpdateUrlRecord(
-          urlData.url,
-          urlData.title || '',
-          undefined,
-          IMPORT_URL_RECORD_OPTIONS,
-        ))
-      urlIds.push(urlRecord.id)
-      if (urlData.notes || urlData.category) {
-        urlMetadata[urlRecord.id] = {
-          ...(urlData.notes ? { notes: urlData.notes } : {}),
-          ...(urlData.category ? { category: urlData.category } : {}),
-        }
-      }
-    } catch (error) {
-      console.error(`カスタムプロジェクトURL変換エラー: ${urlData.url}`, error)
+  for (const convertedUrl of convertedUrls) {
+    if (!convertedUrl) {
+      continue
+    }
+    urlIds.push(convertedUrl.id)
+    if (convertedUrl.metadata) {
+      urlMetadata[convertedUrl.id] = convertedUrl.metadata
     }
   }
 
@@ -1769,21 +1798,29 @@ const mergeTabsByDomain = async (
   for (const tab of currentTabs) {
     tabMapByDomain.set(tab.domain, tab)
   }
-  for (const importedTab of normalizedImportedTabs) {
-    const existingTab = tabMapByDomain.get(importedTab.domain)
-    if (existingTab) {
-      console.log(`マージ処理: 既存ドメイン ${importedTab.domain}`)
-      const mergedTab = await buildMergedExistingDomainTab(
-        existingTab,
-        importedTab,
-        urlRecordMapByUrl,
-      )
-      tabMapByDomain.set(importedTab.domain, mergedTab)
-      continue
-    }
-    console.log(`マージ処理: 新規ドメイン ${importedTab.domain}`)
-    const newTab = await buildMergedNewDomainTab(importedTab, urlRecordMapByUrl)
-    tabMapByDomain.set(importedTab.domain, newTab)
+  const mergedImportedTabs = await Promise.all(
+    normalizedImportedTabs.map(async importedTab => {
+      const existingTab = tabMapByDomain.get(importedTab.domain)
+      if (existingTab) {
+        console.log(`マージ処理: 既存ドメイン ${importedTab.domain}`)
+        return {
+          domain: importedTab.domain,
+          tab: await buildMergedExistingDomainTab(
+            existingTab,
+            importedTab,
+            urlRecordMapByUrl,
+          ),
+        }
+      }
+      console.log(`マージ処理: 新規ドメイン ${importedTab.domain}`)
+      return {
+        domain: importedTab.domain,
+        tab: await buildMergedNewDomainTab(importedTab, urlRecordMapByUrl),
+      }
+    }),
+  )
+  for (const { domain, tab } of mergedImportedTabs) {
+    tabMapByDomain.set(domain, tab)
   }
   return Array.from(tabMapByDomain.values())
 }
@@ -1802,6 +1839,9 @@ const createUnresolvedWarning = async (
   unresolvedTabs: UnresolvedImportTab[],
   translate?: Translate,
 ): Promise<string> => {
+  if (unresolvedTabs.length === 0) {
+    return ''
+  }
   const placeholderUrlTitle = translate
     ? translate('options.importExport.placeholderUrlTitle')
     : getPlaceholderUrlTitle(resolveCurrentLanguage(await getUserSettings()))
@@ -1809,9 +1849,6 @@ const createUnresolvedWarning = async (
     unresolvedTabs,
     placeholderUrlTitle,
   )
-  if (unresolvedTabs.length === 0) {
-    return ''
-  }
   return translate
     ? translate('options.importExport.unresolvedWarning', undefined, {
         count: String(unresolvedTabs.length),
@@ -2212,11 +2249,10 @@ const importWithOverwrite = async ({
       savedTabs: cleanTabGroups,
     }),
   ])
-  const unresolvedWarning = await createUnresolvedWarning(
-    unresolvedTabs,
-    translate,
-  )
-  await migrateToUrlsStorage()
+  const [unresolvedWarning] = await Promise.all([
+    createUnresolvedWarning(unresolvedTabs, translate),
+    migrateToUrlsStorage(),
+  ])
   const formattedTimestamp = formatLocaleDateTime(
     new Date(importedData.timestamp).getTime(),
   )

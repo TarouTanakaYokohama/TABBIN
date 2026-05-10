@@ -15,7 +15,7 @@ interface DeferredStoryLoaderProps {
 
 const StoryFallback = () => (
   <div className='rounded-xl border bg-card p-6 text-muted-foreground text-sm'>
-    Loading story...
+    Loading story…
   </div>
 )
 
@@ -27,17 +27,13 @@ export const DeferredStoryLoader = ({
 }: DeferredStoryLoaderProps) => {
   const [isLoaded, setIsLoaded] = useState(false)
 
-  if (isLoaded) {
-    return (
-      <Suspense fallback={<StoryFallback />}>
-        <StoryComponent />
-      </Suspense>
-    )
-  }
-
-  return (
-    <div className='space-y-4 rounded-xl border bg-card p-6'>
-      <div className='space-y-2'>
+  return isLoaded ? (
+    <Suspense fallback={<StoryFallback />}>
+      <StoryComponent />
+    </Suspense>
+  ) : (
+    <div className='gap-y-4 rounded-xl border bg-card p-6'>
+      <div className='gap-y-2'>
         <h2 className='font-semibold text-foreground text-lg'>{title}</h2>
         <p className='max-w-2xl text-muted-foreground text-sm'>{description}</p>
       </div>

@@ -10,6 +10,22 @@ const TODO_ITEMS = [
   'book a doctors appointment',
 ] as const
 
+const addTodoItems = async (page: Page, items: readonly string[]) => {
+  const newTodo = page.getByPlaceholder('What needs to be done?')
+
+  const addNext = async (index: number): Promise<void> => {
+    const item = items[index]
+    if (!item) {
+      return
+    }
+    await newTodo.fill(item)
+    await newTodo.press('Enter')
+    await addNext(index + 1)
+  }
+
+  await addNext(0)
+}
+
 test.describe('新しい ToDo', () => {
   test('ToDo 項目を追加できる', async ({ page }) => {
     // create a new todo locator
@@ -125,14 +141,8 @@ test.describe('すべて完了にする', () => {
 
 test.describe('個別アイテム', () => {
   test('項目を完了にできる', async ({ page }) => {
-    // create a new todo locator
-    const newTodo = page.getByPlaceholder('What needs to be done?')
-
     // Create two items.
-    for (const item of TODO_ITEMS.slice(0, 2)) {
-      await newTodo.fill(item)
-      await newTodo.press('Enter')
-    }
+    await addTodoItems(page, TODO_ITEMS.slice(0, 2))
 
     // Check first item.
     const firstTodo = page.getByTestId('todo-item').nth(0)
@@ -150,14 +160,8 @@ test.describe('個別アイテム', () => {
   })
 
   test('項目の完了を解除できる', async ({ page }) => {
-    // create a new todo locator
-    const newTodo = page.getByPlaceholder('What needs to be done?')
-
     // Create two items.
-    for (const item of TODO_ITEMS.slice(0, 2)) {
-      await newTodo.fill(item)
-      await newTodo.press('Enter')
-    }
+    await addTodoItems(page, TODO_ITEMS.slice(0, 2))
 
     const firstTodo = page.getByTestId('todo-item').nth(0)
     const secondTodo = page.getByTestId('todo-item').nth(1)
@@ -329,13 +333,7 @@ test.describe('完了済みクリアボタン', () => {
 
 test.describe('永続化', () => {
   test('データを永続化する', async ({ page }) => {
-    // create a new todo locator
-    const newTodo = page.getByPlaceholder('What needs to be done?')
-
-    for (const item of TODO_ITEMS.slice(0, 2)) {
-      await newTodo.fill(item)
-      await newTodo.press('Enter')
-    }
+    await addTodoItems(page, TODO_ITEMS.slice(0, 2))
 
     const todoItems = page.getByTestId('todo-item')
     const firstTodoCheck = todoItems.nth(0).getByRole('checkbox')
@@ -436,13 +434,7 @@ test.describe('ルーティング', () => {
 })
 
 const createDefaultTodos = async (page: Page) => {
-  // create a new todo locator
-  const newTodo = page.getByPlaceholder('What needs to be done?')
-
-  for (const item of TODO_ITEMS) {
-    await newTodo.fill(item)
-    await newTodo.press('Enter')
-  }
+  await addTodoItems(page, TODO_ITEMS)
 }
 
 const checkNumberOfTodosInLocalStorage = async (

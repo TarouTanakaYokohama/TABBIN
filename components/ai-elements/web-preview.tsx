@@ -4,9 +4,11 @@ import { ChevronDownIcon } from 'lucide-react'
 import type { ComponentProps, ReactNode } from 'react'
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useMemo,
+  useReducer,
+  useRef,
   useState,
 } from 'react'
 import { Button } from '@/components/ui/button'
@@ -35,7 +37,7 @@ export interface WebPreviewContextValue {
 const WebPreviewContext = createContext<WebPreviewContextValue | null>(null)
 
 const useWebPreview = () => {
-  const context = useContext(WebPreviewContext)
+  const context = use(WebPreviewContext)
   if (!context) {
     throw new Error('WebPreview components must be used within a WebPreview')
   }
@@ -54,7 +56,10 @@ export const WebPreview = ({
   onUrlChange,
   ...props
 }: WebPreviewProps) => {
-  const [url, setUrl] = useState(defaultUrl)
+  const [url, setUrl] = useReducer(
+    (_state: string, nextUrl: string) => nextUrl,
+    defaultUrl,
+  )
   const [consoleOpen, setConsoleOpen] = useState(false)
 
   const handleUrlChange = useCallback(
@@ -120,7 +125,7 @@ export const WebPreviewNavigationButton = ({
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          className='h-8 w-8 p-0 hover:text-foreground'
+          className='size-8 p-0 hover:text-foreground'
           disabled={disabled}
           onClick={onClick}
           size='sm'
@@ -147,12 +152,12 @@ export const WebPreviewUrl = ({
 }: WebPreviewUrlProps) => {
   const t = useI18nText()
   const { url, setUrl } = useWebPreview()
-  const [prevUrl, setPrevUrl] = useState(url)
+  const prevUrlRef = useRef(url)
   const [inputValue, setInputValue] = useState(url)
 
   // Sync input value with context URL when it changes externally (derived state pattern)
-  if (url !== prevUrl) {
-    setPrevUrl(url)
+  if (url !== prevUrlRef.current) {
+    prevUrlRef.current = url
     setInputValue(url)
   }
 
@@ -220,6 +225,8 @@ export type WebPreviewConsoleProps = ComponentProps<'div'> & {
   }[]
 }
 
+const EMPTY_WEB_PREVIEW_LOGS: NonNullable<WebPreviewConsoleProps['logs']> = []
+
 const getWebPreviewLogKey = (log: {
   level: 'log' | 'warn' | 'error'
   message: string
@@ -228,7 +235,7 @@ const getWebPreviewLogKey = (log: {
 
 export const WebPreviewConsole = ({
   className,
-  logs = [],
+  logs = EMPTY_WEB_PREVIEW_LOGS,
   children,
   ...props
 }: WebPreviewConsoleProps) => {
@@ -250,7 +257,7 @@ export const WebPreviewConsole = ({
           {t('common.console')}
           <ChevronDownIcon
             className={cn(
-              'h-4 w-4 transition-transform duration-200',
+              'size-4 transition-transform duration-200',
               consoleOpen && 'rotate-180',
             )}
           />
@@ -262,7 +269,7 @@ export const WebPreviewConsole = ({
           'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in',
         )}
       >
-        <div className='max-h-48 space-y-1 overflow-y-auto'>
+        <div className='max-h-48 gap-y-1 overflow-y-auto'>
           {logs.length === 0 ? (
             <p className='text-muted-foreground'>
               {t('common.noConsoleOutput')}

@@ -22,14 +22,18 @@ interface OllamaModelOption {
 }
 
 interface OllamaModelSelectorProps {
+  behavior?: {
+    fetchOnOpen?: boolean
+    hideFetchButton?: boolean
+  }
   errorMessage?: string
-  fetchOnOpen?: boolean
   helperText?: string
-  hideFetchButton?: boolean
-  isCompactLayout?: boolean
-  isLoading: boolean
+  layout?: 'compact' | 'default'
   ollamaError?: OllamaErrorDetails
-  isSaving?: boolean
+  status: {
+    isLoading: boolean
+    isSaving?: boolean
+  }
   models: OllamaModelOption[]
   onFetchModels: () => void
   onSelectModel: (modelName: string) => Promise<boolean> | boolean
@@ -74,22 +78,25 @@ const getTriggerDisabled = ({
 }): boolean =>
   isSaving || (!fetchOnOpen && (isLoading || selectableModels.length === 0))
 
-const renderFetchButton = ({
-  hideFetchButton,
-  isCompactLayout,
-  isLoading,
-  isSaving,
+const FetchModelsButton = ({
+  behavior,
+  layout,
   onFetchModels,
+  status,
   t,
 }: {
-  hideFetchButton: boolean
-  isCompactLayout: boolean
-  isLoading: boolean
-  isSaving: boolean
+  behavior: {
+    hideFetchButton: boolean
+  }
+  layout: 'compact' | 'default'
   onFetchModels: () => void
+  status: {
+    isLoading: boolean
+    isSaving: boolean
+  }
   t: (key: string) => string
 }) => {
-  if (hideFetchButton) {
+  if (behavior.hideFetchButton) {
     return null
   }
 
@@ -98,15 +105,18 @@ const renderFetchButton = ({
       type='button'
       variant='outline'
       onClick={onFetchModels}
-      disabled={isLoading || isSaving}
-      className={cn('w-full cursor-pointer', !isCompactLayout && 'sm:w-auto')}
+      disabled={status.isLoading || status.isSaving}
+      className={cn(
+        'w-full cursor-pointer',
+        layout === 'default' && 'sm:w-auto',
+      )}
     >
-      {isLoading ? <Spinner /> : t('aiChat.ollama.loadModels')}
+      {status.isLoading ? <Spinner /> : t('aiChat.ollama.loadModels')}
     </Button>
   )
 }
 
-const renderModelOptions = ({
+const ModelOptions = ({
   isLoading,
   selectableModels,
   t,
@@ -130,7 +140,7 @@ const renderModelOptions = ({
   )
 }
 
-const renderSelectorMessage = ({
+const SelectorMessage = ({
   errorMessage,
   helperText,
   ollamaError,
@@ -171,14 +181,12 @@ const renderSelectorMessage = ({
 }
 
 const OllamaModelSelector = ({
+  behavior,
   errorMessage,
-  fetchOnOpen = false,
   helperText,
-  hideFetchButton = false,
-  isCompactLayout = false,
-  isLoading,
+  layout = 'default',
   ollamaError,
-  isSaving = false,
+  status,
   models,
   onFetchModels,
   onSelectModel,
@@ -186,6 +194,11 @@ const OllamaModelSelector = ({
   selectedModel,
 }: OllamaModelSelectorProps) => {
   const { t } = useI18n()
+  const fetchOnOpen = behavior?.fetchOnOpen ?? false
+  const hideFetchButton = behavior?.hideFetchButton ?? false
+  const isCompactLayout = layout === 'compact'
+  const isLoading = status.isLoading
+  const isSaving = status.isSaving ?? false
   const selectableModels = useMemo(
     () => getSelectableModels(models, selectedModel),
     [models, selectedModel],
@@ -228,14 +241,13 @@ const OllamaModelSelector = ({
           isCompactLayout ? 'flex-col' : 'flex-col sm:flex-row',
         )}
       >
-        {renderFetchButton({
-          hideFetchButton,
-          isCompactLayout,
-          isLoading,
-          isSaving,
-          onFetchModels,
-          t,
-        })}
+        <FetchModelsButton
+          behavior={{ hideFetchButton }}
+          layout={layout}
+          onFetchModels={onFetchModels}
+          status={{ isLoading, isSaving }}
+          t={t}
+        />
 
         <PromptInputSelect
           defaultValue={selectedModel}
@@ -257,21 +269,21 @@ const OllamaModelSelector = ({
             />
           </PromptInputSelectTrigger>
           <PromptInputSelectContent>
-            {renderModelOptions({
-              isLoading,
-              selectableModels,
-              t,
-            })}
+            <ModelOptions
+              isLoading={isLoading}
+              selectableModels={selectableModels}
+              t={t}
+            />
           </PromptInputSelectContent>
         </PromptInputSelect>
       </div>
 
-      {renderSelectorMessage({
-        errorMessage,
-        helperText,
-        ollamaError,
-        platform,
-      })}
+      <SelectorMessage
+        errorMessage={errorMessage}
+        helperText={helperText}
+        ollamaError={ollamaError}
+        platform={platform}
+      />
     </div>
   )
 }

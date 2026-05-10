@@ -6,7 +6,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ExternalLink, GripVertical, Settings, Trash2 } from 'lucide-react'
-import { memo, useMemo, useState } from 'react'
+import { memo, useMemo, useReducer, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -263,9 +263,7 @@ const CategoryContent = ({
           items={urls.map(item => item.url)}
           strategy={verticalListSortingStrategy}
         >
-          <ul
-            className={`space-y-1 ${isOver ? 'rounded bg-primary/5 p-1' : ''}`}
-          >
+          <ul className={`gap-y-1 ${isOver ? 'rounded bg-primary/5 p-1' : ''}`}>
             {urls.map(item => (
               <ProjectUrlItem
                 key={item.url}
@@ -346,7 +344,7 @@ const CategoryManageDialog = ({
             })}
           </DialogDescription>
         </DialogHeader>
-        <div className='space-y-4'>
+        <div className='gap-y-4'>
           <div>
             <Label htmlFor='rename-input'>
               {t('savedTabs.projectCategory.renameLabel')}
@@ -366,7 +364,7 @@ const CategoryManageDialog = ({
           </div>
 
           <div className='border-t pt-4'>
-            <p className='text-gray-600 text-sm'>
+            <p className='text-sm text-zinc-600'>
               {t('savedTabs.projectCategory.deleteWarning')}
             </p>
             {showDeleteConfirm ? (
@@ -481,7 +479,7 @@ const CategoryBulkConfirmDialogs = ({
   )
 }
 
-const CustomProjectCategoryComponent = ({
+const useCustomProjectCategoryView = ({
   projectId,
   category,
   urls,
@@ -530,7 +528,10 @@ const CustomProjectCategoryComponent = ({
   )
   const [userCollapsedState, setUserCollapsedState] = useState(false)
   const [showManageDialog, setShowManageDialog] = useState(false)
-  const [newCategoryName, setNewCategoryName] = useState(category)
+  const [newCategoryName, setNewCategoryName] = useReducer(
+    (_state: string, nextCategoryName: string) => nextCategoryName,
+    category,
+  )
   const [renameError, setRenameError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
@@ -552,7 +553,11 @@ const CustomProjectCategoryComponent = ({
   }
   const cardStyle = {
     ...style,
-    ...(isOver ? { backgroundColor: 'rgba(0, 255, 0, 0.05)' } : {}),
+    ...(isOver
+      ? {
+          backgroundColor: 'rgba(0, 255, 0, 0.05)',
+        }
+      : {}),
     ...getReorderStyle(isReorderTarget),
   }
   const cardClassName = `mb-2 overflow-x-hidden ${
@@ -583,9 +588,9 @@ const CustomProjectCategoryComponent = ({
         sortedCategoryUrls.map(item => item.url),
       )
     } else {
-      for (const item of sortedCategoryUrls) {
-        await handleDeleteUrl(projectId, item.url)
-      }
+      await Promise.all(
+        sortedCategoryUrls.map(item => handleDeleteUrl(projectId, item.url)),
+      )
     }
   }
 
@@ -713,6 +718,9 @@ const CustomProjectCategoryComponent = ({
     </>
   )
 }
+
+const CustomProjectCategoryComponent = (props: CustomProjectCategoryProps) =>
+  useCustomProjectCategoryView(props)
 
 const CustomProjectCategory = memo(CustomProjectCategoryComponent)
 CustomProjectCategory.displayName = 'CustomProjectCategory'

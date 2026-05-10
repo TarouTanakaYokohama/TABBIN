@@ -149,7 +149,15 @@ const RANGE_IN_DAYS: Record<
 }
 
 const lowerCaseSet = (values: string[]): Set<string> =>
-  new Set(values.map(value => value.trim().toLowerCase()).filter(Boolean))
+  new Set(
+    values.reduce<string[]>((items, value) => {
+      const normalizedValue = value.trim().toLowerCase()
+      if (normalizedValue) {
+        items.push(normalizedValue)
+      }
+      return items
+    }, []),
+  )
 
 const interpolate = (
   template: string,

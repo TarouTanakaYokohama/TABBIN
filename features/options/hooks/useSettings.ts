@@ -13,10 +13,21 @@ import type { UserSettings } from '@/types/storage'
 const normalizeExcludePattern = (pattern: string) => pattern.trim()
 
 export const useSettings = () => {
-  const [settings, setSettings] = useState<UserSettings>(defaultSettings)
+  const [{ isLoading, settings }, setSettingsState] = useState({
+    isLoading: true,
+    settings: defaultSettings,
+  })
   const [excludePatternInput, setExcludePatternInput] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
   const settingsRef = useRef(settings)
+  const setSettings = (nextSettings: React.SetStateAction<UserSettings>) => {
+    setSettingsState(prev => ({
+      ...prev,
+      settings:
+        typeof nextSettings === 'function'
+          ? nextSettings(prev.settings)
+          : nextSettings,
+    }))
+  }
 
   useEffect(() => {
     settingsRef.current = settings
@@ -24,20 +35,25 @@ export const useSettings = () => {
 
   useEffect(() => {
     const loadSettings = async () => {
-      setIsLoading(true)
       try {
         const userSettings = await getUserSettings()
-        setSettings(userSettings)
+        setSettingsState({
+          isLoading: false,
+          settings: userSettings,
+        })
       } catch (error) {
         console.error('設定の読み込みエラー:', error)
-        setSettings(defaultSettings) // エラー時はデフォルト設定を適用
-      } finally {
-        setIsLoading(false)
+        setSettingsState({
+          isLoading: false,
+          settings: defaultSettings,
+        })
       }
     }
 
     loadSettings()
+  }, [])
 
+  useEffect(() => {
     const storageChangeListener = (
       changes: { [key: string]: chrome.storage.StorageChange },
       areaName: string,

@@ -545,8 +545,13 @@ describe('SavedTabsRoute', () => {
 
     const labels = screen
       .getAllByRole('button')
-      .map(button => button.getAttribute('aria-label'))
-      .filter(label => label?.startsWith('Scroll to'))
+      .reduce<string[]>((items, button) => {
+        const label = button.getAttribute('aria-label')
+        if (label?.startsWith('Scroll to')) {
+          items.push(label)
+        }
+        return items
+      }, [])
 
     expect(labels).toEqual([
       'Scroll to top',
@@ -567,8 +572,13 @@ describe('SavedTabsRoute', () => {
 
     const labels = screen
       .getAllByRole('button')
-      .map(button => button.getAttribute('aria-label'))
-      .filter(label => label?.startsWith('Scroll to'))
+      .reduce<string[]>((items, button) => {
+        const label = button.getAttribute('aria-label')
+        if (label?.startsWith('Scroll to')) {
+          items.push(label)
+        }
+        return items
+      }, [])
 
     expect(labels).toEqual([
       'Scroll to top',

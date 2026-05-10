@@ -4,7 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useState,
+  useReducer,
 } from 'react'
 import { colorOptions } from '@/constants/colorOptions'
 import { toFontScaleValue } from '@/constants/fontSize'
@@ -65,7 +65,10 @@ export const ThemeProvider = ({
   storageKey = 'tab-manager-theme',
   ...props
 }: ThemeProviderProps) => {
-  const [theme, setThemeState] = useState<Theme>(defaultTheme)
+  const [theme, setThemeState] = useReducer(
+    (_state: Theme, nextTheme: Theme) => nextTheme,
+    defaultTheme,
+  )
 
   // 初期化時にChrome Storageから設定を読み込む
   useEffect(() => {

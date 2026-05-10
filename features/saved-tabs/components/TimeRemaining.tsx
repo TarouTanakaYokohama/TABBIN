@@ -13,15 +13,17 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { reorderTabGroupUrls } from '@/lib/storage/tabs'
 import type { CategorySectionProps } from '@/types/saved-tabs'
 import { SortableUrlItem } from './SortableUrlItem'
 
+const EMPTY_CATEGORY_URLS: NonNullable<CategorySectionProps['urls']> = []
+
 // 新しく追加: カテゴリセクションコンポーネント
 export const CategorySection = ({
   categoryName,
-  urls = [],
+  urls = EMPTY_CATEGORY_URLS,
   groupId,
   handleDeleteUrl,
   handleOpenTab,
@@ -29,11 +31,13 @@ export const CategorySection = ({
   scrollTarget = true,
   settings,
 }: CategorySectionProps) => {
-  const [displayUrls, setDisplayUrls] = useState(urls)
-
-  useEffect(() => {
-    setDisplayUrls(urls)
-  }, [urls])
+  const urlsKey = urls.map(item => item.url).join('\0')
+  const [optimisticOrder, setOptimisticOrder] = useState<{
+    sourceKey: string
+    urls: typeof urls
+  } | null>(null)
+  const displayUrls =
+    optimisticOrder?.sourceKey === urlsKey ? optimisticOrder.urls : urls
 
   // DnDのセンサー設定
   const sensors = useSensors(
@@ -58,7 +62,7 @@ export const CategorySection = ({
         const newUrls = arrayMove(displayUrls, oldIndex, newIndex)
 
         // 保存完了を待たずに先に表示を更新し、スナップバックを防ぐ
-        setDisplayUrls(newUrls)
+        setOptimisticOrder({ sourceKey: urlsKey, urls: newUrls })
 
         try {
           // 新形式のURL並び替え関数を呼び出し
@@ -71,7 +75,7 @@ export const CategorySection = ({
           handleUpdateUrls(groupId, newUrls)
         } catch (error) {
           console.error('URL順序の保存に失敗しました:', error)
-          setDisplayUrls(previousUrls)
+          setOptimisticOrder({ sourceKey: urlsKey, urls: previousUrls })
         }
       }
     }

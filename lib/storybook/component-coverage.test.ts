@@ -21,19 +21,29 @@ const walk = (dir: string): string[] =>
 const normalizePath = (filePath: string) =>
   path.relative(repoRoot, filePath).replaceAll(path.sep, '/')
 
-const componentFiles = walk(componentsRoot)
-  .map(normalizePath)
-  .filter(
-    filePath =>
-      filePath.endsWith('.tsx') &&
-      !filePath.endsWith('.stories.tsx') &&
-      !filePath.endsWith('.test.tsx') &&
-      !filePath.startsWith('components/storybook/'),
-  )
+const componentFiles = walk(componentsRoot).reduce<string[]>(
+  (files, filePath) => {
+    const normalizedPath = normalizePath(filePath)
+    if (
+      normalizedPath.endsWith('.tsx') &&
+      !normalizedPath.endsWith('.stories.tsx') &&
+      !normalizedPath.endsWith('.test.tsx') &&
+      !normalizedPath.startsWith('components/storybook/')
+    ) {
+      files.push(normalizedPath)
+    }
+    return files
+  },
+  [],
+)
 
-const storyFiles = walk(componentsRoot)
-  .map(normalizePath)
-  .filter(filePath => filePath.endsWith('.stories.tsx'))
+const storyFiles = walk(componentsRoot).reduce<string[]>((files, filePath) => {
+  const normalizedPath = normalizePath(filePath)
+  if (normalizedPath.endsWith('.stories.tsx')) {
+    files.push(normalizedPath)
+  }
+  return files
+}, [])
 
 const coveredComponentFiles = storyFiles.flatMap(filePath => {
   const contents = readFileSync(path.join(repoRoot, filePath), 'utf8')

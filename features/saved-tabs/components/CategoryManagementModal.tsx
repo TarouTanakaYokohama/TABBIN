@@ -45,6 +45,14 @@ interface CategoryManagementModalProps {
   onCategoryUpdate?: (categoryId: string, newName: string) => void
 }
 
+interface CategoryManagementFormState {
+  categoryNameError: string | null
+  isProcessing: boolean
+  isRenaming: boolean
+  localCategoryName: string
+  newCategoryName: string
+}
+
 const createCategoryNameSchema = (
   validationMessages: { empty: string; maxLength: string } = {
     empty: 'カテゴリ名を入力してください',
@@ -67,23 +75,29 @@ const categoryNameSchema = {
     return this.schema.safeParse(value)
   },
 }
+const createCategoryManagementFormState = (
+  categoryName: string,
+): CategoryManagementFormState => ({
+  categoryNameError: null,
+  isProcessing: false,
+  isRenaming: false,
+  localCategoryName: categoryName,
+  newCategoryName: categoryName,
+})
 const confirmCategoryNameUpdated = async (
   categoryId: string,
   trimmedName: string,
-  maxAttempts = 5,
 ): Promise<boolean> => {
-  for (let attempts = 0; attempts < maxAttempts; attempts++) {
-    const { parentCategories = [] } = await chrome.storage.local.get<{
-      parentCategories?: import('@/types/storage').ParentCategory[]
-    }>('parentCategories')
-    const updatedCategory = parentCategories.find(
-      (cat: ParentCategory) => cat.id === categoryId,
-    )
-    if (updatedCategory?.name === trimmedName) {
-      console.log('Modal - カテゴリ名の更新を確認:', updatedCategory)
-      return true
-    }
-    console.log(`Modal - 更新確認を再試行 (${attempts + 1}/${maxAttempts})`)
+  const { parentCategories = [] } = await chrome.storage.local.get<{
+    parentCategories?: import('@/types/storage').ParentCategory[]
+  }>('parentCategories')
+  const categoriesById = new Map(
+    parentCategories.map((cat: ParentCategory) => [cat.id, cat]),
+  )
+  const updatedCategory = categoriesById.get(categoryId)
+  if (updatedCategory?.name === trimmedName) {
+    console.log('Modal - カテゴリ名の更新を確認:', updatedCategory)
+    return true
   }
   return false
 }
@@ -121,7 +135,7 @@ const updateCategoryWithDomain = async (
     parentCategories: updatedCategories,
   })
 }
-const CategoryManagementModal = ({
+const useCategoryManagementModalView = ({
   isOpen,
   onClose,
   category,
@@ -137,20 +151,40 @@ const CategoryManagementModal = ({
       }),
     [t],
   )
-  const [isRenaming, setIsRenaming] = useState(false)
-  const [newCategoryName, setNewCategoryName] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [
+    {
+      categoryNameError,
+      isProcessing,
+      isRenaming,
+      localCategoryName,
+      newCategoryName,
+    },
+    setFormState,
+  ] = useState<CategoryManagementFormState>(() =>
+    createCategoryManagementFormState(category.name),
+  )
+  const setCategoryNameError = (categoryNameError: string | null) => {
+    setFormState(prev => ({ ...prev, categoryNameError }))
+  }
+  const setIsProcessing = (isProcessing: boolean) => {
+    setFormState(prev => ({ ...prev, isProcessing }))
+  }
+  const setIsRenaming = (isRenaming: boolean) => {
+    setFormState(prev => ({ ...prev, isRenaming }))
+  }
+  const setLocalCategoryName = (localCategoryName: string) => {
+    setFormState(prev => ({ ...prev, localCategoryName }))
+  }
+  const setNewCategoryName = (newCategoryName: string) => {
+    setFormState(prev => ({ ...prev, newCategoryName }))
+  }
   const [isSaving, setIsSaving] = useState(false) // 保存処理中の状態
   const [availableDomains, setAvailableDomains] = useState<AvailableDomain[]>(
     [],
   )
   const [selectedDomain, setSelectedDomain] = useState('')
-  const [localCategoryName, setLocalCategoryName] = useState('')
   const modalContentRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const [categoryNameError, setCategoryNameError] = useState<string | null>(
-    null,
-  ) // エラー状態を追加
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // 入力値バリデーション関数
@@ -187,14 +221,21 @@ const CategoryManagementModal = ({
         (cat: ParentCategory) => cat.id === category.id,
       )
       const currentDomainIds = targetCategory?.domains || []
+      const currentDomainIdSet = new Set(currentDomainIds)
 
       // 他のすべてのドメインを取得
-      const otherDomains = (savedTabs as TabGroup[])
-        .filter(tab => !currentDomainIds.includes(tab.id))
-        .map(tab => ({
-          id: tab.id,
-          domain: tab.domain,
-        }))
+      const otherDomains = (savedTabs as TabGroup[]).reduce<AvailableDomain[]>(
+        (domains, tab) => {
+          if (!currentDomainIdSet.has(tab.id)) {
+            domains.push({
+              id: tab.id,
+              domain: tab.domain,
+            })
+          }
+          return domains
+        },
+        [],
+      )
       setAvailableDomains(otherDomains)
       if (otherDomains.length > 0) {
         setSelectedDomain(otherDomains[0].id)
@@ -206,17 +247,10 @@ const CategoryManagementModal = ({
     }
   }, [category.id])
 
-  // モーダルが開いたときの初期化
+  // モーダル表示時の候補ドメイン取得
   useEffect(() => {
-    if (isOpen) {
-      setNewCategoryName(category.name)
-      setLocalCategoryName(category.name)
-      setIsRenaming(false)
-      setIsProcessing(false)
-      setCategoryNameError(null) // エラー状態をリセット
-      loadAvailableDomains()
-    }
-  }, [isOpen, category.name, loadAvailableDomains])
+    loadAvailableDomains()
+  }, [loadAvailableDomains])
 
   // カテゴリのリネーム処理を開始
   const handleStartRenaming = () => {
@@ -520,7 +554,7 @@ const CategoryManagementModal = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div ref={modalContentRef} className='space-y-4'>
+        <div ref={modalContentRef} className='gap-y-4'>
           {/* カテゴリ名変更セクション */}
           <div className='mb-4'>
             <div className='mb-2 flex items-center justify-between'>
@@ -570,7 +604,7 @@ const CategoryManagementModal = ({
 
             {isRenaming ? (
               <div className='mt-2 w-full rounded border p-3'>
-                <div className='mb-2 text-gray-300 text-sm'>
+                <div className='mb-2 text-sm text-zinc-300'>
                   {t('savedTabs.categoryManagement.renamePrompt', undefined, {
                     name: localCategoryName,
                   })}
@@ -583,7 +617,6 @@ const CategoryManagementModal = ({
                     'savedTabs.categoryManagement.renamePlaceholder',
                   )}
                   className={`w-full flex-1 rounded border p-2 ${categoryNameError ? 'border-red-500' : ''}`}
-                  autoFocus={true}
                   onBlur={() => {
                     if (isProcessing) {
                       return // 処理中は何もしない
@@ -639,7 +672,7 @@ const CategoryManagementModal = ({
           </div>
           {showDeleteConfirm && (
             <div className='mt-1 mb-3 rounded border p-3'>
-              <p className='mb-2 text-gray-700 dark:text-gray-300'>
+              <p className='mb-2 text-zinc-700 dark:text-zinc-300'>
                 {t(
                   'savedTabs.categoryManagement.deleteConfirmDescription',
                   undefined,
@@ -704,7 +737,7 @@ const CategoryManagementModal = ({
             </Label>
             <div className='flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded border p-2'>
               {domains.length === 0 ? (
-                <p className='text-gray-500'>
+                <p className='text-zinc-500'>
                   {t('savedTabs.categoryManagement.registeredDomainsEmpty')}
                 </p>
               ) : (
@@ -721,7 +754,7 @@ const CategoryManagementModal = ({
                           variant='ghost'
                           size='sm'
                           onClick={() => handleRemoveDomain(domain.id)}
-                          className='ml-1 cursor-pointer text-gray-400 hover:text-gray-200'
+                          className='ml-1 cursor-pointer text-zinc-400 hover:text-zinc-200'
                           aria-label={t(
                             'savedTabs.categoryManagement.removeDomainAria',
                           )}
@@ -793,7 +826,7 @@ const CategoryManagementModal = ({
                 </Tooltip>
               </div>
             ) : (
-              <p className='text-gray-500'>
+              <p className='text-zinc-500'>
                 {t('savedTabs.categoryManagement.noAvailableDomains')}
               </p>
             )}
@@ -801,6 +834,22 @@ const CategoryManagementModal = ({
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+const CategoryManagementModalContent = (props: CategoryManagementModalProps) =>
+  useCategoryManagementModalView(props)
+
+const CategoryManagementModal = (props: CategoryManagementModalProps) => {
+  if (!props.isOpen) {
+    return null
+  }
+
+  return (
+    <CategoryManagementModalContent
+      key={`${props.category.id}:${props.category.name}`}
+      {...props}
+    />
   )
 }
 

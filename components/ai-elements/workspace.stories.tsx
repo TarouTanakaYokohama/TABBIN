@@ -57,6 +57,9 @@ import {
   WebPreviewUrl,
 } from './web-preview'
 
+const previewMountedAt = new Date('2026-03-15T09:00:00Z')
+const previewWarningAt = new Date('2026-03-15T09:00:02Z')
+
 export default {
   title: 'AI Elements/Workspace',
 } satisfies Meta
@@ -240,12 +243,12 @@ const Workspace = () => (
             {
               level: 'log',
               message: 'Preview mounted successfully.',
-              timestamp: new Date('2026-03-15T09:00:00Z'),
+              timestamp: previewMountedAt,
             },
             {
               level: 'warn',
               message: 'Third-party cookies blocked in iframe sandbox.',
-              timestamp: new Date('2026-03-15T09:00:02Z'),
+              timestamp: previewWarningAt,
             },
           ]}
         />

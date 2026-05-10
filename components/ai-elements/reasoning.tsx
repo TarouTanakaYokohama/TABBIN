@@ -10,12 +10,11 @@ import type { ComponentProps, ReactNode } from 'react'
 import {
   createContext,
   memo,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react'
 import { Streamdown } from 'streamdown'
 import {
@@ -37,7 +36,7 @@ interface ReasoningContextValue {
 const ReasoningContext = createContext<ReasoningContextValue | null>(null)
 
 export const useReasoning = () => {
-  const context = useContext(ReasoningContext)
+  const context = use(ReasoningContext)
   if (!context) {
     throw new Error('Reasoning components must be used within Reasoning')
   }
@@ -54,6 +53,30 @@ export type ReasoningProps = ComponentProps<typeof Collapsible> & {
 
 const AUTO_CLOSE_DELAY = 1000
 const MS_IN_S = 1000
+
+const updateReasoningStreamTiming = ({
+  hasEverStreamedRef,
+  isStreaming,
+  setDuration,
+  startTimeRef,
+}: {
+  hasEverStreamedRef: { current: boolean }
+  isStreaming: boolean
+  setDuration: (duration: number | undefined) => void
+  startTimeRef: { current: number | null }
+}) => {
+  if (isStreaming) {
+    hasEverStreamedRef.current = true
+    if (startTimeRef.current === null) {
+      startTimeRef.current = Date.now()
+    }
+    return
+  }
+  if (startTimeRef.current !== null) {
+    setDuration(Math.ceil((Date.now() - startTimeRef.current) / MS_IN_S))
+    startTimeRef.current = null
+  }
+}
 
 export const Reasoning = memo(
   ({
@@ -81,20 +104,17 @@ export const Reasoning = memo(
     })
 
     const hasEverStreamedRef = useRef(isStreaming)
-    const [hasAutoClosed, setHasAutoClosed] = useState(false)
+    const hasAutoClosedRef = useRef(false)
     const startTimeRef = useRef<number | null>(null)
 
     // Track when streaming starts and compute duration
     useEffect(() => {
-      if (isStreaming) {
-        hasEverStreamedRef.current = true
-        if (startTimeRef.current === null) {
-          startTimeRef.current = Date.now()
-        }
-      } else if (startTimeRef.current !== null) {
-        setDuration(Math.ceil((Date.now() - startTimeRef.current) / MS_IN_S))
-        startTimeRef.current = null
-      }
+      updateReasoningStreamTiming({
+        hasEverStreamedRef,
+        isStreaming,
+        setDuration,
+        startTimeRef,
+      })
     }, [isStreaming, setDuration])
 
     // Auto-open when streaming starts (unless explicitly closed)
@@ -110,16 +130,16 @@ export const Reasoning = memo(
         hasEverStreamedRef.current &&
         !isStreaming &&
         isOpen &&
-        !hasAutoClosed
+        !hasAutoClosedRef.current
       ) {
         const timer = setTimeout(() => {
           setIsOpen(false)
-          setHasAutoClosed(true)
+          hasAutoClosedRef.current = true
         }, AUTO_CLOSE_DELAY)
 
         return () => clearTimeout(timer)
       }
-    }, [isStreaming, isOpen, setIsOpen, hasAutoClosed])
+    }, [isStreaming, isOpen, setIsOpen])
 
     const handleOpenChange = useCallback(
       (newOpen: boolean) => {

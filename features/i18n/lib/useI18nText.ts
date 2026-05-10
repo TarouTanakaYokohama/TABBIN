@@ -10,6 +10,8 @@ const getUiLocale = () => {
   return typeof navigator === 'undefined' ? undefined : navigator.language
 }
 
+const readI18n = useI18n
+
 export const getFallbackText = (
   key: string,
   fallback?: string,
@@ -26,7 +28,7 @@ export const useI18nText = () => {
     | undefined
 
   try {
-    t = useI18n().t
+    t = readI18n().t
   } catch {
     t = undefined
   }

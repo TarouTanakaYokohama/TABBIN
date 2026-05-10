@@ -10,10 +10,11 @@ import type { ComponentProps, HTMLAttributes, ReactElement } from 'react'
 import {
   createContext,
   memo,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
+  useReducer,
   useState,
 } from 'react'
 import { Streamdown } from 'streamdown'
@@ -125,7 +126,7 @@ const MessageBranchContext = createContext<MessageBranchContextType | null>(
 )
 
 const useMessageBranch = () => {
-  const context = useContext(MessageBranchContext)
+  const context = use(MessageBranchContext)
 
   if (!context) {
     throw new Error(
@@ -147,7 +148,10 @@ export const MessageBranch = ({
   className,
   ...props
 }: MessageBranchProps) => {
-  const [currentBranch, setCurrentBranch] = useState(defaultBranch)
+  const [currentBranch, setCurrentBranch] = useReducer(
+    (_state: number, nextBranch: number) => nextBranch,
+    defaultBranch,
+  )
   const [branches, setBranches] = useState<ReactElement[]>([])
 
   const handleBranchChange = useCallback(

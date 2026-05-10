@@ -2,6 +2,8 @@ import Fuse from 'fuse.js'
 import { getProjectUrls } from '@/lib/storage/projects'
 import type { CustomProject } from '@/types/storage'
 
+type ProjectUrlItem = Awaited<ReturnType<typeof getProjectUrls>>[number]
+
 interface FilterCustomProjectsByQueryParams {
   customProjects: CustomProject[]
   searchQuery: string
@@ -57,27 +59,40 @@ export const filterCustomProjectsByQuery = async ({
   const matchedProjects = new Fuse(customProjects, projectFuseOptions)
     .search(normalizedQuery)
     .map(result => result.item)
+  const matchedProjectSet = new Set(matchedProjects)
 
   const urlMatchedProjects = await Promise.all(
-    customProjects
-      .filter(project => !matchedProjects.includes(project))
-      .map(async project => {
-        const projectUrls = await loadProjectUrls(project)
-        const searchableUrls = Array.isArray(projectUrls) ? projectUrls : []
-        const matchedUrls = new Fuse(searchableUrls, projectUrlFuseOptions)
-          .search(normalizedQuery)
-          .map(result => result.item)
-          .filter(
-            (url, index, items) =>
-              items.findIndex(item => item.url === url.url) === index,
-          )
+    customProjects.flatMap(project =>
+      matchedProjectSet.has(project)
+        ? []
+        : [
+            (async () => {
+              const projectUrls = await loadProjectUrls(project)
+              const searchableUrls = Array.isArray(projectUrls)
+                ? projectUrls
+                : []
+              const seenUrls = new Set<string>()
+              const matchedUrls = new Fuse(
+                searchableUrls,
+                projectUrlFuseOptions,
+              )
+                .search(normalizedQuery)
+                .reduce<ProjectUrlItem[]>((items, result) => {
+                  if (!seenUrls.has(result.item.url)) {
+                    seenUrls.add(result.item.url)
+                    items.push(result.item)
+                  }
+                  return items
+                }, [])
 
-        if (matchedUrls.length === 0) {
-          return null
-        }
+              if (matchedUrls.length === 0) {
+                return null
+              }
 
-        return mapMatchedUrlsToProject(project, matchedUrls)
-      }),
+              return mapMatchedUrlsToProject(project, matchedUrls)
+            })(),
+          ],
+    ),
   )
 
   const uniqueProjects = new Map<string, CustomProject>()

@@ -2,19 +2,13 @@
 
 import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react'
 import type { ComponentProps } from 'react'
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import type { CarouselApi } from '@/components/ui/carousel'
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
+  useCarousel,
 } from '@/components/ui/carousel'
 import {
   HoverCard,
@@ -90,30 +84,17 @@ export const InlineCitationCardBody = ({
   <HoverCardContent className={cn('relative w-80 p-0', className)} {...props} />
 )
 
-const CarouselApiContext = createContext<CarouselApi | undefined>(undefined)
-
-const useCarouselApi = () => {
-  const context = useContext(CarouselApiContext)
-  return context
-}
-
 export type InlineCitationCarouselProps = ComponentProps<typeof Carousel>
 
 export const InlineCitationCarousel = ({
   className,
   children,
   ...props
-}: InlineCitationCarouselProps) => {
-  const [api, setApi] = useState<CarouselApi>()
-
-  return (
-    <CarouselApiContext.Provider value={api}>
-      <Carousel className={cn('w-full', className)} setApi={setApi} {...props}>
-        {children}
-      </Carousel>
-    </CarouselApiContext.Provider>
-  )
-}
+}: InlineCitationCarouselProps) => (
+  <Carousel className={cn('w-full', className)} {...props}>
+    {children}
+  </Carousel>
+)
 
 export type InlineCitationCarouselContentProps = ComponentProps<'div'>
 
@@ -155,20 +136,27 @@ export const InlineCitationCarouselIndex = ({
   className,
   ...props
 }: InlineCitationCarouselIndexProps) => {
-  const api = useCarouselApi()
-  const [current, setCurrent] = useState(0)
-  const [count, setCount] = useState(0)
+  const { api } = useCarousel()
+  const [{ count, current }, setCarouselState] = useState({
+    count: 0,
+    current: 0,
+  })
 
   useEffect(() => {
     if (!api) {
       return
     }
 
-    setCount(api.scrollSnapList().length)
-    setCurrent(api.selectedScrollSnap() + 1)
+    setCarouselState({
+      count: api.scrollSnapList().length,
+      current: api.selectedScrollSnap() + 1,
+    })
 
     const handleSelect = () => {
-      setCurrent(api.selectedScrollSnap() + 1)
+      setCarouselState(prev => ({
+        ...prev,
+        current: api.selectedScrollSnap() + 1,
+      }))
     }
 
     api.on('select', handleSelect)
@@ -197,10 +185,10 @@ export const InlineCitationCarouselPrev = ({
   className,
   ...props
 }: InlineCitationCarouselPrevProps) => {
-  const api = useCarouselApi()
+  const { api } = useCarousel()
   const t = useI18nText()
 
-  const handleClick = useCallback(() => {
+  const scrollToPreviousCitation = useCallback(() => {
     if (api) {
       api.scrollPrev()
     }
@@ -210,7 +198,7 @@ export const InlineCitationCarouselPrev = ({
     <button
       aria-label={t('common.previous')}
       className={cn('shrink-0 cursor-pointer', className)}
-      onClick={handleClick}
+      onClick={scrollToPreviousCitation}
       type='button'
       {...props}
     >
@@ -225,10 +213,10 @@ export const InlineCitationCarouselNext = ({
   className,
   ...props
 }: InlineCitationCarouselNextProps) => {
-  const api = useCarouselApi()
+  const { api } = useCarousel()
   const t = useI18nText()
 
-  const handleClick = useCallback(() => {
+  const scrollToNextCitation = useCallback(() => {
     if (api) {
       api.scrollNext()
     }
@@ -238,7 +226,7 @@ export const InlineCitationCarouselNext = ({
     <button
       aria-label={t('common.next')}
       className={cn('shrink-0 cursor-pointer', className)}
-      onClick={handleClick}
+      onClick={scrollToNextCitation}
       type='button'
       {...props}
     >

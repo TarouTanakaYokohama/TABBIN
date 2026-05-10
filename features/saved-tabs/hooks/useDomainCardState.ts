@@ -64,11 +64,12 @@ const buildCategorizedUrls = (
   const uncategorizedCategoryId = '__uncategorized'
   const categorizedUrls: CategorizedUrls = {}
   categorizedUrls[uncategorizedCategoryId] = []
+  const subCategorySet = new Set(subCategories ?? [])
   for (const category of subCategories || []) {
     categorizedUrls[category] = []
   }
   for (const url of urls || []) {
-    if (url.subCategory && subCategories?.includes(url.subCategory)) {
+    if (url.subCategory && subCategorySet.has(url.subCategory)) {
       categorizedUrls[url.subCategory].push(url)
     } else {
       categorizedUrls[uncategorizedCategoryId].push(url)
@@ -81,18 +82,21 @@ const buildCategoryOrderFromSaved = (
   regularCategories: string[],
   hasUncategorized: boolean,
 ): string[] => {
+  const regularCategorySet = new Set(regularCategories)
   const filteredOrder = savedOrder.filter(id => {
     if (id === '__uncategorized') {
       return hasUncategorized
     }
-    return regularCategories.includes(id)
+    return regularCategorySet.has(id)
   })
+  const filteredOrderSet = new Set(filteredOrder)
   for (const category of regularCategories) {
-    if (!filteredOrder.includes(category)) {
+    if (!filteredOrderSet.has(category)) {
       filteredOrder.push(category)
+      filteredOrderSet.add(category)
     }
   }
-  if (hasUncategorized && !filteredOrder.includes('__uncategorized')) {
+  if (hasUncategorized && !filteredOrderSet.has('__uncategorized')) {
     filteredOrder.push('__uncategorized')
   }
   return filteredOrder
@@ -406,9 +410,9 @@ export const useDomainCardState = ({
         if (handleDeleteUrls) {
           await handleDeleteUrls(group.id, urlsToRemove)
         } else {
-          for (const url of urlsToRemove) {
-            await removeUrlFromTabGroup(group.id, url)
-          }
+          await Promise.all(
+            urlsToRemove.map(url => removeUrlFromTabGroup(group.id, url)),
+          )
         }
         console.log(
           `「${categoryName}」カテゴリから${urlsToRemove.length}件のタブを削除完了`,

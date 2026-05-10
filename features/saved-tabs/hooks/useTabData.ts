@@ -96,30 +96,40 @@ const repairSavedTabParentCategoryIds = (
   needsUpdate: boolean
 } => {
   let needsUpdate = false
+  const categoryByDomainId = new Map<string, ParentCategory>()
+  const categoryByDomainName = new Map<string, ParentCategory>()
+  for (const category of parentCategories) {
+    for (const domainId of category.domains ?? []) {
+      categoryByDomainId.set(domainId, category)
+    }
+    for (const domainName of category.domainNames ?? []) {
+      categoryByDomainName.set(domainName, category)
+    }
+  }
   const updatedTabGroups = savedTabs.map((group: TabGroup) => {
     if (group.parentCategoryId) {
       return group
     }
-    for (const category of parentCategories) {
-      if (category.domains?.includes(group.id)) {
-        console.log(
-          `TabGroup ${group.domain} のparentCategoryIdを ${category.id} に修復しました (IDベース)`,
-        )
-        needsUpdate = true
-        return {
-          ...group,
-          parentCategoryId: category.id,
-        }
+    const categoryById = categoryByDomainId.get(group.id)
+    if (categoryById) {
+      console.log(
+        `TabGroup ${group.domain} のparentCategoryIdを ${categoryById.id} に修復しました (IDベース)`,
+      )
+      needsUpdate = true
+      return {
+        ...group,
+        parentCategoryId: categoryById.id,
       }
-      if (category.domainNames?.includes(group.domain)) {
-        console.log(
-          `TabGroup ${group.domain} のparentCategoryIdを ${category.id} に修復しました (ドメイン名ベース)`,
-        )
-        needsUpdate = true
-        return {
-          ...group,
-          parentCategoryId: category.id,
-        }
+    }
+    const categoryByName = categoryByDomainName.get(group.domain)
+    if (categoryByName) {
+      console.log(
+        `TabGroup ${group.domain} のparentCategoryIdを ${categoryByName.id} に修復しました (ドメイン名ベース)`,
+      )
+      needsUpdate = true
+      return {
+        ...group,
+        parentCategoryId: categoryByName.id,
       }
     }
     return group
@@ -141,9 +151,23 @@ const useTabData = (
   onCategoriesLoaded: (categories: ParentCategory[]) => void,
   onSettingsLoaded: (settings: UserSettings) => void,
 ): UseTabDataReturn => {
-  const [tabGroups, setTabGroups] = useState<TabGroup[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [tabGroupsWithUrls, setTabGroupsWithUrls] = useState<TabGroup[]>([])
+  const [{ isLoading, tabGroups, tabGroupsWithUrls }, setTabData] = useState({
+    isLoading: true,
+    tabGroups: [] as TabGroup[],
+    tabGroupsWithUrls: [] as TabGroup[],
+  })
+  const setTabGroups: Dispatch<SetStateAction<TabGroup[]>> = useCallback(
+    nextGroups => {
+      setTabData(prev => ({
+        ...prev,
+        tabGroups:
+          typeof nextGroups === 'function'
+            ? nextGroups(prev.tabGroups)
+            : nextGroups,
+      }))
+    },
+    [],
+  )
   const skipNextTabGroupsSyncRef = useRef(false)
 
   // コールバック参照を ref で保持（useEffect 依存配列の安定性のため）
@@ -202,10 +226,13 @@ const useTabData = (
         ).savedTabs as TabGroup[] | undefined) ??
         []
       const normalizedGroups = Array.isArray(groups) ? groups : []
-      skipNextTabGroupsSyncRef.current = true
-      setTabGroups(normalizedGroups)
       const groupsWithUrls = await loadTabGroupsWithUrls(normalizedGroups)
-      setTabGroupsWithUrls(groupsWithUrls)
+      skipNextTabGroupsSyncRef.current = true
+      setTabData(prev => ({
+        ...prev,
+        tabGroups: normalizedGroups,
+        tabGroupsWithUrls: groupsWithUrls,
+      }))
       return normalizedGroups
     },
     [loadTabGroupsWithUrls],
@@ -225,7 +252,6 @@ const useTabData = (
           ? storageResult.savedTabs
           : []
         logSavedTabsSummary(savedTabs)
-        setTabGroups(savedTabs)
         const [urlStorageResult, allStorage, userSettings, parentCategories] =
           await Promise.all([
             chrome.storage.local.get('urls'),
@@ -261,13 +287,19 @@ const useTabData = (
           await chrome.storage.local.set({
             savedTabs: updatedTabGroups,
           })
-          setTabGroups(updatedTabGroups)
           console.log('TabGroupのparentCategoryId修復処理が完了しました')
         }
+        setTabData(prev => ({
+          ...prev,
+          isLoading: false,
+          tabGroups: needsUpdate ? updatedTabGroups : savedTabs,
+        }))
       } catch (error) {
         console.error('保存されたタブの読み込みエラー:', error)
-      } finally {
-        setIsLoading(false)
+        setTabData(prev => ({
+          ...prev,
+          isLoading: false,
+        }))
       }
     }
     loadSavedTabs()
@@ -284,7 +316,10 @@ const useTabData = (
       const groupsWithUrls = await loadTabGroupsWithUrls(tabGroups)
       if (!cancelled) {
         console.log('URL取得完了、状態を更新...')
-        setTabGroupsWithUrls(groupsWithUrls)
+        setTabData(prev => ({
+          ...prev,
+          tabGroupsWithUrls: groupsWithUrls,
+        }))
       }
     }
     loadUrlsForTabGroups()

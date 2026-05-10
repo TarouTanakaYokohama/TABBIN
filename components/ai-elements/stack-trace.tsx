@@ -11,8 +11,8 @@ import type { ComponentProps } from 'react'
 import {
   createContext,
   memo,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -60,7 +60,7 @@ interface StackTraceContextValue {
 const StackTraceContext = createContext<StackTraceContextValue | null>(null)
 
 const useStackTrace = () => {
-  const context = useContext(StackTraceContext)
+  const context = use(StackTraceContext)
   if (!context) {
     throw new Error('StackTrace components must be used within StackTrace')
   }
@@ -142,10 +142,12 @@ const parseStackTrace = (trace: string): ParsedStackTrace => {
   }
 
   // Parse stack frames (lines starting with "at")
-  const frames = lines
-    .slice(1)
-    .filter(line => line.trim().startsWith('at '))
-    .map(parseStackFrame)
+  const frames = lines.reduce<StackFrame[]>((items, line, index) => {
+    if (index > 0 && line.trim().startsWith('at ')) {
+      items.push(parseStackFrame(line))
+    }
+    return items
+  }, [])
 
   return {
     errorMessage,
@@ -446,7 +448,7 @@ interface FilePathButtonProps {
 
 const FilePathButton = memo(
   ({ frame, onFilePathClick }: FilePathButtonProps) => {
-    const handleClick = useCallback(() => {
+    const openFrameFilePath = useCallback(() => {
       if (frame.filePath) {
         onFilePathClick?.(
           frame.filePath,
@@ -463,7 +465,7 @@ const FilePathButton = memo(
           onFilePathClick && 'cursor-pointer',
         )}
         disabled={!onFilePathClick}
-        onClick={handleClick}
+        onClick={openFrameFilePath}
         type='button'
       >
         {frame.filePath}

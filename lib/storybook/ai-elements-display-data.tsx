@@ -98,7 +98,7 @@ const Section = ({
   children: React.ReactNode
   title: string
 }) => (
-  <section className='space-y-3 rounded-xl border bg-card p-4'>
+  <section className='gap-y-3 rounded-xl border bg-card p-4'>
     <h3 className='font-semibold text-base'>{title}</h3>
     {children}
   </section>
@@ -107,7 +107,7 @@ const Section = ({
 const DataSurfaces = () => (
   <div className='grid gap-6 xl:grid-cols-2'>
     <Section title='Context + Chain of Thought'>
-      <div className='space-y-4'>
+      <div className='gap-y-4'>
         <Context
           maxTokens={128000}
           modelId='openai/gpt-4.1-mini'
@@ -117,7 +117,7 @@ const DataSurfaces = () => (
           <ContextTrigger />
           <ContextContent>
             <ContextContentHeader />
-            <ContextContentBody className='space-y-3'>
+            <ContextContentBody className='gap-y-3'>
               <ContextInputUsage />
               <ContextOutputUsage />
               <ContextReasoningUsage />
@@ -158,7 +158,7 @@ const DataSurfaces = () => (
     </Section>
 
     <Section title='Schema + Package Info'>
-      <div className='space-y-4'>
+      <div className='gap-y-4'>
         <PackageInfo
           changeType='minor'
           currentVersion='1.6.0'
@@ -254,7 +254,7 @@ const DataSurfaces = () => (
     </Section>
 
     <Section title='Environment Variables + File Tree'>
-      <div className='space-y-4'>
+      <div className='gap-y-4'>
         <EnvironmentVariables defaultShowValues>
           <EnvironmentVariablesHeader>
             <EnvironmentVariablesTitle />
@@ -306,7 +306,7 @@ const DataSurfaces = () => (
     </Section>
 
     <Section title='Image + Citation + JSX Preview'>
-      <div className='space-y-4'>
+      <div className='gap-y-4'>
         <Image
           alt='Generated cover'
           base64={samplePng}
@@ -352,7 +352,7 @@ const DataSurfaces = () => (
 
         <JSXPreview
           bindings={{ count: 12 }}
-          className='space-y-3 rounded-lg border p-3'
+          className='gap-y-3 rounded-lg border p-3'
           jsx={
             '<div><strong>{count}</strong> saved tabs ready for review.</div>'
           }
@@ -362,7 +362,7 @@ const DataSurfaces = () => (
         </JSXPreview>
 
         <div className='text-sm'>
-          <Shimmer>Streaming structured response...</Shimmer>
+          <Shimmer>Streaming structured response…</Shimmer>
         </div>
       </div>
     </Section>

@@ -1,5 +1,5 @@
 import { Plus, X } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,6 +18,8 @@ import {
   SavedTabsResponsiveTooltipContent,
 } from './shared/SavedTabsResponsive'
 import { ViewModeToggle } from './ViewModeToggle'
+
+const EMPTY_CUSTOM_PROJECTS: CustomProject[] = []
 
 interface HeaderProps {
   tabGroups: TabGroup[]
@@ -39,7 +41,7 @@ export const Header = ({
   onModeChange,
   searchQuery,
   onSearchChange,
-  customProjects = [],
+  customProjects = EMPTY_CUSTOM_PROJECTS,
   filteredCustomProjects,
   onCreateProject = () => {},
 }: HeaderProps) => {
@@ -51,6 +53,14 @@ export const Header = ({
   const normalizedSearchQuery = searchQuery.trim()
   const groupsForDisplay = filteredTabGroups || tabGroups
   const customGroupsForDisplay = filteredCustomProjects || customProjects
+  const handleNewProjectNameInputRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      if (node && isCustomProjectModalOpen) {
+        node.focus()
+      }
+    },
+    [isCustomProjectModalOpen],
+  )
   const domainTabCount = groupsForDisplay.reduce((sum, group) => {
     if (group.urls) {
       return sum + group.urls.length
@@ -75,6 +85,7 @@ export const Header = ({
   }, 0)
 
   const tabCount = currentMode === 'custom' ? customTabCount : domainTabCount
+
   const handleCustomProjectEnter = (
     event: React.KeyboardEvent<HTMLInputElement>,
   ) => {
@@ -217,12 +228,12 @@ export const Header = ({
               <DialogTitle>{t('savedTabs.newProjectTitle')}</DialogTitle>
             </DialogHeader>
             <Input
+              ref={handleNewProjectNameInputRef}
               value={newProjectName}
               onChange={e => setNewProjectName(e.target.value)}
               onKeyDown={handleCustomProjectEnter}
               placeholder={t('savedTabs.newProjectPlaceholder')}
               className='mb-2 w-full'
-              autoFocus={true}
             />
           </DialogContent>
         </Dialog>

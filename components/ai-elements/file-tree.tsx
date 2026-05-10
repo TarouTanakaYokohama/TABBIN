@@ -7,18 +7,15 @@ import {
   FolderOpenIcon,
 } from 'lucide-react'
 import type { ComponentProps, HTMLAttributes, ReactNode } from 'react'
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from 'react'
+import { createContext, use, useCallback, useMemo, useReducer } from 'react'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+
+const EMPTY_EXPANDED_PATHS = new Set<string>()
+
 import { cn } from '@/lib/utils'
 
 interface FileTreeContextType {
@@ -48,7 +45,7 @@ export type FileTreeProps = HTMLAttributes<HTMLDivElement> & {
 
 export const FileTree = ({
   expanded: controlledExpanded,
-  defaultExpanded = new Set(),
+  defaultExpanded = EMPTY_EXPANDED_PATHS,
   selectedPath,
   onSelect,
   onExpandedChange,
@@ -56,7 +53,10 @@ export const FileTree = ({
   children,
   ...props
 }: FileTreeProps) => {
-  const [internalExpanded, setInternalExpanded] = useState(defaultExpanded)
+  const [internalExpanded, setInternalExpanded] = useReducer(
+    (_state: Set<string>, nextExpanded: Set<string>) => nextExpanded,
+    defaultExpanded,
+  )
   const expandedPaths = controlledExpanded ?? internalExpanded
 
   const togglePath = useCallback(
@@ -119,7 +119,7 @@ export const FileTreeFolder = ({
   ...props
 }: FileTreeFolderProps) => {
   const { expandedPaths, togglePath, selectedPath, onSelect } =
-    useContext(FileTreeContext)
+    use(FileTreeContext)
   const isExpanded = expandedPaths.has(path)
   const isSelected = selectedPath === path
 
@@ -203,10 +203,10 @@ export const FileTreeFile = ({
   children,
   ...props
 }: FileTreeFileProps) => {
-  const { selectedPath, onSelect } = useContext(FileTreeContext)
+  const { selectedPath, onSelect } = use(FileTreeContext)
   const isSelected = selectedPath === path
 
-  const handleClick = useCallback(() => {
+  const selectFile = useCallback(() => {
     onSelect?.(path)
   }, [onSelect, path])
 
@@ -229,7 +229,7 @@ export const FileTreeFile = ({
           isSelected && 'bg-muted',
           className,
         )}
-        onClick={handleClick}
+        onClick={selectFile}
         onKeyDown={handleKeyDown}
         role='treeitem'
         tabIndex={0}

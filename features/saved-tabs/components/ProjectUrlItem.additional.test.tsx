@@ -102,7 +102,7 @@ describe('ProjectUrlItem additional', () => {
   it('window 内 drop 済みなら urlDropped を送らない', () => {
     render(<ProjectUrlItem {...createProps()} />)
 
-    const link = screen.getByRole('link', { name: 'Doc' })
+    const link = screen.getByRole('button', { name: 'Doc' })
     const dataTransfer = {
       setData: vi.fn(),
       dropEffect: 'copy',

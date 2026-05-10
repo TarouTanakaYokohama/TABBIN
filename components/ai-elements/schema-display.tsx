@@ -2,7 +2,7 @@
 
 import { ChevronRightIcon } from 'lucide-react'
 import type { ComponentProps, HTMLAttributes } from 'react'
-import { createContext, useContext, useMemo } from 'react'
+import { createContext, use, useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
   Collapsible,
@@ -144,7 +144,7 @@ export const SchemaDisplayMethod = ({
   children,
   ...props
 }: SchemaDisplayMethodProps) => {
-  const { method } = useContext(SchemaDisplayContext)
+  const { method } = use(SchemaDisplayContext)
 
   return (
     <Badge
@@ -159,43 +159,36 @@ export const SchemaDisplayMethod = ({
 
 export type SchemaDisplayPathProps = HTMLAttributes<HTMLSpanElement>
 
+const renderHighlightedPath = (path: string) => {
+  const parts = path.split(/(\{[^}]+\})/g)
+  return parts.map(part => {
+    if (!part) {
+      return null
+    }
+
+    if (part.startsWith('{') && part.endsWith('}')) {
+      return (
+        <span className='text-blue-600 dark:text-blue-400' key={part}>
+          {part}
+        </span>
+      )
+    }
+
+    return part
+  })
+}
+
 export const SchemaDisplayPath = ({
   className,
   children,
   ...props
 }: SchemaDisplayPathProps) => {
-  const { path } = useContext(SchemaDisplayContext)
-
-  // Highlight path parameters
-  const highlightedPath = path.replaceAll(
-    /\{([^}]+)\}/g,
-    '<span class="text-blue-600 dark:text-blue-400">{$1}</span>',
-  )
-
-  if (typeof children === 'string') {
-    return (
-      <span
-        className={cn('font-mono text-sm', className)}
-        dangerouslySetInnerHTML={{ __html: children }}
-        {...props}
-      />
-    )
-  }
-
-  if (children !== undefined) {
-    return (
-      <span className={cn('font-mono text-sm', className)} {...props}>
-        {children}
-      </span>
-    )
-  }
+  const { path } = use(SchemaDisplayContext)
 
   return (
-    <span
-      className={cn('font-mono text-sm', className)}
-      dangerouslySetInnerHTML={{ __html: highlightedPath }}
-      {...props}
-    />
+    <span className={cn('font-mono text-sm', className)} {...props}>
+      {children ?? renderHighlightedPath(path)}
+    </span>
   )
 }
 
@@ -206,7 +199,7 @@ export const SchemaDisplayDescription = ({
   children,
   ...props
 }: SchemaDisplayDescriptionProps) => {
-  const { description } = useContext(SchemaDisplayContext)
+  const { description } = use(SchemaDisplayContext)
 
   return (
     <p
@@ -240,7 +233,7 @@ export const SchemaDisplayParameters = ({
   children,
   ...props
 }: SchemaDisplayParametersProps) => {
-  const { parameters } = useContext(SchemaDisplayContext)
+  const { parameters } = use(SchemaDisplayContext)
   const t = useI18nText()
 
   return (
@@ -313,7 +306,7 @@ export const SchemaDisplayRequest = ({
   children,
   ...props
 }: SchemaDisplayRequestProps) => {
-  const { requestBody } = useContext(SchemaDisplayContext)
+  const { requestBody } = use(SchemaDisplayContext)
   const t = useI18nText()
 
   return (
@@ -341,7 +334,7 @@ export const SchemaDisplayResponse = ({
   children,
   ...props
 }: SchemaDisplayResponseProps) => {
-  const { responseBody } = useContext(SchemaDisplayContext)
+  const { responseBody } = use(SchemaDisplayContext)
   const t = useI18nText()
 
   return (

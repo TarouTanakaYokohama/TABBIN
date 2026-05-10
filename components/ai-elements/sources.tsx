@@ -24,9 +24,9 @@ export type SourcesTriggerProps = ComponentProps<typeof CollapsibleTrigger> & {
 }
 
 export const SourcesTrigger = ({
+  children,
   className,
   count,
-  children,
   ...props
 }: SourcesTriggerProps) => {
   const t = useI18nText()
@@ -47,7 +47,7 @@ export const SourcesTrigger = ({
               { count: String(count) },
             )}
           </p>
-          <ChevronDownIcon className='h-4 w-4' />
+          <ChevronDownIcon className='size-4' />
         </>
       )}
     </CollapsibleTrigger>
@@ -72,7 +72,7 @@ export const SourcesContent = ({
 
 export type SourceProps = ComponentProps<'a'>
 
-export const Source = ({ href, title, children, ...props }: SourceProps) => (
+export const Source = ({ children, href, title, ...props }: SourceProps) => (
   <a
     className='flex items-center gap-2'
     href={href}
@@ -82,7 +82,7 @@ export const Source = ({ href, title, children, ...props }: SourceProps) => (
   >
     {children ?? (
       <>
-        <BookIcon className='h-4 w-4' />
+        <BookIcon className='size-4' />
         <span className='block font-medium'>{title}</span>
       </>
     )}

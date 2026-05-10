@@ -24,13 +24,13 @@ interface AppRouterProps {
 }
 
 const SavedTabsRoutePage = () => {
-  const location = useLocation()
+  const routerLocation = useLocation()
   const navigate = useNavigate()
-  const hasModeQuery = new URLSearchParams(location.search).has('mode')
+  const hasModeQuery = new URLSearchParams(routerLocation.search).has('mode')
 
   const handleViewModeNavigate = (mode: 'custom' | 'domain') => {
     const nextRoute = getSavedTabsHrefForMode(mode)
-    const currentRoute = `${location.pathname}${location.search}`
+    const currentRoute = `${routerLocation.pathname}${routerLocation.search}`
 
     if (currentRoute === nextRoute) {
       return
@@ -44,12 +44,12 @@ const SavedTabsRoutePage = () => {
       return
     }
     const nextRoute = getSavedTabsHrefForMode('domain')
-    const currentRoute = `${location.pathname}${location.search}`
+    const currentRoute = `${routerLocation.pathname}${routerLocation.search}`
     if (currentRoute === nextRoute) {
       return
     }
     navigate(nextRoute, { replace: true })
-  }, [hasModeQuery, location.pathname, location.search, navigate])
+  }, [hasModeQuery, routerLocation.pathname, routerLocation.search, navigate])
 
   useEffect(() => {
     if (typeof chrome === 'undefined' || !chrome.storage?.local?.remove) {
@@ -64,7 +64,7 @@ const SavedTabsRoutePage = () => {
 
   return (
     <SavedTabsRoute
-      search={location.search}
+      search={routerLocation.search}
       onViewModeNavigate={handleViewModeNavigate}
     />
   )

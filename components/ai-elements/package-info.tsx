@@ -2,7 +2,7 @@
 
 import { ArrowRightIcon, MinusIcon, PackageIcon, PlusIcon } from 'lucide-react'
 import type { HTMLAttributes } from 'react'
-import { createContext, useContext } from 'react'
+import { createContext, use } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
@@ -77,7 +77,7 @@ export const PackageInfoName = ({
   children,
   ...props
 }: PackageInfoNameProps) => {
-  const { name } = useContext(PackageInfoContext)
+  const { name } = use(PackageInfoContext)
 
   return (
     <div className={cn('flex items-center gap-2', className)} {...props}>
@@ -111,7 +111,7 @@ export const PackageInfoChangeType = ({
   children,
   ...props
 }: PackageInfoChangeTypeProps) => {
-  const { changeType } = useContext(PackageInfoContext)
+  const { changeType } = use(PackageInfoContext)
 
   if (!changeType) {
     return null
@@ -140,7 +140,7 @@ export const PackageInfoVersion = ({
   children,
   ...props
 }: PackageInfoVersionProps) => {
-  const { currentVersion, newVersion } = useContext(PackageInfoContext)
+  const { currentVersion, newVersion } = use(PackageInfoContext)
 
   if (!(currentVersion || newVersion)) {
     return null

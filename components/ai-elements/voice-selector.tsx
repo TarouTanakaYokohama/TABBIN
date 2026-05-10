@@ -13,7 +13,7 @@ import {
   VenusIcon,
 } from 'lucide-react'
 import type { ComponentProps, ReactNode } from 'react'
-import { createContext, useCallback, useContext, useMemo } from 'react'
+import { createContext, use, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Command,
@@ -48,7 +48,7 @@ const VoiceSelectorContext = createContext<VoiceSelectorContextValue | null>(
 )
 
 export const useVoiceSelector = () => {
-  const context = useContext(VoiceSelectorContext)
+  const context = use(VoiceSelectorContext)
   if (!context) {
     throw new Error(
       'VoiceSelector components must be used within VoiceSelector',
@@ -492,7 +492,7 @@ export const VoiceSelectorPreview = ({
   ...props
 }: VoiceSelectorPreviewProps) => {
   const t = useI18nText()
-  const handleClick = useCallback(
+  const playVoicePreview = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation()
       onClick?.(event)
@@ -514,7 +514,7 @@ export const VoiceSelectorPreview = ({
       aria-label={playing ? t('common.pausePreview') : t('common.playPreview')}
       className={cn('size-6', className)}
       disabled={loading}
-      onClick={handleClick}
+      onClick={playVoicePreview}
       size='icon-sm'
       type='button'
       variant='outline'

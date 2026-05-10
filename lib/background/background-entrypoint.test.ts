@@ -190,16 +190,16 @@ const triggerInstalled = async (
   harness: ChromeHarness,
   reason: 'install' | 'update' | 'chrome_update',
 ): Promise<void> => {
-  for (const listener of harness.onInstalledListeners) {
-    await listener({
-      reason,
-    })
-  }
+  await Promise.all(
+    harness.onInstalledListeners.map(listener =>
+      listener({
+        reason,
+      }),
+    ),
+  )
 }
 const triggerStartup = async (harness: ChromeHarness): Promise<void> => {
-  for (const listener of harness.onStartupListeners) {
-    await listener()
-  }
+  await Promise.all(harness.onStartupListeners.map(listener => listener()))
 }
 beforeEach(() => {
   vi.restoreAllMocks()

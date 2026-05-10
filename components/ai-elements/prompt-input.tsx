@@ -25,10 +25,11 @@ import type {
 import {
   Children,
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from 'react'
@@ -134,7 +135,7 @@ const ProviderAttachmentsContext = createContext<AttachmentsContext | null>(
 )
 
 export const usePromptInputController = () => {
-  const ctx = useContext(PromptInputController)
+  const ctx = use(PromptInputController)
   if (!ctx) {
     throw new Error(
       'Wrap your component inside <PromptInputProvider> to use usePromptInputController().',
@@ -144,10 +145,10 @@ export const usePromptInputController = () => {
 }
 
 // Optional variants (do NOT throw). Useful for dual-mode components.
-const useOptionalPromptInputController = () => useContext(PromptInputController)
+const useOptionalPromptInputController = () => use(PromptInputController)
 
 export const useProviderAttachments = () => {
-  const ctx = useContext(ProviderAttachmentsContext)
+  const ctx = use(ProviderAttachmentsContext)
   if (!ctx) {
     throw new Error(
       'Wrap your component inside <PromptInputProvider> to use useProviderAttachments().',
@@ -156,8 +157,7 @@ export const useProviderAttachments = () => {
   return ctx
 }
 
-const useOptionalProviderAttachments = () =>
-  useContext(ProviderAttachmentsContext)
+const useOptionalProviderAttachments = () => use(ProviderAttachmentsContext)
 
 export type PromptInputProviderProps = PropsWithChildren<{
   initialInput?: string
@@ -172,7 +172,10 @@ export const PromptInputProvider = ({
   children,
 }: PromptInputProviderProps) => {
   // ----- textInput state
-  const [textInput, setTextInput] = useState(initialTextInput)
+  const [textInput, setTextInput] = useReducer(
+    (_state: string, nextTextInput: string) => nextTextInput,
+    initialTextInput,
+  )
   const clearInput = useCallback(() => setTextInput(''), [])
 
   // ----- attachments state (global when wrapped)
@@ -296,7 +299,7 @@ const LocalAttachmentsContext = createContext<AttachmentsContext | null>(null)
 export const usePromptInputAttachments = () => {
   // Prefer local context (inside PromptInput) as it has validation, fall back to provider
   const provider = useOptionalProviderAttachments()
-  const local = useContext(LocalAttachmentsContext)
+  const local = use(LocalAttachmentsContext)
   const context = local ?? provider
   if (!context) {
     throw new Error(
@@ -321,7 +324,7 @@ export const LocalReferencedSourcesContext =
   createContext<ReferencedSourcesContext | null>(null)
 
 export const usePromptInputReferencedSources = () => {
-  const ctx = useContext(LocalReferencedSourcesContext)
+  const ctx = use(LocalReferencedSourcesContext)
   if (!ctx) {
     throw new Error(
       'usePromptInputReferencedSources must be used within a LocalReferencedSourcesContext.Provider',
@@ -387,7 +390,7 @@ export type PromptInputProps = Omit<
   ) => void | Promise<void>
 }
 
-export const PromptInput = ({
+const usePromptInputView = ({
   className,
   accept,
   multiple,
@@ -435,10 +438,13 @@ export const PromptInput = ({
         return true
       }
 
-      const patterns = accept
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean)
+      const patterns = accept.split(',').reduce<string[]>((items, value) => {
+        const pattern = value.trim()
+        if (pattern) {
+          items.push(pattern)
+        }
+        return items
+      }, [])
 
       return patterns.some(pattern => {
         if (pattern.endsWith('/*')) {
@@ -675,7 +681,7 @@ export const PromptInput = ({
     [usingProvider],
   )
 
-  const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback(
+  const addSelectedFiles: ChangeEventHandler<HTMLInputElement> = useCallback(
     event => {
       if (event.currentTarget.files) {
         add(event.currentTarget.files)
@@ -785,7 +791,7 @@ export const PromptInput = ({
         aria-label={t('common.uploadFiles')}
         className='hidden'
         multiple={multiple}
-        onChange={handleChange}
+        onChange={addSelectedFiles}
         ref={inputRef}
         title={t('common.uploadFiles')}
         type='file'
@@ -816,6 +822,9 @@ export const PromptInput = ({
 }
 
 export type PromptInputBodyProps = HTMLAttributes<HTMLDivElement>
+
+export const PromptInput = (props: PromptInputProps) =>
+  usePromptInputView(props)
 
 export const PromptInputBody = ({
   className,
@@ -1108,7 +1117,7 @@ export const PromptInputSubmit = ({
     Icon = <XIcon className='size-4' />
   }
 
-  const handleClick = useCallback(
+  const submitOrStopGeneration = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       if (isGenerating && onStop) {
         e.preventDefault()
@@ -1124,7 +1133,7 @@ export const PromptInputSubmit = ({
     <InputGroupButton
       aria-label={isGenerating ? t('common.stop') : t('common.submit')}
       className={cn(className)}
-      onClick={handleClick}
+      onClick={submitOrStopGeneration}
       size={size}
       type={isGenerating && onStop ? 'button' : 'submit'}
       variant={variant}
@@ -1230,18 +1239,19 @@ export const PromptInputTab = ({
 export type PromptInputTabLabelProps = HTMLAttributes<HTMLHeadingElement>
 
 export const PromptInputTabLabel = ({
+  children,
   className,
   ...props
 }: PromptInputTabLabelProps) => (
-  // Content provided via children in props
-  // oxlint-disable-next-line eslint-plugin-jsx-a11y(heading-has-content)
   <h3
     className={cn(
       'mb-2 px-3 font-medium text-muted-foreground text-xs',
       className,
     )}
     {...props}
-  />
+  >
+    {children}
+  </h3>
 )
 
 export type PromptInputTabBodyProps = HTMLAttributes<HTMLDivElement>

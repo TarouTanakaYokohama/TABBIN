@@ -1576,13 +1576,13 @@ describe('SavedTabsChatWidget', () => {
       type: 'complete',
     })
 
-    const answerText = await screen.findByText(
-      'I have been saving a lot of frontend content lately.',
-    )
-    const chartHeading = await screen.findByRole('heading', {
-      level: 3,
-      name: 'Most-saved categories',
-    })
+    const [answerText, chartHeading] = await Promise.all([
+      screen.findByText('I have been saving a lot of frontend content lately.'),
+      screen.findByRole('heading', {
+        level: 3,
+        name: 'Most-saved categories',
+      }),
+    ])
     const messageContent = chartHeading.closest('[class*="overflow"]')
     const assistantMessage = chartHeading.closest('[class*="max-w"]')
 

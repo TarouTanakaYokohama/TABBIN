@@ -16,10 +16,15 @@ import type { ParentCategory } from '@/types/storage'
 const getUiLocale = () => chrome.i18n?.getUILanguage?.() ?? 'ja'
 
 export const useCategories = () => {
-  const [parentCategories, setParentCategories] = useState<ParentCategory[]>([])
+  const [{ parentCategories, language }, setCategoryState] = useState<{
+    language: AppLanguage
+    parentCategories: ParentCategory[]
+  }>({
+    language: 'ja',
+    parentCategories: [],
+  })
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryError, setCategoryError] = useState<string | null>(null) // エラーメッセージ用の状態変数
-  const [language, setLanguage] = useState<AppLanguage>('ja')
 
   const t = (key: string, fallback?: string) =>
     getMessage(language, key, fallback)
@@ -31,17 +36,22 @@ export const useCategories = () => {
           getParentCategories(),
           getUserSettings(),
         ])
-        setParentCategories(categories)
-        setLanguage(
-          resolveLanguage(settings.language ?? 'system', getUiLocale()),
-        )
+        setCategoryState({
+          language: resolveLanguage(
+            settings.language ?? 'system',
+            getUiLocale(),
+          ),
+          parentCategories: categories,
+        })
       } catch (error) {
         console.error('カテゴリの読み込みエラー:', error)
       }
     }
 
     loadCategories()
+  }, [])
 
+  useEffect(() => {
     const storageChangeListener = (
       changes: { [key: string]: chrome.storage.StorageChange },
       areaName: string,
@@ -52,16 +62,23 @@ export const useCategories = () => {
         )
           ? (changes.parentCategories.newValue as ParentCategory[])
           : []
-        setParentCategories(nextParentCategories)
+        setCategoryState(prev => ({
+          ...prev,
+          parentCategories: nextParentCategories,
+        }))
       }
 
       if (areaName === 'local' && changes.userSettings?.newValue) {
         const nextSettings = changes.userSettings.newValue as {
           language?: 'en' | 'ja' | 'system'
         }
-        setLanguage(
-          resolveLanguage(nextSettings.language ?? 'system', getUiLocale()),
-        )
+        setCategoryState(prev => ({
+          ...prev,
+          language: resolveLanguage(
+            nextSettings.language ?? 'system',
+            getUiLocale(),
+          ),
+        }))
       }
     }
 

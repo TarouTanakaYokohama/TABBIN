@@ -17,13 +17,15 @@ const deleteVisibleUrlsByGroup = async (
   }>,
   handleDeleteUrls: (groupId: string, urls: string[]) => Promise<void>,
 ): Promise<void> => {
-  for (const group of groups) {
-    const visibleUrls = getVisibleUrls(group)
-    if (visibleUrls.length === 0) {
-      continue
-    }
-    await handleDeleteUrls(group.id, visibleUrls)
-  }
+  await Promise.all(
+    groups.map(async group => {
+      const visibleUrls = getVisibleUrls(group)
+      if (visibleUrls.length === 0) {
+        return
+      }
+      await handleDeleteUrls(group.id, visibleUrls)
+    }),
+  )
 }
 
 /**
@@ -54,9 +56,9 @@ export const CategoryGroupActions = () => {
     if (handlers.handleDeleteGroups) {
       await handlers.handleDeleteGroups(domainsToDelete.map(d => d.id))
     } else {
-      for (const { id } of domainsToDelete) {
-        await handlers.handleDeleteGroup(id)
-      }
+      await Promise.all(
+        domainsToDelete.map(({ id }) => handlers.handleDeleteGroup(id)),
+      )
     }
     if (reorder.isReorderMode) {
       console.log(

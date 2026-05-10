@@ -1,5 +1,18 @@
 import type { AppLanguage } from '@/features/i18n/messages'
 
+const DATE_FORMATTERS: Record<AppLanguage, Intl.DateTimeFormat> = {
+  en: new Intl.DateTimeFormat('en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }),
+  ja: new Intl.DateTimeFormat('ja-JP', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }),
+}
+
 const parseDateInput = (input: string | number | Date): Date => {
   if (input instanceof Date) {
     return input
@@ -24,11 +37,6 @@ export const formatLocalizedDate = (
   input: string | number | Date,
 ): string => {
   const date = parseDateInput(input)
-  const locale = language === 'ja' ? 'ja-JP' : 'en-US'
 
-  return new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(date)
+  return DATE_FORMATTERS[language].format(date)
 }

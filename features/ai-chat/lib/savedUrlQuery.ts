@@ -48,7 +48,7 @@ const sortSavedUrlRecords = (
   records: AiSavedUrlRecord[],
   sortDirection: AiSavedUrlSortDirection,
 ): AiSavedUrlRecord[] =>
-  [...records].sort((left, right) =>
+  records.toSorted((left, right) =>
     sortDirection === 'desc'
       ? right.savedAt - left.savedAt
       : left.savedAt - right.savedAt,

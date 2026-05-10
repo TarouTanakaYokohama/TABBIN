@@ -157,7 +157,7 @@ const SavedTabsScrollControlButton = ({
   )
 }
 
-const SavedTabsScrollControls = ({
+const useSavedTabsScrollControlsView = ({
   scrollContainerRef,
   viewMode,
 }: SavedTabsScrollControlsProps) => {
@@ -485,5 +485,8 @@ const SavedTabsScrollControls = ({
     </TooltipProvider>
   )
 }
+
+const SavedTabsScrollControls = (props: SavedTabsScrollControlsProps) =>
+  useSavedTabsScrollControlsView(props)
 
 export { SavedTabsScrollControls }

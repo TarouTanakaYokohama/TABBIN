@@ -19,7 +19,7 @@ export const CategoryDeleteConfirm = () => {
 
   return (
     <div className='mt-2 mb-3 rounded border p-3'>
-      <p className='mb-2 text-gray-700 dark:text-gray-300'>
+      <p className='mb-2 text-zinc-700 dark:text-zinc-300'>
         {t('savedTabs.categoryModal.deleteConfirmDescription', undefined, {
           name: deletion.categoryToDelete.name,
         })}

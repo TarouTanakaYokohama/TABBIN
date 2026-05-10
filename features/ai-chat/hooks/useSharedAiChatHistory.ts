@@ -32,7 +32,7 @@ const EMPTY_HISTORY_ITEMS: AiChatHistoryItem[] = []
 const sortConversationsByRecent = (
   conversations: AiChatConversation[],
 ): AiChatConversation[] =>
-  [...conversations].sort((left, right) => {
+  conversations.toSorted((left, right) => {
     if (right.updatedAt !== left.updatedAt) {
       return right.updatedAt - left.updatedAt
     }

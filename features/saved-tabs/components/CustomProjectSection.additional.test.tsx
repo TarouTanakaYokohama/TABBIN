@@ -141,10 +141,12 @@ vi.mock('@/features/i18n/context/I18nProvider', async () => {
 })
 
 vi.mock('./CustomProjectCard', async () => {
-  const React = await vi.importActual<typeof import('react')>('react')
-  const contextModule = await vi.importActual<
-    typeof import('../contexts/DragHandlersContext')
-  >('../contexts/DragHandlersContext')
+  const [React, contextModule] = await Promise.all([
+    vi.importActual<typeof import('react')>('react'),
+    vi.importActual<typeof import('../contexts/DragHandlersContext')>(
+      '../contexts/DragHandlersContext',
+    ),
+  ])
 
   const CustomProjectCard = (props: {
     project: { id: string; name: string }

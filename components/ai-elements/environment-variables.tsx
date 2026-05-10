@@ -4,10 +4,11 @@ import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon } from 'lucide-react'
 import type { ComponentProps, HTMLAttributes } from 'react'
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from 'react'
@@ -46,8 +47,10 @@ export const EnvironmentVariables = ({
   children,
   ...props
 }: EnvironmentVariablesProps) => {
-  const [internalShowValues, setInternalShowValues] =
-    useState(defaultShowValues)
+  const [internalShowValues, setInternalShowValues] = useReducer(
+    (_state: boolean, nextShowValues: boolean) => nextShowValues,
+    defaultShowValues,
+  )
   const showValues = controlledShowValues ?? internalShowValues
 
   const setShowValues = useCallback(
@@ -111,7 +114,7 @@ export const EnvironmentVariablesToggle = ({
   className,
   ...props
 }: EnvironmentVariablesToggleProps) => {
-  const { showValues, setShowValues } = useContext(EnvironmentVariablesContext)
+  const { showValues, setShowValues } = use(EnvironmentVariablesContext)
   const t = useI18nText()
 
   return (
@@ -207,7 +210,7 @@ export const EnvironmentVariableName = ({
   children,
   ...props
 }: EnvironmentVariableNameProps) => {
-  const { name } = useContext(EnvironmentVariableContext)
+  const { name } = use(EnvironmentVariableContext)
 
   return (
     <span className={cn('font-mono text-sm', className)} {...props}>
@@ -223,8 +226,8 @@ export const EnvironmentVariableValue = ({
   children,
   ...props
 }: EnvironmentVariableValueProps) => {
-  const { value } = useContext(EnvironmentVariableContext)
-  const { showValues } = useContext(EnvironmentVariablesContext)
+  const { value } = use(EnvironmentVariableContext)
+  const { showValues } = use(EnvironmentVariablesContext)
 
   const displayValue = showValues
     ? value
@@ -264,7 +267,7 @@ export const EnvironmentVariableCopyButton = ({
 }: EnvironmentVariableCopyButtonProps) => {
   const [isCopied, setIsCopied] = useState(false)
   const timeoutRef = useRef<number>(0)
-  const { name, value } = useContext(EnvironmentVariableContext)
+  const { name, value } = use(EnvironmentVariableContext)
 
   const getTextToCopy = useCallback((): string => {
     const formatMap = {
@@ -298,8 +301,6 @@ export const EnvironmentVariableCopyButton = ({
     [],
   )
 
-  const Icon = isCopied ? CheckIcon : CopyIcon
-
   return (
     <Button
       className={cn('size-6 shrink-0', className)}
@@ -308,7 +309,8 @@ export const EnvironmentVariableCopyButton = ({
       variant='ghost'
       {...props}
     >
-      {children ?? <Icon size={12} />}
+      {children ??
+        (isCopied ? <CheckIcon size={12} /> : <CopyIcon size={12} />)}
     </Button>
   )
 }

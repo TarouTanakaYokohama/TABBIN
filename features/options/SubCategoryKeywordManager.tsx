@@ -7,7 +7,7 @@ import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { setCategoryKeywords } from '@/lib/storage/tabs'
 import type { TabGroup } from '@/types/storage'
 
-export const SubCategoryKeywordManager = ({
+const useSubCategoryKeywordManagerView = ({
   tabGroup,
 }: {
   tabGroup: TabGroup
@@ -586,3 +586,5 @@ export const SubCategoryKeywordManager = ({
     </div>
   )
 }
+export const SubCategoryKeywordManager = (props: { tabGroup: TabGroup }) =>
+  useSubCategoryKeywordManagerView(props)

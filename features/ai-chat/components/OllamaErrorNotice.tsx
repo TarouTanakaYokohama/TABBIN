@@ -118,7 +118,7 @@ const CopyableValueRow = ({
   )
 }
 
-const renderPlatformInstructions = ({
+const PlatformInstructions = ({
   configuredOrigin,
   platform,
   t,
@@ -208,11 +208,11 @@ const OllamaErrorNotice = ({
           <p>{t('aiChat.ollama.setOrigins')}</p>
         )}
 
-        {renderPlatformInstructions({
-          configuredOrigin,
-          platform,
-          t,
-        })}
+        <PlatformInstructions
+          configuredOrigin={configuredOrigin}
+          platform={platform}
+          t={t}
+        />
 
         <p>
           {t('aiChat.ollama.connectionUrl')}{' '}
