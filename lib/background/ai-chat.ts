@@ -479,13 +479,15 @@ const mergeToolTraces = (
   nextToolTraces: AiChatToolTrace[],
 ): AiChatToolTrace[] => {
   const mergedToolTraces = [...currentToolTraces]
+  const indexByToolCallId = new Map(
+    mergedToolTraces.map((toolTrace, index) => [toolTrace.toolCallId, index]),
+  )
 
   for (const nextToolTrace of nextToolTraces) {
-    const existingIndex = mergedToolTraces.findIndex(
-      toolTrace => toolTrace.toolCallId === nextToolTrace.toolCallId,
-    )
+    const existingIndex = indexByToolCallId.get(nextToolTrace.toolCallId) ?? -1
 
     if (existingIndex === -1) {
+      indexByToolCallId.set(nextToolTrace.toolCallId, mergedToolTraces.length)
       mergedToolTraces.push(nextToolTrace)
       continue
     }

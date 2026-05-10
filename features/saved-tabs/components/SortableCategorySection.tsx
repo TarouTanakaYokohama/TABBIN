@@ -11,7 +11,7 @@ import {
   GripVertical,
   Trash,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -90,7 +90,12 @@ const openTabsWithConfirm = ({
 }
 
 // 並び替え可能なカテゴリセクションコンポーネント
-export const SortableCategorySection = ({
+type SortableCategorySectionViewProps = SortableCategorySectionProps & {
+  settings: UserSettings
+  handleDeleteAllTabs?: (urls: Array<{ url: string }>) => void
+}
+
+const useSortableCategorySectionView = ({
   id,
   handleOpenAllTabs,
   handleDeleteAllTabs, // 削除ハンドラを追加
@@ -98,10 +103,7 @@ export const SortableCategorySection = ({
   stickyTop = 'top-16', // デフォルト値を設定
   isReorderMode = false, // 並び替えモード状態
   ...props
-}: SortableCategorySectionProps & {
-  settings: UserSettings
-  handleDeleteAllTabs?: (urls: Array<{ url: string }>) => void // 新しいプロップの型定義
-}) => {
+}: SortableCategorySectionViewProps) => {
   const { t } = useI18n()
   const {
     attributes,
@@ -146,8 +148,7 @@ export const SortableCategorySection = ({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [isOpenAllConfirmOpen, setIsOpenAllConfirmOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [userCollapsedState, setUserCollapsedState] = useState(false)
-  const [isDraggingGlobal, setIsDraggingGlobal] = useState(false)
+  const userCollapsedStateRef = useRef(false)
   const displayedCategoryName =
     props.categoryName === '__uncategorized'
       ? t('savedTabs.uncategorized')
@@ -174,7 +175,7 @@ export const SortableCategorySection = ({
     event.stopPropagation()
     const newState = !isCollapsed
     setIsCollapsed(newState)
-    setUserCollapsedState(newState)
+    userCollapsedStateRef.current = newState
   }
 
   const handleToggleSort = (event: React.MouseEvent) => {
@@ -219,9 +220,8 @@ export const SortableCategorySection = ({
   )
 
   const handleDragEndOrCancel = useCallback(() => {
-    setIsDraggingGlobal(false)
     if (!isReorderMode) {
-      setIsCollapsed(false)
+      setIsCollapsed(userCollapsedStateRef.current)
     }
   }, [isReorderMode])
 
@@ -232,22 +232,22 @@ export const SortableCategorySection = ({
 
   useDndMonitor({
     onDragStart: () => {
-      setIsDraggingGlobal(true)
+      setIsCollapsed(true)
     },
     onDragEnd: handleDragEndOrCancel,
     onDragCancel: handleDragEndOrCancel,
   })
 
   useEffect(() => {
-    // ドラッグ中または並び替えモード中は折りたたむ
-    if (isDraggingGlobal || isReorderMode) {
+    // 並び替えモード中は折りたたむ
+    if (isReorderMode) {
       setIsCollapsed(true)
       return
     }
 
-    // ドラッグもモードも終了したらユーザーが設定した状態に戻す
-    setIsCollapsed(userCollapsedState)
-  }, [isDraggingGlobal, isReorderMode, userCollapsedState])
+    // モードが終了したらユーザーが設定した状態に戻す
+    setIsCollapsed(userCollapsedStateRef.current)
+  }, [isReorderMode])
 
   return (
     <div>
@@ -440,3 +440,6 @@ export const SortableCategorySection = ({
     </div>
   )
 }
+export const SortableCategorySection = (
+  props: SortableCategorySectionViewProps,
+) => useSortableCategorySectionView(props)

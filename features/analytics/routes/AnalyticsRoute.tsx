@@ -282,9 +282,13 @@ const getDrilldownLabelsForRecord = (
             compareBy: 'none',
           },
           { messages: chartMessages },
-        )
-          .chartSpecs[0]?.data.map(datum => String(datum.label ?? ''))
-          .filter(Boolean) ?? []
+        ).chartSpecs[0]?.data.reduce<string[]>((items, datum) => {
+          const label = String(datum.label ?? '')
+          if (label) {
+            items.push(label)
+          }
+          return items
+        }, []) ?? []
       )
     case 'parentCategory':
       return record.parentCategories.length > 0
@@ -381,7 +385,7 @@ const getViewNameValidationError = ({
     : null
 }
 
-const AnalyticsRoute = () => {
+const useAnalyticsRouteView = () => {
   const { language, t } = useI18n()
   const {
     activeConversation,
@@ -391,9 +395,18 @@ const AnalyticsRoute = () => {
     selectConversation,
     updateMessages,
   } = useSharedAiChatHistory()
-  const [records, setRecords] = useState(awaitableEmptyRecords)
-  const [savedViews, setSavedViews] = useState<SavedAnalyticsView[]>([])
-  const [settings, setSettings] = useState(defaultSettings)
+  const [analyticsData, setAnalyticsData] = useState(() => ({
+    records: awaitableEmptyRecords,
+    savedViews: [] as SavedAnalyticsView[],
+    settings: defaultSettings,
+  }))
+  const { records, savedViews, settings } = analyticsData
+  const setRecords = (records: typeof awaitableEmptyRecords) => {
+    setAnalyticsData(current => ({ ...current, records }))
+  }
+  const setSavedViews = (savedViews: SavedAnalyticsView[]) => {
+    setAnalyticsData(current => ({ ...current, savedViews }))
+  }
   const [query, setQuery] = useState<AnalyticsQuery>(() =>
     normalizeAnalyticsRouteQuery(defaultAnalyticsQuery),
   )
@@ -476,9 +489,11 @@ const AnalyticsRoute = () => {
         return
       }
 
-      setRecords(nextRecords)
-      setSavedViews(nextSavedViews)
-      setSettings(nextSettings)
+      setAnalyticsData({
+        records: nextRecords,
+        savedViews: nextSavedViews,
+        settings: nextSettings,
+      })
     })
 
     return () => {
@@ -654,8 +669,9 @@ const AnalyticsRoute = () => {
     try {
       setDeletingUrl(record.url)
       const undoSnapshot = await getAnalyticsDeleteUndoSnapshot()
-      await removeUrlFromStorage(record.url)
-      const nextRecords = await refreshRecords()
+      const nextRecords = await removeUrlFromStorage(record.url).then(() =>
+        refreshRecords(),
+      )
       rebuildDrilldownSelection(nextRecords)
       showDeleteUndoToast({
         count: 1,
@@ -712,10 +728,9 @@ const AnalyticsRoute = () => {
     try {
       setIsBulkDeleting(true)
       const undoSnapshot = await getAnalyticsDeleteUndoSnapshot()
-      await removeUrlRecordsFromStorage(
+      const nextRecords = await removeUrlRecordsFromStorage(
         matchingRecords.map(record => record.id),
-      )
-      const nextRecords = await refreshRecords()
+      ).then(() => refreshRecords())
       rebuildDrilldownSelection(nextRecords)
       showDeleteUndoToast({
         count: matchingRecords.length,
@@ -1303,5 +1318,7 @@ const AnalyticsRoute = () => {
     </div>
   )
 }
+
+const AnalyticsRoute = () => useAnalyticsRouteView()
 
 export { AnalyticsRoute }

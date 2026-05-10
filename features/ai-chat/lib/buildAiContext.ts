@@ -39,24 +39,25 @@ export const buildAiSavedUrlRecords = ({
         project.urlIds?.includes(record.id),
       )
       const subCategories = unique(
-        matchingGroups
-          .map(group => group.urlSubCategories?.[record.id])
-          .filter((value): value is string => typeof value === 'string'),
+        matchingGroups.flatMap(group => {
+          const value = group.urlSubCategories?.[record.id]
+          return typeof value === 'string' ? [value] : []
+        }),
       )
       const projectCategories = unique(
-        matchingProjects
-          .map(project => project.urlMetadata?.[record.id]?.category)
-          .filter((value): value is string => typeof value === 'string'),
+        matchingProjects.flatMap(project => {
+          const value = project.urlMetadata?.[record.id]?.category
+          return typeof value === 'string' ? [value] : []
+        }),
       )
       const parentCategoryNames = unique(
         matchingGroups.flatMap(group =>
-          parentCategories
-            .filter(
-              category =>
-                category.domains.includes(group.id) ||
-                category.domainNames.includes(group.domain),
-            )
-            .map(category => category.name),
+          parentCategories.flatMap(category =>
+            category.domains.includes(group.id) ||
+            category.domainNames.includes(group.domain)
+              ? [category.name]
+              : [],
+          ),
         ),
       )
 

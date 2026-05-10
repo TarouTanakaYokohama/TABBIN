@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { useKeywordModal } from './KeywordModalContext'
@@ -10,6 +11,14 @@ export const SubCategoryRenameForm = () => {
   const { t } = useI18n()
   const { state } = useKeywordModal()
   const { subcategory, rename } = state
+  const renameInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (rename.isRenaming) {
+      renameInputRef.current?.focus()
+      renameInputRef.current?.select()
+    }
+  }, [rename.isRenaming])
 
   if (!rename.isRenaming) {
     return null
@@ -17,21 +26,21 @@ export const SubCategoryRenameForm = () => {
 
   return (
     <div className='mt-2 mb-3 rounded border p-3'>
-      <div className='mb-2 text-gray-300 text-sm'>
+      <div className='mb-2 text-sm text-zinc-300'>
         {t('savedTabs.subCategory.renamePrompt', undefined, {
           name: subcategory.activeCategory,
         })}
         <br />
-        <span className='text-gray-400 text-xs'>
+        <span className='text-xs text-zinc-400'>
           {t('savedTabs.subCategory.renameHint')}
         </span>
       </div>
       <Input
+        ref={renameInputRef}
         value={rename.newCategoryName}
         onChange={rename.handleRenameCategoryNameChange}
         placeholder={t('savedTabs.subCategory.addPlaceholder')}
         className={`w-full rounded border p-2 ${rename.categoryRenameError ? 'border-red-500' : ''}`}
-        autoFocus={true}
         data-rename-input='true'
         onBlur={rename.handleSaveRenaming}
         onKeyDown={e => {

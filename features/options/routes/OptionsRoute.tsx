@@ -44,7 +44,7 @@ const createThemeColorChangeHandler =
     handleColorChange(key, event.target.value)
   }
 
-export const OptionsRoute = () => {
+const useOptionsRouteView = () => {
   const { t } = useI18n()
   const {
     addExcludePattern,
@@ -62,16 +62,18 @@ export const OptionsRoute = () => {
     setSettings,
   )
   const fontSizePercent = normalizeFontSizePercent(settings.fontSizePercent)
-  const [fontSizeSliderValue, setFontSizeSliderValue] = useState(
-    String(fontSizePercent),
-  )
-  const [fontSizeInputValue, setFontSizeInputValue] = useState(
-    String(fontSizePercent),
-  )
+  const [{ fontSizeInputValue, fontSizeSliderValue }, setFontSizeValues] =
+    useState({
+      fontSizeInputValue: String(fontSizePercent),
+      fontSizeSliderValue: String(fontSizePercent),
+    })
 
   useEffect(() => {
-    setFontSizeSliderValue(String(fontSizePercent))
-    setFontSizeInputValue(String(fontSizePercent))
+    const nextFontSizeValue = String(fontSizePercent)
+    setFontSizeValues({
+      fontSizeInputValue: nextFontSizeValue,
+      fontSizeSliderValue: nextFontSizeValue,
+    })
   }, [fontSizePercent])
 
   const applyFontSizePreview = (value: number) => {
@@ -83,7 +85,10 @@ export const OptionsRoute = () => {
 
   const updateFontSizePercent = async (value: number) => {
     const normalizedValue = normalizeFontSizePercent(value)
-    setFontSizeInputValue(String(normalizedValue))
+    setFontSizeValues(prev => ({
+      ...prev,
+      fontSizeInputValue: String(normalizedValue),
+    }))
     applyFontSizePreview(normalizedValue)
     await updateSetting('fontSizePercent', normalizedValue)
   }
@@ -91,8 +96,10 @@ export const OptionsRoute = () => {
   const handleFontSizeSliderChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    setFontSizeSliderValue(event.target.value)
-    setFontSizeInputValue(event.target.value)
+    setFontSizeValues({
+      fontSizeInputValue: event.target.value,
+      fontSizeSliderValue: event.target.value,
+    })
   }
 
   const commitFontSizeSliderValue = async () => {
@@ -102,19 +109,28 @@ export const OptionsRoute = () => {
   const handleFontSizeInputChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    setFontSizeInputValue(event.target.value)
+    setFontSizeValues(prev => ({
+      ...prev,
+      fontSizeInputValue: event.target.value,
+    }))
   }
 
   const commitFontSizeInputValue = async () => {
     const trimmedValue = fontSizeInputValue.trim()
     if (!trimmedValue) {
-      setFontSizeInputValue(String(fontSizePercent))
+      setFontSizeValues(prev => ({
+        ...prev,
+        fontSizeInputValue: String(fontSizePercent),
+      }))
       return
     }
 
     const nextValue = Number(trimmedValue)
     if (Number.isNaN(nextValue)) {
-      setFontSizeInputValue(String(fontSizePercent))
+      setFontSizeValues(prev => ({
+        ...prev,
+        fontSizeInputValue: String(fontSizePercent),
+      }))
       return
     }
 
@@ -175,6 +191,9 @@ export const OptionsRoute = () => {
   if (isLoading) {
     return <LoadingState minHeightClassName='min-h-[300px]' />
   }
+  const activeExcludePatterns = settings.excludePatterns.filter(pattern =>
+    pattern.trim(),
+  )
 
   return (
     <div className='flex h-screen items-stretch overflow-hidden p-4'>
@@ -182,7 +201,7 @@ export const OptionsRoute = () => {
         <Toaster position='top-right' />
 
         <header className='mb-8 flex items-center justify-between gap-4'>
-          <h1 className='font-bold text-3xl text-foreground'>
+          <h1 className='font-semibold text-3xl text-foreground'>
             {t('options.title')}
           </h1>
           <div className='flex items-end gap-3'>
@@ -210,7 +229,7 @@ export const OptionsRoute = () => {
             >
               {t('options.clickBehaviorLabel')}
             </Label>
-            <div className='space-y-2'>
+            <div className='gap-y-2'>
               <Select
                 value={settings.clickBehavior || 'saveWindowTabs'}
                 onValueChange={handleClickBehaviorChange}
@@ -234,7 +253,7 @@ export const OptionsRoute = () => {
             </div>
           </div>
 
-          <div className='mb-4 flex items-center space-x-2'>
+          <div className='mb-4 flex items-center gap-x-2'>
             <Checkbox
               id='remove-after-open'
               checked={settings.removeTabAfterOpen}
@@ -252,7 +271,7 @@ export const OptionsRoute = () => {
             {t('options.autoDelete.openAfterDescription')}
           </p>
 
-          <div className='mt-6 mb-4 flex items-center space-x-2'>
+          <div className='mt-6 mb-4 flex items-center gap-x-2'>
             <Checkbox
               id='remove-after-external-drop'
               checked={settings.removeTabAfterExternalDrop}
@@ -270,7 +289,7 @@ export const OptionsRoute = () => {
             {t('options.autoDelete.externalDropDescription')}
           </p>
 
-          <div className='mt-6 mb-4 flex items-center space-x-2'>
+          <div className='mt-6 mb-4 flex items-center gap-x-2'>
             <Checkbox
               id='exclude-pinned-tabs'
               checked={settings.excludePinnedTabs}
@@ -288,7 +307,7 @@ export const OptionsRoute = () => {
             {t('options.autoDelete.excludePinnedDescription')}
           </p>
 
-          <div className='mt-6 mb-4 flex items-center space-x-2'>
+          <div className='mt-6 mb-4 flex items-center gap-x-2'>
             <Checkbox
               id='open-url-in-blank'
               checked={settings.openUrlInBackground}
@@ -306,7 +325,7 @@ export const OptionsRoute = () => {
             {t('options.autoDelete.saveInBackgroundDescription')}
           </p>
 
-          <div className='mt-6 mb-4 flex items-center space-x-2'>
+          <div className='mt-6 mb-4 flex items-center gap-x-2'>
             <Checkbox
               id='open-all-in-new-window'
               checked={settings.openAllInNewWindow}
@@ -324,7 +343,7 @@ export const OptionsRoute = () => {
             {t('options.autoDelete.allWindowsDescription')}
           </p>
 
-          <div className='mt-6 mb-4 flex items-center space-x-2'>
+          <div className='mt-6 mb-4 flex items-center gap-x-2'>
             <Checkbox
               id='show-saved-time'
               checked={settings.showSavedTime}
@@ -342,7 +361,7 @@ export const OptionsRoute = () => {
             {t('options.autoDelete.savedTimeDescription')}
           </p>
 
-          <div className='mt-6 mb-4 flex items-center space-x-2'>
+          <div className='mt-6 mb-4 flex items-center gap-x-2'>
             <Checkbox
               id='confirm-delete-each'
               checked={settings.confirmDeleteEach}
@@ -360,7 +379,7 @@ export const OptionsRoute = () => {
             {t('options.autoDelete.confirmDeleteEachDescription')}
           </p>
 
-          <div className='mt-6 mb-4 flex items-center space-x-2'>
+          <div className='mt-6 mb-4 flex items-center gap-x-2'>
             <Checkbox
               id='confirm-delete-all'
               checked={settings.confirmDeleteAll}
@@ -415,43 +434,40 @@ export const OptionsRoute = () => {
               </Button>
             </div>
             <div className='mt-3 flex flex-wrap gap-2 rounded-md border border-border bg-background/40 p-3'>
-              {settings.excludePatterns.filter(pattern => pattern.trim())
-                .length === 0 ? (
+              {activeExcludePatterns.length === 0 ? (
                 <p className='text-muted-foreground text-sm'>
                   {t('options.excludePatterns.empty')}
                 </p>
               ) : (
-                settings.excludePatterns
-                  .filter(pattern => pattern.trim())
-                  .map(pattern => (
-                    <Badge
-                      key={pattern}
-                      variant='outline'
-                      className='flex max-w-full items-center gap-1 pr-1'
+                activeExcludePatterns.map(pattern => (
+                  <Badge
+                    key={pattern}
+                    variant='outline'
+                    className='flex max-w-full items-center gap-1 pr-1'
+                  >
+                    <span className='max-w-[240px] truncate' title={pattern}>
+                      {pattern}
+                    </span>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='icon-sm'
+                      className='size-5 rounded-full'
+                      onClick={() => {
+                        void removeExcludePattern(pattern)
+                      }}
+                      aria-label={t(
+                        'options.excludePatterns.removeAria',
+                        undefined,
+                        {
+                          pattern,
+                        },
+                      )}
                     >
-                      <span className='max-w-[240px] truncate' title={pattern}>
-                        {pattern}
-                      </span>
-                      <Button
-                        type='button'
-                        variant='ghost'
-                        size='icon-sm'
-                        className='h-5 w-5 rounded-full'
-                        onClick={() => {
-                          void removeExcludePattern(pattern)
-                        }}
-                        aria-label={t(
-                          'options.excludePatterns.removeAria',
-                          undefined,
-                          {
-                            pattern,
-                          },
-                        )}
-                      >
-                        <X size={12} />
-                      </Button>
-                    </Badge>
-                  ))
+                      <X size={12} />
+                    </Button>
+                  </Badge>
+                ))
               )}
             </div>
             <p className='mt-1 text-muted-foreground text-sm'>
@@ -599,13 +615,13 @@ export const OptionsRoute = () => {
                   >
                     {t(labelKey)}
                   </Label>
-                  <div className='flex items-center space-x-4'>
+                  <div className='flex items-center gap-x-4'>
                     <input
                       id={`${key}-picker`}
                       type='color'
                       value={settings.colors?.[key] || getDefaultColor(key)}
                       onChange={handleThemeColorChange}
-                      className='h-8 w-8 shrink-0 cursor-pointer border-0 p-0'
+                      className='size-8 shrink-0 cursor-pointer border-0 p-0'
                     />
                     <div className='min-w-0 flex-1'>
                       <Input
@@ -655,4 +671,6 @@ export const OptionsRoute = () => {
   )
 }
 
-export { OptionsRoute as OptionsPage }
+const OptionsRoute = () => useOptionsRouteView()
+
+export { OptionsRoute, OptionsRoute as OptionsPage }

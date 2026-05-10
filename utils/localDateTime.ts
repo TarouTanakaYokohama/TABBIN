@@ -45,44 +45,35 @@ const getCachedFormatter = (
 }
 
 const getDatePartsFormatter = (timeZone: string): Intl.DateTimeFormat =>
-  getCachedFormatter(
-    dateFormatterCache,
-    timeZone,
-    () =>
-      new Intl.DateTimeFormat(DATE_PARTS_LOCALE, {
-        day: '2-digit',
-        month: '2-digit',
-        timeZone,
-        year: 'numeric',
-      }),
+  getCachedFormatter(dateFormatterCache, timeZone, () =>
+    Intl.DateTimeFormat(DATE_PARTS_LOCALE, {
+      day: '2-digit',
+      month: '2-digit',
+      timeZone,
+      year: 'numeric',
+    }),
   )
 
 const getDateTimePartsFormatter = (timeZone: string): Intl.DateTimeFormat =>
-  getCachedFormatter(
-    dateTimeFormatterCache,
-    timeZone,
-    () =>
-      new Intl.DateTimeFormat(DATE_PARTS_LOCALE, {
-        day: '2-digit',
-        hour: '2-digit',
-        hour12: false,
-        minute: '2-digit',
-        month: '2-digit',
-        second: '2-digit',
-        timeZone,
-        year: 'numeric',
-      }),
+  getCachedFormatter(dateTimeFormatterCache, timeZone, () =>
+    Intl.DateTimeFormat(DATE_PARTS_LOCALE, {
+      day: '2-digit',
+      hour: '2-digit',
+      hour12: false,
+      minute: '2-digit',
+      month: '2-digit',
+      second: '2-digit',
+      timeZone,
+      year: 'numeric',
+    }),
   )
 
 const getWeekdayFormatter = (timeZone: string): Intl.DateTimeFormat =>
-  getCachedFormatter(
-    weekdayFormatterCache,
-    timeZone,
-    () =>
-      new Intl.DateTimeFormat(WEEKDAY_LOCALE, {
-        timeZone,
-        weekday: 'short',
-      }),
+  getCachedFormatter(weekdayFormatterCache, timeZone, () =>
+    Intl.DateTimeFormat(WEEKDAY_LOCALE, {
+      timeZone,
+      weekday: 'short',
+    }),
   )
 
 const getNumericPart = (

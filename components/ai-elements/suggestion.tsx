@@ -35,14 +35,14 @@ export const Suggestion = ({
   children,
   ...props
 }: SuggestionProps) => {
-  const handleClick = useCallback(() => {
+  const applySuggestion = useCallback(() => {
     onClick?.(suggestion)
   }, [onClick, suggestion])
 
   return (
     <Button
       className={cn('cursor-pointer rounded-full px-4', className)}
-      onClick={handleClick}
+      onClick={applySuggestion}
       size={size}
       type='button'
       variant={variant}

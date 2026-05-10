@@ -33,7 +33,9 @@ export const CardGroupTitle = ({
         className='shrink-0 text-muted-foreground'
       />
       <div className='flex min-w-0 items-center gap-2'>
-        <h2 className='truncate font-bold text-foreground text-xl'>{title}</h2>
+        <h2 className='truncate font-semibold text-foreground text-xl'>
+          {title}
+        </h2>
         {badges && (
           <span className='flex shrink-0 gap-2 text-muted-foreground'>
             {badges}

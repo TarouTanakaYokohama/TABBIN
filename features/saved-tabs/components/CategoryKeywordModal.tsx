@@ -4,6 +4,10 @@ import { KeywordModalRoot } from './keyword-modal/KeywordModalRoot'
 import { SubCategoryAddSection } from './keyword-modal/SubCategoryAddSection'
 import { SubCategorySelector } from './keyword-modal/SubCategorySelector'
 
+const EMPTY_PARENT_CATEGORIES: NonNullable<
+  CategoryKeywordModalProps['parentCategories']
+> = []
+
 /**
  * カテゴリキーワード管理モーダルコンポーネント
  * 複合コンポーネントパターンで構成される薄いラッパー
@@ -15,7 +19,7 @@ export const CategoryKeywordModal = ({
   onClose,
   onSave,
   onDeleteCategory,
-  parentCategories: initialParentCategories = [],
+  parentCategories: initialParentCategories = EMPTY_PARENT_CATEGORIES,
   onUpdateParentCategories,
 }: CategoryKeywordModalProps) => (
   <KeywordModalRoot

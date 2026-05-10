@@ -109,8 +109,21 @@ export const useCategoryKeywordModal = ({
       : '',
   )
 
-  // --- キーワード状態 ---
-  const [keywords, setKeywords] = useState<string[]>([])
+  // --- キーワード・リネーム状態 ---
+  const [categoryEditState, setCategoryEditState] = useState({
+    keywords: [] as string[],
+    isRenaming: false,
+    newCategoryName: '',
+  })
+  const { keywords, isRenaming, newCategoryName } = categoryEditState
+  const updateCategoryEditState = useCallback(
+    (updates: Partial<typeof categoryEditState>) => {
+      setCategoryEditState(current => ({ ...current, ...updates }))
+    },
+    [],
+  )
+
+  // --- キーワード入力状態 ---
   const [newKeyword, setNewKeyword] = useState('')
 
   // --- サブカテゴリ追加状態 ---
@@ -127,8 +140,6 @@ export const useCategoryKeywordModal = ({
   const modalContentRef = useRef<HTMLDivElement>(null)
 
   // --- リネーム状態 ---
-  const [isRenaming, setIsRenaming] = useState(false)
-  const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryRenameError, setCategoryRenameError] = useState<string | null>(
     null,
   )
@@ -204,24 +215,26 @@ export const useCategoryKeywordModal = ({
 
   // --- モーダル開閉時の初期化 ---
   useEffect(() => {
-    const initializeCategories = async () => {
-      if (isOpen) {
-        await loadParentCategories()
-        const handleStorageChange = (changes: {
-          [key: string]: chrome.storage.StorageChange
-        }) => {
-          if (changes.parentCategories) {
-            loadParentCategories()
-          }
-        }
-        chrome.storage.onChanged.addListener(handleStorageChange)
-        return () => {
-          chrome.storage.onChanged.removeListener(handleStorageChange)
-        }
+    if (!isOpen) {
+      return
+    }
+
+    void loadParentCategories()
+
+    const handleStorageChange = (changes: {
+      [key: string]: chrome.storage.StorageChange
+    }) => {
+      if (changes.parentCategories) {
+        void loadParentCategories()
       }
     }
-    initializeCategories()
-  }, [isOpen])
+
+    chrome.storage.onChanged.addListener(handleStorageChange)
+
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange)
+    }
+  }, [isOpen, loadParentCategories])
 
   // --- カテゴリ変更時のキーワード読み込み ---
   useEffect(() => {
@@ -230,16 +243,14 @@ export const useCategoryKeywordModal = ({
         ck => ck.categoryName === activeCategory,
       )
       const loadedKeywords = categoryKeywords?.keywords || []
-      setKeywords(loadedKeywords)
-      setIsRenaming(false)
-      setNewCategoryName('')
+      setCategoryEditState(current => ({
+        ...current,
+        isRenaming: false,
+        keywords: loadedKeywords,
+        newCategoryName: '',
+      }))
     }
   }, [isOpen, activeCategory, group])
-
-  // --- 削除確認リセット ---
-  useEffect(() => {
-    setShowDeleteConfirm(false)
-  }, [])
 
   // --- キーワード追加 ---
   const handleAddKeyword = useCallback(() => {
@@ -255,16 +266,24 @@ export const useCategoryKeywordModal = ({
       return
     }
     const updatedKeywords = [...keywords, trimmedKeyword]
-    setKeywords(updatedKeywords)
+    updateCategoryEditState({ keywords: updatedKeywords })
     setNewKeyword('')
     onSave(group.id, activeCategory, updatedKeywords)
-  }, [newKeyword, keywords, group.id, activeCategory, onSave, t])
+  }, [
+    newKeyword,
+    keywords,
+    group.id,
+    activeCategory,
+    onSave,
+    t,
+    updateCategoryEditState,
+  ])
 
   // --- キーワード削除 ---
   const handleRemoveKeyword = useCallback(
     async (keywordToRemove: string) => {
       const updatedKeywords = keywords.filter(k => k !== keywordToRemove)
-      setKeywords(updatedKeywords)
+      updateCategoryEditState({ keywords: updatedKeywords })
       try {
         const { savedTabs = [] } = await chrome.storage.local.get<{
           savedTabs?: import('@/types/storage').TabGroup[]
@@ -299,7 +318,7 @@ export const useCategoryKeywordModal = ({
         console.error('キーワード削除に伴う保存処理に失敗しました:', error)
       }
     },
-    [keywords, group.id, activeCategory],
+    [keywords, group.id, activeCategory, updateCategoryEditState],
   )
 
   // --- サブカテゴリ名入力ハンドラ ---
@@ -309,14 +328,14 @@ export const useCategoryKeywordModal = ({
       setNewSubCategory(value)
       validateCategoryName(value, setSubCategoryNameError)
     },
-    [validateCategoryName],
+    [validateCategoryName, updateCategoryEditState],
   )
 
   // --- リネーム入力ハンドラ ---
   const handleRenameCategoryNameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value
-      setNewCategoryName(value)
+      updateCategoryEditState({ newCategoryName: value })
       validateCategoryName(value, setCategoryRenameError)
     },
     [validateCategoryName],
@@ -409,8 +428,10 @@ export const useCategoryKeywordModal = ({
 
   // --- リネーム開始 ---
   const handleStartRenaming = useCallback(() => {
-    setNewCategoryName(activeCategory)
-    setIsRenaming(true)
+    updateCategoryEditState({
+      isRenaming: true,
+      newCategoryName: activeCategory,
+    })
     requestAnimationFrame(() => {
       const inputElement = document.querySelector(
         'input[data-rename-input]',
@@ -420,19 +441,23 @@ export const useCategoryKeywordModal = ({
         inputElement.select()
       }
     })
-  }, [activeCategory])
+  }, [activeCategory, updateCategoryEditState])
 
   // --- リネームキャンセル ---
   const handleCancelRenaming = useCallback(() => {
-    setIsRenaming(false)
-    setNewCategoryName('')
-  }, [])
+    updateCategoryEditState({
+      isRenaming: false,
+      newCategoryName: '',
+    })
+  }, [updateCategoryEditState])
 
   // --- リネーム保存 ---
   const handleSaveRenaming = useCallback(async () => {
     if (!newCategoryName.trim() || newCategoryName.trim() === activeCategory) {
-      setIsRenaming(false)
-      setNewCategoryName('')
+      updateCategoryEditState({
+        isRenaming: false,
+        newCategoryName: '',
+      })
       setCategoryRenameError(null)
       return
     }
@@ -477,8 +502,10 @@ export const useCategoryKeywordModal = ({
         savedTabs: updatedTabs,
       })
       setActiveCategory(validName)
-      setIsRenaming(false)
-      setNewCategoryName('')
+      updateCategoryEditState({
+        isRenaming: false,
+        newCategoryName: '',
+      })
       setCategoryRenameError(null)
       toast.success(
         t('savedTabs.subCategory.renamed', undefined, {
@@ -500,6 +527,7 @@ export const useCategoryKeywordModal = ({
     group.id,
     validateCategoryName,
     t,
+    updateCategoryEditState,
   ])
   return {
     /** サブカテゴリ関連 */

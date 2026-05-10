@@ -101,12 +101,14 @@ describe('sendRuntimeMessage', () => {
   it('polyfill API を読み込んだ後はキャッシュを再利用する', async () => {
     polyfillSendMessageMock.mockResolvedValue({ status: 'ok-from-polyfill' })
 
-    const first = await sendRuntimeMessage({
+    const [first, second] = await sendRuntimeMessage({
       action: 'first',
-    })
-    const second = await sendRuntimeMessage({
-      action: 'second',
-    })
+    }).then(async firstResponse => [
+      firstResponse,
+      await sendRuntimeMessage({
+        action: 'second',
+      }),
+    ])
 
     expect(first).toEqual({ status: 'ok-from-polyfill' })
     expect(second).toEqual({ status: 'ok-from-polyfill' })

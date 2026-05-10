@@ -4,7 +4,7 @@ import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import type { LucideIcon } from 'lucide-react'
 import { BrainIcon, ChevronDownIcon, DotIcon } from 'lucide-react'
 import type { ComponentProps, ReactNode } from 'react'
-import { createContext, memo, useContext, useMemo } from 'react'
+import { createContext, memo, use, useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
   Collapsible,
@@ -23,7 +23,7 @@ const ChainOfThoughtContext = createContext<ChainOfThoughtContextValue | null>(
 )
 
 const useChainOfThought = () => {
-  const context = useContext(ChainOfThoughtContext)
+  const context = use(ChainOfThoughtContext)
   if (!context) {
     throw new Error(
       'ChainOfThought components must be used within ChainOfThought',
@@ -205,7 +205,7 @@ export type ChainOfThoughtImageProps = ComponentProps<'div'> & {
 export const ChainOfThoughtImage = memo(
   ({ className, children, caption, ...props }: ChainOfThoughtImageProps) => (
     <div className={cn('mt-2 space-y-2', className)} {...props}>
-      <div className='relative flex max-h-[22rem] items-center justify-center overflow-hidden rounded-lg bg-muted p-3'>
+      <div className='relative flex max-h-88 items-center justify-center overflow-hidden rounded-lg bg-muted p-3'>
         {children}
       </div>
       {caption && <p className='text-muted-foreground text-xs'>{caption}</p>}

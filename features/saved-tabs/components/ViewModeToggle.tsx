@@ -1,4 +1,5 @@
 import { Folder, Globe } from 'lucide-react'
+import type { ReactNode } from 'react'
 import {
   Select,
   SelectContent,
@@ -24,28 +25,27 @@ export const ViewModeToggle = ({
   onChange,
 }: ViewModeToggleProps) => {
   const { t } = useI18n()
-  const renderSelectedValue = () => {
-    if (currentMode === 'domain') {
-      return (
-        <div className='flex items-center gap-2'>
-          <Globe size={16} />
-          <SavedTabsResponsiveLabel>
-            {t('savedTabs.viewMode.domain')}
-          </SavedTabsResponsiveLabel>
-        </div>
-      )
-    }
-    if (currentMode === 'custom') {
-      return (
-        <div className='flex items-center gap-2'>
-          <Folder size={16} />
-          <SavedTabsResponsiveLabel>
-            {t('savedTabs.viewMode.custom')}
-          </SavedTabsResponsiveLabel>
-        </div>
-      )
-    }
-    return t('savedTabs.viewMode.placeholder')
+  let selectedValue: ReactNode
+  if (currentMode === 'domain') {
+    selectedValue = (
+      <div className='flex items-center gap-2'>
+        <Globe size={16} />
+        <SavedTabsResponsiveLabel>
+          {t('savedTabs.viewMode.domain')}
+        </SavedTabsResponsiveLabel>
+      </div>
+    )
+  } else if (currentMode === 'custom') {
+    selectedValue = (
+      <div className='flex items-center gap-2'>
+        <Folder size={16} />
+        <SavedTabsResponsiveLabel>
+          {t('savedTabs.viewMode.custom')}
+        </SavedTabsResponsiveLabel>
+      </div>
+    )
+  } else {
+    selectedValue = t('savedTabs.viewMode.placeholder')
   }
 
   return (
@@ -60,7 +60,7 @@ export const ViewModeToggle = ({
               <SelectValue
                 placeholder={t('savedTabs.viewMode.selectPlaceholder')}
               >
-                {renderSelectedValue()}
+                {selectedValue}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>

@@ -1,5 +1,5 @@
 import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
-import { createContext, useContext } from 'react'
+import { createContext, use } from 'react'
 
 export interface ProjectDragHandlers {
   handleDragStart: (event: DragStartEvent) => void
@@ -18,7 +18,7 @@ export const DragHandlersContext =
   createContext<DragHandlersContextType | null>(null)
 
 export const useDragHandlers = () => {
-  const context = useContext(DragHandlersContext)
+  const context = use(DragHandlersContext)
   if (!context) {
     throw new Error(
       'useDragHandlers must be used within a DragHandlersContextProvider',

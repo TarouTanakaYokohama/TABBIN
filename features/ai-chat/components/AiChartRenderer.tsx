@@ -1,20 +1,4 @@
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  PolarAngleAxis,
-  PolarGrid,
-  Radar,
-  RadarChart,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { lazy } from 'react'
 import {
   type ChartConfig,
   ChartContainer,
@@ -24,6 +8,52 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart'
 import type { AiChartSeries, AiChartSpec } from '@/features/ai-chat/types'
+
+const Area = lazy(() =>
+  import('recharts').then(module => ({ default: module.Area })),
+)
+const AreaChart = lazy(() =>
+  import('recharts').then(module => ({ default: module.AreaChart })),
+)
+const Bar = lazy(() =>
+  import('recharts').then(module => ({ default: module.Bar })),
+)
+const BarChart = lazy(() =>
+  import('recharts').then(module => ({ default: module.BarChart })),
+)
+const CartesianGrid = lazy(() =>
+  import('recharts').then(module => ({ default: module.CartesianGrid })),
+)
+const Line = lazy(() =>
+  import('recharts').then(module => ({ default: module.Line })),
+)
+const LineChart = lazy(() =>
+  import('recharts').then(module => ({ default: module.LineChart })),
+)
+const Pie = lazy(() =>
+  import('recharts').then(module => ({ default: module.Pie })),
+)
+const PieChart = lazy(() =>
+  import('recharts').then(module => ({ default: module.PieChart })),
+)
+const PolarAngleAxis = lazy(() =>
+  import('recharts').then(module => ({ default: module.PolarAngleAxis })),
+)
+const PolarGrid = lazy(() =>
+  import('recharts').then(module => ({ default: module.PolarGrid })),
+)
+const Radar = lazy(() =>
+  import('recharts').then(module => ({ default: module.Radar })),
+)
+const RadarChart = lazy(() =>
+  import('recharts').then(module => ({ default: module.RadarChart })),
+)
+const XAxis = lazy(() =>
+  import('recharts').then(module => ({ default: module.XAxis })),
+)
+const YAxis = lazy(() =>
+  import('recharts').then(module => ({ default: module.YAxis })),
+)
 
 interface AiChartPointSelection {
   label: string

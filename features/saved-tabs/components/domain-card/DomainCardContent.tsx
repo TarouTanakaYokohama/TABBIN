@@ -49,8 +49,8 @@ export const DomainCardContent = () => {
 
   if (!hasUrls) {
     return (
-      <CardContent className='space-y-1'>
-        <div className='py-4 text-center text-gray-400'>
+      <CardContent className='gap-y-1'>
+        <div className='py-4 text-center text-zinc-400'>
           {(group.urls?.length || 0) === 0
             ? t('savedTabs.domain.emptyNoTabs')
             : t('savedTabs.domain.emptyManageCategoriesHint')}
@@ -63,7 +63,7 @@ export const DomainCardContent = () => {
     const singleCategoryName =
       categoryReorder.allCategoryIds[0] ?? '__uncategorized'
     return (
-      <CardContent className='space-y-1'>
+      <CardContent className='gap-y-1'>
         <CategorySection
           categoryName={singleCategoryName}
           urls={computed.categorizedUrls[singleCategoryName]}
@@ -79,7 +79,7 @@ export const DomainCardContent = () => {
   }
 
   return (
-    <CardContent className='space-y-1'>
+    <CardContent className='gap-y-1'>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

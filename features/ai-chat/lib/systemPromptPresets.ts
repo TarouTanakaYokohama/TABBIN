@@ -107,9 +107,20 @@ const normalizePromptPresets = (
 ): NonEmptyAiSystemPromptPresets => {
   const normalizedPresets = Array.isArray(presets)
     ? presets
-        .filter(isValidPromptPreset)
-        .map(preset => normalizePromptPreset(preset, language))
-        .filter(preset => preset.name.length > 0 && preset.template.length > 0)
+        .reduce<AiSystemPromptPreset[]>((items, preset) => {
+          if (!isValidPromptPreset(preset)) {
+            return items
+          }
+
+          const normalizedPreset = normalizePromptPreset(preset, language)
+          if (
+            normalizedPreset.name.length > 0 &&
+            normalizedPreset.template.length > 0
+          ) {
+            items.push(normalizedPreset)
+          }
+          return items
+        }, [])
         .slice(0, MAX_AI_SYSTEM_PROMPT_PRESETS)
     : []
 

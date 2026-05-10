@@ -1,8 +1,14 @@
 const normalizeExcludePatterns = (excludePatterns: string[]): string[] =>
-  excludePatterns
-    .filter((pattern): pattern is string => typeof pattern === 'string')
-    .map(pattern => pattern.trim())
-    .filter(Boolean)
+  excludePatterns.reduce<string[]>((patterns, pattern) => {
+    if (typeof pattern !== 'string') {
+      return patterns
+    }
+    const normalizedPattern = pattern.trim()
+    if (normalizedPattern) {
+      patterns.push(normalizedPattern)
+    }
+    return patterns
+  }, [])
 
 const normalizeUrlCandidate = (
   url: string | null | undefined,

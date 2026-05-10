@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, use, useEffect, useMemo, useState } from 'react'
 import {
   getMessage,
   resolveLanguage,
@@ -39,10 +39,10 @@ export const getFallbackText = (
 ) => getMessage(resolveUiLanguage(getUiLocale()), key, fallback, values)
 
 export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
-  const [languageSetting, setLanguageSettingState] = useState<LanguageSetting>(
-    defaultSettings.language ?? 'system',
-  )
-  const [uiLocale, setUiLocale] = useState(() => getUiLocale())
+  const [{ languageSetting, uiLocale }, setI18nState] = useState(() => ({
+    languageSetting: defaultSettings.language ?? 'system',
+    uiLocale: getUiLocale(),
+  }))
 
   useEffect(() => {
     let cancelled = false
@@ -51,8 +51,10 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const settings = await getUserSettings()
         if (!cancelled) {
-          setLanguageSettingState(settings.language ?? 'system')
-          setUiLocale(getUiLocale())
+          setI18nState({
+            languageSetting: settings.language ?? 'system',
+            uiLocale: getUiLocale(),
+          })
         }
       } catch (error) {
         console.error('言語設定の読み込みエラー:', error)
@@ -80,8 +82,10 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
       const nextSettings = changes.userSettings.newValue as {
         language?: LanguageSetting
       }
-      setLanguageSettingState(nextSettings.language ?? 'system')
-      setUiLocale(getUiLocale())
+      setI18nState({
+        languageSetting: nextSettings.language ?? 'system',
+        uiLocale: getUiLocale(),
+      })
     }
 
     storageOnChanged.addListener(handleStorageChange)
@@ -93,8 +97,10 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   const setLanguageSetting = async (nextLanguage: LanguageSetting) => {
-    setLanguageSettingState(nextLanguage)
-    setUiLocale(getUiLocale())
+    setI18nState({
+      languageSetting: nextLanguage,
+      uiLocale: getUiLocale(),
+    })
 
     const settings = await getUserSettings()
     await saveUserSettings({
@@ -119,14 +125,14 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
 }
 
 export const useI18n = () => {
-  const context = useContext(I18nContext)
+  const context = use(I18nContext)
   if (!context) {
     throw new Error('useI18n must be used within I18nProvider')
   }
   return context
 }
 
-export const useOptionalI18n = () => useContext(I18nContext)
+export const useOptionalI18n = () => use(I18nContext)
 
 export const useI18nText = () => {
   const context = useOptionalI18n()

@@ -328,7 +328,7 @@ const handleDragEndByType = ({
   }
 }
 
-export const CustomProjectSection = ({
+const useCustomProjectSectionView = ({
   projects,
   handleOpenUrl,
   handleDeleteUrl,
@@ -754,3 +754,5 @@ export const CustomProjectSection = ({
     </div>
   )
 }
+export const CustomProjectSection = (props: CustomProjectSectionProps) =>
+  useCustomProjectSectionView(props)

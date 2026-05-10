@@ -163,43 +163,34 @@ export const SortableUrlItem = ({
         </div>
         <div className='relative min-w-0 flex-1'>
           <Button
-            asChild={true}
+            type='button'
             variant='ghost'
             size='sm'
+            draggable={true}
+            onDragStart={e => handleDragStart(e, url as string)}
+            onDragEnd={handleDragEnd}
+            onClick={() => handleOpenTab(url)}
             className='ml-2 flex h-full cursor-pointer items-center justify-start gap-1 overflow-hidden bg-transparent px-1 py-2 pr-8 text-foreground hover:text-foreground'
           >
-            <a
-              href={url as string}
-              target='_blank'
-              rel='noopener noreferrer'
-              draggable={true}
-              onDragStart={e => handleDragStart(e, url as string)}
-              onDragEnd={handleDragEnd}
-              onClick={e => {
-                e.preventDefault()
-                handleOpenTab(url)
-              }}
-            >
-              <div className='flex w-full flex-col truncate'>
-                <span className='truncate'>{title}</span>
-                {/* 保存日時と残り時間を表示 - settings.showSavedTime に基づき条件分岐 */}
-                {savedAt && (
-                  <div className='flex items-center gap-2 text-xs'>
-                    {settings.showSavedTime && (
-                      <span className='text-muted-foreground'>
-                        {formatDatetime(savedAt)}
-                      </span>
-                    )}
-                    {autoDeletePeriod && autoDeletePeriod !== 'never' && (
-                      <TimeRemaining
-                        savedAt={savedAt}
-                        autoDeletePeriod={autoDeletePeriod}
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            </a>
+            <div className='flex w-full flex-col truncate'>
+              <span className='truncate'>{title}</span>
+              {/* 保存日時と残り時間を表示 - settings.showSavedTime に基づき条件分岐 */}
+              {savedAt && (
+                <div className='flex items-center gap-2 text-xs'>
+                  {settings.showSavedTime && (
+                    <span className='text-muted-foreground'>
+                      {formatDatetime(savedAt)}
+                    </span>
+                  )}
+                  {autoDeletePeriod && autoDeletePeriod !== 'never' && (
+                    <TimeRemaining
+                      savedAt={savedAt}
+                      autoDeletePeriod={autoDeletePeriod}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           </Button>
           <Button
             variant='ghost'

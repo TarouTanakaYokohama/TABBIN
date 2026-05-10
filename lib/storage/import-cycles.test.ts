@@ -91,17 +91,25 @@ const normalizeCycle = (cycle: string[]): string => {
     [...labels.slice(index), ...labels.slice(0, index)].join(' -> '),
   )
 
-  return rotations.sort()[0]
+  return rotations.reduce((min, value) => {
+    if (value.localeCompare(min) < 0) {
+      return value
+    }
+
+    return min
+  })
 }
 
 const findCycles = (graph: Map<string, string[]>): string[] => {
   const visited = new Set<string>()
   const stack: string[] = []
   const stackSet = new Set<string>()
+  const stackIndexByNode = new Map<string, number>()
   const cycles = new Set<string>()
 
   const visit = (node: string): void => {
     visited.add(node)
+    stackIndexByNode.set(node, stack.length)
     stack.push(node)
     stackSet.add(node)
 
@@ -115,13 +123,17 @@ const findCycles = (graph: Map<string, string[]>): string[] => {
         continue
       }
 
-      const cycleStart = stack.indexOf(next)
+      const cycleStart = stackIndexByNode.get(next)
+      if (cycleStart === undefined) {
+        continue
+      }
       const cycle = stack.slice(cycleStart)
       cycles.add(normalizeCycle(cycle))
     }
 
     stack.pop()
     stackSet.delete(node)
+    stackIndexByNode.delete(node)
   }
 
   for (const node of graph.keys()) {
@@ -130,7 +142,7 @@ const findCycles = (graph: Map<string, string[]>): string[] => {
     }
   }
 
-  return [...cycles].sort()
+  return [...cycles].toSorted()
 }
 
 describe('lib/storage import graph', () => {

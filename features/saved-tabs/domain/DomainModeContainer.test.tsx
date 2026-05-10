@@ -85,13 +85,19 @@ const defaultSettings: UserSettings = {
 }
 
 const createProps = () => ({
-  isLoading: false,
+  state: {
+    hasVisibleCategoryGroups: false,
+    isCategoryReorderMode: false,
+    isLoading: false,
+    isUncategorizedReorderMode: false,
+    shouldShowUncategorizedList: false,
+    shouldShowUncategorizedSectionHeader: false,
+  },
   settings: defaultSettings,
   categories: [] as ParentCategory[],
   categorized: {} as Record<string, TabGroup[]>,
   categoryOrderForDisplay: [] as string[],
   tabGroups: [] as TabGroup[],
-  isCategoryReorderMode: false,
   searchQuery: '',
   sensors: [],
   handleCategoryDragEnd: vi.fn(),
@@ -105,12 +111,8 @@ const createProps = () => ({
   handleUpdateDomainsOrder: vi.fn(),
   handleMoveDomainToCategory: vi.fn(),
   handleDeleteCategory: vi.fn(),
-  shouldShowUncategorizedSectionHeader: false,
-  hasVisibleCategoryGroups: false,
-  isUncategorizedReorderMode: false,
   handleCancelUncategorizedReorder: vi.fn(),
   handleConfirmUncategorizedReorder: vi.fn(),
-  shouldShowUncategorizedList: false,
   uncategorizedForDisplay: [] as TabGroup[],
   handleUncategorizedDragEnd: vi.fn(),
   hasContentTabGroupsCount: 0,
@@ -153,7 +155,14 @@ describe('DomainModeContainer', () => {
   })
 
   it('renders a spinner-only loading state', () => {
-    render(<DomainModeContainer {...createProps()} isLoading />)
+    const props = createProps()
+
+    render(
+      <DomainModeContainer
+        {...props}
+        state={{ ...props.state, isLoading: true }}
+      />,
+    )
 
     expect(screen.getByRole('status')).toBeTruthy()
     expect(screen.queryByText('No saved tabs')).toBeNull()
@@ -163,8 +172,11 @@ describe('DomainModeContainer', () => {
     render(
       <DomainModeContainer
         {...createProps()}
-        shouldShowUncategorizedSectionHeader
-        shouldShowUncategorizedList
+        state={{
+          ...createProps().state,
+          shouldShowUncategorizedList: true,
+          shouldShowUncategorizedSectionHeader: true,
+        }}
         uncategorizedForDisplay={uncategorizedGroups}
         hasContentTabGroupsCount={uncategorizedGroups.length}
       />,
@@ -195,8 +207,11 @@ describe('DomainModeContainer', () => {
       <DomainModeContainer
         {...createProps()}
         handleOpenAllTabs={handleOpenAllTabs}
-        shouldShowUncategorizedSectionHeader
-        shouldShowUncategorizedList
+        state={{
+          ...createProps().state,
+          shouldShowUncategorizedList: true,
+          shouldShowUncategorizedSectionHeader: true,
+        }}
         uncategorizedForDisplay={uncategorizedGroups}
         hasContentTabGroupsCount={uncategorizedGroups.length}
       />,
@@ -219,8 +234,11 @@ describe('DomainModeContainer', () => {
         {...createProps()}
         handleDeleteGroup={handleDeleteGroup}
         handleDeleteGroups={undefined}
-        shouldShowUncategorizedSectionHeader
-        shouldShowUncategorizedList
+        state={{
+          ...createProps().state,
+          shouldShowUncategorizedList: true,
+          shouldShowUncategorizedSectionHeader: true,
+        }}
         uncategorizedForDisplay={uncategorizedGroups}
         hasContentTabGroupsCount={uncategorizedGroups.length}
       />,
@@ -246,8 +264,11 @@ describe('DomainModeContainer', () => {
         handleDeleteUrls={handleDeleteUrls}
         handleDeleteGroup={handleDeleteGroup}
         handleDeleteGroups={handleDeleteGroups}
-        shouldShowUncategorizedSectionHeader
-        shouldShowUncategorizedList
+        state={{
+          ...createProps().state,
+          shouldShowUncategorizedList: true,
+          shouldShowUncategorizedSectionHeader: true,
+        }}
         uncategorizedForDisplay={[
           {
             id: 'group-1',

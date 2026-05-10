@@ -97,6 +97,7 @@ const sampleTrace = `ReferenceError: browser is not defined
     at openSidebar (/Users/tarou/Desktop/TABBIN/features/navigation/sidebar.ts:42:15)
     at handleClick (/Users/tarou/Desktop/TABBIN/features/navigation/sidebar.ts:68:9)
     at processTicksAndRejections (node:internal/process/task_queues:95:5)`
+const diagnosticsCommitDate = new Date('2026-03-15T12:00:00Z')
 
 const Section = ({
   children,
@@ -180,7 +181,7 @@ const RuntimeDiagnostics = () => (
                   <CommitAuthorAvatar initials='TT' />
                 </CommitAuthor>
                 <CommitSeparator />
-                <CommitTimestamp date={new Date('2026-03-15T12:00:00Z')} />
+                <CommitTimestamp date={diagnosticsCommitDate} />
               </CommitMetadata>
             </CommitInfo>
             <CommitActions>

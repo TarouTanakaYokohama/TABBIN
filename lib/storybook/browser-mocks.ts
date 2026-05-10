@@ -171,9 +171,12 @@ const chromeMock = {
         }
 
         return Object.fromEntries(
-          requestedKeys
-            .filter(key => key in storageState)
-            .map(key => [key, cloneValue(storageState[key])]),
+          requestedKeys.reduce<[string, unknown][]>((items, key) => {
+            if (key in storageState) {
+              items.push([key, cloneValue(storageState[key])])
+            }
+            return items
+          }, []),
         )
       },
       remove: async (

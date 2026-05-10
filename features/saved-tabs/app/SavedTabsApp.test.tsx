@@ -1287,9 +1287,9 @@ describe('SavedTabsApp custom search', () => {
       expect(
         (
           mocked.domainModeContainerSpy.mock.calls.at(-1)?.[0] as {
-            isUncategorizedReorderMode: boolean
+            state: { isUncategorizedReorderMode: boolean }
           }
-        ).isUncategorizedReorderMode,
+        ).state.isUncategorizedReorderMode,
       ).toBe(true)
     })
     domainProps = mocked.domainModeContainerSpy.mock.calls.at(
@@ -1304,9 +1304,9 @@ describe('SavedTabsApp custom search', () => {
       expect(
         (
           mocked.domainModeContainerSpy.mock.calls.at(-1)?.[0] as {
-            isUncategorizedReorderMode: boolean
+            state: { isUncategorizedReorderMode: boolean }
           }
-        ).isUncategorizedReorderMode,
+        ).state.isUncategorizedReorderMode,
       ).toBe(false)
     })
     domainProps = mocked.domainModeContainerSpy.mock.calls.at(
@@ -1323,9 +1323,9 @@ describe('SavedTabsApp custom search', () => {
       expect(
         (
           mocked.domainModeContainerSpy.mock.calls.at(-1)?.[0] as {
-            isUncategorizedReorderMode: boolean
+            state: { isUncategorizedReorderMode: boolean }
           }
-        ).isUncategorizedReorderMode,
+        ).state.isUncategorizedReorderMode,
       ).toBe(true)
     })
     domainProps = mocked.domainModeContainerSpy.mock.calls.at(

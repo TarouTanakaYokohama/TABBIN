@@ -22,7 +22,7 @@ vi.mock('recharts', () => ({
 import { ChartContainer } from './chart'
 
 describe('ChartContainer', () => {
-  it('configures ResponsiveContainer with stable sizing props', () => {
+  it('configures ResponsiveContainer with stable sizing props', async () => {
     render(
       <ChartContainer
         className='h-64'
@@ -32,7 +32,7 @@ describe('ChartContainer', () => {
       </ChartContainer>,
     )
 
-    expect(screen.getByTestId('responsive-container')).toBeTruthy()
+    expect(await screen.findByTestId('responsive-container')).toBeTruthy()
     expect(mocked.responsiveContainerProps).toMatchObject({
       height: '100%',
       minWidth: 0,

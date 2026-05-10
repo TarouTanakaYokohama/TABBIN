@@ -24,10 +24,15 @@ const walk = (dir: string): string[] =>
 const normalizePath = (filePath: string) =>
   path.relative(repoRoot, filePath).replaceAll(path.sep, '/')
 
-const storyFiles = storyRoots
-  .flatMap(walk)
-  .map(normalizePath)
-  .filter(filePath => filePath.endsWith('.stories.tsx'))
+const storyFiles = storyRoots.reduce<string[]>((files, storyRoot) => {
+  for (const filePath of walk(storyRoot)) {
+    const normalizedPath = normalizePath(filePath)
+    if (normalizedPath.endsWith('.stories.tsx')) {
+      files.push(normalizedPath)
+    }
+  }
+  return files
+}, [])
 
 const getStoryExports = (filePath: string) => {
   const contents = readFileSync(path.join(repoRoot, filePath), 'utf8')
@@ -50,9 +55,14 @@ describe('storybook story exports', () => {
       }
     }
 
-    const duplicates = [...exportMap.entries()]
-      .filter(([, files]) => files.length > 1)
-      .map(([exportName, files]) => ({ exportName, files }))
+    const duplicates = [...exportMap.entries()].reduce<
+      Array<{ exportName: string; files: string[] }>
+    >((items, [exportName, files]) => {
+      if (files.length > 1) {
+        items.push({ exportName, files })
+      }
+      return items
+    }, [])
 
     expect(duplicates).toEqual([])
   })

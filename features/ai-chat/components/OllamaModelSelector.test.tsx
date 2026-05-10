@@ -103,10 +103,10 @@ describe('OllamaModelSelector', () => {
   it('renders spinner-only loading UI in the fetch button and empty option row', () => {
     render(
       <OllamaModelSelector
-        isLoading
         models={[]}
         onFetchModels={vi.fn()}
         onSelectModel={vi.fn()}
+        status={{ isLoading: true }}
       />,
     )
 
@@ -120,11 +120,11 @@ describe('OllamaModelSelector', () => {
 
     render(
       <OllamaModelSelector
-        fetchOnOpen
-        isLoading={false}
+        behavior={{ fetchOnOpen: true }}
         models={[]}
         onFetchModels={onFetchModels}
         onSelectModel={vi.fn()}
+        status={{ isLoading: false }}
       />,
     )
 

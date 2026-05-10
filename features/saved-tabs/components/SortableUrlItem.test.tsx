@@ -97,7 +97,7 @@ const createProps = (
   ...overrides,
 })
 
-const getLink = () => screen.getByRole('link', { name: 'Example Tab' })
+const getLink = () => screen.getByRole('button', { name: 'Example Tab' })
 
 const getDeleteButton = () => screen.getByRole('button', { name: 'タブを削除' })
 

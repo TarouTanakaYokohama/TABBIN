@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AiChartSpec } from '@/features/ai-chat/types'
 
@@ -106,11 +106,11 @@ describe('AiChartRenderer', () => {
     mocked.tooltipProps.length = 0
   })
 
-  it('pie chart を描画する', () => {
+  it('pie chart を描画する', async () => {
     render(<AiChartRenderer charts={[PIE_SPEC]} />)
 
-    expect(screen.getByTestId('pie')).toBeTruthy()
-    expect(screen.getByTestId('chart-tooltip')).toBeTruthy()
+    expect(await screen.findByTestId('pie')).toBeTruthy()
+    expect(await screen.findByTestId('chart-tooltip')).toBeTruthy()
     expect(mocked.pieProps[0]?.data).toEqual([
       {
         count: 3,
@@ -128,7 +128,7 @@ describe('AiChartRenderer', () => {
     expect(mocked.tooltipProps[0]?.cursor).toBe(false)
   })
 
-  it('bar chart を描画する', () => {
+  it('bar chart を描画する', async () => {
     const barSpec: AiChartSpec = {
       data: [
         { count: 4, label: '動画' },
@@ -149,13 +149,13 @@ describe('AiChartRenderer', () => {
 
     render(<AiChartRenderer charts={[barSpec]} />)
 
-    expect(screen.getByTestId('bar-chart')).toBeTruthy()
-    expect(screen.getByTestId('chart-tooltip')).toBeTruthy()
+    expect(await screen.findByTestId('bar-chart')).toBeTruthy()
+    expect(await screen.findByTestId('chart-tooltip')).toBeTruthy()
     expect(mocked.barChartProps[0]?.data).toEqual(barSpec.data)
     expect(screen.getByText('ジャンル別の保存数')).toBeTruthy()
   })
 
-  it('グラフ要素クリックを通知する', () => {
+  it('グラフ要素クリックを通知する', async () => {
     const handleChartPointClick = vi.fn()
     const barSpec: AiChartSpec = {
       data: [
@@ -182,11 +182,14 @@ describe('AiChartRenderer', () => {
       />,
     )
 
-    const onClick = mocked.barProps[0]?.onClick as
-      | ((datum: Record<string, unknown>) => void)
-      | undefined
+    await waitFor(() => {
+      expect(mocked.barProps[0]?.onClick).toBeTypeOf('function')
+    })
+    const onClick = mocked.barProps[0]?.onClick as (
+      datum: Record<string, unknown>,
+    ) => void
 
-    onClick?.({
+    onClick({
       count: 4,
       label: '動画',
     })

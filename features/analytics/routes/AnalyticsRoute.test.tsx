@@ -109,19 +109,23 @@ vi.mock('@/components/ui/select', () => {
       ? contentNode.props.children
       : undefined
     const items = contentChildren
-      ? Children.toArray(contentChildren)
-          .filter(isValidElement)
-          .map(item => {
-            const props = item.props as {
-              children?: ReactNode
-              value: string
-            }
+      ? Children.toArray(contentChildren).reduce<
+          Array<{ children?: ReactNode; value: string }>
+        >((values, item) => {
+          if (!isValidElement(item)) {
+            return values
+          }
+          const props = item.props as {
+            children?: ReactNode
+            value: string
+          }
 
-            return {
-              children: props.children,
-              value: props.value,
-            }
+          values.push({
+            children: props.children,
+            value: props.value,
           })
+          return values
+        }, [])
       : []
 
     return (

@@ -9,9 +9,9 @@ export default {
   render: args => (
     <Alert {...args}>
       {args.variant === 'destructive' ? (
-        <ShieldAlert className='h-4 w-4' />
+        <ShieldAlert className='size-4' />
       ) : (
-        <AlertCircle className='h-4 w-4' />
+        <AlertCircle className='size-4' />
       )}
       <AlertTitle>同期ステータス</AlertTitle>
       <AlertDescription>

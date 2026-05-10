@@ -1,12 +1,5 @@
 import { Edit, Trash, Trash2, X } from 'lucide-react'
-import {
-  type Dispatch,
-  type SetStateAction,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -82,9 +75,43 @@ interface KeywordUpdateParams {
   keyword: string
   keywords: string[]
   section: keyof ProjectKeywordSettings
-  setKeywords: Dispatch<SetStateAction<string[]>>
+  setKeywords: (keywords: string[]) => void
   clearInput: () => void
 }
+
+interface ProjectManagementModalState {
+  isRenaming: boolean
+  newProjectName: string
+  isProcessing: boolean
+  isSaving: boolean
+  localProjectName: string
+  projectNameError: string | null
+  showDeleteConfirm: boolean
+  titleKeywords: string[]
+  urlKeywords: string[]
+  domainKeywords: string[]
+  newTitleKeyword: string
+  newUrlKeyword: string
+  newDomainKeyword: string
+}
+
+const createProjectManagementModalState = (
+  project: CustomProject,
+): ProjectManagementModalState => ({
+  isRenaming: false,
+  newProjectName: project.name,
+  isProcessing: false,
+  isSaving: false,
+  localProjectName: project.name,
+  projectNameError: null,
+  showDeleteConfirm: false,
+  titleKeywords: project.projectKeywords?.titleKeywords || [],
+  urlKeywords: project.projectKeywords?.urlKeywords || [],
+  domainKeywords: project.projectKeywords?.domainKeywords || [],
+  newTitleKeyword: '',
+  newUrlKeyword: '',
+  newDomainKeyword: '',
+})
 
 const ProjectKeywordSection = ({
   label,
@@ -102,7 +129,7 @@ const ProjectKeywordSection = ({
   const { t } = useI18n()
 
   return (
-    <div className='space-y-2'>
+    <div className='gap-y-2'>
       <Label htmlFor={inputId}>{label}</Label>
       <p className='text-muted-foreground text-xs'>{description}</p>
       <Input
@@ -157,7 +184,7 @@ const ProjectKeywordSection = ({
   )
 }
 
-export const ProjectManagementModal = ({
+const useProjectManagementModalView = ({
   isOpen,
   onClose,
   project,
@@ -175,39 +202,29 @@ export const ProjectManagementModal = ({
     [t],
   )
   const isUncategorizedProject = project.id === CUSTOM_UNCATEGORIZED_PROJECT_ID
-  const [isRenaming, setIsRenaming] = useState(false)
-  const [newProjectName, setNewProjectName] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [localProjectName, setLocalProjectName] = useState('')
-  const [projectNameError, setProjectNameError] = useState<string | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [titleKeywords, setTitleKeywords] = useState<string[]>([])
-  const [urlKeywords, setUrlKeywords] = useState<string[]>([])
-  const [domainKeywords, setDomainKeywords] = useState<string[]>([])
-  const [newTitleKeyword, setNewTitleKeyword] = useState('')
-  const [newUrlKeyword, setNewUrlKeyword] = useState('')
-  const [newDomainKeyword, setNewDomainKeyword] = useState('')
+  const [modalState, setModalState] = useState(() =>
+    createProjectManagementModalState(project),
+  )
+  const {
+    isRenaming,
+    newProjectName,
+    isProcessing,
+    isSaving,
+    localProjectName,
+    projectNameError,
+    showDeleteConfirm,
+    titleKeywords,
+    urlKeywords,
+    domainKeywords,
+    newTitleKeyword,
+    newUrlKeyword,
+    newDomainKeyword,
+  } = modalState
+  const updateModalState = (updates: Partial<ProjectManagementModalState>) => {
+    setModalState(current => ({ ...current, ...updates }))
+  }
 
   const inputRef = useRef<HTMLInputElement>(null)
-
-  // モーダルが開いたときの初期化
-  useEffect(() => {
-    if (isOpen) {
-      setNewProjectName(project.name)
-      setLocalProjectName(project.name)
-      setIsRenaming(false)
-      setIsProcessing(false)
-      setProjectNameError(null)
-      setShowDeleteConfirm(false)
-      setTitleKeywords(project.projectKeywords?.titleKeywords || [])
-      setUrlKeywords(project.projectKeywords?.urlKeywords || [])
-      setDomainKeywords(project.projectKeywords?.domainKeywords || [])
-      setNewTitleKeyword('')
-      setNewUrlKeyword('')
-      setNewDomainKeyword('')
-    }
-  }, [isOpen, project.name, project.projectKeywords])
 
   // 入力値バリデーション関数
   const validateProjectName = (name: string) => {
@@ -216,23 +233,31 @@ export const ProjectManagementModal = ({
     if (!result.success) {
       const issue = result.error.issues[0]
       if (issue?.code === 'too_small') {
-        setProjectNameError(t('savedTabs.projectNameRequired'))
+        updateModalState({
+          projectNameError: t('savedTabs.projectNameRequired'),
+        })
       } else if (issue?.code === 'too_big') {
-        setProjectNameError(t('savedTabs.projectNameMaxLength'))
+        updateModalState({
+          projectNameError: t('savedTabs.projectNameMaxLength'),
+        })
       } else {
-        setProjectNameError(t('savedTabs.projectNameRequired'))
+        updateModalState({
+          projectNameError: t('savedTabs.projectNameRequired'),
+        })
       }
       return false
     }
-    setProjectNameError(null)
+    updateModalState({ projectNameError: null })
     return true
   }
 
   // リネーム処理を開始
   const handleStartRenaming = () => {
-    setNewProjectName(localProjectName)
-    setIsRenaming(true)
-    setProjectNameError(null)
+    updateModalState({
+      isRenaming: true,
+      newProjectName: localProjectName,
+      projectNameError: null,
+    })
     requestAnimationFrame(() => {
       if (inputRef.current) {
         inputRef.current.focus()
@@ -243,22 +268,23 @@ export const ProjectManagementModal = ({
 
   // リネームをキャンセル
   const handleCancelRenaming = () => {
-    setIsRenaming(false)
-    setNewProjectName(localProjectName)
-    setProjectNameError(null)
+    updateModalState({
+      isRenaming: false,
+      newProjectName: localProjectName,
+      projectNameError: null,
+    })
   }
 
   // 入力変更時の処理
   const handleProjectNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    setNewProjectName(value)
+    updateModalState({ newProjectName: value })
     validateProjectName(value)
   }
 
   // 名前変更の保存処理
   const handleSaveRenaming = async (trimmedName: string) => {
-    setIsProcessing(true)
-    setIsSaving(true)
+    updateModalState({ isProcessing: true, isSaving: true })
 
     try {
       if (!onRenameProject) {
@@ -267,14 +293,15 @@ export const ProjectManagementModal = ({
 
       await onRenameProject(project.id, trimmedName)
 
-      setLocalProjectName(trimmedName)
-      setIsRenaming(false)
+      updateModalState({
+        isRenaming: false,
+        localProjectName: trimmedName,
+      })
     } catch (error) {
       console.error('プロジェクト名の更新に失敗:', error)
       // エラー表示は useProjectManagement 側で行われることが多いため、ここでは最小限に
     } finally {
-      setIsSaving(false)
-      setIsProcessing(false)
+      updateModalState({ isProcessing: false, isSaving: false })
     }
   }
 
@@ -284,7 +311,7 @@ export const ProjectManagementModal = ({
       return
     }
 
-    setIsProcessing(true)
+    updateModalState({ isProcessing: true })
     try {
       if (!onDeleteProject) {
         throw new Error('プロジェクト削除機能が利用できません')
@@ -295,7 +322,7 @@ export const ProjectManagementModal = ({
     } catch (error) {
       console.error('プロジェクトの削除に失敗しました:', error)
     } finally {
-      setIsProcessing(false)
+      updateModalState({ isProcessing: false })
     }
   }
 
@@ -355,7 +382,7 @@ export const ProjectManagementModal = ({
   const removeKeyword = (
     keywordToRemove: string,
     section: keyof ProjectKeywordSettings,
-    setKeywords: Dispatch<SetStateAction<string[]>>,
+    setKeywords: (keywords: string[]) => void,
     keywords: string[],
   ) => {
     const updatedKeywords = keywords.filter(
@@ -397,7 +424,7 @@ export const ProjectManagementModal = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className='space-y-4'>
+        <div className='gap-y-4'>
           {/* プロジェクト名変更セクション */}
           <div className='mb-4'>
             <div className='mb-2 flex items-center justify-between'>
@@ -427,7 +454,9 @@ export const ProjectManagementModal = ({
                       <Button
                         variant='secondary'
                         size='sm'
-                        onClick={() => setShowDeleteConfirm(true)}
+                        onClick={() =>
+                          updateModalState({ showDeleteConfirm: true })
+                        }
                         className='flex cursor-pointer items-center gap-2 rounded px-2 py-1'
                         disabled={isProcessing}
                       >
@@ -447,7 +476,7 @@ export const ProjectManagementModal = ({
 
             {isRenaming ? (
               <div className='mt-2 w-full rounded border p-3'>
-                <div className='mb-2 text-gray-300 text-sm'>
+                <div className='mb-2 text-sm text-zinc-300'>
                   {t('savedTabs.projectManagement.renamePrompt')}
                 </div>
                 <Input
@@ -518,14 +547,14 @@ export const ProjectManagementModal = ({
           </div>
 
           <div className='rounded border p-3'>
-            <div className='mb-3 space-y-1'>
+            <div className='mb-3 gap-y-1'>
               <Label>{t('savedTabs.projectManagement.autoAssignLabel')}</Label>
               <p className='text-muted-foreground text-xs'>
                 {t('savedTabs.projectManagement.autoAssignDescription')}
               </p>
             </div>
 
-            <div className='space-y-3'>
+            <div className='gap-y-3'>
               <ProjectKeywordSection
                 label={t('savedTabs.projectManagement.keywordTitleLabel')}
                 description={t(
@@ -538,14 +567,17 @@ export const ProjectManagementModal = ({
                 keywords={titleKeywords}
                 newKeyword={newTitleKeyword}
                 disabled={isProcessing}
-                onKeywordChange={setNewTitleKeyword}
+                onKeywordChange={value =>
+                  updateModalState({ newTitleKeyword: value })
+                }
                 onAddKeyword={() =>
                   addKeyword({
                     keyword: newTitleKeyword,
                     keywords: titleKeywords,
                     section: 'titleKeywords',
-                    setKeywords: setTitleKeywords,
-                    clearInput: () => setNewTitleKeyword(''),
+                    setKeywords: keywords =>
+                      updateModalState({ titleKeywords: keywords }),
+                    clearInput: () => updateModalState({ newTitleKeyword: '' }),
                   })
                 }
                 onBlurKeyword={() =>
@@ -553,15 +585,16 @@ export const ProjectManagementModal = ({
                     keyword: newTitleKeyword,
                     keywords: titleKeywords,
                     section: 'titleKeywords',
-                    setKeywords: setTitleKeywords,
-                    clearInput: () => setNewTitleKeyword(''),
+                    setKeywords: keywords =>
+                      updateModalState({ titleKeywords: keywords }),
+                    clearInput: () => updateModalState({ newTitleKeyword: '' }),
                   })
                 }
                 onRemoveKeyword={keyword =>
                   removeKeyword(
                     keyword,
                     'titleKeywords',
-                    setTitleKeywords,
+                    keywords => updateModalState({ titleKeywords: keywords }),
                     titleKeywords,
                   )
                 }
@@ -579,14 +612,17 @@ export const ProjectManagementModal = ({
                 keywords={urlKeywords}
                 newKeyword={newUrlKeyword}
                 disabled={isProcessing}
-                onKeywordChange={setNewUrlKeyword}
+                onKeywordChange={value =>
+                  updateModalState({ newUrlKeyword: value })
+                }
                 onAddKeyword={() =>
                   addKeyword({
                     keyword: newUrlKeyword,
                     keywords: urlKeywords,
                     section: 'urlKeywords',
-                    setKeywords: setUrlKeywords,
-                    clearInput: () => setNewUrlKeyword(''),
+                    setKeywords: keywords =>
+                      updateModalState({ urlKeywords: keywords }),
+                    clearInput: () => updateModalState({ newUrlKeyword: '' }),
                   })
                 }
                 onBlurKeyword={() =>
@@ -594,15 +630,16 @@ export const ProjectManagementModal = ({
                     keyword: newUrlKeyword,
                     keywords: urlKeywords,
                     section: 'urlKeywords',
-                    setKeywords: setUrlKeywords,
-                    clearInput: () => setNewUrlKeyword(''),
+                    setKeywords: keywords =>
+                      updateModalState({ urlKeywords: keywords }),
+                    clearInput: () => updateModalState({ newUrlKeyword: '' }),
                   })
                 }
                 onRemoveKeyword={keyword =>
                   removeKeyword(
                     keyword,
                     'urlKeywords',
-                    setUrlKeywords,
+                    keywords => updateModalState({ urlKeywords: keywords }),
                     urlKeywords,
                   )
                 }
@@ -620,14 +657,18 @@ export const ProjectManagementModal = ({
                 keywords={domainKeywords}
                 newKeyword={newDomainKeyword}
                 disabled={isProcessing}
-                onKeywordChange={setNewDomainKeyword}
+                onKeywordChange={value =>
+                  updateModalState({ newDomainKeyword: value })
+                }
                 onAddKeyword={() =>
                   addKeyword({
                     keyword: newDomainKeyword,
                     keywords: domainKeywords,
                     section: 'domainKeywords',
-                    setKeywords: setDomainKeywords,
-                    clearInput: () => setNewDomainKeyword(''),
+                    setKeywords: keywords =>
+                      updateModalState({ domainKeywords: keywords }),
+                    clearInput: () =>
+                      updateModalState({ newDomainKeyword: '' }),
                   })
                 }
                 onBlurKeyword={() =>
@@ -635,15 +676,17 @@ export const ProjectManagementModal = ({
                     keyword: newDomainKeyword,
                     keywords: domainKeywords,
                     section: 'domainKeywords',
-                    setKeywords: setDomainKeywords,
-                    clearInput: () => setNewDomainKeyword(''),
+                    setKeywords: keywords =>
+                      updateModalState({ domainKeywords: keywords }),
+                    clearInput: () =>
+                      updateModalState({ newDomainKeyword: '' }),
                   })
                 }
                 onRemoveKeyword={keyword =>
                   removeKeyword(
                     keyword,
                     'domainKeywords',
-                    setDomainKeywords,
+                    keywords => updateModalState({ domainKeywords: keywords }),
                     domainKeywords,
                   )
                 }
@@ -653,7 +696,7 @@ export const ProjectManagementModal = ({
 
           {showDeleteConfirm && (
             <div className='mt-1 mb-3 rounded border p-3'>
-              <p className='mb-2 text-gray-700 dark:text-gray-300'>
+              <p className='mb-2 text-zinc-700 dark:text-zinc-300'>
                 {t(
                   'savedTabs.projectManagement.deleteConfirmDescription',
                   undefined,
@@ -671,7 +714,9 @@ export const ProjectManagementModal = ({
                     <Button
                       variant='ghost'
                       size='sm'
-                      onClick={() => setShowDeleteConfirm(false)}
+                      onClick={() =>
+                        updateModalState({ showDeleteConfirm: false })
+                      }
                       disabled={isProcessing}
                     >
                       {t('common.cancel')}
@@ -705,6 +750,22 @@ export const ProjectManagementModal = ({
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+const ProjectManagementModalContent = (props: ProjectManagementModalProps) =>
+  useProjectManagementModalView(props)
+
+export const ProjectManagementModal = (props: ProjectManagementModalProps) => {
+  if (!props.isOpen) {
+    return null
+  }
+
+  return (
+    <ProjectManagementModalContent
+      key={`${props.project.id}:${props.project.name}`}
+      {...props}
+    />
   )
 }
 

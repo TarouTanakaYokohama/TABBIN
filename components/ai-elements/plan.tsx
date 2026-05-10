@@ -2,7 +2,7 @@
 
 import { ChevronsUpDownIcon } from 'lucide-react'
 import type { ComponentProps } from 'react'
-import { createContext, useContext } from 'react'
+import { createContext, use } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -29,7 +29,7 @@ interface PlanContextValue {
 const PlanContext = createContext<PlanContextValue | null>(null)
 
 const usePlan = () => {
-  const context = useContext(PlanContext)
+  const context = use(PlanContext)
   if (!context) {
     throw new Error('Plan components must be used within Plan')
   }

@@ -68,13 +68,15 @@ export const handleTabGroupRemoval = async (groupId: string): Promise<void> => {
       return
     }
     console.log(`グループ削除前の処理: ${groupToRemove.domain}`)
-    await updateDomainCategorySettings(
-      groupToRemove.domain,
-      groupToRemove.subCategories || [],
-      groupToRemove.categoryKeywords || [],
-    )
-    await ensureDomainNameInParentCategory(groupToRemove)
-    await updateDomainCategoryMappingIfNeeded(groupToRemove)
+    await Promise.all([
+      updateDomainCategorySettings(
+        groupToRemove.domain,
+        groupToRemove.subCategories || [],
+        groupToRemove.categoryKeywords || [],
+      ),
+      ensureDomainNameInParentCategory(groupToRemove),
+      updateDomainCategoryMappingIfNeeded(groupToRemove),
+    ])
   } catch (error) {
     console.error('タブグループ削除前処理エラー:', error)
   }

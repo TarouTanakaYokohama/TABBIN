@@ -62,21 +62,20 @@ const confirmCategorySaved = async (
   newName: string,
   updatedGroups: ParentCategory[],
 ): Promise<void> => {
-  const maxRetries = 3
-  for (let retryCount = 0; retryCount < maxRetries; retryCount++) {
-    const checkResult = await chrome.storage.local.get<{
-      parentCategories?: import('@/types/storage').ParentCategory[]
-    }>('parentCategories')
-    const savedCategory = checkResult.parentCategories?.find(
-      (cat: ParentCategory) => cat.id === categoryId,
-    )
-    if (savedCategory?.name === newName) {
-      console.log('CategoryGroup - 保存の確認に成功:', savedCategory)
-      break
-    }
-    console.log(
-      `CategoryGroup - 保存の確認に失敗 (試行 ${retryCount + 1}/${maxRetries})`,
-    )
+  const checkResult = await chrome.storage.local.get<{
+    parentCategories?: import('@/types/storage').ParentCategory[]
+  }>('parentCategories')
+  const categoryById = new Map(
+    (checkResult.parentCategories ?? []).map((cat: ParentCategory) => [
+      cat.id,
+      cat,
+    ]),
+  )
+  const savedCategory = categoryById.get(categoryId)
+  if (savedCategory?.name === newName) {
+    console.log('CategoryGroup - 保存の確認に成功:', savedCategory)
+  } else {
+    console.log('CategoryGroup - 保存の確認に失敗したため再保存します')
     await chrome.storage.local.set({
       parentCategories: updatedGroups,
     })
@@ -84,9 +83,12 @@ const confirmCategorySaved = async (
   const finalCheck = await chrome.storage.local.get<{
     parentCategories?: import('@/types/storage').ParentCategory[]
   }>('parentCategories')
-  const finalCategory = finalCheck.parentCategories?.find(
-    (cat: ParentCategory) => cat.id === categoryId,
-  )
+  const finalCategory = new Map(
+    (finalCheck.parentCategories ?? []).map((cat: ParentCategory) => [
+      cat.id,
+      cat,
+    ]),
+  ).get(categoryId)
   if (finalCategory?.name !== newName) {
     throw new Error('カテゴリ名の更新が反映されていません')
   }
@@ -106,8 +108,25 @@ export const useCategoryGroupState = ({
 }: UseCategoryGroupStateParams) => {
   const { t } = useI18n()
   // --- 基本状態 ---
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [userCollapsedState, setUserCollapsedState] = useState(false)
+  const [{ isCollapsed, userCollapsedState }, setCollapseState] = useState({
+    isCollapsed: false,
+    userCollapsedState: false,
+  })
+  const setIsCollapsed = useCallback((nextIsCollapsed: boolean) => {
+    setCollapseState(prev => ({
+      ...prev,
+      isCollapsed: nextIsCollapsed,
+    }))
+  }, [])
+  const setUserCollapsedState = useCallback(
+    (nextUserCollapsedState: boolean) => {
+      setCollapseState(prev => ({
+        ...prev,
+        userCollapsedState: nextUserCollapsedState,
+      }))
+    },
+    [],
+  )
   const [_isDraggingOver, setIsDraggingOver] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDraggingDomains, setIsDraggingDomains] = useState(false)
@@ -121,7 +140,7 @@ export const useCategoryGroupState = ({
   const [tempDomainOrder, setTempDomainOrder] = useState<typeof domains>([])
 
   // --- ドメイン状態とソート ---
-  const [localDomains, setLocalDomains] = useState<typeof domains>(domains)
+  const localDomains = domains
   const {
     sortOrder,
     setSortOrder,
@@ -193,19 +212,19 @@ export const useCategoryGroupState = ({
   const prevReorderModeRef = useRef<boolean>(false)
   useEffect(() => {
     if (isCategoryReorderMode && !prevReorderModeRef.current) {
-      setUserCollapsedState(isCollapsed)
-      setIsCollapsed(true)
+      setCollapseState({
+        isCollapsed: true,
+        userCollapsedState: isCollapsed,
+      })
       prevReorderModeRef.current = true
     } else if (!isCategoryReorderMode && prevReorderModeRef.current) {
-      setIsCollapsed(userCollapsedState)
+      setCollapseState(prev => ({
+        ...prev,
+        isCollapsed: userCollapsedState,
+      }))
       prevReorderModeRef.current = false
     }
   }, [isCategoryReorderMode, isCollapsed, userCollapsedState])
-
-  // --- ドメイン変更の検知 ---
-  useEffect(() => {
-    setLocalDomains(domains)
-  }, [domains])
 
   // --- ネイティブDnDハンドラ ---
   const handleDragOver = useCallback((event: React.DragEvent) => {
@@ -297,7 +316,6 @@ export const useCategoryGroupState = ({
       if (handleUpdateDomainsOrder) {
         await handleUpdateDomainsOrder(category.id, tempDomainOrder)
       }
-      setLocalDomains(tempDomainOrder)
       setIsReorderMode(false)
       setOriginalDomainOrder([])
       setTempDomainOrder([])

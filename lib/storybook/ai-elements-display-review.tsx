@@ -97,7 +97,7 @@ const Section = ({
   children: React.ReactNode
   title: string
 }) => (
-  <section className='space-y-3 rounded-xl border bg-card p-4'>
+  <section className='gap-y-3 rounded-xl border bg-card p-4'>
     <h3 className='font-semibold text-base'>{title}</h3>
     {children}
   </section>
@@ -124,7 +124,7 @@ const ReviewArtifacts = () => (
 
       <Plan defaultOpen isStreaming>
         <PlanHeader>
-          <div className='space-y-1'>
+          <div className='gap-y-1'>
             <PlanTitle>Rebuild weekly review buckets</PlanTitle>
             <PlanDescription>
               Group tabs into workstreams, then generate a handoff summary.
@@ -134,7 +134,7 @@ const ReviewArtifacts = () => (
             <PlanTrigger />
           </PlanAction>
         </PlanHeader>
-        <PlanContent className='space-y-2 text-sm'>
+        <PlanContent className='gap-y-2 text-sm'>
           <p>1. Detect duplicate references and landing pages.</p>
           <p>2. Keep pinned research, archive stale implementation tabs.</p>
           <p>3. Prepare one cleanup action per project.</p>
@@ -164,7 +164,7 @@ const ReviewArtifacts = () => (
             <ArtifactClose />
           </ArtifactActions>
         </ArtifactHeader>
-        <ArtifactContent className='space-y-3 text-sm'>
+        <ArtifactContent className='gap-y-3 text-sm'>
           <p>12 tabs were grouped into 4 active projects.</p>
           <p className='text-muted-foreground'>
             Two duplicates were archived and one stale issue page was closed.
@@ -181,7 +181,7 @@ const ReviewArtifacts = () => (
     </Section>
 
     <Section title='Attachments + Snippet'>
-      <div className='space-y-4'>
+      <div className='gap-y-4'>
         <Attachments variant='grid'>
           <Attachment data={sampleAttachment} onRemove={() => undefined}>
             <AttachmentHoverCard>
@@ -222,7 +222,7 @@ const ReviewArtifacts = () => (
     </Section>
 
     <Section title='Transcription + Persona'>
-      <div className='space-y-4'>
+      <div className='gap-y-4'>
         <Transcription
           className='rounded-lg border p-3'
           currentTime={4}
@@ -245,7 +245,7 @@ const ReviewArtifacts = () => (
         </Transcription>
 
         <div className='flex items-center gap-4'>
-          <Persona className='h-20 w-20' state='thinking' variant='opal' />
+          <Persona className='size-20' state='thinking' variant='opal' />
           <div className='text-sm'>
             <p className='font-medium'>Persona preview</p>
             <p className='text-muted-foreground'>

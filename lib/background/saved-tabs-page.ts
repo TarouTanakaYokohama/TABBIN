@@ -158,17 +158,19 @@ const closeDuplicateTabs = async (
 ): Promise<void> => {
   if (savedTabsPages.length > 1) {
     console.log(`${savedTabsPages.length - 1}個の重複タブを閉じます`)
-    for (let i = 1; i < savedTabsPages.length; i++) {
-      const tabId = savedTabsPages[i].id
-      if (typeof tabId === 'number') {
-        try {
-          await chrome.tabs.remove(tabId)
-          console.log(`重複タブ ${tabId} を閉じました`)
-        } catch (e) {
-          console.error('重複タブを閉じる際にエラー:', e)
+    await Promise.all(
+      savedTabsPages.slice(1).map(async tab => {
+        const tabId = tab.id
+        if (typeof tabId === 'number') {
+          try {
+            await chrome.tabs.remove(tabId)
+            console.log(`重複タブ ${tabId} を閉じました`)
+          } catch (e) {
+            console.error('重複タブを閉じる際にエラー:', e)
+          }
         }
-      }
-    }
+      }),
+    )
   }
 }
 /**

@@ -25,13 +25,13 @@ const ChangelogContent: React.FC = () => {
   return (
     <div className='mx-auto max-w-4xl'>
       <div className='mb-16 text-center'>
-        <h1 className='font-extrabold text-5xl text-primary sm:text-6xl sm:tracking-tight'>
+        <h1 className='font-semibold text-5xl text-primary sm:text-6xl sm:tracking-tight'>
           <span className='block'>
             {t('changelog.heading', 'Release Notes')}
           </span>
         </h1>
       </div>
-      <div className='space-y-12'>
+      <div className='gap-y-12'>
         {changelog.map(item => (
           <Card
             key={item.version}
@@ -39,7 +39,7 @@ const ChangelogContent: React.FC = () => {
           >
             <div className='px-8 py-10 sm:p-12'>
               <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between'>
-                <h2 className='font-bold text-3xl text-primary'>
+                <h2 className='font-semibold text-3xl text-primary'>
                   v{item.version}
                 </h2>
                 <div className='mt-2 inline-flex rounded-full bg-secondary px-5 py-2 font-semibold text-secondary-foreground text-sm sm:mt-0'>
@@ -48,7 +48,7 @@ const ChangelogContent: React.FC = () => {
               </div>
 
               <div className='mt-10'>
-                <ul className='space-y-6'>
+                <ul className='gap-y-6'>
                   {item.features.map(feature => (
                     <li
                       key={`${item.version}-${feature.text}`}
@@ -57,7 +57,7 @@ const ChangelogContent: React.FC = () => {
                       <div className='shrink-0'>
                         <Check
                           aria-hidden='true'
-                          className='h-6 w-6 text-chart-1 transition-colors duration-200 group-hover:text-chart-4'
+                          className='size-6 text-chart-1 transition-colors duration-200 group-hover:text-chart-4'
                         />
                       </div>
                       <p

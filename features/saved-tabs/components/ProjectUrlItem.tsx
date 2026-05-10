@@ -214,38 +214,29 @@ const ProjectUrlItemComponent = ({
         {/* タイトル＋バッジ部 */}
         <div className='flex min-w-0 flex-1 items-center'>
           <Button
-            asChild={true}
+            type='button'
             variant='ghost'
             size='sm'
+            draggable={true}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onClick={() => handleOpenUrl(item.url)}
             className='flex flex-1 items-center gap-1 overflow-hidden text-left text-foreground hover:text-foreground hover:underline'
           >
-            <a
-              href={item.url}
-              target='_blank'
-              rel='noopener noreferrer'
-              draggable={true}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onClick={e => {
-                e.preventDefault()
-                handleOpenUrl(item.url)
-              }}
-            >
-              {/* サブカテゴリ付きのURLの場合はChevronRightを表示 */}
-              {item.category?.includes('/') && (
-                <ChevronRight
-                  size={14}
-                  className='mr-1 inline-block text-primary'
-                />
-              )}
-              <span className='flex-1 truncate'>{item.title || item.url}</span>
-              {/* カテゴリ階層の視覚的な表示をシンプル化 */}
-              {item.category?.includes('/') && (
-                <Badge variant='outline' className='ml-2 shrink-0 text-xs'>
-                  {getCategoryDisplayName(item.category)}
-                </Badge>
-              )}
-            </a>
+            {/* サブカテゴリ付きのURLの場合はChevronRightを表示 */}
+            {item.category?.includes('/') && (
+              <ChevronRight
+                size={14}
+                className='mr-1 inline-block text-primary'
+              />
+            )}
+            <span className='flex-1 truncate'>{item.title || item.url}</span>
+            {/* カテゴリ階層の視覚的な表示をシンプル化 */}
+            {item.category?.includes('/') && (
+              <Badge variant='outline' className='ml-2 shrink-0 text-xs'>
+                {getCategoryDisplayName(item.category)}
+              </Badge>
+            )}
           </Button>
         </div>
         {/* ボタン群 */}
@@ -262,7 +253,7 @@ const ProjectUrlItemComponent = ({
                 handleDeleteUrl(projectId, item.url)
               }
             }}
-            className='h-8 w-8 cursor-pointer p-0'
+            className='size-8 cursor-pointer p-0'
             title={t('savedTabs.url.deleteAria')}
             aria-label={t('savedTabs.url.deleteAria')}
           >

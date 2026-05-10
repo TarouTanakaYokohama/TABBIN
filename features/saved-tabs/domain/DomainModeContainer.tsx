@@ -23,13 +23,19 @@ import type { ParentCategory, TabGroup, UserSettings } from '@/types/storage'
 type DndSensors = ComponentProps<typeof DndKitContext>['sensors']
 
 interface DomainModeContainerProps {
-  isLoading: boolean
+  state: {
+    hasVisibleCategoryGroups: boolean
+    isCategoryReorderMode: boolean
+    isLoading: boolean
+    isUncategorizedReorderMode: boolean
+    shouldShowUncategorizedList: boolean
+    shouldShowUncategorizedSectionHeader: boolean
+  }
   settings: UserSettings
   categories: ParentCategory[]
   categorized: Record<string, TabGroup[]>
   categoryOrderForDisplay: string[]
   tabGroups: TabGroup[]
-  isCategoryReorderMode: boolean
   searchQuery: string
   sensors: DndSensors
   handleCategoryDragEnd: (event: DragEndEvent) => void
@@ -54,12 +60,8 @@ interface DomainModeContainerProps {
     tabGroups: TabGroup[],
   ) => Promise<void>
   handleDeleteCategory: (groupId: string, categoryName: string) => Promise<void>
-  shouldShowUncategorizedSectionHeader: boolean
-  hasVisibleCategoryGroups: boolean
-  isUncategorizedReorderMode: boolean
   handleCancelUncategorizedReorder: () => void
   handleConfirmUncategorizedReorder: () => Promise<void>
-  shouldShowUncategorizedList: boolean
   uncategorizedForDisplay: TabGroup[]
   handleUncategorizedDragEnd: (event: DragEndEvent) => void
   hasContentTabGroupsCount: number
@@ -72,23 +74,24 @@ const deleteVisibleUrlsForGroups = async (
   groups: TabGroup[],
   handleDeleteUrls: (groupId: string, urls: string[]) => Promise<void>,
 ): Promise<void> => {
-  for (const group of groups) {
-    const visibleUrls = getVisibleGroupUrls(group)
-    if (visibleUrls.length === 0) {
-      continue
-    }
-    await handleDeleteUrls(group.id, visibleUrls)
-  }
+  await Promise.all(
+    groups.map(async group => {
+      const visibleUrls = getVisibleGroupUrls(group)
+      if (visibleUrls.length === 0) {
+        return
+      }
+      await handleDeleteUrls(group.id, visibleUrls)
+    }),
+  )
 }
 
 export const DomainModeContainer = ({
-  isLoading,
+  state,
   settings,
   categories,
   categorized,
   categoryOrderForDisplay,
   tabGroups,
-  isCategoryReorderMode,
   searchQuery,
   sensors,
   handleCategoryDragEnd,
@@ -102,16 +105,20 @@ export const DomainModeContainer = ({
   handleUpdateDomainsOrder,
   handleMoveDomainToCategory,
   handleDeleteCategory,
-  shouldShowUncategorizedSectionHeader,
-  hasVisibleCategoryGroups,
-  isUncategorizedReorderMode,
   handleCancelUncategorizedReorder,
   handleConfirmUncategorizedReorder,
-  shouldShowUncategorizedList,
   uncategorizedForDisplay,
   handleUncategorizedDragEnd,
   hasContentTabGroupsCount,
 }: DomainModeContainerProps) => {
+  const {
+    hasVisibleCategoryGroups,
+    isCategoryReorderMode,
+    isLoading,
+    isUncategorizedReorderMode,
+    shouldShowUncategorizedList,
+    shouldShowUncategorizedSectionHeader,
+  } = state
   const { t } = useI18n()
   const categoryMap = useMemo(
     () => new Map(categories.map(category => [category.id, category])),
@@ -153,9 +160,7 @@ export const DomainModeContainer = ({
       await handleDeleteGroups(uncategorizedIds)
       return
     }
-    for (const id of uncategorizedIds) {
-      await handleDeleteGroup(id)
-    }
+    await Promise.all(uncategorizedIds.map(id => handleDeleteGroup(id)))
   }, [handleDeleteGroup, handleDeleteGroups, uncategorizedForDisplay])
 
   if (isLoading) {
@@ -221,7 +226,7 @@ export const DomainModeContainer = ({
           data-saved-tabs-scroll-target='parent'
         >
           <div className='flex min-w-0 items-center gap-3'>
-            <h2 className='font-bold text-foreground text-xl'>
+            <h2 className='font-semibold text-foreground text-xl'>
               {t('savedTabs.uncategorizedDomainsTitle')}
             </h2>
             {displayedUncategorizedDomainCount > 0 && (

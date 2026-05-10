@@ -65,7 +65,10 @@ const getUrlRecordById = async (id: string): Promise<UrlRecord | null> => {
 const getUrlRecordsByIds = async (ids: string[]): Promise<UrlRecord[]> => {
   const urlRecords = await getUrlRecords()
   const recordMap = new Map(urlRecords.map(record => [record.id, record]))
-  return ids.map(id => recordMap.get(id)).filter(Boolean) as UrlRecord[]
+  return ids.flatMap(id => {
+    const record = recordMap.get(id)
+    return record ? [record] : []
+  })
 }
 /**
  * URLからURLレコードを検索する
@@ -124,12 +127,16 @@ const createOrUpdateUrlRecordsBatch = async (
   inputs: UrlRecordInput[],
   options: CreateOrUpdateUrlRecordOptions = {},
 ): Promise<Map<string, UrlRecord>> => {
-  const normalizedInputs = inputs
-    .map(input => ({
+  const normalizedInputs = inputs.reduce<UrlRecordInput[]>((items, input) => {
+    const normalizedInput = {
       ...input,
       url: input.url.trim(),
-    }))
-    .filter(input => input.url.length > 0)
+    }
+    if (normalizedInput.url.length > 0) {
+      items.push(normalizedInput)
+    }
+    return items
+  }, [])
 
   if (normalizedInputs.length === 0) {
     return new Map()
@@ -217,20 +224,11 @@ const isUrlRecordReferenced = async (urlId: string): Promise<boolean> => {
     const { savedTabs = [] } = savedTabsResult
     const { customProjects = [] } = customProjectsResult
 
-    // SavedTabsで参照されているかチェック
-    for (const tabGroup of savedTabs) {
-      if (tabGroup.urlIds?.includes(urlId)) {
-        return true
-      }
-    }
-
-    // CustomProjectsで参照されているかチェック
-    for (const project of customProjects) {
-      if (project.urlIds?.includes(urlId)) {
-        return true
-      }
-    }
-    return false
+    const referencedUrlIds = new Set([
+      ...savedTabs.flatMap(tabGroup => tabGroup.urlIds ?? []),
+      ...customProjects.flatMap(project => project.urlIds ?? []),
+    ])
+    return referencedUrlIds.has(urlId)
   } catch (error) {
     console.error('URL参照チェック中にエラー:', error)
     return true // エラー時は安全のため参照されているとみなす
@@ -345,10 +343,11 @@ const updateUrlReferences = async (
       savedTabs?: import('@/types/storage').TabGroup[]
     }>('savedTabs')
     let tabsUpdated = false
+    const duplicateIdSet = new Set(duplicateIds)
     for (const tabGroup of savedTabs) {
       if (tabGroup.urlIds) {
         const updatedIds = tabGroup.urlIds.map((id: string) => {
-          if (duplicateIds.includes(id)) {
+          if (duplicateIdSet.has(id)) {
             return replacementIdMap.get(id) || id
           }
           return id
@@ -373,7 +372,7 @@ const updateUrlReferences = async (
     for (const project of customProjects) {
       if (project.urlIds) {
         const updatedIds = project.urlIds.map((id: string) => {
-          if (duplicateIds.includes(id)) {
+          if (duplicateIdSet.has(id)) {
             return replacementIdMap.get(id) || id
           }
           return id

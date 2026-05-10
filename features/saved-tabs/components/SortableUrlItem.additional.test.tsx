@@ -109,7 +109,7 @@ describe('SortableUrlItem additional', () => {
   it('window 内 drop 済みなら外部ドロップ扱いしない', () => {
     render(<SortableUrlItem {...createProps()} />)
 
-    const link = screen.getByRole('link', { name: 'Example Tab' })
+    const link = screen.getByRole('button', { name: 'Example Tab' })
     const dataTransfer = {
       setData: vi.fn(),
       dropEffect: 'copy',

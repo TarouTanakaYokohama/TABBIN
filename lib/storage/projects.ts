@@ -69,36 +69,42 @@ const getCustomProjects = async (): Promise<CustomProject[]> => {
     )
 
     // 不正なプロジェクトデータをフィルタリング
-    const validProjects = customProjects
-      .filter(
-        (project: unknown) =>
+    const validProjects = customProjects.flatMap((project: unknown) => {
+      if (
+        !(
           project &&
           typeof project === 'object' &&
           project !== null &&
           'id' in project &&
-          'name' in project,
-      )
-      .map((project: CustomProject) => {
-        // 新形式のURLIDsが存在しない場合は初期化
-        if (!(project.urlIds && Array.isArray(project.urlIds))) {
-          project.urlIds = []
-        }
-        project.projectKeywords = normalizeProjectKeywords(
-          project.projectKeywords,
+          'name' in project
         )
+      ) {
+        return []
+      }
 
-        // 必須フィールドの確認と修正
-        if (!(project.categories && Array.isArray(project.categories))) {
-          project.categories = []
-        }
-        if (!project.updatedAt) {
-          project.updatedAt = Date.now()
-        }
-        if (!project.createdAt) {
-          project.createdAt = Date.now()
-        }
-        return project
-      })
+      const validProject = project as CustomProject
+      // 新形式のURLIDsが存在しない場合は初期化
+      if (!(validProject.urlIds && Array.isArray(validProject.urlIds))) {
+        validProject.urlIds = []
+      }
+      validProject.projectKeywords = normalizeProjectKeywords(
+        validProject.projectKeywords,
+      )
+
+      // 必須フィールドの確認と修正
+      if (
+        !(validProject.categories && Array.isArray(validProject.categories))
+      ) {
+        validProject.categories = []
+      }
+      if (!validProject.updatedAt) {
+        validProject.updatedAt = Date.now()
+      }
+      if (!validProject.createdAt) {
+        validProject.createdAt = Date.now()
+      }
+      return [validProject]
+    })
     if (validProjects.length !== customProjects.length) {
       console.warn(
         `不正なプロジェクトデータが検出されました: ${customProjects.length - validProjects.length}個を修復`,
@@ -111,7 +117,7 @@ const getCustomProjects = async (): Promise<CustomProject[]> => {
 
     // 順序が保存されている場合、その順序でソート
     if (projectOrder.length > 0) {
-      return [...validProjects].sort((a, b) => {
+      return validProjects.toSorted((a, b) => {
         const indexA = projectOrder.indexOf(a.id)
         const indexB = projectOrder.indexOf(b.id)
         // 順序にないプロジェクトは最後に
@@ -187,17 +193,14 @@ const createCustomProject = async (name: string): Promise<CustomProject> => {
 const appendUncategorizedProjectToOrder = async (): Promise<void> => {
   const { customProjectOrder = [] } =
     await chrome.storage.local.get('customProjectOrder')
-  if (!Array.isArray(customProjectOrder)) {
-    return
-  }
-  if (customProjectOrder.includes(CUSTOM_UNCATEGORIZED_PROJECT_ID)) {
+  const normalizedOrder = Array.isArray(customProjectOrder)
+    ? customProjectOrder
+    : []
+  if (normalizedOrder.includes(CUSTOM_UNCATEGORIZED_PROJECT_ID)) {
     return
   }
   await chrome.storage.local.set({
-    customProjectOrder: [
-      ...customProjectOrder,
-      CUSTOM_UNCATEGORIZED_PROJECT_ID,
-    ],
+    customProjectOrder: [...normalizedOrder, CUSTOM_UNCATEGORIZED_PROJECT_ID],
   })
 }
 
@@ -330,12 +333,11 @@ const addUrlsToUncategorizedProject = async (
 const getCustomProjectOrder = async (): Promise<string[]> => {
   const { customProjectOrder = [] } =
     await chrome.storage.local.get('customProjectOrder')
-  if (!Array.isArray(customProjectOrder)) {
-    return []
-  }
-  return customProjectOrder.filter(
-    (projectId): projectId is string => typeof projectId === 'string',
-  )
+  return Array.isArray(customProjectOrder)
+    ? customProjectOrder.filter(
+        (projectId): projectId is string => typeof projectId === 'string',
+      )
+    : []
 }
 const ensureProjectUrlIds = (project: CustomProject): void => {
   if (!project.urlIds) {
@@ -510,20 +512,29 @@ const saveUrlsToCustomProjects = async (
   )
   const uncategorizedItems: SavedTabItem[] = []
 
-  for (const item of normalizedItems) {
-    const matchedProjectId = findMatchingProjectIdForSavedTab({
+  const matchedItems = normalizedItems.reduce<
+    Array<{ item: SavedTabItem; projectId: string }>
+  >((items, item) => {
+    const projectId = findMatchingProjectIdForSavedTab({
       projects: matchingProjects,
       savedTab: item,
       projectOrder,
     })
 
-    if (!matchedProjectId) {
+    if (!projectId) {
       uncategorizedItems.push(item)
-      continue
+      return items
     }
 
-    await addUrlToCustomProject(matchedProjectId, item.url, item.title)
-  }
+    items.push({ item, projectId })
+    return items
+  }, [])
+
+  await Promise.all(
+    matchedItems.map(({ item, projectId }) =>
+      addUrlToCustomProject(projectId, item.url, item.title),
+    ),
+  )
 
   await addUrlsToUncategorizedProject(uncategorizedItems)
 }
@@ -569,21 +580,21 @@ const removeUrlFromCustomProject = async (
     )
     const urlRecord = urlRecords.find(record => record.url === url)
     if (urlRecord) {
-      const updatedGroups = savedTabs
-        .map((group: TabGroup) => {
-          if (group.urlIds) {
-            const updatedUrlIds = group.urlIds.filter(id => id !== urlRecord.id)
-            if (updatedUrlIds.length === 0) {
-              return null // URLが0になったらグループを削除
-            }
-            return {
-              ...group,
-              urlIds: updatedUrlIds,
-            }
-          }
-          return group
-        })
-        .filter((group: TabGroup | null): group is TabGroup => group !== null)
+      const updatedGroups = savedTabs.reduce<TabGroup[]>((groups, group) => {
+        if (!group.urlIds) {
+          groups.push(group)
+          return groups
+        }
+
+        const updatedUrlIds = group.urlIds.filter(id => id !== urlRecord.id)
+        if (updatedUrlIds.length > 0) {
+          groups.push({
+            ...group,
+            urlIds: updatedUrlIds,
+          })
+        }
+        return groups
+      }, [])
       await chrome.storage.local.set({
         savedTabs: updatedGroups,
       })
@@ -616,23 +627,21 @@ const syncDeleteToDomainMode = async (
 
     if (recordsToDelete.length > 0) {
       const idsToDelete = new Set(recordsToDelete.map(r => r.id))
-      const updatedGroups = savedTabs
-        .map((group: TabGroup) => {
-          if (group.urlIds) {
-            const updatedUrlIds = group.urlIds.filter(
-              id => !idsToDelete.has(id),
-            )
-            if (updatedUrlIds.length === 0) {
-              return null
-            }
-            return {
-              ...group,
-              urlIds: updatedUrlIds,
-            }
-          }
-          return group
-        })
-        .filter((group: TabGroup | null): group is TabGroup => group !== null)
+      const updatedGroups = savedTabs.reduce<TabGroup[]>((groups, group) => {
+        if (!group.urlIds) {
+          groups.push(group)
+          return groups
+        }
+
+        const updatedUrlIds = group.urlIds.filter(id => !idsToDelete.has(id))
+        if (updatedUrlIds.length > 0) {
+          groups.push({
+            ...group,
+            urlIds: updatedUrlIds,
+          })
+        }
+        return groups
+      }, [])
 
       await chrome.storage.local.set({
         savedTabs: updatedGroups,
@@ -731,8 +740,9 @@ const removeUrlFromAllCustomProjects = async (url: string): Promise<void> => {
     }
 
     for (const project of projects) {
-      if (project.urlIds?.includes(urlRecord.id)) {
-        project.urlIds = project.urlIds.filter(
+      const projectUrlIdSet = new Set(project.urlIds ?? [])
+      if (projectUrlIdSet.has(urlRecord.id)) {
+        project.urlIds = (project.urlIds ?? []).filter(
           (id: string) => id !== urlRecord.id,
         )
         if (project.urlMetadata?.[urlRecord.id]) {
@@ -903,11 +913,11 @@ const findOrCreateUncategorizedProject = async (
 const removeProjectIdFromOrder = async (projectId: string): Promise<void> => {
   const { customProjectOrder = [] } =
     await chrome.storage.local.get('customProjectOrder')
-  if (!Array.isArray(customProjectOrder)) {
-    return
-  }
+  const normalizedOrder = Array.isArray(customProjectOrder)
+    ? customProjectOrder
+    : []
   await chrome.storage.local.set({
-    customProjectOrder: customProjectOrder.filter(id => id !== projectId),
+    customProjectOrder: normalizedOrder.filter(id => id !== projectId),
   })
 }
 

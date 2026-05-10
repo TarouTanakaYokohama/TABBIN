@@ -296,8 +296,19 @@ export const useCustomProjectCard = ({
 }: UseCustomProjectCardParams) => {
   const { t, language } = useI18n()
   // --- プロジェクトURL状態 ---
-  const [projectUrls, setProjectUrls] = useState<ProjectUrlItem[]>([])
-  const [isLoadingUrls, setIsLoadingUrls] = useState(true)
+  const [urlState, setUrlState] = useState({
+    isLoadingUrls: true,
+    projectUrls: [] as ProjectUrlItem[],
+  })
+  const { isLoadingUrls, projectUrls } = urlState
+  const setProjectUrls: Dispatch<SetStateAction<ProjectUrlItem[]>> =
+    useCallback(action => {
+      setUrlState(current => ({
+        ...current,
+        projectUrls:
+          action instanceof Function ? action(current.projectUrls) : action,
+      }))
+    }, [])
   const projectUrlsRef = useRef(projectUrls)
   const handleSetUrlCategoryRef = useRef(handleSetUrlCategory)
   useEffect(() => {
@@ -323,16 +334,13 @@ export const useCustomProjectCard = ({
   // --- プロジェクトURL読み込み ---
   useEffect(() => {
     const loadProjectUrls = async () => {
-      setIsLoadingUrls(true)
+      let nextProjectUrls: ProjectUrlItem[] = []
       try {
-        const urls = await getProjectUrls(project)
-        setProjectUrls(urls)
+        nextProjectUrls = await getProjectUrls(project)
       } catch (error) {
         console.error('プロジェクトURLの取得エラー:', error)
-        setProjectUrls([])
-      } finally {
-        setIsLoadingUrls(false)
       }
+      setUrlState({ isLoadingUrls: false, projectUrls: nextProjectUrls })
     }
     loadProjectUrls()
   }, [project.id, project.updatedAt, project.urlIds, project.urls])

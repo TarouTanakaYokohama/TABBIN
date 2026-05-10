@@ -473,8 +473,9 @@ const useProjectManagement = (
     async (projectId: string, url: string): Promise<void> => {
       try {
         const undoSnapshot = await getCustomProjectUndoSnapshot()
-        await removeUrlFromCustomProject(projectId, url)
-        const updatedProjects = await getCustomProjects()
+        const updatedProjects = await Promise.resolve(
+          removeUrlFromCustomProject(projectId, url),
+        ).then(() => getCustomProjects())
         setCustomProjects(updatedProjects)
         showCustomProjectDeleteUndoToast({
           count: 1,
@@ -496,8 +497,9 @@ const useProjectManagement = (
     async (projectId: string, urls: string[]): Promise<void> => {
       try {
         const undoSnapshot = await getCustomProjectUndoSnapshot()
-        await removeUrlsFromCustomProject(projectId, urls)
-        const updatedProjects = await getCustomProjects()
+        const updatedProjects = await Promise.resolve(
+          removeUrlsFromCustomProject(projectId, urls),
+        ).then(() => getCustomProjects())
         setCustomProjects(updatedProjects)
         showCustomProjectDeleteUndoToast({
           count: urls.length,
@@ -652,7 +654,7 @@ const useProjectManagement = (
         console.log('プロジェクト順序を更新:', newOrder)
         await updateProjectOrder(newOrder)
         setCustomProjects(prev =>
-          [...prev].sort((a, b) => {
+          prev.toSorted((a, b) => {
             const indexA = newOrder.indexOf(a.id)
             const indexB = newOrder.indexOf(b.id)
             if (indexA === -1) {

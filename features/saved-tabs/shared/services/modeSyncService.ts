@@ -220,7 +220,7 @@ const sortProjectsByOrder = (
   projectOrder: string[],
 ): CustomProject[] => {
   const orderMap = new Map(projectOrder.map((id, index) => [id, index]))
-  return [...projects].sort((a, b) => {
+  return projects.toSorted((a, b) => {
     const indexA = orderMap.get(a.id)
     const indexB = orderMap.get(b.id)
     if (indexA == null && indexB == null) {

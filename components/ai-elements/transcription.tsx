@@ -3,13 +3,7 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import type { Experimental_TranscriptionResult as TranscriptionResult } from 'ai'
 import type { ComponentProps, ReactNode } from 'react'
-import {
-  Fragment,
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-} from 'react'
+import { Fragment, createContext, use, useCallback, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 
 type TranscriptionSegment = TranscriptionResult['segments'][number]
@@ -26,7 +20,7 @@ const TranscriptionContext = createContext<TranscriptionContextValue | null>(
 )
 
 const useTranscription = () => {
-  const context = useContext(TranscriptionContext)
+  const context = use(TranscriptionContext)
   if (!context) {
     throw new Error(
       'Transcription components must be used within Transcription',
@@ -71,15 +65,19 @@ export const Transcription = ({
         data-slot='transcription'
         {...props}
       >
-        {segments
-          .filter(segment => segment.text.trim())
-          .map((segment, index) => (
+        {segments.reduce<ReactNode[]>((nodes, segment) => {
+          if (!segment.text.trim()) {
+            return nodes
+          }
+          nodes.push(
             <Fragment
               key={`${segment.startSecond}-${segment.endSecond}-${segment.text}`}
             >
-              {children(segment, index)}
-            </Fragment>
-          ))}
+              {children(segment, nodes.length)}
+            </Fragment>,
+          )
+          return nodes
+        }, [])}
       </div>
     </TranscriptionContext.Provider>
   )
@@ -103,7 +101,7 @@ export const TranscriptionSegment = ({
     currentTime >= segment.startSecond && currentTime < segment.endSecond
   const isPast = currentTime >= segment.endSecond
 
-  const handleClick = useCallback(
+  const seekToSegment = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       if (onSeek) {
         onSeek(segment.startSecond)
@@ -127,7 +125,7 @@ export const TranscriptionSegment = ({
       data-active={isActive}
       data-index={index}
       data-slot='transcription-segment'
-      onClick={handleClick}
+      onClick={seekToSegment}
       type='button'
       {...props}
     >

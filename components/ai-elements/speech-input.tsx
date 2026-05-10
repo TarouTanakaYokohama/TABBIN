@@ -50,6 +50,12 @@ interface SpeechRecognitionErrorEvent extends Event {
   error: string
 }
 
+const pulseRings = [
+  { delay: '0s', id: 'pulse-ring-0' },
+  { delay: '0.3s', id: 'pulse-ring-1' },
+  { delay: '0.6s', id: 'pulse-ring-2' },
+]
+
 declare global {
   interface Window {
     SpeechRecognition: new () => SpeechRecognition
@@ -112,6 +118,47 @@ export const SpeechInput = ({
   onTranscriptionChangeRef.current = onTranscriptionChange
   onAudioRecordedRef.current = onAudioRecorded
 
+  const handleSpeechRecognitionStart = useCallback(() => {
+    setIsListening(true)
+  }, [])
+
+  const handleSpeechRecognitionEnd = useCallback(() => {
+    setIsListening(false)
+  }, [])
+
+  const handleSpeechRecognitionResult = useCallback((event: Event) => {
+    const speechEvent = event as SpeechRecognitionEvent
+    let finalTranscript = ''
+
+    for (
+      let i = speechEvent.resultIndex;
+      i < speechEvent.results.length;
+      i += 1
+    ) {
+      const result = speechEvent.results[i]
+      if (result.isFinal) {
+        finalTranscript += result[0]?.transcript ?? ''
+      }
+    }
+
+    if (finalTranscript) {
+      onTranscriptionChangeRef.current?.(finalTranscript)
+    }
+  }, [])
+
+  const handleSpeechRecognitionError = useCallback(() => {
+    setIsListening(false)
+  }, [])
+  const handleSpeechRecognitionStartRef = useRef(handleSpeechRecognitionStart)
+  const handleSpeechRecognitionEndRef = useRef(handleSpeechRecognitionEnd)
+  const handleSpeechRecognitionResultRef = useRef(handleSpeechRecognitionResult)
+  const handleSpeechRecognitionErrorRef = useRef(handleSpeechRecognitionError)
+
+  handleSpeechRecognitionStartRef.current = handleSpeechRecognitionStart
+  handleSpeechRecognitionEndRef.current = handleSpeechRecognitionEnd
+  handleSpeechRecognitionResultRef.current = handleSpeechRecognitionResult
+  handleSpeechRecognitionErrorRef.current = handleSpeechRecognitionError
+
   // Initialize Speech Recognition when mode is speech-recognition
   useEffect(() => {
     if (mode !== 'speech-recognition') {
@@ -126,37 +173,11 @@ export const SpeechInput = ({
     speechRecognition.interimResults = true
     speechRecognition.lang = lang
 
-    const handleStart = () => {
-      setIsListening(true)
-    }
-
-    const handleEnd = () => {
-      setIsListening(false)
-    }
-
-    const handleResult = (event: Event) => {
-      const speechEvent = event as SpeechRecognitionEvent
-      let finalTranscript = ''
-
-      for (
-        let i = speechEvent.resultIndex;
-        i < speechEvent.results.length;
-        i += 1
-      ) {
-        const result = speechEvent.results[i]
-        if (result.isFinal) {
-          finalTranscript += result[0]?.transcript ?? ''
-        }
-      }
-
-      if (finalTranscript) {
-        onTranscriptionChangeRef.current?.(finalTranscript)
-      }
-    }
-
-    const handleError = () => {
-      setIsListening(false)
-    }
+    const handleStart = () => handleSpeechRecognitionStartRef.current()
+    const handleEnd = () => handleSpeechRecognitionEndRef.current()
+    const handleResult = (event: Event) =>
+      handleSpeechRecognitionResultRef.current(event)
+    const handleError = () => handleSpeechRecognitionErrorRef.current()
 
     speechRecognition.addEventListener('start', handleStart)
     speechRecognition.addEventListener('end', handleEnd)
@@ -290,13 +311,13 @@ export const SpeechInput = ({
     <div className='relative inline-flex items-center justify-center'>
       {/* Animated pulse rings */}
       {isListening &&
-        [0, 1, 2].map(index => (
+        pulseRings.map(({ delay, id }) => (
           <div
             className='absolute inset-0 animate-ping rounded-full border-2 border-red-400/30'
-            key={index}
+            key={id}
             style={{
-              animationDelay: `${index * 0.3}s`,
-              animationDuration: '2s',
+              animationDelay: delay,
+              animationDuration: '900ms',
             }}
           />
         ))}

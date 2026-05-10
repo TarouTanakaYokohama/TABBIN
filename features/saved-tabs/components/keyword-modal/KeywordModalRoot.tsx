@@ -12,6 +12,10 @@ import {
   type KeywordModalContextType,
 } from './KeywordModalContext'
 
+const EMPTY_PARENT_CATEGORIES: NonNullable<
+  CategoryKeywordModalProps['parentCategories']
+> = []
+
 /** KeywordModalRoot の props */
 interface KeywordModalRootProps {
   /** タブグループデータ */
@@ -43,7 +47,7 @@ export const KeywordModalRoot = ({
   onClose,
   onSave,
   onDeleteCategory,
-  initialParentCategories = [],
+  initialParentCategories = EMPTY_PARENT_CATEGORIES,
   onUpdateParentCategories,
   children,
 }: KeywordModalRootProps) => {

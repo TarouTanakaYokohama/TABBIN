@@ -1,12 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { type ComponentProps, useState } from 'react'
+import { type ComponentProps, useReducer } from 'react'
 import { SavedTabsResponsiveLayoutProvider } from '@/features/saved-tabs/contexts/SavedTabsResponsiveLayoutContext'
 import { ViewModeToggle } from './ViewModeToggle'
 
 const ViewModeToggleStoryRender = (
   args: ComponentProps<typeof ViewModeToggle>,
 ) => {
-  const [mode, setMode] = useState(args.currentMode)
+  const [mode, setMode] = useReducer(
+    (
+      _state: ComponentProps<typeof ViewModeToggle>['currentMode'],
+      nextMode: ComponentProps<typeof ViewModeToggle>['currentMode'],
+    ) => nextMode,
+    args.currentMode,
+  )
 
   return (
     <SavedTabsResponsiveLayoutProvider

@@ -151,7 +151,7 @@ describe('ProjectUrlItem', () => {
     }).parentElement
     expect(actionBar?.className).toContain('group-focus-within:opacity-100')
 
-    const link = screen.getByRole('link', { name: item.url })
+    const link = screen.getByRole('button', { name: item.url })
     fireEvent.click(link)
     expect(handleOpenUrl).toHaveBeenCalledWith(item.url)
 
@@ -221,7 +221,7 @@ describe('ProjectUrlItem', () => {
     expect(listItem?.getAttribute('data-in-uncategorized')).toBe('true')
 
     expect(screen.getByText('Child')).toBeTruthy()
-    expect(screen.getByRole('link', { name: /Doc/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Doc/ })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'タブを削除' }))
     const confirmButton = await screen.findByRole('button', {
@@ -257,7 +257,7 @@ describe('ProjectUrlItem', () => {
 
     render(<ProjectUrlItem {...createProps({ item })} />)
 
-    const link = screen.getByRole('link', { name: 'Doc' })
+    const link = screen.getByRole('button', { name: 'Doc' })
     const dataTransfer = {
       setData: vi.fn(),
       dropEffect: 'link',
@@ -294,7 +294,7 @@ describe('ProjectUrlItem', () => {
 
     render(<ProjectUrlItem {...createProps({ item })} />)
 
-    const link = screen.getByRole('link', { name: 'Doc' })
+    const link = screen.getByRole('button', { name: 'Doc' })
     const dataTransfer = {
       setData: vi.fn(),
       dropEffect: 'none',
@@ -326,7 +326,7 @@ describe('ProjectUrlItem', () => {
 
     render(<ProjectUrlItem {...createProps({ item })} />)
 
-    const link = screen.getByRole('link', { name: 'Doc' })
+    const link = screen.getByRole('button', { name: 'Doc' })
     const dataTransfer = {
       setData: vi.fn(),
       dropEffect: 'link',
@@ -357,7 +357,7 @@ describe('ProjectUrlItem', () => {
 
     render(<ProjectUrlItem {...createProps({ item })} />)
 
-    const link = screen.getByRole('link', { name: 'Doc' })
+    const link = screen.getByRole('button', { name: 'Doc' })
     const dataTransfer = {
       setData: vi.fn(),
       dropEffect: 'copy',

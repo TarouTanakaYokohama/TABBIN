@@ -113,34 +113,35 @@ export const checkAndRemoveExpiredTabs = async (): Promise<void> => {
     )
 
     // URL単位で期限切れをフィルタリング
-    const updatedTabs = savedTabs
-      .map((group: TabGroup) => {
-        const originalUrls = group.urls ?? []
-        const originalUrlCount = originalUrls.length
-        const filteredUrls = originalUrls.filter(urlEntry => {
-          const urlSavedAt = urlEntry.savedAt ?? group.savedAt ?? currentTime
-          const isUrlExpired = urlSavedAt < cutoffTime
-          if (isUrlExpired) {
-            console.log(`削除: URL ${urlEntry.url} (ドメイン: ${group.domain})`)
-            return false
-          }
-          return true
-        })
-        if (filteredUrls.length !== originalUrlCount) {
-          console.log(
-            `グループ ${group.domain}: ${originalUrlCount - filteredUrls.length} 件のURLを削除`,
-          )
+    const updatedTabs = savedTabs.reduce<TabGroup[]>((groups, group) => {
+      const originalUrls = group.urls ?? []
+      const originalUrlCount = originalUrls.length
+      const filteredUrls = originalUrls.filter(urlEntry => {
+        const urlSavedAt = urlEntry.savedAt ?? group.savedAt ?? currentTime
+        const isUrlExpired = urlSavedAt < cutoffTime
+        if (isUrlExpired) {
+          console.log(`削除: URL ${urlEntry.url} (ドメイン: ${group.domain})`)
+          return false
         }
-        return {
+        return true
+      })
+      if (filteredUrls.length !== originalUrlCount) {
+        console.log(
+          `グループ ${group.domain}: ${originalUrlCount - filteredUrls.length} 件のURLを削除`,
+        )
+      }
+      if (filteredUrls.length > 0) {
+        groups.push({
           ...group,
           urls: filteredUrls,
-        }
-      })
-      .filter(group => group.urls.length > 0)
+        })
+      }
+      return groups
+    }, [])
 
     // 更新後のURL数を計算
     const updatedUrlCount: number = updatedTabs.reduce(
-      (acc: number, g) => acc + g.urls.length,
+      (acc: number, g) => acc + (g.urls?.length ?? 0),
       0,
     )
 

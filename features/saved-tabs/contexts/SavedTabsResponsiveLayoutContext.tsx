@@ -1,4 +1,4 @@
-import { type PropsWithChildren, createContext, useContext } from 'react'
+import { type PropsWithChildren, createContext, use } from 'react'
 
 interface SavedTabsResponsiveLayoutContextValue {
   isCompactLayout: boolean
@@ -23,4 +23,4 @@ export const SavedTabsResponsiveLayoutProvider = ({
 )
 
 export const useSavedTabsResponsiveLayout = () =>
-  useContext(SavedTabsResponsiveLayoutContext)
+  use(SavedTabsResponsiveLayoutContext)

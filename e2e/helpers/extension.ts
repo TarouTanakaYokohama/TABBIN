@@ -20,7 +20,7 @@ interface ExtensionFixtures {
 const extensionPath = path.join(process.cwd(), '.output', 'chrome-mv3')
 
 export const test = base.extend<ExtensionFixtures>({
-  extensionContext: async ({ browserName }, use) => {
+  extensionContext: async ({ browserName }, runFixture) => {
     void browserName
     const userDataDir = await mkdtemp(
       path.join(os.tmpdir(), 'tabbin-extension-e2e-'),
@@ -37,7 +37,7 @@ export const test = base.extend<ExtensionFixtures>({
       },
     )
 
-    await use(extensionContext)
+    await runFixture(extensionContext)
 
     await extensionContext.close()
     await rm(userDataDir, {
@@ -45,23 +45,24 @@ export const test = base.extend<ExtensionFixtures>({
       recursive: true,
     })
   },
-  serviceWorker: async ({ extensionContext }, use) => {
+  serviceWorker: async ({ extensionContext }, runFixture) => {
     let [serviceWorker] = extensionContext.serviceWorkers()
 
     if (!serviceWorker) {
       serviceWorker = await extensionContext.waitForEvent('serviceworker')
     }
 
-    await use(serviceWorker)
+    await runFixture(serviceWorker)
   },
-  extensionId: async ({ serviceWorker }, use) => {
+  extensionId: async ({ serviceWorker }, runFixture) => {
     const extensionId = new URL(serviceWorker.url()).host
-    await use(extensionId)
+    await runFixture(extensionId)
   },
-  page: async ({ extensionContext }, use) => {
+  page: async ({ extensionContext }, runFixture) => {
     const page = await extensionContext.newPage()
-    await use(page)
-    await page.close()
+    await runFixture(page).finally(async () => {
+      await page.close()
+    })
   },
 })
 
