@@ -26,6 +26,20 @@ describe('project-keywords', () => {
     })
   })
 
+  it('キーワード正規化は空白・重複・不正値を除外する', () => {
+    expect(
+      normalizeProjectKeywords({
+        titleKeywords: [' Docs ', 'docs', '', 123 as unknown as string, 'Plan'],
+        urlKeywords: undefined as unknown as string[],
+        domainKeywords: [' example.com ', 'EXAMPLE.com'],
+      }),
+    ).toEqual({
+      titleKeywords: ['Docs', 'Plan'],
+      urlKeywords: [],
+      domainKeywords: ['example.com'],
+    })
+  })
+
   it('タイトル部分一致でプロジェクトを選ぶ', () => {
     const projectId = findMatchingProjectIdForSavedTab({
       projects: [
@@ -116,6 +130,48 @@ describe('project-keywords', () => {
         url: 'https://other.test/path',
       },
       projectOrder: ['project-1'],
+    })
+
+    expect(projectId).toBeUndefined()
+  })
+
+  it('キーワードが空のプロジェクトは一致対象にしない', () => {
+    const projectId = findMatchingProjectIdForSavedTab({
+      projects: [
+        createProject({
+          projectKeywords: {
+            titleKeywords: [],
+            urlKeywords: [],
+            domainKeywords: [],
+          },
+        }),
+      ],
+      savedTab: {
+        title: 'Anything',
+        url: 'https://example.com/path',
+      },
+      projectOrder: ['project-1'],
+    })
+
+    expect(projectId).toBeUndefined()
+  })
+
+  it('不正 URL のドメインキーワードは一致しない', () => {
+    const projectId = findMatchingProjectIdForSavedTab({
+      projects: [
+        createProject({
+          projectKeywords: {
+            titleKeywords: [],
+            urlKeywords: [],
+            domainKeywords: ['example.com'],
+          },
+        }),
+      ],
+      savedTab: {
+        title: 'Invalid',
+        url: 'not a url',
+      },
+      projectOrder: [],
     })
 
     expect(projectId).toBeUndefined()

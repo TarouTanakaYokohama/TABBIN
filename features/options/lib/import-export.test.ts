@@ -355,7 +355,13 @@ describe('import-export ユーティリティ', () => {
       customProjectOrder: [],
       customProjects: [],
       parentCategories: [],
-      savedTabs: [],
+      savedTabs: [
+        {
+          id: 'project-urlids-group',
+          domain: 'https://project-urlids.example.com',
+          urlIds: ['imported-project-url', 'current-project-url'],
+        },
+      ],
       urls: [],
     })
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
@@ -490,6 +496,62 @@ describe('import-export ユーティリティ', () => {
     expect(result.customProjectOrder).toEqual(['project-2', 'project-1'])
   })
 
+  it('exportSettings は legacy customProjects.urls を不正項目を除いてそのまま出力する', async () => {
+    createChromeMock({
+      customProjectOrder: ['legacy-project', 'empty-project'],
+      customProjects: [
+        buildCustomProject({
+          id: 'legacy-project',
+          name: 'Legacy Project',
+          urls: [
+            {
+              url: 'https://legacy-project.example.com/ok',
+              title: 'OK',
+              notes: 'memo',
+              savedAt: 1,
+              category: 'Docs',
+            },
+            {
+              title: 'missing url',
+            },
+            null,
+          ] as CustomProject['urls'],
+          urlIds: [],
+        }),
+        buildCustomProject({
+          id: 'empty-project',
+          name: 'Empty Project',
+          urlIds: [],
+        }),
+      ],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const result = await exportSettings()
+
+    expect(result.customProjects).toEqual([
+      expect.objectContaining({
+        id: 'legacy-project',
+        urls: [
+          {
+            url: 'https://legacy-project.example.com/ok',
+            title: 'OK',
+            notes: 'memo',
+            savedAt: 1,
+            category: 'Docs',
+          },
+        ],
+      }),
+      expect.objectContaining({
+        id: 'empty-project',
+        urls: [],
+      }),
+    ])
+  })
+
   it('exportSettings は savedAnalyticsViews を含める', async () => {
     const savedAnalyticsViews = [
       buildAnalyticsView(),
@@ -569,7 +631,13 @@ describe('import-export ユーティリティ', () => {
         }),
       ],
       parentCategories: [],
-      savedTabs: [],
+      savedTabs: [
+        {
+          id: 'project-urlids-group',
+          domain: 'https://project-urlids.example.com',
+          urlIds: ['imported-project-url', 'current-project-url'],
+        },
+      ],
       urls: [
         {
           id: 'url-1',
@@ -1486,6 +1554,16 @@ describe('import-export ユーティリティ', () => {
       urls: [],
     })
     vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecord).mockImplementation(
+      async (url: string, title: string) => ({
+        id: url.includes('imported-project')
+          ? 'imported-project-url'
+          : 'current-project-url',
+        url,
+        title,
+        savedAt: 1,
+      }),
+    )
 
     const imported = {
       version: '6.0.0',
@@ -2971,6 +3049,155 @@ describe('import-export ユーティリティ', () => {
       }),
     ])
     expect(store.customProjectOrder).toEqual(['restored-project'])
+  })
+
+  it('importSettings は customProjects の urlIds から urls を復元して保存形式へ変換する', async () => {
+    const { store } = createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [
+        {
+          id: 'current-project-url',
+          url: 'https://current-project.example.com/path',
+          title: 'Current Project URL',
+          savedAt: 20,
+        },
+      ],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+
+    const imported = {
+      version: '4.0.1',
+      timestamp: '2026-03-08T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      customProjects: [
+        buildCustomProject({
+          id: 'project-from-urlids',
+          name: 'Project From URL IDs',
+          urlIds: [
+            'imported-project-url',
+            'current-project-url',
+            'missing-url',
+          ],
+          urls: undefined,
+          urlMetadata: {
+            'imported-project-url': {
+              notes: 'imported memo',
+              category: 'Imported',
+            },
+            'current-project-url': {
+              notes: 'current memo',
+              category: 'Current',
+            },
+          },
+          categories: ['Imported', 'Current'],
+          categoryOrder: ['Imported', 'Current'],
+          createdAt: 10,
+          updatedAt: 11,
+        }),
+      ],
+      customProjectOrder: ['project-from-urlids'],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [
+        {
+          id: 'imported-project-url',
+          url: 'https://imported-project.example.com/path',
+          title: 'Imported Project URL',
+          savedAt: 10,
+        },
+      ],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    expect(store.customProjects).toEqual([
+      buildCustomProject({
+        id: 'project-from-urlids',
+        name: 'Project From URL IDs',
+        urlIds: [],
+        categories: ['Imported', 'Current'],
+        categoryOrder: ['Imported', 'Current'],
+        createdAt: 10,
+        updatedAt: 11,
+      }),
+    ])
+  })
+
+  it('importSettings は customProjects の URL 変換失敗をスキップする', async () => {
+    const { store } = createChromeMock({
+      customProjectOrder: [],
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    })
+    vi.mocked(getUserSettings).mockResolvedValue(buildFullUserSettings())
+    vi.mocked(createOrUpdateUrlRecordsBatch).mockResolvedValue(new Map())
+    vi.mocked(createOrUpdateUrlRecord).mockRejectedValueOnce(
+      new Error('custom project url failed'),
+    )
+
+    const imported = {
+      version: '4.0.1',
+      timestamp: '2026-03-08T00:00:00.000Z',
+      userSettings: {
+        removeTabAfterOpen: true,
+        removeTabAfterExternalDrop: true,
+        excludePatterns: [],
+        enableCategories: true,
+        showSavedTime: false,
+        clickBehavior: 'saveWindowTabs',
+      },
+      customProjects: [
+        buildCustomProject({
+          id: 'project-with-failed-url',
+          name: 'Failed URL Project',
+          urls: [
+            {
+              url: 'https://failed-project-url.example.com',
+              title: 'Failed',
+              notes: 'drop me',
+              category: 'Drop',
+            },
+          ],
+          urlIds: [],
+          categories: ['Drop'],
+          categoryOrder: ['Drop'],
+          createdAt: 10,
+          updatedAt: 11,
+        }),
+      ],
+      customProjectOrder: ['project-with-failed-url'],
+      parentCategories: [],
+      savedTabs: [],
+      urls: [],
+    }
+
+    const result = await importSettings(JSON.stringify(imported), false)
+
+    expect(result.success).toBe(true)
+    expect(store.customProjects).toEqual([
+      buildCustomProject({
+        id: 'project-with-failed-url',
+        name: 'Failed URL Project',
+        urlIds: [],
+        categories: ['Drop'],
+        categoryOrder: ['Drop'],
+        createdAt: 10,
+        updatedAt: 11,
+      }),
+    ])
   })
 
   it('importSettings は overwrite モードで customProjects を savedTabs に合わせて正規化する', async () => {

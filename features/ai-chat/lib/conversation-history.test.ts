@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocked = vi.hoisted(() => ({
+  getChromeStorageLocal: vi.fn(),
   storageLocal: {
     get: vi.fn(),
     set: vi.fn(),
@@ -9,7 +10,7 @@ const mocked = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/browser/chrome-storage', () => ({
-  getChromeStorageLocal: () => mocked.storageLocal,
+  getChromeStorageLocal: mocked.getChromeStorageLocal,
   warnMissingChromeStorage: mocked.warnMissingChromeStorage,
 }))
 
@@ -23,6 +24,7 @@ import {
 describe('conversation-history', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocked.getChromeStorageLocal.mockReturnValue(mocked.storageLocal)
     mocked.storageLocal.get.mockResolvedValue({})
     mocked.storageLocal.set.mockResolvedValue(undefined)
   })
@@ -152,6 +154,39 @@ describe('conversation-history', () => {
     expect(mocked.storageLocal.set).toHaveBeenCalledTimes(1)
   })
 
+  it('中断文言が既に含まれる assistant メッセージは追記しない', async () => {
+    mocked.storageLocal.get.mockResolvedValue({
+      activeAiChatConversationId: 'conversation-1',
+      aiChatConversations: [
+        {
+          createdAt: 1,
+          id: 'conversation-1',
+          messages: [
+            {
+              content:
+                '途中までの回答\n\nThe previous response was interrupted. Send your message again if needed.',
+              id: 'message-2',
+              isStreaming: true,
+              role: 'assistant',
+            },
+          ],
+          title: '会話',
+          updatedAt: 1,
+        },
+      ],
+    })
+
+    const history = await loadConversationHistory()
+
+    expect(history.conversations[0]?.messages[0]).toEqual({
+      content:
+        '途中までの回答\n\nThe previous response was interrupted. Send your message again if needed.',
+      id: 'message-2',
+      isStreaming: false,
+      role: 'assistant',
+    })
+  })
+
   it('通常の履歴は読み込み時に保存し直さない', async () => {
     mocked.storageLocal.get.mockResolvedValue({
       activeAiChatConversationId: 'conversation-1',
@@ -199,5 +234,23 @@ describe('conversation-history', () => {
       activeAiChatConversationId: 'conversation-1',
       aiChatConversations: [conversation],
     })
+  })
+
+  it('chrome storage がない場合は既定履歴を返し保存は警告だけにする', async () => {
+    mocked.getChromeStorageLocal.mockReturnValue(null)
+
+    const history = await loadConversationHistory('新規')
+
+    expect(history.conversations[0]?.title).toBe('新規')
+    expect(mocked.warnMissingChromeStorage).toHaveBeenCalledWith(
+      'AIチャット履歴の読み込み',
+    )
+
+    await saveConversationHistory(history)
+
+    expect(mocked.warnMissingChromeStorage).toHaveBeenCalledWith(
+      'AIチャット履歴の保存',
+    )
+    expect(mocked.storageLocal.set).not.toHaveBeenCalled()
   })
 })

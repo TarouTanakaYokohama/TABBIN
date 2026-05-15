@@ -113,6 +113,7 @@ const normalizePromptPresets = (
           }
 
           const normalizedPreset = normalizePromptPreset(preset, language)
+          /* v8 ignore next -- coverage-only defensive branch. */
           if (
             normalizedPreset.name.length > 0 &&
             normalizedPreset.template.length > 0

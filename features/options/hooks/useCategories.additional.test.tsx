@@ -294,6 +294,48 @@ describe('useCategories の追加分岐', () => {
     expect(result.current.parentCategories).toEqual([])
   })
 
+  it('userSettings のストレージ変更で表示言語を更新する', async () => {
+    vi.mocked(getParentCategories).mockResolvedValue([])
+    ;(globalThis as unknown as { chrome: typeof chrome }).chrome = {
+      ...createChromeMock(),
+      i18n: {
+        getUILanguage: vi.fn(() => 'en-US'),
+      },
+    } as unknown as typeof chrome
+
+    const { result } = renderHook(() => useCategories())
+
+    await waitFor(() => {
+      expect(result.current.parentCategories).toEqual([])
+    })
+
+    act(() => {
+      listeners[0](
+        {
+          userSettings: {
+            oldValue: { language: 'ja' },
+            newValue: { language: 'system' },
+          },
+        },
+        'local',
+      )
+    })
+
+    act(() => {
+      result.current.setNewCategoryName('a'.repeat(26))
+    })
+
+    let success = true
+    await act(async () => {
+      success = await result.current.handleAddCategory()
+    })
+
+    expect(success).toBe(false)
+    expect(result.current.categoryError).toBe(
+      'Category names must be 25 characters or fewer',
+    )
+  })
+
   it('chrome.storage が利用できない環境でもクラッシュせず初期化できる', async () => {
     vi.mocked(getParentCategories).mockResolvedValue([])
     ;(globalThis as unknown as { chrome: typeof chrome }).chrome =

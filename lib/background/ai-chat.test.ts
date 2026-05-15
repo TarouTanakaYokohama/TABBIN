@@ -1018,6 +1018,86 @@ describe('runAiChatRequest', () => {
     ])
   })
 
+  it('tool output の chartSpecs は有効なチャート定義だけを抽出する', async () => {
+    mocked.generateText.mockResolvedValue({
+      text: 'チャートを作成しました。',
+      toolCalls: [
+        {
+          input: {},
+          toolCallId: 'chart-call',
+          toolName: 'generateSavedTabsAnalytics',
+        },
+      ],
+      toolResults: [
+        {
+          input: {},
+          output: {
+            chartSpecs: [
+              null,
+              {
+                title: 'broken chart',
+              },
+              {
+                data: [{ count: 1, label: 'React' }],
+                series: [{ dataKey: 'count', label: 'Count' }],
+                title: 'Valid chart',
+                type: 'bar',
+                xKey: 'label',
+              },
+            ],
+          },
+          toolCallId: 'chart-call',
+          toolName: 'generateSavedTabsAnalytics',
+        },
+      ],
+    })
+
+    const result = await runAiChatRequest({
+      history: [],
+      prompt: '保存タブをグラフにして',
+    })
+
+    expect(result.charts).toEqual([
+      {
+        data: [{ count: 1, label: 'React' }],
+        series: [{ dataKey: 'count', label: 'Count' }],
+        title: 'Valid chart',
+        type: 'bar',
+        xKey: 'label',
+      },
+    ])
+  })
+
+  it('chartSpecs が配列でない tool output はチャートなしとして扱う', async () => {
+    mocked.generateText.mockResolvedValue({
+      text: 'チャートはありません。',
+      toolCalls: [],
+      toolResults: [
+        {
+          input: {},
+          output: {
+            chartSpecs: 'invalid',
+          },
+          toolCallId: 'invalid-chart-call',
+          toolName: 'generateSavedTabsAnalytics',
+        },
+      ],
+    })
+
+    const result = await runAiChatRequest({
+      history: [],
+      prompt: '保存タブをグラフにして',
+    })
+
+    expect(result.charts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: 'よく保存しているドメイン',
+        }),
+      ]),
+    )
+  })
+
   it('tool result が無い場合は input-available として reasoning に反映する', async () => {
     mocked.generateText.mockResolvedValue({
       text: '確認中です。',

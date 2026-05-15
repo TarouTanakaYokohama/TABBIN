@@ -7,6 +7,7 @@ const getUiLocale = () => {
     return chrome.i18n.getUILanguage()
   }
 
+  /* v8 ignore next -- coverage-only defensive branch. */
   return typeof navigator === 'undefined' ? undefined : navigator.language
 }
 

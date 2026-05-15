@@ -5,6 +5,7 @@ import {
   DEFAULT_AI_SYSTEM_PROMPT_TEMPLATE,
   MAX_AI_SYSTEM_PROMPT_NAME_LENGTH,
   buildFinalSystemPrompt,
+  createAiSystemPromptPreset,
   getActiveAiSystemPrompt,
   normalizeAiSystemPromptSettings,
 } from './systemPromptPresets'
@@ -137,6 +138,30 @@ describe('systemPromptPresets', () => {
     expect(settings.aiSystemPrompts?.[0]?.name).toBe(
       'a'.repeat(MAX_AI_SYSTEM_PROMPT_NAME_LENGTH),
     )
+  })
+
+  it('新規 preset 作成時は UI locale から既定テンプレート言語を解決する', () => {
+    globalThis.chrome = {
+      i18n: {
+        getUILanguage: () => 'en-US',
+      },
+    } as unknown as typeof chrome
+
+    const preset = createAiSystemPromptPreset({
+      id: 'prompt-1',
+      name: '  English default  ',
+      now: 123,
+    })
+
+    expect(preset).toEqual(
+      expect.objectContaining({
+        createdAt: 123,
+        id: 'prompt-1',
+        name: 'English default',
+        updatedAt: 123,
+      }),
+    )
+    expect(preset.template).toContain('You are an assistant')
   })
 
   it('placeholder が無ければ保存タブ context を末尾に追加する', () => {

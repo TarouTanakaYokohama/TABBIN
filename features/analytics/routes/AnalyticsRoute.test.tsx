@@ -187,6 +187,110 @@ vi.mock('@/features/ai-chat/components/AiChartRenderer', () => ({
       >
         emit-chart-click
       </button>
+      <button
+        onClick={() => {
+          onChartPointClick?.({
+            label: '',
+            seriesKey: 'count',
+            spec: charts[0] ?? { title: '' },
+            value: 0,
+          })
+        }}
+        type='button'
+      >
+        emit-empty-chart-click
+      </button>
+      <button
+        onClick={() => {
+          onChartPointClick?.({
+            label: 'Uncategorized',
+            seriesKey: 'count',
+            spec: charts[0] ?? { title: '' },
+            value: 1,
+          })
+        }}
+        type='button'
+      >
+        emit-uncategorized-click
+      </button>
+      <button
+        onClick={() => {
+          onChartPointClick?.({
+            label: 'Inbox',
+            seriesKey: 'count',
+            spec: charts[0] ?? { title: '' },
+            value: 1,
+          })
+        }}
+        type='button'
+      >
+        emit-inbox-click
+      </button>
+      <button
+        onClick={() => {
+          onChartPointClick?.({
+            label: 'Catchup',
+            seriesKey: 'count',
+            spec: charts[0] ?? { title: '' },
+            value: 1,
+          })
+        }}
+        type='button'
+      >
+        emit-catchup-click
+      </button>
+      <button
+        onClick={() => {
+          onChartPointClick?.({
+            label: '2026-03-13',
+            seriesKey: 'count',
+            spec: charts[0] ?? { title: '' },
+            value: 1,
+          })
+        }}
+        type='button'
+      >
+        emit-time-click
+      </button>
+      <button
+        onClick={() => {
+          onChartPointClick?.({
+            label: 'news.example.net',
+            seriesKey: 'domain',
+            spec: charts[0] ?? { title: '' },
+            value: 1,
+          })
+        }}
+        type='button'
+      >
+        emit-domain-series-news-click
+      </button>
+      <button
+        onClick={() => {
+          onChartPointClick?.({
+            label: 'news.example.net',
+            seriesKey: 'custom',
+            spec: charts[0] ?? { title: '' },
+            value: 1,
+          })
+        }}
+        type='button'
+      >
+        emit-custom-series-news-click
+      </button>
+      <button
+        onClick={() => {
+          onChartPointClick?.({
+            label: 'news.example.net',
+            seriesKey: 'other',
+            spec: charts[0] ?? { title: '' },
+            value: 1,
+          })
+        }}
+        type='button'
+      >
+        emit-other-series-news-click
+      </button>
     </div>
   ),
 }))
@@ -305,6 +409,97 @@ vi.mock('@/features/ai-chat/components/SavedTabsChatWidget', () => ({
         type='button'
       >
         emit-chart-only
+      </button>
+      <button onClick={() => onMessagesChange?.([])} type='button'>
+        emit-empty-messages
+      </button>
+      <button
+        onClick={() =>
+          onMessagesChange?.([
+            {
+              charts: [],
+              content: 'user message',
+              id: 'user-1',
+              role: 'user',
+            },
+          ])
+        }
+        type='button'
+      >
+        emit-user-only
+      </button>
+      <button
+        onClick={() =>
+          onMessagesChange?.([
+            {
+              charts: [
+                {
+                  data: [{ count: 1, label: 'Invalid query' }],
+                  series: [
+                    {
+                      colorToken: 'chart-1',
+                      dataKey: 'count',
+                      label: 'Saved count',
+                    },
+                  ],
+                  title: 'Invalid query chart',
+                  type: 'bar',
+                  xKey: 'label',
+                },
+              ],
+              content: 'AI result with invalid query',
+              id: 'assistant-invalid',
+              role: 'assistant',
+              toolTraces: [
+                {
+                  input: {},
+                  output: {
+                    query: {
+                      groupBy: 'domain',
+                    },
+                  },
+                  state: 'output-available',
+                  title: 'Saved analytics',
+                  toolCallId: 'tool-invalid',
+                  toolName: 'generateSavedTabsAnalytics',
+                  type: 'dynamic-tool',
+                },
+                {
+                  input: {},
+                  output: null,
+                  state: 'output-available',
+                  title: 'Other tool',
+                  toolCallId: 'tool-other',
+                  toolName: 'otherTool',
+                  type: 'dynamic-tool',
+                },
+                {
+                  input: {},
+                  output: {
+                    query: null,
+                  },
+                  state: 'output-available',
+                  title: 'Saved analytics with null query',
+                  toolCallId: 'tool-null-query',
+                  toolName: 'generateSavedTabsAnalytics',
+                  type: 'dynamic-tool',
+                },
+                {
+                  input: {},
+                  output: null,
+                  state: 'output-available',
+                  title: 'Saved analytics without output',
+                  toolCallId: 'tool-null-output',
+                  toolName: 'generateSavedTabsAnalytics',
+                  type: 'dynamic-tool',
+                },
+              ],
+            },
+          ])
+        }
+        type='button'
+      >
+        emit-invalid-query-chart
       </button>
     </div>
   ),
@@ -500,6 +695,23 @@ describe('AnalyticsRoute', () => {
     expect(await screen.findByTestId('analytics-toaster')).toBeTruthy()
   })
 
+  it('初期ロード中に unmount されても state 更新しない', async () => {
+    let resolveRecords: ((value: AiSavedUrlRecord[]) => void) | undefined
+    analyticsRouteMocks.loadRecordsMock.mockReturnValueOnce(
+      new Promise(resolve => {
+        resolveRecords = resolve
+      }),
+    )
+
+    const { unmount } = render(<AnalyticsRoute />)
+
+    unmount()
+    resolveRecords?.(records)
+    await Promise.resolve()
+
+    expect(screen.queryByText('Analysis conditions')).toBeNull()
+  })
+
   it('初期条件でチャートを表示する', async () => {
     render(<AnalyticsRoute />)
 
@@ -589,6 +801,26 @@ describe('AnalyticsRoute', () => {
     })
 
     expect(await screen.findByText('Saved count by project')).toBeTruthy()
+  })
+
+  it('チャート種別・表示件数・リセット操作で分析条件を更新する', async () => {
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+
+    fireEvent.change(screen.getByLabelText('Chart type'), {
+      target: { value: 'pie' },
+    })
+    fireEvent.change(screen.getByLabelText('Top count'), {
+      target: { value: '0' },
+    })
+
+    const limitInput = screen.getByLabelText('Top count') as HTMLInputElement
+    expect(limitInput.value).toBe('1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+
+    expect(limitInput.value).toBe('8')
   })
 
   it('shows both time-series group-by options', async () => {
@@ -938,6 +1170,29 @@ describe('AnalyticsRoute', () => {
     expect(await screen.findByText('AI chart without query')).toBeTruthy()
   })
 
+  it('AI メッセージに有効なチャートがない場合は現在のチャートを維持する', async () => {
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'emit-empty-messages' }))
+    fireEvent.click(screen.getByRole('button', { name: 'emit-user-only' }))
+
+    expect(screen.getByText('Saved count by domain')).toBeTruthy()
+    expect(analyticsRouteMocks.updateMessagesMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('AI ツール出力の query が不正でもチャートだけを反映する', async () => {
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'emit-invalid-query-chart' }),
+    )
+
+    expect(await screen.findByText('Invalid query chart')).toBeTruthy()
+  })
+
   it('チャートクリックで項目に含まれる保存タブを表示する', async () => {
     render(<AnalyticsRoute />)
 
@@ -995,6 +1250,166 @@ describe('AnalyticsRoute', () => {
     expect(await screen.findByText('Saved tabs in this item')).toBeTruthy()
     expect(screen.getByText('Example Docs')).toBeTruthy()
     expect(screen.queryByText('Old Docs')).toBeNull()
+  })
+
+  it('空ラベルのドリルダウンは一致なし表示にする', async () => {
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'emit-empty-chart-click' }),
+    )
+
+    expect(
+      await screen.findByText('No matching saved tabs were found.'),
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: 'Open all tabs in this item' }),
+    ).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: 'Delete all tabs in this item' }),
+    ).toBeNull()
+  })
+
+  it('親カテゴリ・子カテゴリ・プロジェクト条件で未分類ドリルダウンを表示する', async () => {
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+
+    fireEvent.change(screen.getByLabelText('Group by'), {
+      target: { value: 'parentCategory' },
+    })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'emit-uncategorized-click' }),
+    )
+    expect(await screen.findByText('News Entry')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Group by'), {
+      target: { value: 'subCategory' },
+    })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'emit-uncategorized-click' }),
+    )
+    expect(await screen.findByText('News Entry')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Group by'), {
+      target: { value: 'project' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'emit-inbox-click' }))
+    expect(await screen.findByText('News Entry')).toBeTruthy()
+  })
+
+  it('時系列とプロジェクトカテゴリ条件でドリルダウンラベルを解決する', async () => {
+    analyticsRouteMocks.loadViewsMock.mockResolvedValue([
+      {
+        createdAt: 1,
+        id: 'view-project-category',
+        name: 'Project Category View',
+        query: {
+          chartType: 'bar',
+          compareBy: 'none',
+          filters: {
+            excludedDomains: [],
+            excludedParentCategories: [],
+            excludedProjectCategories: [],
+            excludedProjects: [],
+            excludedSubCategories: [],
+            includedDomains: [],
+            includedParentCategories: [],
+            includedProjectCategories: [],
+            includedProjects: [],
+            includedSubCategories: [],
+          },
+          groupBy: 'projectCategory',
+          limit: 8,
+          mode: 'both',
+          normalize: false,
+          sort: 'value-desc',
+          stacked: false,
+          timeBucket: 'day',
+          timeRange: '30d',
+        },
+        updatedAt: 1,
+      },
+    ])
+
+    render(<AnalyticsRoute />)
+
+    expect(
+      await screen.findByRole('button', { name: 'Project Category View' }),
+    ).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Group by'), {
+      target: { value: 'timeRecent' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'emit-time-click' }))
+    expect(await screen.findByText('Example Docs')).toBeTruthy()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Project Category View' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'emit-catchup-click' }))
+    expect(await screen.findByText('News Entry')).toBeTruthy()
+  })
+
+  it('モード比較ドリルダウンは seriesKey に合う保存元だけを残す', async () => {
+    analyticsRouteMocks.loadViewsMock.mockResolvedValue([
+      {
+        createdAt: 1,
+        id: 'view-compare-mode',
+        name: 'Compare Mode View',
+        query: {
+          chartType: 'bar',
+          compareBy: 'mode',
+          filters: {
+            excludedDomains: [],
+            excludedParentCategories: [],
+            excludedProjectCategories: [],
+            excludedProjects: [],
+            excludedSubCategories: [],
+            includedDomains: [],
+            includedParentCategories: [],
+            includedProjectCategories: [],
+            includedProjects: [],
+            includedSubCategories: [],
+          },
+          groupBy: 'domain',
+          limit: 8,
+          mode: 'both',
+          normalize: false,
+          sort: 'value-desc',
+          stacked: false,
+          timeBucket: 'day',
+          timeRange: '30d',
+        },
+        updatedAt: 1,
+      },
+    ])
+
+    render(<AnalyticsRoute />)
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Compare Mode View' }),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'emit-domain-series-news-click' }),
+    )
+
+    expect(
+      await screen.findByText('No matching saved tabs were found.'),
+    ).toBeTruthy()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'emit-custom-series-news-click' }),
+    )
+
+    expect(await screen.findByText('News Entry')).toBeTruthy()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'emit-other-series-news-click' }),
+    )
+
+    expect(await screen.findByText('News Entry')).toBeTruthy()
   })
 
   it('長いタイトルでもドリルダウンの操作列が見切れないレイアウトを使う', async () => {
@@ -1065,6 +1480,7 @@ describe('AnalyticsRoute', () => {
 
     expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
     fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+    openSpy.mockClear()
     fireEvent.click(
       await screen.findByRole('button', { name: 'Open all tabs in this item' }),
     )
@@ -1075,6 +1491,39 @@ describe('AnalyticsRoute', () => {
       '_blank',
       'noopener,noreferrer',
     )
+  })
+
+  it('ドリルダウンのすべて開くは10件以上で確認ダイアログを経由する', async () => {
+    const manyRecords = Array.from({ length: 10 }, (_, index) => ({
+      ...records[0],
+      id: `docs-${index}`,
+      title: `Docs ${index}`,
+      url: `https://docs.example.com/${index}`,
+    }))
+    analyticsRouteMocks.loadRecordsMock.mockResolvedValue(manyRecords)
+    const openSpy = vi
+      .spyOn(window, 'open')
+      .mockImplementation(vi.fn() as never)
+
+    render(<AnalyticsRoute />)
+
+    expect(
+      await screen.findByText(
+        'Created Saved count by domain from 10 saved records.',
+      ),
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+    openSpy.mockClear()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open all tabs in this item' }),
+    )
+
+    expect(await screen.findByText('Open all tabs?')).toBeTruthy()
+    expect(openSpy).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+
+    expect(openSpy).toHaveBeenCalledTimes(10)
   })
 
   it('confirmDeleteAll=false のときドリルダウンのすべて削除で対象URL IDを一括削除する', async () => {
@@ -1148,6 +1597,32 @@ describe('AnalyticsRoute', () => {
     expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(1)
   })
 
+  it('一括削除確認はキャンセルできる', async () => {
+    analyticsRouteMocks.loadSettingsMock.mockResolvedValue({
+      ...defaultSettings,
+      confirmDeleteAll: true,
+    })
+    analyticsRouteMocks.loadRecordsMock.mockResolvedValue(bulkDeleteRecords)
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Delete all tabs in this item',
+      }),
+    )
+
+    expect(await screen.findByText('Delete all tabs?')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('Delete all tabs?')).toBeNull()
+    })
+    expect(analyticsRouteMocks.sendMessageMock).not.toHaveBeenCalled()
+  })
+
   it('confirmDeleteEach=false のとき即時削除して一覧を再読込する', async () => {
     analyticsRouteMocks.loadRecordsMock
       .mockResolvedValueOnce(records)
@@ -1199,6 +1674,65 @@ describe('AnalyticsRoute', () => {
     )
   })
 
+  it('削除 Undo の復元失敗はトーストで通知する', async () => {
+    analyticsRouteMocks.loadRecordsMock
+      .mockResolvedValueOnce(records)
+      .mockResolvedValueOnce([records[1]])
+    analyticsRouteMocks.storageSetMock.mockRejectedValueOnce(
+      new Error('restore failed'),
+    )
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete tab' }))
+
+    await waitFor(() => {
+      expect(toast.info).toHaveBeenCalled()
+    })
+
+    const undoOptions = vi.mocked(toast.info).mock.calls.at(-1)?.[1] as
+      | {
+          action?: {
+            onClick?: () => Promise<void>
+          }
+        }
+      | undefined
+    await undoOptions?.action?.onClick?.()
+
+    expect(toast.error).toHaveBeenCalledWith('Could not restore saved data')
+  })
+
+  it('単体削除と一括削除の background エラーを処理する', async () => {
+    analyticsRouteMocks.sendMessageMock.mockImplementation(
+      (
+        _message: unknown,
+        callback?: (response: { error?: string; status: string }) => void,
+      ) => {
+        callback?.({ error: 'background failed', status: 'error' })
+      },
+    )
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete tab' }))
+
+    await waitFor(() => {
+      expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(1)
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Delete all tabs in this item' }),
+    )
+
+    await waitFor(() => {
+      expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(2)
+    })
+  })
+
   it('confirmDeleteEach=true のとき確認ダイアログ経由で削除する', async () => {
     analyticsRouteMocks.loadSettingsMock.mockResolvedValue({
       ...defaultSettings,
@@ -1222,6 +1756,27 @@ describe('AnalyticsRoute', () => {
     await waitFor(() => {
       expect(analyticsRouteMocks.sendMessageMock).toHaveBeenCalledTimes(1)
     })
+  })
+
+  it('単体削除確認はキャンセルできる', async () => {
+    analyticsRouteMocks.loadSettingsMock.mockResolvedValue({
+      ...defaultSettings,
+      confirmDeleteEach: true,
+    })
+
+    render(<AnalyticsRoute />)
+
+    expect((await screen.findAllByText('Saved count by domain')).length).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'emit-chart-click' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete tab' }))
+
+    expect(await screen.findByText('Delete this tab?')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('Delete this tab?')).toBeNull()
+    })
+    expect(analyticsRouteMocks.sendMessageMock).not.toHaveBeenCalled()
   })
 
   it('削除中は二重送信しない', async () => {

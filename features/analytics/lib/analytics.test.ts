@@ -260,6 +260,83 @@ describe('analytics', () => {
     ])
   })
 
+  it('未分類の project/projectCategory と週/月タイトルを生成する', () => {
+    const projectResult = generateAnalyticsResult(
+      records,
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'project',
+        mode: 'both',
+        timeRange: '30d',
+      },
+      {
+        now: NOW,
+      },
+    )
+    const projectCategoryResult = generateAnalyticsResult(
+      records,
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'projectCategory',
+        mode: 'both',
+        timeRange: '30d',
+      },
+      {
+        now: NOW,
+      },
+    )
+    const weeklyResult = generateAnalyticsResult(
+      records,
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'timeTop',
+        mode: 'both',
+        timeBucket: 'week',
+        timeRange: '30d',
+      },
+      {
+        now: NOW,
+      },
+    )
+    const monthlyResult = generateAnalyticsResult(
+      records,
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'timeTop',
+        mode: 'both',
+        timeBucket: 'month',
+        timeRange: '30d',
+      },
+      {
+        now: NOW,
+      },
+    )
+    const normalizedEmptyResult = generateAnalyticsResult(
+      [],
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'domain',
+        mode: 'both',
+        normalize: true,
+      },
+      {
+        now: NOW,
+      },
+    )
+
+    expect(projectResult.chartSpecs[0]?.data).toContainEqual({
+      count: 1,
+      label: 'Uncategorized',
+    })
+    expect(projectCategoryResult.chartSpecs[0]?.data).toContainEqual({
+      count: 1,
+      label: 'Uncategorized',
+    })
+    expect(weeklyResult.chartSpecs[0]?.title).toBe('Weekly saved trend')
+    expect(monthlyResult.chartSpecs[0]?.title).toBe('Monthly saved trend')
+    expect(normalizedEmptyResult.chartSpecs[0]?.data).toEqual([])
+  })
+
   it('applies include/exclude filters and percent normalization', () => {
     const result = generateAnalyticsResult(
       records,
@@ -288,6 +365,166 @@ describe('analytics', () => {
       valueFormat: 'percent',
     })
     expect(result.chartSpecs[0]?.data).toEqual([{ count: 100, label: 'Work' }])
+  })
+
+  it('custom mode, label/value sorts, and uncategorized category labels are supported', () => {
+    const customResult = generateAnalyticsResult(
+      records,
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'projectCategory',
+        mode: 'custom',
+        sort: 'label-desc',
+        timeRange: '30d',
+      },
+      {
+        now: NOW,
+      },
+    )
+
+    expect(customResult.filteredRecordCount).toBe(3)
+    expect(customResult.chartSpecs[0]).toMatchObject({
+      title: 'Saved count by project category',
+    })
+    expect(customResult.chartSpecs[0]?.data).toEqual([
+      { count: 1, label: 'Review' },
+      { count: 1, label: 'Reading' },
+      { count: 1, label: 'Catchup' },
+    ])
+
+    const subCategoryResult = generateAnalyticsResult(
+      records,
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'subCategory',
+        mode: 'custom',
+        sort: 'value-asc',
+        timeRange: '30d',
+      },
+      {
+        messages: {
+          uncategorizedLabel: 'No category',
+        },
+        now: NOW,
+      },
+    )
+
+    expect(subCategoryResult.chartSpecs[0]).toMatchObject({
+      title: 'Saved count by sub category',
+    })
+    expect(subCategoryResult.chartSpecs[0]?.data).toEqual([
+      { count: 1, label: 'Docs' },
+      { count: 1, label: 'No category' },
+      { count: 1, label: 'Ops' },
+    ])
+  })
+
+  it('renders weekly and monthly bucket titles with timezone-aware labels', () => {
+    const weeklyResult = generateAnalyticsResult(
+      records,
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'timeRecent',
+        mode: 'both',
+        timeBucket: 'week',
+        timeRange: '30d',
+      },
+      {
+        now: NOW,
+        timeZone: 'Asia/Tokyo',
+      },
+    )
+
+    expect(weeklyResult.chartSpecs[0]).toMatchObject({
+      title: 'Weekly saved trend',
+    })
+    expect(weeklyResult.chartSpecs[0]?.data).toEqual([
+      { count: 1, label: '2026-03-02' },
+      { count: 3, label: '2026-03-09' },
+    ])
+
+    const monthlyResult = generateAnalyticsResult(
+      records,
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'timeRecent',
+        mode: 'custom',
+        timeBucket: 'month',
+        timeRange: '365d',
+      },
+      {
+        now: NOW,
+        timeZone: 'Asia/Tokyo',
+      },
+    )
+
+    expect(monthlyResult.chartSpecs[0]).toMatchObject({
+      title: 'Monthly saved trend',
+    })
+    expect(monthlyResult.chartSpecs[0]?.data).toEqual([
+      { count: 3, label: '2026-03' },
+    ])
+  })
+
+  it('normalizes non-time mode comparison charts and honors custom titles/messages', () => {
+    const result = generateAnalyticsResult(
+      records,
+      {
+        ...getDefaultAnalyticsQuery(),
+        compareBy: 'mode',
+        groupBy: 'domain',
+        mode: 'both',
+        normalize: true,
+        sort: 'value-asc',
+        stacked: true,
+        timeRange: '30d',
+        title: 'Mode share by domain',
+      },
+      {
+        messages: {
+          chartDescriptionCompareMode: '{{count}} compared',
+          chartSummary: '{{title}} / {{count}}',
+        },
+        now: NOW,
+      },
+    )
+
+    expect(result.summary).toBe('Mode share by domain / 4')
+    expect(result.chartSpecs[0]).toMatchObject({
+      description: '4 compared',
+      stacked: true,
+      title: 'Mode share by domain',
+      valueFormat: 'percent',
+    })
+    expect(result.chartSpecs[0]?.data).toEqual([
+      { custom: 100, domain: 0, label: 'news.example.net' },
+      { custom: 50, domain: 50, label: 'app.example.org' },
+      { custom: 33, domain: 67, label: 'docs.example.com' },
+    ])
+  })
+
+  it('空データの normalize は0件として扱い日次タイトルを返す', () => {
+    const result = generateAnalyticsResult(
+      [],
+      {
+        ...getDefaultAnalyticsQuery(),
+        groupBy: 'timeTop',
+        mode: 'both',
+        normalize: true,
+        timeBucket: 'day',
+        timeRange: 'all',
+      },
+      {
+        now: NOW,
+      },
+    )
+
+    expect(result.filteredRecordCount).toBe(0)
+    expect(result.chartSpecs[0]).toMatchObject({
+      title: 'Daily saved trend',
+      valueFormat: 'percent',
+    })
+    expect(result.chartSpecs[0]?.data).toEqual([])
   })
 
   it('defaults to the all-time range', () => {

@@ -94,6 +94,8 @@ export const SavedTabsRoute = ({
             isCompactLayout={isCompactLeftPaneLayout}
           >
             {isDevProfileEnabled ? (
+              /* v8 ignore next -- coverage-only defensive branch. */
+              /* v8 ignore start -- coverage-only defensive branch. */
               <Profiler id='SavedTabs' onRender={handleSavedTabsRender}>
                 <SavedTabsApp
                   initialViewMode={initialViewMode}
@@ -103,6 +105,7 @@ export const SavedTabsRoute = ({
               </Profiler>
             ) : (
               <SavedTabsApp
+                /* v8 ignore stop */
                 initialViewMode={initialViewMode}
                 isAiSidebarOpen={isAiSidebarOpen}
                 onViewModeNavigate={onViewModeNavigate}

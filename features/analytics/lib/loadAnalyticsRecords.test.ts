@@ -114,4 +114,32 @@ describe('loadAnalyticsRecords', () => {
       ],
     })
   })
+
+  it('savedTabs が配列でなく excludePatterns が未定義でも空配列に正規化する', async () => {
+    const storageGet = vi.mocked(chrome.storage.local.get) as unknown as {
+      mockResolvedValueOnce: (value: unknown) => void
+    }
+    storageGet.mockResolvedValueOnce({
+      savedTabs: 'invalid',
+    })
+    mocks.getUserSettings.mockResolvedValueOnce({
+      excludePatterns: undefined as unknown as string[],
+    })
+
+    await loadAnalyticsRecords()
+
+    expect(mocks.buildAiSavedUrlRecords).toHaveBeenCalledWith({
+      customProjects: [{ id: 'project-1' }],
+      parentCategories: [{ id: 'category-1' }],
+      savedTabs: [],
+      urlRecords: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'Allowed',
+          url: 'https://allowed.example',
+        },
+      ],
+    })
+  })
 })

@@ -74,4 +74,10 @@ describe('CustomModeContainer', () => {
     expect(screen.queryByText('Loading...')).toBeNull()
     expect(screen.queryByText('custom-project-section')).toBeNull()
   })
+
+  it('renders the custom project section when loaded', () => {
+    render(<CustomModeContainer {...createProps()} />)
+
+    expect(screen.getByText('custom-project-section')).toBeTruthy()
+  })
 })
