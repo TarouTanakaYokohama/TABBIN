@@ -195,6 +195,50 @@ describe('useSettings の追加分岐', () => {
     expect(saveUserSettings).not.toHaveBeenCalled()
   })
 
+  it('addExcludePattern は空白入力をクリアして false を返し、保存失敗も false を返す', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
+    vi.mocked(saveUserSettings).mockRejectedValueOnce(new Error('add failed'))
+
+    const { result } = renderHook(() => useSettings())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    act(() => {
+      result.current.handleExcludePatternInputChange({
+        target: { value: '   ' },
+      } as ChangeEvent<HTMLInputElement>)
+    })
+
+    let success = true
+    await act(async () => {
+      success = await result.current.addExcludePattern()
+    })
+
+    expect(success).toBe(false)
+    expect(result.current.excludePatternInput).toBe('')
+
+    act(() => {
+      result.current.handleExcludePatternInputChange({
+        target: { value: 'https://failed.example.com' },
+      } as ChangeEvent<HTMLInputElement>)
+    })
+
+    await act(async () => {
+      success = await result.current.addExcludePattern()
+    })
+
+    expect(success).toBe(false)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '除外パターンの追加エラー:',
+      expect.any(Error),
+    )
+  })
+
   it('removeExcludePattern は対象のみ削除して保存する', async () => {
     vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
     vi.mocked(saveUserSettings).mockResolvedValue(undefined)
@@ -216,6 +260,29 @@ describe('useSettings の追加分岐', () => {
       expect.objectContaining({
         excludePatterns: ['chrome-extension://'],
       }),
+    )
+  })
+
+  it('removeExcludePattern は保存失敗をログに出す', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    vi.mocked(getUserSettings).mockResolvedValue(defaultSettings)
+    vi.mocked(saveUserSettings).mockRejectedValue(new Error('remove failed'))
+
+    const { result } = renderHook(() => useSettings())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    await act(async () => {
+      await result.current.removeExcludePattern('chrome://')
+    })
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '除外パターンの削除エラー:',
+      expect.any(Error),
     )
   })
 

@@ -33,6 +33,10 @@ describe('title helpers', () => {
     expect(resolveTitlePageKeyFromPathname('/options')).toBe('options')
     expect(resolveTitlePageKeyFromPathname('/saved-tabs')).toBe('savedTabs')
     expect(resolveTitlePageKeyFromPathname('/analytics')).toBe('analytics')
+    expect(resolveTitlePageKeyFromPathname('/changelog.html')).toBe('changelog')
+    expect(resolveTitlePageKeyFromPathname('/periodic-execution')).toBe(
+      'periodicExecution',
+    )
   })
 
   it('pathname から document title を直接解決する', () => {

@@ -41,6 +41,18 @@ vi.mock('@/lib/storage/tabs', () => ({
 describe('useTabData', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    getParentCategoriesMock.mockReset()
+    getParentCategoriesMock.mockResolvedValue([])
+    resolveTabGroupsWithUrlsMock.mockReset()
+    resolveTabGroupsWithUrlsMock.mockImplementation(async groups => groups)
+    getUserSettingsMock.mockReset()
+    getUserSettingsMock.mockResolvedValue({} as UserSettings)
+    migrateParentCategoriesToDomainNamesMock.mockReset()
+    migrateParentCategoriesToDomainNamesMock.mockResolvedValue(undefined)
+    migrateToUrlsStorageMock.mockReset()
+    migrateToUrlsStorageMock.mockResolvedValue(undefined)
     const chromeGlobal = globalThis as unknown as { chrome: typeof chrome }
     chromeGlobal.chrome = {
       storage: {
@@ -54,9 +66,181 @@ describe('useTabData', () => {
             }
             return {}
           }),
+          set: vi.fn(),
         },
       },
     } as unknown as typeof chrome
+  })
+
+  it('初期ロードで親カテゴリと保存タブを修復して通知する', async () => {
+    const settings = {
+      removeTabAfterOpen: true,
+    } as UserSettings
+    const savedTabs: TabGroup[] = [
+      {
+        id: 'group-by-id',
+        domain: 'id.example.com',
+        urlIds: ['url-1'],
+        urlSubCategories: {
+          'url-1': 'Docs',
+        },
+      },
+      {
+        id: 'group-by-name',
+        domain: 'name.example.com',
+        urls: [
+          {
+            title: 'Legacy',
+            url: 'https://name.example.com/legacy',
+          },
+        ],
+      },
+      {
+        id: 'already-linked',
+        domain: 'linked.example.com',
+        parentCategoryId: 'existing-category',
+      },
+    ]
+    const repairedCategories = [
+      {
+        id: 'category-by-id',
+        name: 'By ID',
+        domains: ['group-by-id'],
+        domainNames: [],
+      },
+      {
+        id: 'category-by-name',
+        name: 'By Name',
+        domains: [],
+        domainNames: ['name.example.com'],
+      },
+    ]
+    getUserSettingsMock.mockResolvedValue(settings)
+    getParentCategoriesMock
+      .mockResolvedValueOnce([
+        {
+          id: 'invalid',
+          name: 'Invalid',
+          domains: ['group-by-id'],
+        },
+      ])
+      .mockResolvedValueOnce(repairedCategories)
+    const storageGet = vi.mocked(chrome.storage.local.get) as unknown as {
+      mockImplementation: (
+        implementation: (key?: string) => Promise<unknown>,
+      ) => void
+      mockResolvedValueOnce: (value: unknown) => void
+    }
+    storageGet.mockImplementation(async (key?: string) => {
+      if (key === 'savedTabs') {
+        return { savedTabs }
+      }
+      if (key === 'urls') {
+        return {
+          urls: [
+            {
+              id: 'url-1',
+              savedAt: 1,
+              title: 'One',
+              url: 'https://id.example.com/one',
+            },
+          ],
+        }
+      }
+      return {
+        savedTabs,
+        urls: [],
+      }
+    })
+    const onCategoriesLoaded = vi.fn()
+    const onSettingsLoaded = vi.fn()
+
+    const { result } = renderHook(() =>
+      useTabData(onCategoriesLoaded, onSettingsLoaded),
+    )
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(onSettingsLoaded).toHaveBeenCalledWith(settings)
+    expect(onCategoriesLoaded).toHaveBeenCalledWith(repairedCategories)
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      savedTabs: [
+        {
+          ...savedTabs[0],
+          parentCategoryId: 'category-by-id',
+        },
+        {
+          ...savedTabs[1],
+          parentCategoryId: 'category-by-name',
+        },
+        savedTabs[2],
+      ],
+    })
+    expect(result.current.tabGroups).toEqual([
+      {
+        ...savedTabs[0],
+        parentCategoryId: 'category-by-id',
+      },
+      {
+        ...savedTabs[1],
+        parentCategoryId: 'category-by-name',
+      },
+      savedTabs[2],
+    ])
+  })
+
+  it('マイグレーションや保存タブ読み込みの失敗時もロードを終了する', async () => {
+    migrateParentCategoriesToDomainNamesMock.mockRejectedValueOnce(
+      new Error('category migration failed'),
+    )
+    migrateToUrlsStorageMock.mockRejectedValueOnce(
+      new Error('url migration failed'),
+    )
+    vi.mocked(chrome.storage.local.get).mockRejectedValueOnce(
+      new Error('storage failed'),
+    )
+
+    const { result } = renderHook(() => useTabData(vi.fn(), vi.fn()))
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(console.error).toHaveBeenCalledWith(
+      '親カテゴリ移行エラー:',
+      expect.any(Error),
+    )
+    expect(console.error).toHaveBeenCalledWith(
+      'URL管理マイグレーションエラー:',
+      expect.any(Error),
+    )
+    expect(console.error).toHaveBeenCalledWith(
+      '保存されたタブの読み込みエラー:',
+      expect.any(Error),
+    )
+  })
+
+  it('親カテゴリが有効な場合は再マイグレーションせずそのまま読み込む', async () => {
+    const validCategories = [
+      {
+        id: 'category-1',
+        name: 'Valid',
+        domains: [],
+        domainNames: ['example.com'],
+      },
+    ]
+    getParentCategoriesMock.mockResolvedValue(validCategories)
+
+    const { result } = renderHook(() => useTabData(vi.fn(), vi.fn()))
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(migrateParentCategoriesToDomainNamesMock).toHaveBeenCalledTimes(1)
+    expect(getParentCategoriesMock).toHaveBeenCalledTimes(1)
   })
 
   it('refreshTabGroupsWithUrls で URL 解決を一度だけ実行し、tabGroups effect と二重化しない', async () => {
@@ -108,5 +292,99 @@ describe('useTabData', () => {
 
     expect(resolveTabGroupsWithUrlsMock).toHaveBeenCalledTimes(1)
     expect(resolveTabGroupsWithUrlsMock).toHaveBeenCalledWith([group])
+  })
+
+  it('loadTabGroupsWithUrls は空・新形式・旧形式・URLなしを処理する', async () => {
+    const groups: TabGroup[] = [
+      {
+        id: 'new-format',
+        domain: 'new.example.com',
+        urlIds: ['url-1'],
+      },
+      {
+        id: 'legacy',
+        domain: 'legacy.example.com',
+        urls: [
+          {
+            title: 'Legacy',
+            url: 'https://legacy.example.com/a',
+          },
+        ],
+      },
+      {
+        id: 'empty',
+        domain: 'empty.example.com',
+      },
+    ]
+    resolveTabGroupsWithUrlsMock.mockResolvedValueOnce(groups)
+
+    const { result } = renderHook(() => useTabData(vi.fn(), vi.fn()))
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    await expect(result.current.loadTabGroupsWithUrls([])).resolves.toEqual([])
+    await expect(result.current.loadTabGroupsWithUrls(groups)).resolves.toEqual(
+      groups,
+    )
+
+    expect(resolveTabGroupsWithUrlsMock).toHaveBeenCalledWith(groups)
+  })
+
+  it('setTabGroups と storage からの refresh は state を更新する', async () => {
+    const storedGroups: TabGroup[] = [
+      {
+        id: 'stored',
+        domain: 'stored.example.com',
+      },
+    ]
+    const appendedGroup: TabGroup = {
+      id: 'appended',
+      domain: 'appended.example.com',
+    }
+    const storageGet = vi.mocked(chrome.storage.local.get) as unknown as {
+      mockImplementation: (
+        implementation: (key?: string) => Promise<unknown>,
+      ) => void
+      mockResolvedValueOnce: (value: unknown) => void
+    }
+    storageGet.mockImplementation(async (key?: string) => {
+      if (key === 'savedTabs') {
+        return { savedTabs: storedGroups }
+      }
+      if (key === 'urls') {
+        return { urls: [] }
+      }
+      return {}
+    })
+
+    const { result } = renderHook(() => useTabData(vi.fn(), vi.fn()))
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    await act(async () => {
+      result.current.setTabGroups(previous => [...previous, appendedGroup])
+    })
+
+    expect(result.current.tabGroups).toEqual([...storedGroups, appendedGroup])
+
+    await act(async () => {
+      await result.current.refreshTabGroupsWithUrls()
+    })
+
+    expect(result.current.tabGroups).toEqual(storedGroups)
+
+    storageGet.mockResolvedValueOnce({
+      savedTabs: 'invalid',
+    })
+
+    await act(async () => {
+      await result.current.refreshTabGroupsWithUrls()
+    })
+
+    expect(result.current.tabGroups).toEqual([])
   })
 })

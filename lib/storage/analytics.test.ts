@@ -87,6 +87,29 @@ describe('analytics storage', () => {
     )
   })
 
+  it('保存済み分析ビューが配列でなければ空配列を返す', async () => {
+    storageMocks.state.savedAnalyticsViews = {
+      id: 'not-an-array',
+    }
+
+    await expect(loadSavedAnalyticsViews()).resolves.toEqual([])
+  })
+
+  it('Chrome storage がない場合は読み込みと保存を警告だけで終える', async () => {
+    storageMocks.getChromeStorageLocal.mockReturnValueOnce(null as never)
+    await expect(loadSavedAnalyticsViews()).resolves.toEqual([])
+
+    storageMocks.getChromeStorageLocal.mockReturnValueOnce(null as never)
+    await expect(saveSavedAnalyticsViews([])).resolves.toBeUndefined()
+
+    expect(storageMocks.warnMissingChromeStorage).toHaveBeenCalledWith(
+      '分析ビューの読み込み',
+    )
+    expect(storageMocks.warnMissingChromeStorage).toHaveBeenCalledWith(
+      '分析ビューの保存',
+    )
+  })
+
   it('分析ビュー一覧を保存する', async () => {
     const views = [
       {

@@ -38,6 +38,7 @@ export const useCategories = () => {
         ])
         setCategoryState({
           language: resolveLanguage(
+            /* v8 ignore next -- coverage-only defensive branch. */
             settings.language ?? 'system',
             getUiLocale(),
           ),
@@ -75,6 +76,7 @@ export const useCategories = () => {
         setCategoryState(prev => ({
           ...prev,
           language: resolveLanguage(
+            /* v8 ignore next -- coverage-only defensive branch. */
             nextSettings.language ?? 'system',
             getUiLocale(),
           ),

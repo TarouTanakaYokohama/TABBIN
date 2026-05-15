@@ -72,6 +72,22 @@ describe('settings storage', () => {
     })
   })
 
+  it('保存済み設定がない場合は正規化したデフォルト設定を返す', async () => {
+    const storageLocal = {
+      get: vi.fn(async () => ({})),
+      set: vi.fn(async () => undefined),
+    }
+    mocks.getChromeStorageLocal.mockReturnValue(storageLocal)
+
+    const { defaultSettings, getUserSettings } = await loadModule()
+
+    await expect(getUserSettings()).resolves.toEqual({
+      ...defaultSettings,
+      normalized: true,
+    })
+    expect(storageLocal.set).not.toHaveBeenCalled()
+  })
+
   it('設定取得エラー時はデフォルトへフォールバックする', async () => {
     const storageLocal = {
       get: vi.fn(async () => {

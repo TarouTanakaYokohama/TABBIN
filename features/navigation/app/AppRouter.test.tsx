@@ -162,11 +162,21 @@ describe('AppRouter', () => {
   })
 
   it('mode 指定が無い saved-tabs route は domain で開く', async () => {
+    const remove = vi.fn(async () => undefined)
+    globalThis.chrome = {
+      storage: {
+        local: {
+          remove,
+        },
+      },
+    } as unknown as typeof chrome
+
     render(<AppRouter initialEntries={['/saved-tabs']} />)
 
     expect(
       await screen.findByText('saved-tabs-route:?mode=domain'),
     ).toBeTruthy()
+    expect(remove).toHaveBeenCalledWith('viewMode')
   })
 
   it('不明なルートは domain で開く', async () => {

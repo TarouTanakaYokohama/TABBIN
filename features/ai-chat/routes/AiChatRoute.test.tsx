@@ -133,6 +133,25 @@ describe('AiChatRoute', () => {
     expect(screen.getByText('history-variant:sidebar-toggle')).toBeTruthy()
   })
 
+  it('履歴項目クリックで会話を選択し、breakpoint 跨ぎの resize で履歴表示を切り替える', () => {
+    render(createElement(AiChatRoute))
+
+    fireEvent.click(
+      screen
+        .getAllByRole('button', { name: /別の会話/ })
+        .find(button => button.className.includes('flex-col')) as HTMLElement,
+    )
+    expect(mocked.selectConversation).toHaveBeenCalledWith('conversation-2')
+
+    window.innerWidth = 800
+    fireEvent(window, new Event('resize'))
+    expect(screen.queryByText('Recent conversations')).toBeNull()
+
+    window.innerWidth = 1280
+    fireEvent(window, new Event('resize'))
+    expect(screen.getByText('Recent conversations')).toBeTruthy()
+  })
+
   it('履歴項目の本文ボタンは縦積みレイアウトで削除ボタンを押し出さない', () => {
     render(createElement(AiChatRoute))
 
@@ -207,6 +226,22 @@ describe('AiChatRoute', () => {
     expect(screen.queryByText('Loading...')).toBeNull()
   })
 
+  it('active conversation がない場合も loading 表示に戻す', () => {
+    mocked.useSharedAiChatHistory.mockReturnValue({
+      activeConversation: null,
+      createConversation: mocked.createConversation,
+      deleteConversation: mocked.deleteConversation,
+      historyItems: [],
+      isLoading: false,
+      selectConversation: mocked.selectConversation,
+      updateMessages: mocked.updateMessages,
+    })
+
+    render(createElement(AiChatRoute))
+
+    expect(screen.getByRole('status')).toBeTruthy()
+  })
+
   it('履歴削除ボタンから確認モーダルを開き、削除を実行できる', () => {
     render(createElement(AiChatRoute))
 
@@ -221,5 +256,35 @@ describe('AiChatRoute', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(mocked.deleteConversation).toHaveBeenCalledWith('conversation-1')
+  })
+
+  it('履歴削除確認はキャンセルできる', () => {
+    render(createElement(AiChatRoute))
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Delete 最初の会話',
+      }),
+    )
+
+    expect(screen.getByText('Delete this conversation?')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByText('Delete this conversation?')).toBeNull()
+    expect(mocked.deleteConversation).not.toHaveBeenCalled()
+  })
+
+  it('履歴削除確認はキャンセルできる', () => {
+    render(createElement(AiChatRoute))
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Delete 最初の会話',
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(mocked.deleteConversation).not.toHaveBeenCalled()
   })
 })

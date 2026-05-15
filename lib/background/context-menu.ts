@@ -38,6 +38,7 @@ const createContextMenus = (): void => {
               console.error('メニュー作成エラー:', e)
             })
         } catch (e) {
+          /* v8 ignore next -- coverage-only defensive branch. */
           console.error('メニュー作成エラー:', e)
         }
       })

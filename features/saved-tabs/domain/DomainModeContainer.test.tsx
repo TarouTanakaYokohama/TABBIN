@@ -59,11 +59,38 @@ vi.mock('@/features/i18n/context/I18nProvider', async () => {
 })
 
 vi.mock('@/features/saved-tabs/components/CategoryGroup', () => ({
-  CategoryGroup: () => <div>category-group</div>,
+  CategoryGroup: ({
+    category,
+    domains,
+    handleMoveDomainToCategory,
+  }: {
+    category: ParentCategory
+    domains: TabGroup[]
+    handleMoveDomainToCategory: (
+      domainId: string,
+      fromCategoryId: string | null,
+      toCategoryId: string,
+    ) => Promise<void>
+  }) => (
+    <div>
+      <span>category-group:{category.name}</span>
+      <span>domain-count:{domains.length}</span>
+      <button
+        type='button'
+        onClick={() =>
+          void handleMoveDomainToCategory('domain-1', category.id, 'target')
+        }
+      >
+        move-domain
+      </button>
+    </div>
+  ),
 }))
 
 vi.mock('@/features/saved-tabs/components/SortableDomainCard', () => ({
-  SortableDomainCard: () => <div>sortable-domain-card</div>,
+  SortableDomainCard: ({ group }: { group: TabGroup }) => (
+    <div>sortable-domain-card:{group.domain}</div>
+  ),
 }))
 
 import { DomainModeContainer } from './DomainModeContainer'
@@ -298,5 +325,165 @@ describe('DomainModeContainer', () => {
 
     expect(handleDeleteGroup).not.toHaveBeenCalled()
     expect(handleDeleteGroups).not.toHaveBeenCalled()
+  })
+
+  it('検索中の未分類一括削除は URL がない group をスキップする', async () => {
+    const handleDeleteUrls = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <DomainModeContainer
+        {...createProps()}
+        searchQuery='docs'
+        handleDeleteUrls={handleDeleteUrls}
+        state={{
+          ...createProps().state,
+          shouldShowUncategorizedList: true,
+          shouldShowUncategorizedSectionHeader: true,
+        }}
+        uncategorizedForDisplay={[
+          {
+            id: 'empty-group',
+            domain: 'empty.example.com',
+            urls: [],
+          },
+          {
+            id: 'group-1',
+            domain: 'example.com',
+            urls: [{ url: 'https://example.com/docs', title: 'Docs' }],
+          },
+        ]}
+        hasContentTabGroupsCount={2}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'すべて削除' }))
+
+    await waitFor(() => {
+      expect(handleDeleteUrls).toHaveBeenCalledOnce()
+    })
+    expect(handleDeleteUrls).toHaveBeenCalledWith('group-1', [
+      'https://example.com/docs',
+    ])
+  })
+
+  it('未分類ヘッダーのすべて削除は一括削除ハンドラを優先する', async () => {
+    const handleDeleteGroups = vi.fn().mockResolvedValue(undefined)
+    const handleDeleteGroup = vi.fn()
+
+    render(
+      <DomainModeContainer
+        {...createProps()}
+        handleDeleteGroup={handleDeleteGroup}
+        handleDeleteGroups={handleDeleteGroups}
+        state={{
+          ...createProps().state,
+          shouldShowUncategorizedList: true,
+          shouldShowUncategorizedSectionHeader: true,
+        }}
+        uncategorizedForDisplay={uncategorizedGroups}
+        hasContentTabGroupsCount={2}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'すべて削除' }))
+
+    await waitFor(() => {
+      expect(handleDeleteGroups).toHaveBeenCalledWith(['group-1', 'group-2'])
+    })
+    expect(handleDeleteGroup).not.toHaveBeenCalled()
+  })
+
+  it('カテゴリあり表示では空カテゴリを飛ばし、移動ハンドラに tabGroups を渡す', async () => {
+    const handleMoveDomainToCategory = vi.fn()
+    const domainGroups: TabGroup[] = [
+      {
+        id: 'domain-1',
+        domain: 'example.com',
+      },
+    ]
+
+    render(
+      <DomainModeContainer
+        {...createProps()}
+        categories={[
+          {
+            id: 'category-1',
+            name: 'Category 1',
+            domains: [],
+            domainNames: [],
+          },
+          {
+            id: 'empty-category',
+            name: 'Empty',
+            domains: [],
+            domainNames: [],
+          },
+        ]}
+        categorized={{
+          'category-1': domainGroups,
+          'empty-category': [],
+        }}
+        categoryOrderForDisplay={[
+          '',
+          'missing-category',
+          'empty-category',
+          'category-1',
+        ]}
+        handleMoveDomainToCategory={handleMoveDomainToCategory}
+        state={{
+          ...createProps().state,
+          hasVisibleCategoryGroups: true,
+        }}
+        tabGroups={domainGroups}
+      />,
+    )
+
+    expect(screen.getByText('category-group:Category 1')).toBeTruthy()
+    expect(screen.queryByText('category-group:Empty')).toBeNull()
+
+    fireEvent.click(screen.getByText('move-domain'))
+
+    expect(handleMoveDomainToCategory).toHaveBeenCalledWith(
+      'domain-1',
+      'category-1',
+      'target',
+      domainGroups,
+    )
+  })
+
+  it('未分類リストと並び替え確定/取消ボタンを表示して操作できる', async () => {
+    const handleCancelUncategorizedReorder = vi.fn()
+    const handleConfirmUncategorizedReorder = vi.fn()
+
+    render(
+      <DomainModeContainer
+        {...createProps()}
+        handleCancelUncategorizedReorder={handleCancelUncategorizedReorder}
+        handleConfirmUncategorizedReorder={handleConfirmUncategorizedReorder}
+        state={{
+          ...createProps().state,
+          isUncategorizedReorderMode: true,
+          shouldShowUncategorizedList: true,
+          shouldShowUncategorizedSectionHeader: true,
+        }}
+        uncategorizedForDisplay={uncategorizedGroups}
+        hasContentTabGroupsCount={2}
+      />,
+    )
+
+    expect(screen.getByText('sortable-domain-card:example.com')).toBeTruthy()
+    expect(screen.getByText('sortable-domain-card:sample.com')).toBeTruthy()
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: '親カテゴリの並び替えをキャンセル',
+      }),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: '親カテゴリの並び替えを確定' }),
+    )
+
+    expect(handleCancelUncategorizedReorder).toHaveBeenCalledOnce()
+    expect(handleConfirmUncategorizedReorder).toHaveBeenCalledOnce()
   })
 })

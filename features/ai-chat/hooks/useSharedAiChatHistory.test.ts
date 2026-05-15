@@ -108,6 +108,17 @@ describe('useSharedAiChatHistory', () => {
     act(() => {
       result.current.updateMessages([
         {
+          content: '   ',
+          id: 'message-blank',
+          role: 'user',
+        },
+      ])
+    })
+    expect(mocked.saveConversationHistory).not.toHaveBeenCalled()
+
+    act(() => {
+      result.current.updateMessages([
+        {
           content: '朝確認したいタブを教えて',
           id: 'message-1',
           role: 'user',
@@ -327,6 +338,94 @@ describe('useSharedAiChatHistory', () => {
     ])
   })
 
+  it('同じ更新時刻の会話は作成時刻とIDで安定して並べる', async () => {
+    mocked.loadConversationHistory.mockResolvedValue({
+      activeConversationId: 'conversation-a',
+      conversations: [
+        {
+          createdAt: 1,
+          id: 'conversation-a',
+          messages: [],
+          title: 'A',
+          updatedAt: 10,
+        },
+        {
+          createdAt: 2,
+          id: 'conversation-b',
+          messages: [],
+          title: 'B',
+          updatedAt: 10,
+        },
+        {
+          createdAt: 2,
+          id: 'conversation-c',
+          messages: [],
+          title: 'C',
+          updatedAt: 10,
+        },
+      ],
+    })
+
+    const { result } = renderHook(() => useSharedAiChatHistory())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(result.current.historyItems.map(item => item.id)).toEqual([
+      'conversation-c',
+      'conversation-b',
+      'conversation-a',
+    ])
+  })
+
+  it('ロード完了前に unmount されたら状態更新しない', async () => {
+    let resolveHistory:
+      | ((
+          value: Awaited<ReturnType<typeof mocked.loadConversationHistory>>,
+        ) => void)
+      | undefined
+    mocked.loadConversationHistory.mockReturnValue(
+      new Promise(resolve => {
+        resolveHistory = resolve
+      }),
+    )
+
+    const { result, unmount } = renderHook(() => useSharedAiChatHistory())
+
+    expect(result.current.isLoading).toBe(true)
+    unmount()
+    await act(async () => {
+      resolveHistory?.({
+        activeConversationId: 'conversation-1',
+        conversations: [],
+      })
+    })
+
+    expect(mocked.saveConversationHistory).not.toHaveBeenCalled()
+  })
+
+  it('ロード前の操作と空メッセージ更新は保存しない', () => {
+    mocked.loadConversationHistory.mockReturnValue(new Promise(() => undefined))
+    const { result } = renderHook(() => useSharedAiChatHistory())
+
+    act(() => {
+      result.current.selectConversation('conversation-1')
+      result.current.deleteConversation('conversation-1')
+      result.current.updateMessages([])
+      result.current.createConversation()
+      result.current.updateMessages([
+        {
+          content: '   ',
+          id: 'message-blank',
+          role: 'user',
+        },
+      ])
+    })
+
+    expect(mocked.saveConversationHistory).not.toHaveBeenCalled()
+  })
+
   it('会話を削除すると履歴から外し、アクティブ会話も切り替える', async () => {
     const { result } = renderHook(() => useSharedAiChatHistory())
 
@@ -362,6 +461,102 @@ describe('useSharedAiChatHistory', () => {
         'conversation-1',
       ])
       expect(result.current.activeConversation?.id).toBe('conversation-1')
+    })
+  })
+
+  it('存在しない会話削除は履歴を保存し直さない', async () => {
+    const { result } = renderHook(() => useSharedAiChatHistory())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    act(() => {
+      result.current.deleteConversation('missing')
+    })
+
+    expect(mocked.saveConversationHistory).not.toHaveBeenCalled()
+    expect(result.current.historyItems).toHaveLength(2)
+  })
+
+  it('pending 会話中に別の会話を削除しても pending をアクティブに保つ', async () => {
+    const { result } = renderHook(() => useSharedAiChatHistory())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    act(() => {
+      result.current.createConversation()
+    })
+    await waitFor(() => {
+      expect(result.current.activeConversation?.id).toBe('new-conversation')
+    })
+
+    act(() => {
+      result.current.deleteConversation('conversation-2')
+    })
+
+    await waitFor(() => {
+      expect(mocked.saveConversationHistory).toHaveBeenLastCalledWith({
+        activeConversationId: 'new-conversation',
+        conversations: [
+          expect.objectContaining({
+            id: 'conversation-1',
+          }),
+        ],
+      })
+    })
+  })
+
+  it('pending ID の既存会話がある場合は重複追加せず置き換える', async () => {
+    mocked.loadConversationHistory.mockResolvedValue({
+      activeConversationId: 'new-conversation',
+      conversations: [
+        {
+          createdAt: 1,
+          id: 'new-conversation',
+          messages: [],
+          title: '新しい会話',
+          updatedAt: 1,
+        },
+      ],
+    })
+
+    const { result } = renderHook(() => useSharedAiChatHistory())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    act(() => {
+      result.current.createConversation()
+      result.current.updateMessages([
+        {
+          content: '既存の pending 会話を更新',
+          id: 'message-1',
+          role: 'user',
+        },
+      ])
+    })
+
+    await waitFor(() => {
+      expect(mocked.saveConversationHistory).toHaveBeenCalledWith({
+        activeConversationId: 'new-conversation',
+        conversations: [
+          expect.objectContaining({
+            id: 'new-conversation',
+            messages: [
+              {
+                content: '既存の pending 会話を更新',
+                id: 'message-1',
+                role: 'user',
+              },
+            ],
+            title: '既存の pending 会話を更新',
+          }),
+        ],
+      })
     })
   })
 

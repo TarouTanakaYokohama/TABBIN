@@ -235,6 +235,52 @@ describe('projects storage', () => {
     expect(state.customProjects).toHaveLength(2)
   })
 
+  it('getCustomProjects は順序にないプロジェクトを後ろへ送る', async () => {
+    const state: StorageState = {
+      customProjectOrder: ['project-a'],
+      customProjects: [
+        createProject({ id: 'project-b', name: 'Project B' }),
+        createProject({ id: 'project-a', name: 'Project A' }),
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { getCustomProjects } = await loadModule()
+
+    await expect(getCustomProjects()).resolves.toEqual([
+      expect.objectContaining({ id: 'project-a' }),
+      expect.objectContaining({ id: 'project-b' }),
+    ])
+  })
+
+  it('getCustomProjects は順序リスト内のプロジェクトを未指定プロジェクトより前に保つ', async () => {
+    const state: StorageState = {
+      customProjectOrder: ['project-c', 'project-a'],
+      customProjects: [
+        createProject({ id: 'project-a', name: 'Project A' }),
+        createProject({ id: 'project-b', name: 'Project B' }),
+        createProject({ id: 'project-c', name: 'Project C' }),
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { getCustomProjects } = await loadModule()
+
+    await expect(getCustomProjects()).resolves.toEqual([
+      expect.objectContaining({ id: 'project-c' }),
+      expect.objectContaining({ id: 'project-a' }),
+      expect.objectContaining({ id: 'project-b' }),
+    ])
+  })
+
   it('getProjectUrls はURL IDがなければ空配列、あればメタデータ付きで返す', async () => {
     const state: StorageState = {
       urls: [
@@ -294,6 +340,25 @@ describe('projects storage', () => {
     const { getCustomProjects } = await loadModule()
 
     await expect(getCustomProjects()).resolves.toEqual([])
+  })
+
+  it('saveCustomProjects は保存失敗を呼び出し元へ伝える', async () => {
+    globalThis.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(),
+          set: vi.fn(async () => {
+            throw new Error('write unavailable')
+          }),
+        },
+      },
+    } as unknown as typeof chrome
+
+    const { saveCustomProjects } = await loadModule()
+
+    await expect(saveCustomProjects([createProject()])).rejects.toThrow(
+      'write unavailable',
+    )
   })
 
   it('createCustomProject は重複名を拒否し新規プロジェクトを先頭順序に保存する', async () => {
@@ -356,6 +421,48 @@ describe('projects storage', () => {
       'project-1',
       'custom-uncategorized',
     ])
+  })
+
+  it('getOrCreateUncategorizedProject は順序に未分類が既にあれば重複追加しない', async () => {
+    const state: StorageState = {
+      customProjectOrder: ['custom-uncategorized'],
+      customProjects: [createProject()],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { getOrCreateUncategorizedProject } = await loadModule()
+
+    await getOrCreateUncategorizedProject()
+
+    expect(state.customProjectOrder).toEqual(['custom-uncategorized'])
+  })
+
+  it('getOrCreateUncategorizedProject は既存の未分類を再利用する', async () => {
+    const existingUncategorized = createProject({
+      id: 'custom-uncategorized',
+      name: '未分類',
+      urlIds: ['url-1'],
+    })
+    const state: StorageState = {
+      customProjectOrder: ['custom-uncategorized'],
+      customProjects: [existingUncategorized],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { getOrCreateUncategorizedProject } = await loadModule()
+
+    await expect(getOrCreateUncategorizedProject()).resolves.toEqual(
+      existingUncategorized,
+    )
+    expect(state.customProjects).toEqual([existingUncategorized])
   })
 
   it('addUrlsToUncategorizedProject は空/重複を除き既存URLを更新して他プロジェクトから移す', async () => {
@@ -424,6 +531,114 @@ describe('projects storage', () => {
     ])
   })
 
+  it('saveUrlsToCustomProjects は空入力を無視し未一致 URL を未分類へ送る', async () => {
+    const state: StorageState = {
+      customProjectOrder: [],
+      customProjects: [],
+      urls: [],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { saveUrlsToCustomProjects } = await loadModule()
+
+    await saveUrlsToCustomProjects([{ title: 'Blank', url: ' ' }])
+    expect(state.customProjects).toEqual([])
+
+    await saveUrlsToCustomProjects([
+      { title: 'Unmatched', url: 'https://unmatched.example/a' },
+    ])
+
+    expect(state.customProjects).toEqual([
+      expect.objectContaining({
+        id: 'custom-uncategorized',
+        urlIds: ['uuid-1'],
+      }),
+    ])
+  })
+
+  it('addUrlsToUncategorizedProject は空入力を無視し既存未分類の不足フィールドを補完する', async () => {
+    const uncategorized = createProject({
+      id: 'custom-uncategorized',
+      name: '未分類',
+    })
+    delete uncategorized.urlIds
+    const state: StorageState = {
+      customProjectOrder: ['custom-uncategorized'],
+      customProjects: [uncategorized],
+      urls: [],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { addUrlsToUncategorizedProject } = await loadModule()
+
+    await addUrlsToUncategorizedProject([{ title: 'Blank', url: ' ' }])
+    expect(state.urls).toEqual([])
+
+    await addUrlsToUncategorizedProject([
+      { title: '', url: 'https://example.test/new' },
+    ])
+
+    expect(state.customProjects?.[0]).toEqual(
+      expect.objectContaining({
+        id: 'custom-uncategorized',
+        urlIds: ['uuid-1'],
+      }),
+    )
+    expect(state.customProjectOrder).toEqual(['custom-uncategorized'])
+  })
+
+  it('addUrlsToUncategorizedProject は既に未分類へある URL を重複追加しない', async () => {
+    const state: StorageState = {
+      customProjectOrder: ['custom-uncategorized'],
+      customProjects: [
+        createProject({
+          id: 'custom-uncategorized',
+          name: '未分類',
+          urlIds: ['url-1'],
+        }),
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'Old',
+          url: 'https://example.test/existing',
+        },
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { addUrlsToUncategorizedProject } = await loadModule()
+
+    await addUrlsToUncategorizedProject([
+      {
+        title: 'Updated',
+        url: 'https://example.test/existing',
+      },
+    ])
+
+    expect(state.customProjects?.[0]?.urlIds).toEqual(['url-1'])
+    expect(state.urls?.[0]).toEqual(
+      expect.objectContaining({
+        id: 'url-1',
+        savedAt: 1000,
+        title: 'Updated',
+      }),
+    )
+  })
+
   it('addUrlToCustomProject は新規URLをドメインモードにも追加しメタデータを保存する', async () => {
     const state: StorageState = {
       customProjects: [createProject({ id: 'target' })],
@@ -473,6 +688,56 @@ describe('projects storage', () => {
     ])
   })
 
+  it('addUrlToCustomProject は既存ドメイングループの URL IDs を補完する', async () => {
+    const target = createProject({ id: 'target' })
+    delete target.urlIds
+    const state: StorageState = {
+      customProjects: [target],
+      savedTabs: [
+        {
+          domain: 'https://docs.example.com',
+          id: 'group-1',
+        },
+      ],
+      urls: [],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { addUrlToCustomProject } = await loadModule()
+
+    await addUrlToCustomProject('target', 'https://docs.example.com/a', '')
+
+    expect(state.customProjects?.[0]?.urlIds).toEqual(['uuid-1'])
+    expect(state.savedTabs).toEqual([
+      {
+        domain: 'https://docs.example.com',
+        id: 'group-1',
+        urlIds: ['uuid-1'],
+      },
+    ])
+  })
+
+  it('addUrlToCustomProject は存在しないプロジェクトを拒否する', async () => {
+    const state: StorageState = {
+      customProjects: [],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { addUrlToCustomProject } = await loadModule()
+
+    await expect(
+      addUrlToCustomProject('missing', 'https://docs.example.com/a', 'Doc'),
+    ).rejects.toThrow('Project with ID missing not found')
+  })
+
   it('removeUrlFromCustomProject はURLとメタデータを消し空のドメイングループも削除する', async () => {
     const state: StorageState = {
       customProjects: [
@@ -520,6 +785,84 @@ describe('projects storage', () => {
       }),
     )
     expect(state.savedTabs).toEqual([])
+  })
+
+  it('removeUrlFromCustomProject は存在しないプロジェクトを拒否し同期失敗は握りつぶす', async () => {
+    const state: StorageState = {
+      customProjects: [
+        createProject({
+          id: 'target',
+          urlIds: ['url-1'],
+        }),
+      ],
+      savedTabs: [
+        {
+          domain: 'https://docs.example.com',
+          id: 'group-without-ids',
+        },
+        {
+          domain: 'https://docs.example.com',
+          id: 'group-with-ids',
+          urlIds: ['url-1', 'url-2'],
+        },
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'Doc',
+          url: 'https://docs.example.com/a',
+        },
+        {
+          id: 'url-2',
+          savedAt: 2,
+          title: 'Other',
+          url: 'https://docs.example.com/b',
+        },
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { removeUrlFromCustomProject } = await loadModule()
+
+    await expect(
+      removeUrlFromCustomProject('missing', 'https://docs.example.com/a'),
+    ).rejects.toThrow('Project with ID missing not found')
+
+    await removeUrlFromCustomProject('target', 'https://docs.example.com/a')
+
+    expect(state.savedTabs).toEqual([
+      {
+        domain: 'https://docs.example.com',
+        id: 'group-without-ids',
+      },
+      {
+        domain: 'https://docs.example.com',
+        id: 'group-with-ids',
+        urlIds: ['url-2'],
+      },
+    ])
+
+    vi.mocked(chrome.storage.local.get)
+      .mockImplementationOnce(async keys => {
+        if (Array.isArray(keys)) {
+          return Object.fromEntries(
+            keys.map(key => [key, state[key as keyof StorageState]]),
+          )
+        }
+        return {
+          [keys as string]: state[keys as keyof StorageState],
+        }
+      })
+      .mockRejectedValueOnce(new Error('sync failed'))
+
+    await expect(
+      removeUrlFromCustomProject('target', 'https://docs.example.com/missing'),
+    ).resolves.toBeUndefined()
   })
 
   it('bulk remove APIs はURL/ID指定でプロジェクトとドメインモードを同期削除する', async () => {
@@ -596,6 +939,260 @@ describe('projects storage', () => {
     ])
   })
 
+  it('bulk remove APIs は空入力・対象なし・同期エラーを扱う', async () => {
+    const state: StorageState = {
+      customProjects: [
+        createProject({
+          id: 'target',
+          urlIds: ['url-1'],
+        }),
+      ],
+      savedTabs: [
+        {
+          domain: 'https://docs.example.com',
+          id: 'group-1',
+        },
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'One',
+          url: 'https://docs.example.com/one',
+        },
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const {
+      removeUrlIdsFromAllCustomProjects,
+      removeUrlFromAllCustomProjects,
+      removeUrlsFromAllCustomProjects,
+      removeUrlsFromCustomProject,
+    } = await loadModule()
+
+    await removeUrlsFromCustomProject('target', [])
+    await removeUrlsFromCustomProject('target', ['https://example.test/none'])
+    await removeUrlsFromAllCustomProjects([])
+    await removeUrlsFromAllCustomProjects(['https://example.test/none'])
+    await removeUrlIdsFromAllCustomProjects([])
+    await removeUrlFromAllCustomProjects('https://example.test/none')
+
+    expect(state.customProjects?.[0]?.urlIds).toEqual(['url-1'])
+
+    vi.mocked(chrome.storage.local.get)
+      .mockImplementationOnce(async keys => {
+        if (Array.isArray(keys)) {
+          return Object.fromEntries(
+            keys.map(key => [key, state[key as keyof StorageState]]),
+          )
+        }
+        return {
+          [keys as string]: state[keys as keyof StorageState],
+        }
+      })
+      .mockRejectedValueOnce(new Error('storage failed'))
+    await expect(
+      removeUrlsFromCustomProject('target', ['https://docs.example.com/one']),
+    ).resolves.toBeUndefined()
+
+    await expect(
+      removeUrlsFromCustomProject('missing', ['https://docs.example.com/one']),
+    ).rejects.toThrow('Project with ID missing not found')
+  })
+
+  it('bulk remove APIs はURL ID未定義や重複しないプロジェクトを保存しない', async () => {
+    const state: StorageState = {
+      customProjects: [
+        createProject({
+          id: 'without-ids',
+        }),
+        createProject({
+          id: 'without-overlap',
+          urlIds: ['url-2'],
+        }),
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'One',
+          url: 'https://docs.example.com/one',
+        },
+      ],
+    }
+    delete state.customProjects?.[0].urlIds
+    const storage = createChromeStorageLocal(state)
+    globalThis.chrome = {
+      storage: {
+        local: storage,
+      },
+    } as unknown as typeof chrome
+
+    const {
+      removeUrlIdsFromAllCustomProjects,
+      removeUrlsFromAllCustomProjects,
+    } = await loadModule()
+
+    await removeUrlsFromAllCustomProjects(['https://docs.example.com/one'])
+    await removeUrlIdsFromAllCustomProjects(['url-1'])
+
+    expect(storage.set).not.toHaveBeenCalled()
+    expect(state.customProjects).toEqual([
+      expect.objectContaining({
+        id: 'without-ids',
+        urlIds: [],
+      }),
+      expect.objectContaining({
+        id: 'without-overlap',
+        urlIds: ['url-2'],
+      }),
+    ])
+  })
+
+  it('bulk remove APIs はストレージエラーを握りつぶす', async () => {
+    globalThis.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => {
+            throw new Error('storage failed')
+          }),
+          set: vi.fn(),
+        },
+      },
+    } as unknown as typeof chrome
+    const {
+      removeUrlIdsFromAllCustomProjects,
+      removeUrlFromAllCustomProjects,
+      removeUrlsFromAllCustomProjects,
+    } = await loadModule()
+
+    await expect(
+      removeUrlFromAllCustomProjects('https://docs.example.com/one'),
+    ).resolves.toBeUndefined()
+    await expect(
+      removeUrlsFromAllCustomProjects(['https://docs.example.com/one']),
+    ).resolves.toBeUndefined()
+    await expect(
+      removeUrlIdsFromAllCustomProjects(['url-1']),
+    ).resolves.toBeUndefined()
+  })
+
+  it('bulk remove APIs は保存時のエラーも握りつぶす', async () => {
+    const state: StorageState = {
+      customProjects: [
+        createProject({
+          id: 'target',
+          urlIds: ['url-1'],
+        }),
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'One',
+          url: 'https://docs.example.com/one',
+        },
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: {
+          ...createChromeStorageLocal(state),
+          set: vi.fn(async () => {
+            throw new Error('write failed')
+          }),
+        },
+      },
+    } as unknown as typeof chrome
+    const {
+      removeUrlIdsFromAllCustomProjects,
+      removeUrlFromAllCustomProjects,
+      removeUrlsFromAllCustomProjects,
+    } = await loadModule()
+
+    await expect(
+      removeUrlFromAllCustomProjects('https://docs.example.com/one'),
+    ).resolves.toBeUndefined()
+    state.customProjects = [
+      createProject({
+        id: 'target',
+        urlIds: ['url-1'],
+      }),
+    ]
+    await expect(
+      removeUrlsFromAllCustomProjects(['https://docs.example.com/one']),
+    ).resolves.toBeUndefined()
+    state.customProjects = [
+      createProject({
+        id: 'target',
+        urlIds: ['url-1'],
+      }),
+    ]
+    await expect(
+      removeUrlIdsFromAllCustomProjects(['url-1']),
+    ).resolves.toBeUndefined()
+  })
+
+  it('removeUrlFromAllCustomProjects は URL を全プロジェクトから削除し失敗時も throw しない', async () => {
+    const state: StorageState = {
+      customProjects: [
+        createProject({
+          id: 'target',
+          urlIds: ['url-1'],
+          urlMetadata: {
+            'url-1': { notes: 'drop' },
+          },
+        }),
+        createProject({
+          id: 'other',
+          urlIds: ['url-2'],
+        }),
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'One',
+          url: 'https://docs.example.com/one',
+        },
+        {
+          id: 'url-2',
+          savedAt: 2,
+          title: 'Two',
+          url: 'https://docs.example.com/two',
+        },
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { removeUrlFromAllCustomProjects } = await loadModule()
+
+    await removeUrlFromAllCustomProjects('https://docs.example.com/one')
+
+    expect(state.customProjects?.[0]).toEqual(
+      expect.objectContaining({
+        urlIds: [],
+        urlMetadata: {},
+      }),
+    )
+
+    vi.mocked(chrome.storage.local.get).mockRejectedValueOnce(
+      new Error('storage failed'),
+    )
+    await expect(
+      removeUrlFromAllCustomProjects('https://docs.example.com/two'),
+    ).resolves.toBeUndefined()
+  })
+
   it('deleteCustomProject はURLとメモを未分類へ移して順序から削除する', async () => {
     const state: StorageState = {
       customProjectOrder: ['delete-me', 'custom-uncategorized'],
@@ -637,6 +1234,120 @@ describe('projects storage', () => {
       }),
     ])
     expect(state.customProjectOrder).toEqual(['custom-uncategorized'])
+  })
+
+  it('deleteCustomProject は未分類の保護・存在確認・未分類作成を行う', async () => {
+    const projectWithoutUrls = createProject({
+      id: 'delete-me',
+      urlIds: [],
+    })
+    const state: StorageState = {
+      customProjectOrder: ['delete-me'],
+      customProjects: [projectWithoutUrls],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { deleteCustomProject } = await loadModule()
+
+    await expect(deleteCustomProject('custom-uncategorized')).rejects.toThrow(
+      'Uncategorized project cannot be deleted',
+    )
+    await expect(deleteCustomProject('missing')).rejects.toThrow(
+      'Project with ID missing not found',
+    )
+    await deleteCustomProject('delete-me')
+
+    expect(state.customProjects).toEqual([
+      expect.objectContaining({
+        id: 'custom-uncategorized',
+        urlIds: [],
+      }),
+    ])
+    expect(state.customProjectOrder).toEqual(['custom-uncategorized'])
+  })
+
+  it('deleteCustomProject は未分類の不足 URL IDs を補完し重複とカテゴリだけのメタデータを飛ばす', async () => {
+    const uncategorized = createProject({
+      id: 'custom-uncategorized',
+      name: '未分類',
+    })
+    delete uncategorized.urlIds
+    const state: StorageState = {
+      customProjectOrder: ['delete-me', 'custom-uncategorized'],
+      customProjects: [
+        createProject({
+          id: 'delete-me',
+          urlIds: ['url-1', 'url-2'],
+          urlMetadata: {
+            'url-1': { category: 'drop-category' },
+            'url-2': { notes: 'keep note' },
+          },
+        }),
+        uncategorized,
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { deleteCustomProject } = await loadModule()
+
+    await deleteCustomProject('delete-me')
+
+    expect(state.customProjects).toEqual([
+      expect.objectContaining({
+        id: 'custom-uncategorized',
+        urlIds: ['url-1', 'url-2'],
+        urlMetadata: {
+          'url-2': {
+            notes: 'keep note',
+          },
+        },
+      }),
+    ])
+  })
+
+  it('deleteCustomProject は未分類に重複 URL がある場合は追加しない', async () => {
+    const state: StorageState = {
+      customProjectOrder: ['delete-me', 'custom-uncategorized'],
+      customProjects: [
+        createProject({
+          id: 'delete-me',
+          urlIds: ['url-1'],
+          urlMetadata: {
+            'url-1': { notes: 'ignored duplicate note' },
+          },
+        }),
+        createProject({
+          id: 'custom-uncategorized',
+          name: '未分類',
+          urlIds: ['url-1'],
+        }),
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { deleteCustomProject } = await loadModule()
+
+    await deleteCustomProject('delete-me')
+
+    expect(state.customProjects).toEqual([
+      expect.objectContaining({
+        id: 'custom-uncategorized',
+        urlIds: ['url-1'],
+        urlMetadata: undefined,
+      }),
+    ])
   })
 
   it('カテゴリ/並び順/名称/キーワード API は対象プロジェクトだけを更新する', async () => {
@@ -729,6 +1440,149 @@ describe('projects storage', () => {
     expect(state.customProjectOrder).toEqual(['target', 'other'])
   })
 
+  it('カテゴリ追加と削除は既存の categoryOrder とメタデータを更新する', async () => {
+    const state: StorageState = {
+      customProjects: [
+        createProject({
+          id: 'target',
+          categories: ['old'],
+          categoryOrder: ['old'],
+          urlIds: ['url-1'],
+          urlMetadata: {
+            'url-1': { category: 'old' },
+          },
+        }),
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { addCategoryToProject, removeCategoryFromProject } =
+      await loadModule()
+
+    await addCategoryToProject('target', 'new')
+    await removeCategoryFromProject('target', 'old')
+
+    expect(state.customProjects?.[0]).toEqual(
+      expect.objectContaining({
+        categories: ['new'],
+        categoryOrder: ['new'],
+        urlMetadata: {
+          'url-1': {
+            category: undefined,
+          },
+        },
+      }),
+    )
+  })
+
+  it('カテゴリ/並び順 API は存在しないプロジェクトを拒否する', async () => {
+    const state: StorageState = {
+      customProjects: [
+        createProject({ id: 'target' }),
+        createProject({ id: 'other', name: 'Other' }),
+      ],
+      urls: [],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const {
+      addCategoryToProject,
+      removeCategoryFromProject,
+      reorderProjectUrls,
+      setUrlCategory,
+      updateCategoryOrder,
+      updateCustomProjectName,
+    } = await loadModule()
+
+    await expect(addCategoryToProject('missing', 'new')).rejects.toThrow(
+      'Project with ID missing not found',
+    )
+    await expect(removeCategoryFromProject('missing', 'old')).rejects.toThrow(
+      'Project with ID missing not found',
+    )
+    await expect(
+      setUrlCategory('missing', 'https://example.test/one', 'new'),
+    ).rejects.toThrow('Project with ID missing not found')
+    await expect(updateCategoryOrder('missing', [])).rejects.toThrow(
+      'Project with ID missing not found',
+    )
+    await expect(reorderProjectUrls('missing', [])).rejects.toThrow(
+      'Project with ID missing not found',
+    )
+    await expect(updateCustomProjectName('missing', 'Name')).rejects.toThrow(
+      'Project with ID missing not found',
+    )
+    await expect(updateCustomProjectName('target', 'Other')).rejects.toThrow(
+      'DUPLICATE_PROJECT_NAME:Other',
+    )
+    await expect(updateCustomProjectName('target', 'Project 1')).resolves.toBe(
+      undefined,
+    )
+  })
+
+  it('setUrlCategory と reorderProjectUrls は不足メタデータと重複URLを扱う', async () => {
+    const state: StorageState = {
+      customProjects: [
+        createProject({
+          id: 'target',
+          urlIds: ['url-1', 'url-2', 'url-3'],
+        }),
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'One',
+          url: 'https://example.test/same',
+        },
+        {
+          id: 'url-2',
+          savedAt: 2,
+          title: 'Two',
+          url: 'https://example.test/same',
+        },
+        {
+          id: 'url-3',
+          savedAt: 3,
+          title: 'Three',
+          url: 'https://example.test/other',
+        },
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { reorderProjectUrls, setUrlCategory } = await loadModule()
+
+    await setUrlCategory('target', 'https://example.test/same', 'same')
+    await reorderProjectUrls('target', [
+      { title: 'Same', url: 'https://example.test/same' },
+      { title: 'Same Again', url: 'https://example.test/same' },
+    ])
+
+    expect(state.customProjects?.[0]).toEqual(
+      expect.objectContaining({
+        urlIds: ['url-1', 'url-2', 'url-3'],
+        urlMetadata: {
+          'url-1': {
+            category: 'same',
+          },
+        },
+      }),
+    )
+  })
+
   it('moveUrlBetweenCustomProjects はURLとメモを移動しエラー条件を扱う', async () => {
     const state: StorageState = {
       customProjects: [
@@ -800,6 +1654,54 @@ describe('projects storage', () => {
     ).rejects.toThrow('URL not found in source project')
   })
 
+  it('moveUrlBetweenCustomProjects は移動先の URL IDs が未定義なら初期化する', async () => {
+    const target = createProject({
+      id: 'target',
+    })
+    delete target.urlIds
+    const state: StorageState = {
+      customProjects: [
+        createProject({
+          id: 'source',
+          urlIds: ['url-1'],
+        }),
+        target,
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'Move',
+          url: 'https://example.test/move',
+        },
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { moveUrlBetweenCustomProjects } = await loadModule()
+
+    await moveUrlBetweenCustomProjects(
+      'source',
+      'target',
+      'https://example.test/move',
+    )
+
+    expect(state.customProjects).toEqual([
+      expect.objectContaining({
+        id: 'source',
+        urlIds: [],
+      }),
+      expect.objectContaining({
+        id: 'target',
+        urlIds: ['url-1'],
+      }),
+    ])
+  })
+
   it('moveUrlBetweenCustomProjects は存在しないプロジェクト・重複先を拒否する', async () => {
     const state: StorageState = {
       customProjects: [
@@ -849,6 +1751,27 @@ describe('projects storage', () => {
         'https://example.test/move',
       ),
     ).rejects.toThrow('URL already exists in target project')
+
+    state.customProjects = [
+      createProject({
+        categories: ['keep'],
+        id: 'source',
+        urlIds: ['url-1'],
+      }),
+      createProject({
+        id: 'target',
+      }),
+    ]
+    delete state.customProjects[1].urlIds
+    state.urls = []
+
+    await expect(
+      moveUrlBetweenCustomProjects(
+        'source',
+        'target',
+        'https://example.test/missing',
+      ),
+    ).rejects.toThrow('URL not found in source project')
     await expect(
       renameCategoryInProject('missing', 'old', 'new'),
     ).rejects.toThrow('Project with ID missing not found')

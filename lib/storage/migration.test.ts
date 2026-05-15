@@ -423,4 +423,114 @@ describe('migration storage facade', () => {
     expect(state.savedTabs).toHaveLength(1)
     expect(mocks.autoCategorizeTabs).toHaveBeenCalledWith('group-1')
   })
+
+  it('assignDomainToCategory は既に割当済みのカテゴリをそのまま保持する', async () => {
+    const state: StorageState = {
+      savedTabs: [
+        {
+          domain: 'https://already.example.com',
+          id: 'group-1',
+        },
+      ],
+    }
+    const categories = [
+      createCategory({
+        domains: ['group-1'],
+        domainNames: ['https://already.example.com'],
+        id: 'category-1',
+      }),
+    ]
+    mocks.getParentCategories.mockResolvedValue(categories)
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { assignDomainToCategory } = await loadModule()
+
+    await assignDomainToCategory('group-1', 'category-1')
+
+    expect(mocks.saveParentCategories).toHaveBeenCalledWith(categories)
+  })
+
+  it('migrateParentCategoriesToDomainNames はストレージエラーを再throwする', async () => {
+    globalThis.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async () => {
+            throw new Error('migration storage failed')
+          }),
+          set: vi.fn(),
+        },
+      },
+    } as unknown as typeof chrome
+
+    const { migrateParentCategoriesToDomainNames } = await loadModule()
+
+    await expect(migrateParentCategoriesToDomainNames()).rejects.toThrow(
+      'migration storage failed',
+    )
+  })
+
+  it('saveTabs は壊れたカテゴリ情報や重複IDを安全に処理する', async () => {
+    const state: StorageState = {
+      savedTabs: [
+        {
+          categoryKeywords: [
+            {
+              categoryName: 'docs',
+              keywords: ['guide'],
+            },
+          ],
+          domain: 'https://docs.example.com',
+          id: 'duplicate-id',
+          urlIds: [],
+        },
+        {
+          domain: 'https://duplicate.example.com',
+          id: 'duplicate-id',
+          urlIds: [],
+        },
+      ],
+    }
+    mocks.getDomainCategoryMappings.mockResolvedValue([
+      {
+        categoryId: 'missing-category',
+        domain: 'https://mapped-missing.example.com',
+      },
+    ])
+    mocks.getParentCategories.mockResolvedValue([
+      {
+        domainNames: [],
+        domains: [],
+        id: 'broken-category',
+        name: 'Broken',
+      },
+    ])
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { saveTabsWithAutoCategory } = await loadModule()
+
+    await saveTabsWithAutoCategory([
+      {
+        title: 'Guide',
+        url: 'https://docs.example.com/guide',
+      },
+      {
+        title: 'Mapped Missing',
+        url: 'https://mapped-missing.example.com/page',
+      },
+    ] as chrome.tabs.Tab[])
+
+    expect(state.savedTabs?.map(group => group.id)).toEqual([
+      'duplicate-id',
+      'uuid-1',
+    ])
+    expect(mocks.autoCategorizeTabs).toHaveBeenCalledWith('duplicate-id')
+  })
 })

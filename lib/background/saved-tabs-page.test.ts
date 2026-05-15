@@ -150,6 +150,26 @@ describe('saved-tabs-page', () => {
     })
   })
 
+  it('saved-tabs ではない拡張ページやIDなし既存タブは再利用しない', async () => {
+    const chromeTabs = createChromeHarness()
+    chromeTabs.get.mockRejectedValueOnce(new Error('missing'))
+    chromeTabs.query.mockResolvedValueOnce([
+      tab({
+        id: 52,
+        url: 'chrome-extension://tabbin/popup.html',
+      }),
+      tab({
+        url: 'chrome-extension://tabbin/saved-tabs.html',
+      }),
+    ])
+
+    await expect(openSavedTabsPage()).resolves.toBe(900)
+
+    expect(chromeTabs.create).toHaveBeenCalledWith({
+      url: 'chrome-extension://tabbin/saved-tabs.html',
+    })
+  })
+
   it('saved-tabs タブが複数ある場合は先頭を再利用して重複を閉じる', async () => {
     const chromeTabs = createChromeHarness()
     chromeTabs.get.mockRejectedValueOnce(new Error('missing'))
@@ -168,5 +188,150 @@ describe('saved-tabs-page', () => {
 
     expect(chromeTabs.create).not.toHaveBeenCalled()
     expect(chromeTabs.remove).toHaveBeenCalledWith(62)
+  })
+
+  it('保存済みタブ ID を再利用し、存在しない場合は新規作成へフォールバックする', async () => {
+    const chromeTabs = createChromeHarness()
+
+    await expect(openSavedTabsPage()).resolves.toBe(900)
+
+    chromeTabs.get.mockResolvedValueOnce(
+      tab({
+        id: 900,
+        pinned: true,
+        url: 'chrome-extension://tabbin/saved-tabs.html',
+      }),
+    )
+
+    await expect(openSavedTabsPage()).resolves.toBe(900)
+    expect(chromeTabs.query).toHaveBeenCalledTimes(1)
+
+    chromeTabs.get.mockResolvedValueOnce(undefined)
+    chromeTabs.create.mockResolvedValueOnce(
+      tab({
+        id: 901,
+        url: 'chrome-extension://tabbin/saved-tabs.html',
+      }),
+    )
+
+    await expect(openSavedTabsPage()).resolves.toBe(901)
+  })
+
+  it('保存済みタブ ID の取得に失敗したら ID を捨てて新規作成する', async () => {
+    const chromeTabs = createChromeHarness()
+
+    await expect(openSavedTabsPage()).resolves.toBe(900)
+
+    chromeTabs.get.mockRejectedValueOnce(new Error('tab missing'))
+    chromeTabs.query.mockResolvedValueOnce([])
+    chromeTabs.create.mockResolvedValueOnce(
+      tab({
+        id: 901,
+        url: 'chrome-extension://tabbin/saved-tabs.html',
+      }),
+    )
+
+    await expect(openSavedTabsPage()).resolves.toBe(901)
+  })
+
+  it('既存タブのピン留め失敗・重複タブ削除失敗をログだけで継続する', async () => {
+    const chromeTabs = createChromeHarness()
+    chromeTabs.get.mockRejectedValueOnce(new Error('missing'))
+    chromeTabs.query.mockResolvedValueOnce([
+      tab({
+        id: 71,
+        url: 'saved-tabs.html',
+      }),
+      tab({
+        id: 72,
+        url: 'chrome-extension://tabbin/app.html#/saved-tabs',
+      }),
+      tab({
+        url: 'chrome-extension://tabbin/app.html#/saved-tabs',
+      }),
+    ])
+    chromeTabs.update
+      .mockResolvedValueOnce(tab({ id: 71 }))
+      .mockRejectedValueOnce(new Error('pin failed'))
+    chromeTabs.remove.mockRejectedValueOnce(new Error('remove failed'))
+
+    await expect(openSavedTabsPage()).resolves.toBe(71)
+
+    expect(chromeTabs.remove).toHaveBeenCalledWith(72)
+    expect(console.error).toHaveBeenCalledWith(
+      'タブのピン留め設定中にエラー:',
+      expect.any(Error),
+    )
+    expect(console.error).toHaveBeenCalledWith(
+      '重複タブを閉じる際にエラー:',
+      expect.any(Error),
+    )
+  })
+
+  it('作成中は既存 ID またはダミー値を返し、作成失敗時は null を返す', async () => {
+    const chromeTabs = createChromeHarness()
+    let resolveQuery: (tabs: chrome.tabs.Tab[]) => void = () => undefined
+    let resolveGet: (tab: chrome.tabs.Tab) => void = () => undefined
+    chromeTabs.get.mockRejectedValue(new Error('missing'))
+    chromeTabs.query.mockImplementationOnce(
+      () =>
+        new Promise<chrome.tabs.Tab[]>(resolve => {
+          resolveQuery = resolve
+        }),
+    )
+
+    const firstOpen = openSavedTabsPage()
+
+    await expect(openSavedTabsPage()).resolves.toBe(-1)
+
+    resolveQuery([])
+    await expect(firstOpen).resolves.toBe(900)
+
+    chromeTabs.get.mockImplementationOnce(
+      () =>
+        new Promise<chrome.tabs.Tab>(resolve => {
+          resolveGet = resolve
+        }),
+    )
+
+    const secondOpen = openSavedTabsPage()
+    await expect(openSavedTabsPage()).resolves.toBe(900)
+    resolveGet(
+      tab({
+        id: 900,
+        pinned: true,
+        url: 'chrome-extension://tabbin/saved-tabs.html',
+      }),
+    )
+    await expect(secondOpen).resolves.toBe(900)
+
+    resetSavedTabsPageId()
+    chromeTabs.get.mockRejectedValueOnce(new Error('missing'))
+    chromeTabs.query.mockImplementationOnce(
+      () =>
+        new Promise<chrome.tabs.Tab[]>(resolve => {
+          resolveQuery = resolve
+        }),
+    )
+
+    const thirdOpen = openSavedTabsPage()
+    await expect(openSavedTabsPage()).resolves.toBe(-1)
+    resolveQuery([])
+    await expect(thirdOpen).resolves.toBe(900)
+
+    resetSavedTabsPageId()
+    chromeTabs.get.mockRejectedValueOnce(new Error('missing'))
+    chromeTabs.query.mockRejectedValueOnce(new Error('query failed'))
+
+    await expect(openSavedTabsPage()).resolves.toBeNull()
+  })
+
+  it('新規作成されたタブに ID がない場合は null を返す', async () => {
+    const chromeTabs = createChromeHarness()
+    chromeTabs.get.mockRejectedValueOnce(new Error('missing'))
+    chromeTabs.query.mockResolvedValueOnce([])
+    chromeTabs.create.mockResolvedValueOnce(tab({ id: undefined }))
+
+    await expect(openSavedTabsPage()).resolves.toBeNull()
   })
 })

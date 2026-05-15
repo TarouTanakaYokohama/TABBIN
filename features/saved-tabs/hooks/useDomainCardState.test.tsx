@@ -72,6 +72,13 @@ const createGroup = (): TabGroup => ({
 describe('useDomainCardState', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    vi.mocked(getParentCategories).mockResolvedValue([])
+    vi.mocked(createParentCategory).mockReset()
+    vi.mocked(assignDomainToCategory).mockReset()
+    vi.mocked(removeUrlFromTabGroup).mockReset()
+    vi.mocked(removeUrlFromTabGroup).mockResolvedValue(undefined)
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0)
       return 1
@@ -247,12 +254,17 @@ describe('useDomainCardState', () => {
       ...createGroup(),
       subCategoryOrderWithUncategorized: ['tech', 'news'],
     }
+    const otherGroup: TabGroup = {
+      ...createGroup(),
+      id: 'other-group',
+      domain: 'other.example.com',
+    }
     const setStorage = vi.fn()
     globalThis.chrome = {
       storage: {
         local: {
           get: vi.fn(async () => ({
-            savedTabs: [group],
+            savedTabs: [group, otherGroup],
           })),
           set: setStorage,
         },
@@ -291,9 +303,11 @@ describe('useDomainCardState', () => {
     expect(setStorage).toHaveBeenCalledWith({
       savedTabs: [
         expect.objectContaining({
+          id: 'group-1',
           subCategoryOrder: ['news', 'tech'],
           subCategoryOrderWithUncategorized: ['news', 'tech'],
         }),
+        otherGroup,
       ],
     })
     expect(toast.success).toHaveBeenCalled()
@@ -309,6 +323,226 @@ describe('useDomainCardState', () => {
     })
     expect(result.current.categoryReorder.isCategoryReorderMode).toBe(false)
     expect(toast.info).toHaveBeenCalled()
+  })
+
+  it('保存済みカテゴリ順は存在するカテゴリと未分類だけに正規化する', async () => {
+    const group: TabGroup = {
+      ...createGroup(),
+      subCategories: ['news', 'tech'],
+      subCategoryOrderWithUncategorized: ['missing', 'news'],
+      urls: [
+        {
+          subCategory: 'news',
+          title: 'News',
+          url: 'https://example.com/news',
+        },
+        {
+          title: 'Uncategorized',
+          url: 'https://example.com/uncategorized',
+        },
+      ],
+    }
+
+    const { result } = renderHook(() =>
+      useDomainCardState({
+        group,
+        handleDeleteCategory: vi.fn(),
+        isReorderMode: false,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(result.current.categoryReorder.allCategoryIds).toEqual([
+        'news',
+        '__uncategorized',
+      ])
+    })
+  })
+
+  it('保存済みカテゴリ順から不要な未分類を除き不足カテゴリを末尾に補う', async () => {
+    const group: TabGroup = {
+      ...createGroup(),
+      subCategories: ['news', 'tech'],
+      subCategoryOrderWithUncategorized: ['__uncategorized', 'news'],
+      urls: [
+        {
+          subCategory: 'news',
+          title: 'News',
+          url: 'https://example.com/news',
+        },
+      ],
+    }
+
+    const { result } = renderHook(() =>
+      useDomainCardState({
+        group,
+        handleDeleteCategory: vi.fn(),
+        isReorderMode: false,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(result.current.categoryReorder.allCategoryIds).toEqual(['news'])
+    })
+  })
+
+  it('並び替えモード中の追加ドラッグは一時順序を更新する', async () => {
+    const group: TabGroup = {
+      ...createGroup(),
+      subCategoryOrderWithUncategorized: ['news', 'tech'],
+    }
+
+    const { result } = renderHook(() =>
+      useDomainCardState({
+        group,
+        handleDeleteCategory: vi.fn(),
+        isReorderMode: false,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(result.current.categoryReorder.allCategoryIds).toEqual([
+        'news',
+        'tech',
+      ])
+    })
+
+    act(() => {
+      result.current.categoryReorder.handleCategoryDragEnd({
+        active: { id: 'news' },
+        over: { id: 'tech' },
+      })
+    })
+    act(() => {
+      result.current.categoryReorder.handleCategoryDragEnd({
+        active: { id: 'tech' },
+        over: { id: 'news' },
+      })
+    })
+
+    expect(result.current.categoryReorder.tempCategoryOrder).toEqual([
+      'news',
+      'tech',
+    ])
+  })
+
+  it('カテゴリ順序保存失敗・未開始の確定/取消を扱う', async () => {
+    const group: TabGroup = {
+      ...createGroup(),
+      subCategoryOrderWithUncategorized: ['news', 'tech'],
+    }
+    vi.mocked(chrome.storage.local.set).mockRejectedValueOnce(
+      new Error('write failed'),
+    )
+
+    const { result } = renderHook(() =>
+      useDomainCardState({
+        group,
+        handleDeleteCategory: vi.fn(),
+        isReorderMode: false,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(result.current.categoryReorder.allCategoryIds).toEqual([
+        'news',
+        'tech',
+      ])
+    })
+
+    await act(async () => {
+      await result.current.categoryReorder.handleConfirmCategoryReorder()
+    })
+    act(() => {
+      result.current.categoryReorder.handleCancelCategoryReorder()
+    })
+
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(toast.info).not.toHaveBeenCalled()
+
+    act(() => {
+      result.current.categoryReorder.handleCategoryDragEnd({
+        active: { id: 'news' },
+        over: { id: 'tech' },
+      })
+    })
+
+    await act(async () => {
+      await result.current.categoryReorder.handleConfirmCategoryReorder()
+    })
+
+    expect(console.error).toHaveBeenCalledWith(
+      'カテゴリ順序の更新に失敗しました:',
+      expect.any(Error),
+    )
+  })
+
+  it('カテゴリ設定とタブの変更を検知して表示順を更新する', async () => {
+    const { result, rerender } = renderHook(
+      ({ group }) =>
+        useDomainCardState({
+          group,
+          handleDeleteCategory: vi.fn(),
+          isReorderMode: false,
+        }),
+      {
+        initialProps: {
+          group: createGroup(),
+        },
+      },
+    )
+
+    await waitFor(() => {
+      expect(result.current.categoryReorder.allCategoryIds).toEqual([
+        'news',
+        'tech',
+      ])
+    })
+
+    await act(async () => {
+      result.current.keywordModal.handleCloseKeywordModal()
+      await Promise.resolve()
+    })
+
+    rerender({
+      group: {
+        ...createGroup(),
+        subCategories: ['news', 'tech', 'later'],
+        urls: [
+          ...(createGroup().urls ?? []),
+          {
+            subCategory: 'later',
+            title: 'Later',
+            url: 'https://example.com/later',
+          },
+        ],
+      },
+    })
+
+    await waitFor(() => {
+      expect(result.current.categoryReorder.allCategoryIds).toEqual([
+        'news',
+        'tech',
+        'later',
+      ])
+    })
+
+    rerender({
+      group: {
+        ...createGroup(),
+        urls: [
+          {
+            subCategory: 'tech',
+            title: 'Moved',
+            url: 'https://example.com/news-1',
+          },
+        ],
+      },
+    })
+
+    await waitFor(() => {
+      expect(result.current.categoryReorder.allCategoryIds).toEqual(['tech'])
+    })
   })
 
   it('カテゴリ変更・モーダル close・親カテゴリ操作をハンドラへ反映する', async () => {
@@ -389,6 +623,73 @@ describe('useDomainCardState', () => {
     ])
   })
 
+  it('カテゴリ削除ハンドラがない場合と各種失敗を扱う', async () => {
+    vi.mocked(getParentCategories).mockRejectedValueOnce(
+      new Error('load failed'),
+    )
+    vi.mocked(createParentCategory).mockRejectedValueOnce(
+      new Error('create failed'),
+    )
+    vi.mocked(assignDomainToCategory).mockRejectedValueOnce(
+      new Error('assign failed'),
+    )
+    vi.mocked(removeUrlFromTabGroup).mockRejectedValueOnce(
+      new Error('delete failed'),
+    )
+
+    const { result } = renderHook(() =>
+      useDomainCardState({
+        group: createGroup(),
+        isReorderMode: false,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith(
+        '親カテゴリの読み込みに失敗しました:',
+        expect.any(Error),
+      )
+    })
+
+    act(() => {
+      result.current.categoryActions.handleCategoryDelete('group-1', 'news')
+    })
+
+    await act(async () => {
+      await result.current.categoryActions.handleDeleteAllTabsInCategory(
+        'news',
+        [{ url: 'https://example.com/news-1' }],
+      )
+    })
+    expect(console.error).toHaveBeenCalledWith(
+      'カテゴリ内タブ削除エラー:',
+      expect.any(Error),
+    )
+
+    await act(async () => {
+      await expect(
+        result.current.parentCategories.handleCreateParentCategory('Parent'),
+      ).rejects.toThrow('create failed')
+    })
+    await act(async () => {
+      await expect(
+        result.current.parentCategories.handleAssignToParentCategory(
+          'group-1',
+          'parent-1',
+        ),
+      ).rejects.toThrow('assign failed')
+    })
+
+    expect(console.error).toHaveBeenCalledWith(
+      '親カテゴリ作成エラー:',
+      expect.any(Error),
+    )
+    expect(console.error).toHaveBeenCalledWith(
+      'ドメイン割り当てエラー:',
+      expect.any(Error),
+    )
+  })
+
   it('drag monitor はドラッグ中に折りたたみ、通常終了時にユーザー状態へ戻す', async () => {
     const { result, rerender } = renderHook(
       ({ isReorderMode }) =>
@@ -432,5 +733,39 @@ describe('useDomainCardState', () => {
       result.current.dndMonitorHandlers.onDragCancel()
     })
     expect(result.current.collapse.isCollapsed).toBe(true)
+  })
+
+  it('drag monitor はユーザーが畳んでいなければ通常終了時に展開する', async () => {
+    const { result } = renderHook(() =>
+      useDomainCardState({
+        group: createGroup(),
+        handleDeleteCategory: vi.fn(),
+        isReorderMode: false,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(getParentCategories).toHaveBeenCalledTimes(1)
+    })
+
+    act(() => {
+      result.current.dndMonitorHandlers.onDragStart()
+    })
+    expect(result.current.collapse.isCollapsed).toBe(true)
+
+    act(() => {
+      result.current.dndMonitorHandlers.onDragEnd()
+    })
+    expect(result.current.collapse.isCollapsed).toBe(false)
+
+    act(() => {
+      result.current.dndMonitorHandlers.onDragStart()
+    })
+    expect(result.current.collapse.isCollapsed).toBe(true)
+
+    act(() => {
+      result.current.dndMonitorHandlers.onDragCancel()
+    })
+    expect(result.current.collapse.isCollapsed).toBe(false)
   })
 })

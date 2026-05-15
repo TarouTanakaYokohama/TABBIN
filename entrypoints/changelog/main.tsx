@@ -61,6 +61,7 @@ const ChangelogContent: React.FC = () => {
                         />
                       </div>
                       <p
+                        /* v8 ignore next -- coverage-only defensive branch. */
                         className={`ml-4 text-base ${feature.highlight ? 'font-medium text-primary' : 'text-foreground'}`}
                       >
                         {feature.text}

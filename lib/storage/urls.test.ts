@@ -189,6 +189,37 @@ describe('urls storage', () => {
     ])
   })
 
+  it('一括 upsert は空URLだけなら保存せず空Mapを返す', async () => {
+    const state: StorageState = {
+      urls: [
+        {
+          id: 'existing-1',
+          savedAt: 1,
+          title: 'Existing',
+          url: 'https://example.com',
+        },
+      ],
+    }
+    const storage = createChromeStorageLocal(state)
+    globalThis.chrome = {
+      storage: {
+        local: storage,
+      },
+    } as unknown as typeof chrome
+
+    const { createOrUpdateUrlRecordsBatch } = await loadUrlsModule()
+
+    const records = await createOrUpdateUrlRecordsBatch([
+      {
+        title: 'Blank',
+        url: '   ',
+      },
+    ])
+
+    expect([...records.entries()]).toEqual([])
+    expect(storage.set).not.toHaveBeenCalled()
+  })
+
   it('インポート用オプションでは重複URLの既存レコードを保持する', async () => {
     const state: StorageState = {
       urls: [
@@ -364,6 +395,52 @@ describe('urls storage', () => {
     ])
   })
 
+  it('存在しないURL削除はfalseを返し、未参照URLのクリーンアップは保存する', async () => {
+    const state: StorageState = {
+      customProjects: [],
+      savedTabs: [
+        {
+          domain: 'https://example.com',
+          id: 'group-1',
+          urlIds: ['url-1'],
+        },
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'Referenced',
+          url: 'https://example.com/referenced',
+        },
+        {
+          id: 'url-2',
+          savedAt: 2,
+          title: 'Orphan',
+          url: 'https://example.com/orphan',
+        },
+      ],
+    }
+    globalThis.chrome = {
+      storage: {
+        local: createChromeStorageLocal(state),
+      },
+    } as unknown as typeof chrome
+
+    const { cleanupUnreferencedUrls, deleteUrlRecord, getUrlRecords } =
+      await loadUrlsModule()
+
+    await expect(deleteUrlRecord('missing')).resolves.toBe(false)
+    await expect(cleanupUnreferencedUrls()).resolves.toBe(1)
+    await expect(getUrlRecords()).resolves.toEqual([
+      {
+        id: 'url-1',
+        savedAt: 1,
+        title: 'Referenced',
+        url: 'https://example.com/referenced',
+      },
+    ])
+  })
+
   it('重複URLを新しいレコードへ統合し参照先を更新する', async () => {
     const state: StorageState = {
       customProjects: [
@@ -417,6 +494,91 @@ describe('urls storage', () => {
     ])
     expect(state.savedTabs?.[0].urlIds).toEqual(['new-id'])
     expect(state.customProjects?.[0].urlIds).toEqual(['new-id'])
+  })
+
+  it('重複URLは古いレコードを削除対象にし、参照更新エラー後も統合を続ける', async () => {
+    const state: StorageState = {
+      customProjects: [
+        {
+          categories: [],
+          createdAt: 1,
+          id: 'project-1',
+          name: 'Project',
+          updatedAt: 1,
+          urlIds: ['duplicate-id'],
+        },
+      ],
+      savedTabs: [
+        {
+          domain: 'https://example.com',
+          id: 'group-1',
+          urlIds: ['duplicate-id'],
+        },
+      ],
+      urls: [
+        {
+          id: 'keeper-id',
+          savedAt: 20,
+          title: 'Keeper',
+          url: 'https://example.com',
+        },
+        {
+          id: 'duplicate-id',
+          savedAt: 10,
+          title: 'Duplicate',
+          url: 'https://example.com',
+        },
+      ],
+    }
+    const storage = createChromeStorageLocal(state)
+    storage.set.mockRejectedValueOnce(new Error('tabs update failed'))
+    globalThis.chrome = {
+      storage: {
+        local: storage,
+      },
+    } as unknown as typeof chrome
+
+    const { deduplicateUrlRecords } = await loadUrlsModule()
+
+    await expect(deduplicateUrlRecords()).resolves.toBe(1)
+    expect(state.urls).toEqual([
+      {
+        id: 'keeper-id',
+        savedAt: 20,
+        title: 'Keeper',
+        url: 'https://example.com',
+      },
+    ])
+  })
+
+  it('URL保存失敗は呼び出し元へ再throwし、重複統合では0件として扱う', async () => {
+    const storage = createChromeStorageLocal({
+      urls: [
+        {
+          id: 'old-id',
+          savedAt: 10,
+          title: 'Old',
+          url: 'https://example.com',
+        },
+        {
+          id: 'new-id',
+          savedAt: 20,
+          title: 'New',
+          url: 'https://example.com',
+        },
+      ],
+    })
+    storage.set.mockRejectedValue(new Error('save failed'))
+    globalThis.chrome = {
+      storage: {
+        local: storage,
+      },
+    } as unknown as typeof chrome
+
+    const { deduplicateUrlRecords, saveUrlRecords } = await loadUrlsModule()
+
+    await expect(saveUrlRecords([])).rejects.toThrow('save failed')
+    await expect(deduplicateUrlRecords()).resolves.toBe(0)
   })
 
   it('ストレージエラー時は安全側に倒す', async () => {

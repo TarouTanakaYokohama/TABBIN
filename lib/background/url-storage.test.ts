@@ -1073,6 +1073,103 @@ describe('url-storage', () => {
     expect(invalidateUrlCache).toHaveBeenCalledTimes(1)
   })
 
+  it('一括削除は空IDだけならストレージを読まず0件を返す', async () => {
+    const removedCount = await removeUrlRecordsFromStorage([''])
+
+    expect(removedCount).toBe(0)
+    expect(chrome.storage.local.get).not.toHaveBeenCalled()
+  })
+
+  it('一括削除は urlIds がないグループと domains が配列でないカテゴリを保持する', async () => {
+    storageState = {
+      customProjects: [
+        {
+          id: 'project-1',
+          name: 'Project 1',
+          urlIds: ['url-1', 'url-2'],
+          urlMetadata: {
+            'url-1': { notes: 'remove all metadata' },
+          },
+          categories: [],
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      parentCategories: [
+        {
+          id: 'cat-1',
+          name: 'Category 1',
+          domains: 'not-array',
+        },
+        {
+          id: 'cat-2',
+          name: 'Category 2',
+          domains: ['other-group'],
+        },
+      ],
+      savedTabs: [
+        {
+          id: 'group-without-ids',
+          domain: 'without-ids.example.com',
+        },
+        {
+          id: 'group-empty',
+          domain: 'empty.example.com',
+          urlIds: ['url-1'],
+          urlSubCategories: {
+            'url-1': 'Docs',
+          },
+        },
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'Delete',
+          url: 'https://empty.example.com/1',
+        },
+        {
+          id: 'url-2',
+          savedAt: 2,
+          title: 'Keep',
+          url: 'https://project.example.com/2',
+        },
+      ],
+    }
+    setupChromeMock()
+
+    const removedCount = await removeUrlRecordsFromStorage(['url-1'])
+
+    expect(removedCount).toBe(1)
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      customProjects: [
+        {
+          id: 'project-1',
+          name: 'Project 1',
+          urlIds: ['url-2'],
+          urlMetadata: undefined,
+          categories: [],
+          createdAt: 1,
+          updatedAt: expect.any(Number),
+        },
+      ],
+      savedTabs: [
+        {
+          id: 'group-without-ids',
+          domain: 'without-ids.example.com',
+        },
+      ],
+      urls: [
+        {
+          id: 'url-2',
+          savedAt: 2,
+          title: 'Keep',
+          url: 'https://project.example.com/2',
+        },
+      ],
+    })
+  })
+
   it('存在しないURL IDの一括削除では保存先を更新しない', async () => {
     storageState = {
       customProjects: [
@@ -1109,5 +1206,32 @@ describe('url-storage', () => {
     expect(removedCount).toBe(0)
     expect(chrome.storage.local.set).not.toHaveBeenCalled()
     expect(invalidateUrlCache).not.toHaveBeenCalled()
+  })
+
+  it('一括削除のストレージ更新失敗は再スローする', async () => {
+    storageState = {
+      customProjects: [],
+      parentCategories: [],
+      savedTabs: [
+        {
+          id: 'group-1',
+          domain: 'example.com',
+          urlIds: ['url-1'],
+        },
+      ],
+      urls: [
+        {
+          id: 'url-1',
+          savedAt: 1,
+          title: 'Delete',
+          url: 'https://example.com',
+        },
+      ],
+    }
+    setupChromeMock({ rejectSet: true })
+
+    await expect(removeUrlRecordsFromStorage(['url-1'])).rejects.toThrow(
+      'storage set failed',
+    )
   })
 })
