@@ -201,20 +201,20 @@ local_deployed_file_hashes:
   .claude/commands/code-style.md: sha256:65605b5b09d4caedf3aec7c1cd2987b14f6128b3def74adc1be7fb7e8c98065a
   .claude/commands/comment-rule.md: sha256:6b1e2a5ecca5bcc7cb0992da57e1e61f5cc9bb4a258089f16d2553715810c425
   .claude/hooks/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
-  .claude/hooks/TABBIN/scripts/stop-verify.sh: sha256:076a9e2fd333d4ac2001db6cd2a6ece6535c9be33246fcbd7ea721c8447354ae
+  .claude/hooks/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
   .claude/rules/repository-guidelines.md: sha256:6c35d1ba8ffaab256e6f2ea0f7c30112182bab077b7022b55b0b601e0b609138
   .codex/hooks/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
-  .codex/hooks/TABBIN/scripts/stop-verify.sh: sha256:076a9e2fd333d4ac2001db6cd2a6ece6535c9be33246fcbd7ea721c8447354ae
+  .codex/hooks/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
   .cursor/hooks/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
-  .cursor/hooks/TABBIN/scripts/stop-verify.sh: sha256:076a9e2fd333d4ac2001db6cd2a6ece6535c9be33246fcbd7ea721c8447354ae
+  .cursor/hooks/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
   .cursor/rules/repository-guidelines.mdc: sha256:fa00642bb05b2cf1217a343b704823bbc244f5932d5be6fd9de4f7834ec6ceb3
   .gemini/commands/code-style.toml: sha256:78becaabf5b6e312f83007425041858a3e0915068c2560aa3b2a5284261b56c6
   .gemini/commands/comment-rule.toml: sha256:7593a57bbf211b76a2c7f83971071583b85575bdd019b728531fb727edc5f5fb
   .gemini/hooks/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
-  .gemini/hooks/TABBIN/scripts/stop-verify.sh: sha256:076a9e2fd333d4ac2001db6cd2a6ece6535c9be33246fcbd7ea721c8447354ae
-  .github/hooks/TABBIN-claude-quality-hooks.json: sha256:01598c79330ed549412c99b38377ef5abf0f104e4a03a8f41d963dd9597aa008
+  .gemini/hooks/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
+  .github/hooks/TABBIN-claude-quality-hooks.json: sha256:d52c3d32e4a7304f4d1961740f3b32198b88b772cf4383eb7faa6419bbe8972a
   .github/hooks/scripts/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
-  .github/hooks/scripts/TABBIN/scripts/stop-verify.sh: sha256:076a9e2fd333d4ac2001db6cd2a6ece6535c9be33246fcbd7ea721c8447354ae
+  .github/hooks/scripts/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
   .github/instructions/repository-guidelines.instructions.md: sha256:c0b0b822b5a84f2734d823f1119aba77e1412cc4da489c5a1c8afd4a90957c97
   .github/prompts/code-style.prompt.md: sha256:3c8c090a0ee75bdd9fa3821d58cd2b2a4c269147dcac0563a76af162b0b38225
   .github/prompts/comment-rule.prompt.md: sha256:988a149514e9b34338df2a7929c9ee1113237df95759100ae3e1b496957bb470
