@@ -17,6 +17,7 @@
         "hooks": [
           {
             "command": "./scripts/stop-verify.sh",
+            "timeout": 300,
             "type": "command"
           }
         ]
