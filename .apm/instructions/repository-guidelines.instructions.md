@@ -18,7 +18,7 @@ Tests are mostly colocated as `*.test.ts` / `*.test.tsx`. End-to-end tests are i
 - `bun run compile`: TypeScript type-check (`tsgo --noEmit`).
 - `bun run test` / `bun run test:coverage`: run Vitest tests (with optional coverage).
 - `bun run e2e`: run Playwright browser tests.
-- `bun run quality`: run format, lint, Biome check, and tests.
+- `bun run quality`: run format, lint, Biome check, tests, Knip, and duplication checks.
 
 ## Coding Style & Naming Conventions
 Use TypeScript + React with ES modules. Formatting/linting is enforced by Biome (`biome.json`): 2-space indentation, 80-column line width, single quotes, and no semicolons (`asNeeded`). Let Biome organize imports.
@@ -26,7 +26,7 @@ Use TypeScript + React with ES modules. Formatting/linting is enforced by Biome 
 Use `PascalCase.tsx` for React components (for example, `ImportExportSettings.tsx`) and `camelCase.ts` for utilities/constants (for example, `autoDeleteOptions.ts`). Keep tests next to the code they validate when practical.
 
 ## Testing Guidelines
-Vitest is the primary test runner (`vitest.ci.config.ts`); Playwright covers E2E flows in `e2e/`. Use `*.test.ts(x)` for unit/integration tests and `*.spec.ts` for Playwright tests. No explicit coverage threshold is enforced, so run `bun run test:coverage` for non-trivial changes and check for regressions before opening a PR.
+Vitest is the primary test runner (`vitest.ci.config.ts`); Playwright covers E2E flows in `e2e/`. Use `*.test.ts(x)` for unit/integration tests and `*.spec.ts` for Playwright tests. No explicit coverage threshold is enforced by Vitest config, but AI/Codex completion in this repository requires `bun run test:coverage` to report 100% coverage. For non-trivial changes, add or adjust regression tests before opening a PR.
 
 ## Agent Notify (Completion Gate)
 For AI/Codex agents working in this repository, the following steps are mandatory
