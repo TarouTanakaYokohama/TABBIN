@@ -16,7 +16,6 @@ local_deployed_files:
 - .agents/skills/find-skills
 - .agents/skills/finishing-a-development-branch
 - .agents/skills/migrate-to-skills
-- .agents/skills/multi-agent-orchestrator
 - .agents/skills/react-doctor
 - .agents/skills/receiving-code-review
 - .agents/skills/requesting-code-review
@@ -58,7 +57,6 @@ local_deployed_files:
 - .claude/skills/find-skills
 - .claude/skills/finishing-a-development-branch
 - .claude/skills/migrate-to-skills
-- .claude/skills/multi-agent-orchestrator
 - .claude/skills/react-doctor
 - .claude/skills/receiving-code-review
 - .claude/skills/requesting-code-review
@@ -100,7 +98,6 @@ local_deployed_files:
 - .cursor/skills/find-skills
 - .cursor/skills/finishing-a-development-branch
 - .cursor/skills/migrate-to-skills
-- .cursor/skills/multi-agent-orchestrator
 - .cursor/skills/react-doctor
 - .cursor/skills/receiving-code-review
 - .cursor/skills/requesting-code-review
@@ -139,7 +136,6 @@ local_deployed_files:
 - .gemini/skills/find-skills
 - .gemini/skills/finishing-a-development-branch
 - .gemini/skills/migrate-to-skills
-- .gemini/skills/multi-agent-orchestrator
 - .gemini/skills/react-doctor
 - .gemini/skills/receiving-code-review
 - .gemini/skills/requesting-code-review
@@ -182,7 +178,6 @@ local_deployed_files:
 - .github/skills/find-skills
 - .github/skills/finishing-a-development-branch
 - .github/skills/migrate-to-skills
-- .github/skills/multi-agent-orchestrator
 - .github/skills/react-doctor
 - .github/skills/receiving-code-review
 - .github/skills/requesting-code-review
@@ -210,14 +205,14 @@ local_deployed_file_hashes:
   .claude/hooks/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
   .claude/rules/00-context-mode.md: sha256:b6dadcfe66a5432974ce2e9e1d4abd5c41b2355bc7565f4214ee77b5f2697076
   .claude/rules/01-rtk.md: sha256:bae4628c7b0fd1d6f7c36080869d753e5a161793bc6a86031bb2c3d0d517475a
-  .claude/rules/repository-guidelines.md: sha256:f4a96606068d96e9b1a8b4d691f4edbbc38aad345cbf875ea496016f520c19c4
+  .claude/rules/repository-guidelines.md: sha256:0a92e70035b308631f0ea104a2da729aade6ec358d820a60e115eb339c27f88c
   .codex/hooks/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
   .codex/hooks/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
   .cursor/hooks/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
   .cursor/hooks/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
   .cursor/rules/00-context-mode.mdc: sha256:b16a029e28dcce58283913b2a4b4a7dc815bc4967ba3b0c961fc9d31ec7fc7a3
   .cursor/rules/01-rtk.mdc: sha256:7e8d9cfdd34f848449890c7a357e59e7fe2358e45f977691d300067c49495e9b
-  .cursor/rules/repository-guidelines.mdc: sha256:a91202917c9643061e4a9807582e56c6824b81738ab2079df456f91b8c59aacf
+  .cursor/rules/repository-guidelines.mdc: sha256:9d64249871b9185e5fd86f5092dc60f8c3a7ab517240b2942d298e5ed530ce47
   .gemini/commands/code-style.toml: sha256:78becaabf5b6e312f83007425041858a3e0915068c2560aa3b2a5284261b56c6
   .gemini/commands/comment-rule.toml: sha256:7593a57bbf211b76a2c7f83971071583b85575bdd019b728531fb727edc5f5fb
   .gemini/hooks/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
@@ -227,6 +222,6 @@ local_deployed_file_hashes:
   .github/hooks/scripts/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
   .github/instructions/00-context-mode.instructions.md: sha256:e753d7e82a29cc4393506d4b29533712e89f3c8e9da6b1f23f0c87d98e34362f
   .github/instructions/01-rtk.instructions.md: sha256:e284783adc570c4867027c6bc542858ac2d077c591da2a8c8fa4d4a441e52972
-  .github/instructions/repository-guidelines.instructions.md: sha256:f976edd23dfb05147c12c1d50d652e37487ca6660aae37cfa56a548078ea152e
+  .github/instructions/repository-guidelines.instructions.md: sha256:586e75e701fb693979231295b1667c5306a23b5d46ba7e7100c5e2ff873815d7
   .github/prompts/code-style.prompt.md: sha256:3c8c090a0ee75bdd9fa3821d58cd2b2a4c269147dcac0563a76af162b0b38225
   .github/prompts/comment-rule.prompt.md: sha256:988a149514e9b34338df2a7929c9ee1113237df95759100ae3e1b496957bb470
