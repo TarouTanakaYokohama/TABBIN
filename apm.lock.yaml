@@ -41,6 +41,8 @@ local_deployed_files:
 - .claude/commands/comment-rule.md
 - .claude/hooks/TABBIN/scripts/format-write.sh
 - .claude/hooks/TABBIN/scripts/stop-verify.sh
+- .claude/rules/00-context-mode.md
+- .claude/rules/01-rtk.md
 - .claude/rules/repository-guidelines.md
 - .claude/skills/babysit
 - .claude/skills/brainstorming
@@ -81,6 +83,8 @@ local_deployed_files:
 - .codex/hooks/TABBIN/scripts/stop-verify.sh
 - .cursor/hooks/TABBIN/scripts/format-write.sh
 - .cursor/hooks/TABBIN/scripts/stop-verify.sh
+- .cursor/rules/00-context-mode.mdc
+- .cursor/rules/01-rtk.mdc
 - .cursor/rules/repository-guidelines.mdc
 - .cursor/skills/babysit
 - .cursor/skills/brainstorming
@@ -159,6 +163,8 @@ local_deployed_files:
 - .github/hooks/TABBIN-claude-quality-hooks.json
 - .github/hooks/scripts/TABBIN/scripts/format-write.sh
 - .github/hooks/scripts/TABBIN/scripts/stop-verify.sh
+- .github/instructions/00-context-mode.instructions.md
+- .github/instructions/01-rtk.instructions.md
 - .github/instructions/repository-guidelines.instructions.md
 - .github/prompts/code-style.prompt.md
 - .github/prompts/comment-rule.prompt.md
@@ -202,19 +208,25 @@ local_deployed_file_hashes:
   .claude/commands/comment-rule.md: sha256:6b1e2a5ecca5bcc7cb0992da57e1e61f5cc9bb4a258089f16d2553715810c425
   .claude/hooks/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
   .claude/hooks/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
-  .claude/rules/repository-guidelines.md: sha256:6c35d1ba8ffaab256e6f2ea0f7c30112182bab077b7022b55b0b601e0b609138
+  .claude/rules/00-context-mode.md: sha256:b6dadcfe66a5432974ce2e9e1d4abd5c41b2355bc7565f4214ee77b5f2697076
+  .claude/rules/01-rtk.md: sha256:bae4628c7b0fd1d6f7c36080869d753e5a161793bc6a86031bb2c3d0d517475a
+  .claude/rules/repository-guidelines.md: sha256:f4a96606068d96e9b1a8b4d691f4edbbc38aad345cbf875ea496016f520c19c4
   .codex/hooks/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
   .codex/hooks/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
   .cursor/hooks/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
   .cursor/hooks/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
-  .cursor/rules/repository-guidelines.mdc: sha256:fa00642bb05b2cf1217a343b704823bbc244f5932d5be6fd9de4f7834ec6ceb3
+  .cursor/rules/00-context-mode.mdc: sha256:b16a029e28dcce58283913b2a4b4a7dc815bc4967ba3b0c961fc9d31ec7fc7a3
+  .cursor/rules/01-rtk.mdc: sha256:7e8d9cfdd34f848449890c7a357e59e7fe2358e45f977691d300067c49495e9b
+  .cursor/rules/repository-guidelines.mdc: sha256:a91202917c9643061e4a9807582e56c6824b81738ab2079df456f91b8c59aacf
   .gemini/commands/code-style.toml: sha256:78becaabf5b6e312f83007425041858a3e0915068c2560aa3b2a5284261b56c6
   .gemini/commands/comment-rule.toml: sha256:7593a57bbf211b76a2c7f83971071583b85575bdd019b728531fb727edc5f5fb
   .gemini/hooks/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
   .gemini/hooks/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
-  .github/hooks/TABBIN-claude-quality-hooks.json: sha256:d52c3d32e4a7304f4d1961740f3b32198b88b772cf4383eb7faa6419bbe8972a
+  .github/hooks/TABBIN-claude-quality-hooks.json: sha256:6305ef2b5d42489d6b54a6300f7e59d6f20b9f1ea63e4f3694054b8a3b6bef16
   .github/hooks/scripts/TABBIN/scripts/format-write.sh: sha256:34fb930a64266c51c93789449917f7e3605202dd29e2fe01712bf96db52978ff
   .github/hooks/scripts/TABBIN/scripts/stop-verify.sh: sha256:5e5c79663b47c05b39efd3dd94848919758ac43cd36a8e467f3b2f945a59185a
-  .github/instructions/repository-guidelines.instructions.md: sha256:c0b0b822b5a84f2734d823f1119aba77e1412cc4da489c5a1c8afd4a90957c97
+  .github/instructions/00-context-mode.instructions.md: sha256:e753d7e82a29cc4393506d4b29533712e89f3c8e9da6b1f23f0c87d98e34362f
+  .github/instructions/01-rtk.instructions.md: sha256:e284783adc570c4867027c6bc542858ac2d077c591da2a8c8fa4d4a441e52972
+  .github/instructions/repository-guidelines.instructions.md: sha256:f976edd23dfb05147c12c1d50d652e37487ca6660aae37cfa56a548078ea152e
   .github/prompts/code-style.prompt.md: sha256:3c8c090a0ee75bdd9fa3821d58cd2b2a4c269147dcac0563a76af162b0b38225
   .github/prompts/comment-rule.prompt.md: sha256:988a149514e9b34338df2a7929c9ee1113237df95759100ae3e1b496957bb470
