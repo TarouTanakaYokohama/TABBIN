@@ -2,14 +2,14 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import mainConfig from '../../.storybook/main'
+import mainConfig from '../../../.storybook/main'
 
 describe('Storybook main config', () => {
   it('discovers real component and feature stories', () => {
     expect(mainConfig.stories).toEqual(
       expect.arrayContaining([
-        '../components/**/*.stories.@(js|jsx|mjs|ts|tsx)',
-        '../features/**/*.stories.@(js|jsx|mjs|ts|tsx)',
+        '../src/components/**/*.stories.@(js|jsx|mjs|ts|tsx)',
+        '../src/features/**/*.stories.@(js|jsx|mjs|ts|tsx)',
       ]),
     )
   })
@@ -20,10 +20,9 @@ describe('Storybook main config', () => {
 
   it('disables Storybook browser auto-open in the npm script', () => {
     const packageJson = JSON.parse(
-      readFileSync(
-        path.resolve(import.meta.dirname, '../../package.json'),
-        'utf8',
-      ),
+      readFileSync(path.resolve(import.meta.dirname, '../../../package.json'), {
+        encoding: 'utf8',
+      }),
     ) as {
       dependencies?: Record<string, string>
       scripts?: Record<string, string>
@@ -34,10 +33,9 @@ describe('Storybook main config', () => {
 
   it('does not keep media-chrome as a Storybook dependency', () => {
     const packageJson = JSON.parse(
-      readFileSync(
-        path.resolve(import.meta.dirname, '../../package.json'),
-        'utf8',
-      ),
+      readFileSync(path.resolve(import.meta.dirname, '../../../package.json'), {
+        encoding: 'utf8',
+      }),
     ) as {
       dependencies?: Record<string, string>
     }

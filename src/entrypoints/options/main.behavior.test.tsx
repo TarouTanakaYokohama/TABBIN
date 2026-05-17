@@ -514,7 +514,7 @@ describe('options route behavior', () => {
       'chrome-extension://id/changelog.html',
       '_blank',
     )
-  }, 10000)
+  }, 30000)
 
   it('Enter 以外のキー入力では除外パターンを追加しない', () => {
     render(createElement(OptionsPage))

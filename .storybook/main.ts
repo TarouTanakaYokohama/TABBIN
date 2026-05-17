@@ -8,8 +8,8 @@ const dirname = fileURLToPath(new URL('.', import.meta.url))
 
 export default {
   stories: [
-    '../components/**/*.stories.@(js|jsx|mjs|ts|tsx)',
-    '../features/**/*.stories.@(js|jsx|mjs|ts|tsx)',
+    '../src/components/**/*.stories.@(js|jsx|mjs|ts|tsx)',
+    '../src/features/**/*.stories.@(js|jsx|mjs|ts|tsx)',
   ],
   addons: ['@chromatic-com/storybook', '@storybook/addon-vitest'],
   refs: {},
@@ -25,7 +25,7 @@ export default {
       plugins: [tailwindcss()],
       resolve: {
         alias: {
-          '@': path.resolve(dirname, '..'),
+          '@': path.resolve(dirname, '../src'),
         },
       },
     }),

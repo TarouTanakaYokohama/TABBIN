@@ -6,9 +6,9 @@ applyTo: "**/*"
 # リポジトリガイドライン
 
 ## プロジェクト構成とモジュール整理
-このリポジトリは WXT ベースのブラウザ拡張機能（TABBIN）です。主要なエントリポイントは `entrypoints/`（`background.ts`、`options/`、`saved-tabs/`、`changelog/`）にあります。ドメイン機能は `features/` 配下にまとまっています（例: `features/options`、`features/saved-tabs`）。再利用可能な UI と共通 React コンポーネントは `components/` と `components/ui/` にあります。横断的なロジックは `lib/`（background helper、storage、browser wrapper）にあり、共通型は `types/`、定数は `constants/`、ユーティリティは `utils/` にあります。
+このリポジトリは WXT ベースのブラウザ拡張機能（TABBIN）です。アプリ本体は `src/` 配下に集約されています。主要なエントリポイントは `src/entrypoints/`（`background.ts`、`options/`、`saved-tabs/`、`changelog/`）にあります。ドメイン機能は `src/features/` 配下にまとまっています（例: `src/features/options`、`src/features/saved-tabs`）。再利用可能な UI と共通 React コンポーネントは `src/components/` と `src/components/ui/` にあります。横断的なロジックは `src/lib/`（background helper、storage、browser wrapper）にあり、共通型は `src/types/`、定数は `src/constants/`、ユーティリティは `src/utils/` にあります。
 
-テストは多くの場合 `*.test.ts` / `*.test.tsx` として対象コードの近くに置かれます。E2E テストは `e2e/`（`*.spec.ts`）にあります。Storybook の story は `stories/` にあります。`.output/`、`coverage/`、`playwright-report/`、`test-results/` などの生成出力ディレクトリは手動編集しないでください。
+テストは多くの場合 `*.test.ts` / `*.test.tsx` として対象コードの近くに置かれます。E2E テストは `e2e/`（`*.spec.ts`）にあります。Storybook の story と Storybook 用の補助 assets は `src/` 配下に置きます。ローカル検査や保守用スクリプトは `tools/scripts/` にあります。`.output/`、`coverage/`、`playwright-report/`、`test-results/` などの生成出力ディレクトリは手動編集しないでください。
 
 ## ビルド、テスト、開発コマンド
 - `bun install`: 依存関係をインストールします（CI は Node `22` と Bun `1.2.8` を使用）。
