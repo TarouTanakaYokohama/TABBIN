@@ -181,13 +181,13 @@ const sourceExtensions = [
 const testFilePattern = /\.(test|spec)\.[cm]?[jt]sx?$/
 const coverageExcludedDirectories = [
   '.storybook/',
-  'components/',
-  'components/storybook/',
-  'lib/storybook/',
+  'src/components/',
+  'src/components/storybook/',
+  'src/lib/storybook/',
 ]
 const coverageExcludedFiles = new Set([
-  'constants/defaultColors.ts',
-  'entrypoints/options/main.tsx',
+  'src/constants/defaultColors.ts',
+  'src/entrypoints/options/main.tsx',
 ])
 
 function toProjectPath(filePath) {

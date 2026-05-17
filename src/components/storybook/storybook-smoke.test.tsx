@@ -9,7 +9,7 @@ import * as ollamaStories from '@/features/ai-chat/components/OllamaErrorNotice.
 import * as headerStories from '@/features/navigation/components/ExtensionPageHeader.stories'
 import * as importExportStories from '@/features/options/ImportExportSettings.stories'
 import * as viewModeStories from '@/features/saved-tabs/components/ViewModeToggle.stories'
-import preview from '../../.storybook/preview'
+import preview from '../../../.storybook/preview'
 
 vi.mock('@/features/i18n/context/I18nProvider', () => ({
   useI18n: () => ({

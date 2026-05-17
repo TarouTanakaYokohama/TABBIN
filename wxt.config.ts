@@ -7,6 +7,8 @@ const vitePlugins = tailwindcss() as unknown as NonNullable<
 >
 
 export default defineConfig({
+  srcDir: 'src',
+  publicDir: 'src/public',
   manifest: {
     default_locale: 'ja',
     name: '__MSG_extensionName__',
