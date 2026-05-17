@@ -1,8 +1,8 @@
 ---
-description: Check code changes against the TABBIN repository style.
+description: TABBIN リポジトリのスタイルに照らしてコード変更を確認する。
 ---
 
-# Code Style Review
+# コードスタイルレビュー
 
 TABBIN の既存コードと `AGENTS.md` のリポジトリガイドラインを基準に、
 現在の変更差分を確認してください。

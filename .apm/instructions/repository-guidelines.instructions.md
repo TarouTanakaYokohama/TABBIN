@@ -1,66 +1,54 @@
 ---
-description: Repository structure, commands, style, testing, and completion gate for TABBIN agents.
+description: TABBIN エージェント向けのリポジトリ構成、コマンド、スタイル、テスト、完了ゲート。
 applyTo: "**/*"
 ---
 
-# Repository Guidelines
+# リポジトリガイドライン
 
-## Project Structure & Module Organization
-This repository is a WXT-based browser extension (TABBIN). Main entrypoints live in `entrypoints/` (`background.ts`, `options/`, `saved-tabs/`, `changelog/`). Domain features are grouped under `features/` (for example, `features/options` and `features/saved-tabs`). Reusable UI and shared React components live in `components/` and `components/ui/`. Cross-cutting logic lives in `lib/` (background helpers, storage, browser wrappers), with shared types in `types/`, constants in `constants/`, and utilities in `utils/`.
+## プロジェクト構成とモジュール整理
+このリポジトリは WXT ベースのブラウザ拡張機能（TABBIN）です。主要なエントリポイントは `entrypoints/`（`background.ts`、`options/`、`saved-tabs/`、`changelog/`）にあります。ドメイン機能は `features/` 配下にまとまっています（例: `features/options`、`features/saved-tabs`）。再利用可能な UI と共通 React コンポーネントは `components/` と `components/ui/` にあります。横断的なロジックは `lib/`（background helper、storage、browser wrapper）にあり、共通型は `types/`、定数は `constants/`、ユーティリティは `utils/` にあります。
 
-Tests are mostly colocated as `*.test.ts` / `*.test.tsx`. End-to-end tests are in `e2e/` (`*.spec.ts`). Storybook stories are in `stories/`. Generated output directories such as `.output/`, `coverage/`, `playwright-report/`, and `test-results/` should not be edited manually.
+テストは多くの場合 `*.test.ts` / `*.test.tsx` として対象コードの近くに置かれます。E2E テストは `e2e/`（`*.spec.ts`）にあります。Storybook の story は `stories/` にあります。`.output/`、`coverage/`、`playwright-report/`、`test-results/` などの生成出力ディレクトリは手動編集しないでください。
 
-## Build, Test, and Development Commands
-- `bun install`: install dependencies (CI uses Node `22` and Bun `1.2.8`).
-- `bun run dev` / `bun run dev:firefox`: start WXT dev mode for Chrome/Firefox.
-- `bun run build` / `bun run build:firefox`: production extension build.
-- `bun run zip` / `bun run zip:firefox`: package extension zip artifacts.
-- `bun run compile`: TypeScript type-check (`tsgo --noEmit`).
-- `bun run test` / `bun run test:coverage`: run Vitest tests (with optional coverage).
-- `bun run e2e`: run Playwright browser tests.
-- `bun run quality`: run format, lint, Biome check, tests, Knip, and duplication checks.
+## ビルド、テスト、開発コマンド
+- `bun install`: 依存関係をインストールします（CI は Node `22` と Bun `1.2.8` を使用）。
+- `bun run dev` / `bun run dev:firefox`: Chrome / Firefox 向けに WXT dev mode を起動します。
+- `bun run build` / `bun run build:firefox`: 本番用の拡張機能をビルドします。
+- `bun run zip` / `bun run zip:firefox`: 拡張機能の zip 成果物を作成します。
+- `bun run compile`: TypeScript の型チェックを実行します（`tsgo --noEmit`）。
+- `bun run test` / `bun run test:coverage`: Vitest テストを実行します（coverage は任意）。
+- `bun run e2e`: Playwright のブラウザテストを実行します。
+- `bun run quality`: format、lint、Biome check、test、Knip、重複チェックを実行します。
 
-## Coding Style & Naming Conventions
-Use TypeScript + React with ES modules. Formatting/linting is enforced by Biome (`biome.json`): 2-space indentation, 80-column line width, single quotes, and no semicolons (`asNeeded`). Let Biome organize imports.
+## コーディングスタイルと命名規則
+TypeScript + React を ES modules で使います。format / lint は Biome（`biome.json`）で強制されます。2 スペースインデント、80 文字幅、シングルクォート、セミコロンなし（`asNeeded`）です。import 整理は Biome に任せてください。
 
-Use `PascalCase.tsx` for React components (for example, `ImportExportSettings.tsx`) and `camelCase.ts` for utilities/constants (for example, `autoDeleteOptions.ts`). Keep tests next to the code they validate when practical.
+React コンポーネントは `PascalCase.tsx`（例: `ImportExportSettings.tsx`）、ユーティリティや定数は `camelCase.ts`（例: `autoDeleteOptions.ts`）を使います。現実的な範囲で、テストは検証対象のコードの近くに置いてください。
 
-## Testing Guidelines
-Vitest is the primary test runner (`vitest.ci.config.ts`); Playwright covers E2E flows in `e2e/`. Use `*.test.ts(x)` for unit/integration tests and `*.spec.ts` for Playwright tests. No explicit coverage threshold is enforced by Vitest config, but AI/Codex completion in this repository requires `bun run test:coverage` to report 100% coverage. For non-trivial changes, add or adjust regression tests before opening a PR.
+## テストガイドライン
+主要なテストランナーは Vitest（`vitest.ci.config.ts`）です。E2E フローは `e2e/` の Playwright が担当します。unit / integration テストには `*.test.ts(x)`、Playwright テストには `*.spec.ts` を使います。Vitest 設定上の明示的な coverage 閾値はありませんが、このリポジトリで AI / Codex が完了を報告するには、`bun run test:coverage` が coverage 100% を報告する必要があります。自明でない変更では、PR を開く前に regression test を追加または調整してください。
 
-## Agent Notify (Completion Gate)
-For AI/Codex agents working in this repository, the following steps are mandatory
-before reporting a task as completed to the user:
+## エージェント通知（完了ゲート）
+このリポジトリで作業する AI / Codex エージェントは、ユーザーへタスク完了を報告する前に、以下を必ず実行してください。
 
-1. Run `bun run quality`.
-2. If `bun run quality` fails, fix the errors and re-run until it passes.
-3. Run `bun run test:coverage`.
-4. If coverage is not `100`, add/fix tests and re-run until coverage reaches `100`.
-5. Do not claim completion until both commands pass and coverage is `100`.
+1. `bun run quality` を実行します。
+2. `bun run quality` が失敗した場合はエラーを修正し、成功するまで再実行します。
+3. `bun run test:coverage` を実行します。
+4. coverage が `100` でない場合はテストを追加または修正し、coverage が `100` になるまで再実行します。
+5. 両方のコマンドが成功し、coverage が `100` になるまで完了を主張しないでください。
 
-If blocked by an environment/tooling issue (for example, a runtime panic unrelated to
-repo code), explicitly report it as a blocker instead of claiming completion.
+環境やツール起因の問題（例: リポジトリコードと無関係な runtime panic）でブロックされた場合は、完了を主張せず、ブロッカーとして明示的に報告してください。
 
-## Beads Issue Tracker
-This project uses Beads (`bd`) for durable issue tracking. Use the `beads`
-skill at `.agents/skills/beads/SKILL.md` for workflow guidance, then use the
-`bd` CLI for issue operations when it is available.
+## Beads issue 管理
+このプロジェクトでは、永続的な issue tracking に Beads（`bd`）を使います。ワークフローのガイダンスには `.agents/skills/beads/SKILL.md` の `beads` skill を使い、利用可能な場合は issue 操作に `bd` CLI を使ってください。
 
-Run `bd prime` when Beads context is missing or stale. Use `bd ready` to find
-available work, `bd show <id>` to inspect issues, `bd update <id> --claim` to
-claim work, and `bd close <id>` only after the work is actually complete.
+Beads のコンテキストが存在しない、または古い場合は `bd prime` を実行します。着手可能な作業の確認には `bd ready`、issue の確認には `bd show <id>`、作業の claim には `bd update <id> --claim` を使います。`bd close <id>` は作業が実際に完了してからのみ使ってください。
 
-Use Beads for shared project tasks, blockers, dependencies, discovered follow-up
-work, and handoff state. Do not create markdown TODO lists as the source of
-truth, and keep persistent project memory in Beads via `bd remember`.
+共有プロジェクトタスク、ブロッカー、依存関係、発見した follow-up 作業、handoff 状態には Beads を使ってください。Markdown の TODO リストを source of truth にしないでください。永続的なプロジェクトメモリは `bd remember` で Beads に残してください。
 
-When ending a work session, file issues for remaining follow-up work, run the
-required quality gates if code changed, update Beads issue status, and push the
-finished branch. Work is not complete until `git push` succeeds and `git status`
-shows the branch is up to date with origin. If push or Beads operations are
-blocked by local tooling or credentials, report that blocker explicitly.
+作業セッションを終えるときは、残った follow-up 作業の issue を作成し、コードが変わった場合は必須 quality gate を実行し、Beads issue の状態を更新し、完了したブランチを push してください。`git push` が成功し、`git status` でブランチが origin と同期済みであることを確認するまで、作業は完了ではありません。push や Beads 操作がローカルツールや認証情報でブロックされた場合は、そのブロッカーを明示的に報告してください。
 
-## Commit & Pull Request Guidelines
-Recent history uses concise subjects (often Japanese) plus merge commits. Prefer short, imperative commit messages describing a single change. PRs should target `main`, summarize changes under `変更内容`, and confirm local validation in the checklist (`ローカル環境でエラーになっていない`). Link related issues and include screenshots/GIFs for UI changes.
+## Commit と Pull Request のガイドライン
+最近の履歴では、簡潔な件名（日本語が多い）と merge commit が使われています。1 つの変更を説明する、短く命令形の commit message を優先してください。PR は `main` を target にし、`変更内容` に変更点をまとめ、チェックリストでローカル検証（`ローカル環境でエラーになっていない`）を確認してください。関連 issue をリンクし、UI 変更では screenshot / GIF を含めてください。
 
-`lefthook` runs `biome check --write` on pre-commit and `bun run quality` on pre-push, so keep the branch green locally before pushing.
+`lefthook` は pre-commit で `biome check --write`、pre-push で `bun run quality` を実行します。push 前にローカルでブランチを green に保ってください。

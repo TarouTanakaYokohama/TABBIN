@@ -1,15 +1,15 @@
 ---
-description: RTK routing rules for compact shell command output.
+description: shell コマンド出力を圧縮するための RTK ルーティング規則。
 applyTo: "**/*"
 ---
 
 @/Users/tarou/.codex/RTK.md
 
-# RTK usage in this repository
+# このリポジトリでの RTK 利用
 
-RTK is installed for Codex shell output compaction. Use it for shell commands when a shell command is appropriate:
+RTK は Codex の shell 出力を圧縮するためにインストールされています。shell コマンドが適切な場面では RTK を使ってください。
 
-- Prefer `rtk git status`, `rtk git diff`, `rtk rg`, `rtk find`, `rtk bun run test`, and similar compact wrappers.
-- Keep `context-mode` routing rules higher priority. RTK does not permit forbidden commands such as raw `curl` / `wget`, inline HTTP fetches, or dumping large command output directly into context.
-- If a command must be analyzed, counted, filtered, compared, searched, parsed, or transformed, still use `ctx_execute` / `ctx_batch_execute` and write code to print only the answer.
-- If RTK hides details needed to debug a failure, use the appropriate unfiltered route intentionally, such as `rtk proxy <cmd>` or a targeted `ctx_execute` script that prints the specific evidence needed.
+- `rtk git status`、`rtk git diff`、`rtk rg`、`rtk find`、`rtk bun run test` などの圧縮ラッパーを優先してください。
+- `context-mode` のルーティング規則をより高い優先度で扱ってください。RTK を使っても、生の `curl` / `wget`、インライン HTTP 取得、大量出力の直接投入といった禁止コマンドは許可されません。
+- コマンド結果を分析、集計、フィルタリング、比較、検索、解析、変換する必要がある場合は、引き続き `ctx_execute` / `ctx_batch_execute` を使い、答えだけを出力するコードを書いてください。
+- RTK が失敗調査に必要な詳細を隠す場合は、`rtk proxy <cmd>` や、必要な証拠だけを出力する targeted な `ctx_execute` スクリプトなど、適切な非フィルタ経路を意図的に使ってください。
