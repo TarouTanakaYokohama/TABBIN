@@ -41,6 +41,25 @@ before reporting a task as completed to the user:
 If blocked by an environment/tooling issue (for example, a runtime panic unrelated to
 repo code), explicitly report it as a blocker instead of claiming completion.
 
+## Beads Issue Tracker
+This project uses Beads (`bd`) for durable issue tracking. Use the `beads`
+skill at `.agents/skills/beads/SKILL.md` for workflow guidance, then use the
+`bd` CLI for issue operations when it is available.
+
+Run `bd prime` when Beads context is missing or stale. Use `bd ready` to find
+available work, `bd show <id>` to inspect issues, `bd update <id> --claim` to
+claim work, and `bd close <id>` only after the work is actually complete.
+
+Use Beads for shared project tasks, blockers, dependencies, discovered follow-up
+work, and handoff state. Do not create markdown TODO lists as the source of
+truth, and keep persistent project memory in Beads via `bd remember`.
+
+When ending a work session, file issues for remaining follow-up work, run the
+required quality gates if code changed, update Beads issue status, and push the
+finished branch. Work is not complete until `git push` succeeds and `git status`
+shows the branch is up to date with origin. If push or Beads operations are
+blocked by local tooling or credentials, report that blocker explicitly.
+
 ## Commit & Pull Request Guidelines
 Recent history uses concise subjects (often Japanese) plus merge commits. Prefer short, imperative commit messages describing a single change. PRs should target `main`, summarize changes under `変更内容`, and confirm local validation in the checklist (`ローカル環境でエラーになっていない`). Link related issues and include screenshots/GIFs for UI changes.
 
