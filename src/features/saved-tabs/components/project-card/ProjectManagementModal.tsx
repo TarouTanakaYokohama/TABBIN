@@ -1,4 +1,4 @@
-import { Edit, Trash, Trash2, X } from 'lucide-react'
+import { Edit, Trash2, X } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
+import { DeleteEntityConfirmPanel } from '@/features/saved-tabs/components/shared/DeleteEntityConfirmPanel'
 import {
   SavedTabsResponsiveLabel,
   SavedTabsResponsiveTooltipContent,
@@ -695,57 +696,28 @@ const useProjectManagementModalView = ({
           </div>
 
           {showDeleteConfirm && (
-            <div className='mt-1 mb-3 rounded border p-3'>
-              <p className='mb-2 text-zinc-700 dark:text-zinc-300'>
-                {t(
-                  'savedTabs.projectManagement.deleteConfirmDescription',
-                  undefined,
-                  {
-                    name: localProjectName,
-                  },
-                )}
-                <span className='mt-1 block max-w-full truncate text-xs'>
-                  {t('savedTabs.projectManagement.deleteConfirmHint')}
-                </span>
-              </p>
-              <div className='flex justify-end gap-2'>
-                <Tooltip>
-                  <TooltipTrigger asChild={true}>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={() =>
-                        updateModalState({ showDeleteConfirm: false })
-                      }
-                      disabled={isProcessing}
-                    >
-                      {t('common.cancel')}
-                    </Button>
-                  </TooltipTrigger>
-                  <SavedTabsResponsiveTooltipContent side='top'>
-                    {t('common.cancel')}
-                  </SavedTabsResponsiveTooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild={true}>
-                    <Button
-                      variant='destructive'
-                      size='sm'
-                      onClick={handleDeleteProject}
-                      disabled={isProcessing}
-                    >
-                      <Trash size={14} />
-                      <SavedTabsResponsiveLabel>
-                        {t('common.delete')}
-                      </SavedTabsResponsiveLabel>
-                    </Button>
-                  </TooltipTrigger>
-                  <SavedTabsResponsiveTooltipContent side='top'>
-                    {t('savedTabs.projectManagement.deleteAction')}
-                  </SavedTabsResponsiveTooltipContent>
-                </Tooltip>
-              </div>
-            </div>
+            <DeleteEntityConfirmPanel
+              description={
+                <>
+                  {t(
+                    'savedTabs.projectManagement.deleteConfirmDescription',
+                    undefined,
+                    {
+                      name: localProjectName,
+                    },
+                  )}
+                  <span className='mt-1 block max-w-full truncate text-xs'>
+                    {t('savedTabs.projectManagement.deleteConfirmHint')}
+                  </span>
+                </>
+              }
+              cancelLabel={t('common.cancel')}
+              deleteLabel={t('common.delete')}
+              deleteTooltip={t('savedTabs.projectManagement.deleteAction')}
+              isProcessing={isProcessing}
+              onCancel={() => updateModalState({ showDeleteConfirm: false })}
+              onDelete={handleDeleteProject}
+            />
           )}
         </div>
       </DialogContent>

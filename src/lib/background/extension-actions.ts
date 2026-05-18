@@ -114,6 +114,26 @@ const syncSavedTabsToCustomMode = async (
   }
 }
 
+const notifyAndCloseTabs = async (
+  notificationTitle: string,
+  notificationMessage: string,
+  tabIdsToClose: number[],
+): Promise<void> => {
+  await Promise.all([
+    showNotification(notificationTitle, notificationMessage),
+    tabIdsToClose.length > 0
+      ? chrome.tabs
+          .remove(tabIdsToClose)
+          .then(() => {
+            console.log(`${tabIdsToClose.length}個のタブを一括で閉じました`)
+          })
+          .catch(error => {
+            console.error('タブを閉じる際にエラー:', error)
+          })
+      : Promise.resolve(),
+  ])
+}
+
 /**
  * ブラウザアクション（拡張機能アイコン）クリック時の処理
  */
@@ -272,19 +292,11 @@ export const handleSaveSameDomainTabs = async (): Promise<
         return ids
       }, [])
       .filter((id): id is number => id !== undefined)
-    await Promise.all([
-      showNotification(notificationTitle, notificationMessage),
-      tabIdsToClose.length > 0
-        ? chrome.tabs
-            .remove(tabIdsToClose)
-            .then(() => {
-              console.log(`${tabIdsToClose.length}個のタブを一括で閉じました`)
-            })
-            .catch(error => {
-              console.error('タブを閉じる際にエラー:', error)
-            })
-        : Promise.resolve(),
-    ])
+    await notifyAndCloseTabs(
+      notificationTitle,
+      notificationMessage,
+      tabIdsToClose,
+    )
     return toResultItems(filteredTabs)
   } catch (error) {
     console.error('ドメインタブ保存エラー:', error)
@@ -334,19 +346,11 @@ export const handleSaveAllWindowsTabs = async (): Promise<
       }
       return ids
     }, [])
-    await Promise.all([
-      showNotification(notificationTitle, notificationMessage),
-      tabIdsToClose.length > 0
-        ? chrome.tabs
-            .remove(tabIdsToClose)
-            .then(() => {
-              console.log(`${tabIdsToClose.length}個のタブを一括で閉じました`)
-            })
-            .catch(error => {
-              console.error('タブを閉じる際にエラー:', error)
-            })
-        : Promise.resolve(),
-    ])
+    await notifyAndCloseTabs(
+      notificationTitle,
+      notificationMessage,
+      tabIdsToClose,
+    )
     return toResultItems(filteredTabs)
   } catch (error) {
     console.error('すべてのタブ保存エラー:', error)

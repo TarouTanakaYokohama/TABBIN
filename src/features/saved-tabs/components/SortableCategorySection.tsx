@@ -1,15 +1,11 @@
 import { useDndMonitor } from '@dnd-kit/core'
-import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import {
   ArrowUpDown,
   ArrowUpNarrowWide,
   ArrowUpWideNarrow,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
   GripVertical,
-  Trash,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -28,10 +24,9 @@ import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
-import {
-  SavedTabsResponsiveLabel,
-  SavedTabsResponsiveTooltipContent,
-} from './shared/SavedTabsResponsive'
+import { CategoryBulkActionButtons } from './shared/CategoryBulkActionButtons'
+import { SavedTabsResponsiveTooltipContent } from './shared/SavedTabsResponsive'
+import { useSortableCategoryDrag } from './shared/useSortableCategoryDrag'
 import { CategorySection } from './TimeRemaining'
 
 type SortOrder = 'default' | 'asc' | 'desc'
@@ -105,27 +100,8 @@ const useSortableCategorySectionView = ({
   ...props
 }: SortableCategorySectionViewProps) => {
   const { t } = useI18n()
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id,
-    data: {
-      type: 'category-section',
-    },
-  })
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 100 : 'auto',
-    position: isDragging ? 'relative' : 'static',
-    opacity: isDragging ? 0.8 : 1,
-  }
+  const { attributes, listeners, setNodeRef, isDragging, style } =
+    useSortableCategoryDrag(id)
 
   const [isDeleting, setIsDeleting] = useState(false)
   // sort order state: 'default' preserves manual drag order
@@ -321,54 +297,17 @@ const useSortableCategorySectionView = ({
             </span>
           </div>
 
-          {/* ボタンコンテナ */}
-          <div className='flex items-center gap-2'>
-            <Tooltip>
-              <TooltipTrigger asChild={true}>
-                <Button
-                  variant='secondary'
-                  size='sm'
-                  onClick={handleOpenAllClick}
-                  className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
-                  style={{ position: 'relative' }} // ボタンを確実に上に表示
-                >
-                  <ExternalLink size={14} />
-                  <SavedTabsResponsiveLabel>
-                    {t('savedTabs.openAll')}
-                  </SavedTabsResponsiveLabel>
-                </Button>
-              </TooltipTrigger>
-              <SavedTabsResponsiveTooltipContent side='top'>
-                {t('savedTabs.openAllTabs')}
-              </SavedTabsResponsiveTooltipContent>
-            </Tooltip>
-
-            {/* 削除ボタンを追加 */}
-            {handleDeleteAllTabs && (
-              <Tooltip>
-                <TooltipTrigger asChild={true}>
-                  <Button
-                    variant='secondary'
-                    size='sm'
-                    onClick={onDeleteAllTabs}
-                    className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
-                    style={{ position: 'relative' }}
-                    disabled={isDeleting}
-                  >
-                    <Trash size={14} />
-                    <SavedTabsResponsiveLabel>
-                      {isDeleting
-                        ? t('savedTabs.deletingAll')
-                        : t('savedTabs.deleteAll')}
-                    </SavedTabsResponsiveLabel>
-                  </Button>
-                </TooltipTrigger>
-                <SavedTabsResponsiveTooltipContent side='top'>
-                  {t('savedTabs.deleteAllTabs')}
-                </SavedTabsResponsiveTooltipContent>
-              </Tooltip>
-            )}
-          </div>
+          <CategoryBulkActionButtons
+            isDeleting={isDeleting}
+            showDeleteAction={Boolean(handleDeleteAllTabs)}
+            openLabel={t('savedTabs.openAll')}
+            openTooltip={t('savedTabs.openAllTabs')}
+            deleteLabel={t('savedTabs.deleteAll')}
+            deletingLabel={t('savedTabs.deletingAll')}
+            deleteTooltip={t('savedTabs.deleteAllTabs')}
+            onOpenAll={handleOpenAllClick}
+            onDeleteAll={onDeleteAllTabs}
+          />
         </div>
 
         {!isCollapsed && (

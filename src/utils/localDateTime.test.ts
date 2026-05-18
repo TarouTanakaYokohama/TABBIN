@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatFixedDatetime,
+  formatLocaleDateTime,
   getDatePartsInTimeZone,
   getLocalDateKey,
   getLocalMonthKey,
@@ -27,6 +28,9 @@ describe('localDateTime', () => {
 
   it('週バケットの開始日をローカル週の月曜で返す', () => {
     expect(getLocalWeekStartKey(timestamp, 'Asia/Tokyo')).toBe('2026-02-23')
+    expect(getLocalWeekStartKey(Date.UTC(2026, 2, 4, 12), 'UTC')).toBe(
+      '2026-03-02',
+    )
   })
 
   it('ローカル日付範囲を逆順指定でも判定する', () => {
@@ -63,5 +67,13 @@ describe('localDateTime', () => {
 
   it('timestamp が未指定ならフォーマットのフォールバックを返す', () => {
     expect(formatFixedDatetime()).toBe('-')
+  })
+
+  it('locale と timeZone を指定してローカル日時を返す', () => {
+    expect(formatLocaleDateTime(timestamp, 'en-US', 'UTC')).toContain('2026')
+  })
+
+  it('空白の timeZone は実行環境の既定値へフォールバックする', () => {
+    expect(getLocalDateKey(timestamp, '   ')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 })

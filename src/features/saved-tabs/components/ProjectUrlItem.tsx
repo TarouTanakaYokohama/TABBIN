@@ -2,20 +2,11 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronRight, GripVertical, X } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
 import type { CustomProject, UserSettings } from '@/types/storage'
+import { DeleteUrlConfirmDialog } from './shared/DeleteUrlConfirmDialog'
 
 // グローバルのドロップ状態を追跡（ウィンドウ内でのドロップか外部へのドロップかを判定するため）
 let isGlobalInternalDrop = false
@@ -262,30 +253,11 @@ const ProjectUrlItemComponent = ({
         </div>
       </li>
 
-      <AlertDialog
-        open={isDeleteConfirmOpen}
+      <DeleteUrlConfirmDialog
+        isOpen={isDeleteConfirmOpen}
         onOpenChange={setIsDeleteConfirmOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('savedTabs.url.deleteConfirmTitle')}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('savedTabs.url.deleteConfirmDescription')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              variant='destructive'
-              onClick={() => handleDeleteUrl(projectId, item.url)}
-            >
-              {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onConfirm={() => handleDeleteUrl(projectId, item.url)}
+      />
     </>
   )
 }

@@ -38,11 +38,10 @@ const getProjectUrls = async (
     }
   >
 > => {
-  // マイグレーションを実行（未実行の場合）
-  await migrateToUrlsStorage()
-
   // 新形式のみサポート: URLIDsから参照して取得
   if (project.urlIds && project.urlIds.length > 0) {
+    // マイグレーションを実行（未実行の場合）
+    await migrateToUrlsStorage()
     const urlRecords = await getUrlRecordsByIds(project.urlIds)
     return urlRecords.map(record => ({
       ...record,

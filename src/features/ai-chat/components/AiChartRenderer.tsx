@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import type { ReactNode } from 'react'
 import {
   type ChartConfig,
   ChartContainer,
@@ -8,52 +8,23 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart'
 import type { AiChartSeries, AiChartSpec } from '@/features/ai-chat/types'
-
-const Area = lazy(() =>
-  import('recharts').then(module => ({ default: module.Area })),
-)
-const AreaChart = lazy(() =>
-  import('recharts').then(module => ({ default: module.AreaChart })),
-)
-const Bar = lazy(() =>
-  import('recharts').then(module => ({ default: module.Bar })),
-)
-const BarChart = lazy(() =>
-  import('recharts').then(module => ({ default: module.BarChart })),
-)
-const CartesianGrid = lazy(() =>
-  import('recharts').then(module => ({ default: module.CartesianGrid })),
-)
-const Line = lazy(() =>
-  import('recharts').then(module => ({ default: module.Line })),
-)
-const LineChart = lazy(() =>
-  import('recharts').then(module => ({ default: module.LineChart })),
-)
-const Pie = lazy(() =>
-  import('recharts').then(module => ({ default: module.Pie })),
-)
-const PieChart = lazy(() =>
-  import('recharts').then(module => ({ default: module.PieChart })),
-)
-const PolarAngleAxis = lazy(() =>
-  import('recharts').then(module => ({ default: module.PolarAngleAxis })),
-)
-const PolarGrid = lazy(() =>
-  import('recharts').then(module => ({ default: module.PolarGrid })),
-)
-const Radar = lazy(() =>
-  import('recharts').then(module => ({ default: module.Radar })),
-)
-const RadarChart = lazy(() =>
-  import('recharts').then(module => ({ default: module.RadarChart })),
-)
-const XAxis = lazy(() =>
-  import('recharts').then(module => ({ default: module.XAxis })),
-)
-const YAxis = lazy(() =>
-  import('recharts').then(module => ({ default: module.YAxis })),
-)
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  PolarAngleAxis,
+  PolarGrid,
+  Radar,
+  RadarChart,
+  XAxis,
+  YAxis,
+} from '@/lib/lazy-recharts'
 
 interface AiChartPointSelection {
   label: string
@@ -269,147 +240,128 @@ const renderPieChart = ({
   </PieChart>
 )
 
-const renderBarChart = ({
-  onChartPointClick,
-  primarySeries,
-  shouldShowLegend,
-  spec,
-}: {
+interface CartesianChartRenderProps {
   onChartPointClick?: (selection: AiChartPointSelection) => void
   primarySeries: AiChartSeries
   shouldShowLegend: boolean
   spec: AiChartSpec
-}) =>
-  spec.xKey ? (
+}
+
+interface CartesianChartContentProps {
+  series: ReactNode
+  shouldShowLegend: boolean
+  spec: AiChartSpec
+}
+
+const CartesianChartContent = ({
+  series,
+  shouldShowLegend,
+  spec,
+}: CartesianChartContentProps) => (
+  <>
+    <CartesianGrid vertical={false} />
+    <XAxis axisLine={false} dataKey={spec.xKey} tickLine={false} />
+    <YAxis axisLine={false} tickLine={false} />
+    <ChartTooltip
+      content={
+        <ChartTooltipContent
+          formatter={value => formatChartValue(value, spec.valueFormat)}
+        />
+      }
+      cursor={false}
+    />
+    <ChartLegendBlock shouldShowLegend={shouldShowLegend} />
+    {series}
+  </>
+)
+
+const renderBarChart = (props: CartesianChartRenderProps) =>
+  props.spec.xKey ? (
     <BarChart
       accessibilityLayer
-      data={spec.data}
+      data={props.spec.data}
       onClick={createTooltipChartClickHandler({
-        onChartPointClick,
-        primarySeries,
-        spec,
+        onChartPointClick: props.onChartPointClick,
+        primarySeries: props.primarySeries,
+        spec: props.spec,
       })}
     >
-      <CartesianGrid vertical={false} />
-      <XAxis axisLine={false} dataKey={spec.xKey} tickLine={false} />
-      <YAxis axisLine={false} tickLine={false} />
-      <ChartTooltip
-        content={
-          <ChartTooltipContent
-            formatter={value => formatChartValue(value, spec.valueFormat)}
+      <CartesianChartContent
+        series={props.spec.series.map(series => (
+          <Bar
+            dataKey={series.dataKey}
+            fill={getChartColor(series.colorToken)}
+            key={series.dataKey}
+            onClick={createChartPointClickHandler({
+              onChartPointClick: props.onChartPointClick,
+              series,
+              spec: props.spec,
+            })}
+            radius={6}
+            stackId={props.spec.stacked ? 'stack' : undefined}
           />
-        }
-        cursor={false}
+        ))}
+        shouldShowLegend={props.shouldShowLegend}
+        spec={props.spec}
       />
-      <ChartLegendBlock shouldShowLegend={shouldShowLegend} />
-      {spec.series.map(series => (
-        <Bar
-          dataKey={series.dataKey}
-          fill={getChartColor(series.colorToken)}
-          key={series.dataKey}
-          onClick={createChartPointClickHandler({
-            onChartPointClick,
-            series,
-            spec,
-          })}
-          radius={6}
-          stackId={spec.stacked ? 'stack' : undefined}
-        />
-      ))}
     </BarChart>
   ) : null
 
-const renderLineChart = ({
-  onChartPointClick,
-  primarySeries,
-  shouldShowLegend,
-  spec,
-}: {
-  onChartPointClick?: (selection: AiChartPointSelection) => void
-  primarySeries: AiChartSeries
-  shouldShowLegend: boolean
-  spec: AiChartSpec
-}) =>
-  spec.xKey ? (
+const renderLineChart = (props: CartesianChartRenderProps) =>
+  props.spec.xKey ? (
     <LineChart
       accessibilityLayer
-      data={spec.data}
+      data={props.spec.data}
       onClick={createTooltipChartClickHandler({
-        onChartPointClick,
-        primarySeries,
-        spec,
+        onChartPointClick: props.onChartPointClick,
+        primarySeries: props.primarySeries,
+        spec: props.spec,
       })}
     >
-      <CartesianGrid vertical={false} />
-      <XAxis axisLine={false} dataKey={spec.xKey} tickLine={false} />
-      <YAxis axisLine={false} tickLine={false} />
-      <ChartTooltip
-        content={
-          <ChartTooltipContent
-            formatter={value => formatChartValue(value, spec.valueFormat)}
+      <CartesianChartContent
+        series={props.spec.series.map(series => (
+          <Line
+            dataKey={series.dataKey}
+            dot={false}
+            key={series.dataKey}
+            stroke={getChartColor(series.colorToken)}
+            strokeWidth={2}
+            type='monotone'
           />
-        }
-        cursor={false}
+        ))}
+        shouldShowLegend={props.shouldShowLegend}
+        spec={props.spec}
       />
-      <ChartLegendBlock shouldShowLegend={shouldShowLegend} />
-      {spec.series.map(series => (
-        <Line
-          dataKey={series.dataKey}
-          dot={false}
-          key={series.dataKey}
-          stroke={getChartColor(series.colorToken)}
-          strokeWidth={2}
-          type='monotone'
-        />
-      ))}
     </LineChart>
   ) : null
 
-const renderAreaChart = ({
-  onChartPointClick,
-  primarySeries,
-  shouldShowLegend,
-  spec,
-}: {
-  onChartPointClick?: (selection: AiChartPointSelection) => void
-  primarySeries: AiChartSeries
-  shouldShowLegend: boolean
-  spec: AiChartSpec
-}) =>
-  spec.xKey ? (
+const renderAreaChart = (props: CartesianChartRenderProps) =>
+  props.spec.xKey ? (
     <AreaChart
       accessibilityLayer
-      data={spec.data}
+      data={props.spec.data}
       onClick={createTooltipChartClickHandler({
-        onChartPointClick,
-        primarySeries,
-        spec,
+        onChartPointClick: props.onChartPointClick,
+        primarySeries: props.primarySeries,
+        spec: props.spec,
       })}
     >
-      <CartesianGrid vertical={false} />
-      <XAxis axisLine={false} dataKey={spec.xKey} tickLine={false} />
-      <YAxis axisLine={false} tickLine={false} />
-      <ChartTooltip
-        content={
-          <ChartTooltipContent
-            formatter={value => formatChartValue(value, spec.valueFormat)}
+      <CartesianChartContent
+        series={props.spec.series.map(series => (
+          <Area
+            dataKey={series.dataKey}
+            fill={getChartColor(series.colorToken)}
+            fillOpacity={0.3}
+            key={series.dataKey}
+            stackId={props.spec.stacked ? 'stack' : undefined}
+            stroke={getChartColor(series.colorToken)}
+            strokeWidth={2}
+            type='monotone'
           />
-        }
-        cursor={false}
+        ))}
+        shouldShowLegend={props.shouldShowLegend}
+        spec={props.spec}
       />
-      <ChartLegendBlock shouldShowLegend={shouldShowLegend} />
-      {spec.series.map(series => (
-        <Area
-          dataKey={series.dataKey}
-          fill={getChartColor(series.colorToken)}
-          fillOpacity={0.3}
-          key={series.dataKey}
-          stackId={spec.stacked ? 'stack' : undefined}
-          stroke={getChartColor(series.colorToken)}
-          strokeWidth={2}
-          type='monotone'
-        />
-      ))}
     </AreaChart>
   ) : null
 
