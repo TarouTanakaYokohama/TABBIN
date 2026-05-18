@@ -25,6 +25,8 @@ TypeScript + React を ES modules で使います。format / lint は Biome（`b
 
 React コンポーネントは `PascalCase.tsx`（例: `ImportExportSettings.tsx`）、ユーティリティや定数は `camelCase.ts`（例: `autoDeleteOptions.ts`）を使います。現実的な範囲で、テストは検証対象のコードの近くに置いてください。
 
+実装前に既存の helper、型、wrapper、コンポーネント、テスト fixture を探してください。探索には context-mode の `ctx_batch_execute` / `ctx_search`、`rg`、Serena の symbol search を優先し、既存の source of truth を確認してから新しい抽象を追加します。KISS / DRY / YAGNI は守りますが、TABBIN 固有の WXT、APM、Beads、完了ゲートの規則を汎用ルールで置き換えないでください。
+
 ## テストガイドライン
 主要なテストランナーは Vitest（`vitest.ci.config.ts`）です。E2E フローは `e2e/` の Playwright が担当します。unit / integration テストには `*.test.ts(x)`、Playwright テストには `*.spec.ts` を使います。Vitest 設定上の明示的な coverage 閾値はありませんが、このリポジトリで AI / Codex が完了を報告するには、`bun run test:coverage` が coverage 100% を報告する必要があります。自明でない変更では、PR を開く前に regression test を追加または調整してください。
 
@@ -39,6 +41,8 @@ React コンポーネントは `PascalCase.tsx`（例: `ImportExportSettings.tsx
 
 環境やツール起因の問題（例: リポジトリコードと無関係な runtime panic）でブロックされた場合は、完了を主張せず、ブロッカーとして明示的に報告してください。
 
+検証は変更スコープに合わせて選びますが、完了ゲートを弱めてはいけません。Markdown や `.apm` source だけを変更した場合でも、少なくとも `apm compile --validate` と、生成物を更新する必要がある場合は `apm compile` / `apm install` を実行します。TypeScript / React / storage / background / UI の変更では、関連する targeted test に加えて、最終的に `bun run quality` と `bun run test:coverage` 100% を確認します。
+
 ## Beads issue 管理
 このプロジェクトでは、永続的な issue tracking に Beads（`bd`）を使います。ワークフローのガイダンスには `.agents/skills/beads/SKILL.md` の `beads` skill を使い、利用可能な場合は issue 操作に `bd` CLI を使ってください。
 
@@ -50,5 +54,7 @@ Beads のコンテキストが存在しない、または古い場合は `bd pri
 
 ## Commit と Pull Request のガイドライン
 最近の履歴では、簡潔な件名（日本語が多い）と merge commit が使われています。1 つの変更を説明する、短く命令形の commit message を優先してください。PR は `main` を target にし、`変更内容` に変更点をまとめ、チェックリストでローカル検証（`ローカル環境でエラーになっていない`）を確認してください。関連 issue をリンクし、UI 変更では screenshot / GIF を含めてください。
+
+PR 作成前には、base branch との差分、直近の関連 commit、生成 artifact の混入有無を確認してください。`.apm` で管理される内容は source 側の変更と生成先の同期が揃っていることを確認し、generated files だけの手編集を PR の根拠にしないでください。
 
 `lefthook` は pre-commit で `biome check --write`、pre-push で `bun run quality` を実行します。push 前にローカルでブランチを green に保ってください。

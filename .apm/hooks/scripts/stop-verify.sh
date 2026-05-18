@@ -143,6 +143,13 @@ if [ ! -s "$relevant_touched_files" ]; then
   exit 0
 fi
 
+echo "Formatting touched files before Stop verification:"
+sed 's/^/- /' "$relevant_touched_files"
+if ! tr '\n' '\0' <"$relevant_touched_files" | xargs -0 bunx biome format --write --no-errors-on-unmatched --files-ignore-unknown=true; then
+  echo "Stop blocked: biome format failed. Fix the formatting errors before ending the task." >&2
+  exit 2
+fi
+
 if [ -f "$relevant_touched_files" ]; then
   node - "$project_dir" "$relevant_touched_files" "$coverage_includes" "$coverage_excluded" >"$related_tests" <<'NODE'
 const fs = require('fs')

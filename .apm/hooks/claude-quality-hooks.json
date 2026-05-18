@@ -5,7 +5,7 @@
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
           {
-            "command": "./scripts/format-write.sh",
+            "command": "./scripts/track-edit.sh",
             "type": "command"
           }
         ]
