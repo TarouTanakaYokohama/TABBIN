@@ -1,9 +1,6 @@
 import type { ParentCategory, TabGroup, UserSettings } from './storage'
 
-// カテゴリグループコンポーネント
-export interface CategoryGroupProps {
-  category: ParentCategory
-  domains: TabGroup[]
+export interface DomainCardActionHandlers {
   handleOpenAllTabs: (urls: { url: string; title: string }[]) => void
   handleDeleteGroup: (id: string) => void
   handleDeleteGroups?: (ids: string[]) => void
@@ -11,6 +8,13 @@ export interface CategoryGroupProps {
   handleDeleteUrls?: (groupId: string, urls: string[]) => Promise<void>
   handleOpenTab: (url: string) => void
   handleUpdateUrls: (groupId: string, updatedUrls: TabGroup['urls']) => void
+  handleDeleteCategory?: (groupId: string, categoryName: string) => void
+}
+
+// カテゴリグループコンポーネント
+export interface CategoryGroupProps extends DomainCardActionHandlers {
+  category: ParentCategory
+  domains: TabGroup[]
   handleUpdateDomainsOrder?: (
     categoryId: string,
     updatedDomains: TabGroup[],
@@ -20,23 +24,14 @@ export interface CategoryGroupProps {
     fromCategoryId: string | null,
     toCategoryId: string,
   ) => void
-  handleDeleteCategory?: (groupId: string, categoryName: string) => void
   settings: UserSettings
   isCategoryReorderMode?: boolean // 親カテゴリ並び替えモード状態
   searchQuery?: string // 検索クエリ
 }
 
 // ドメインカード用のソータブルコンポーネントの型
-export interface SortableDomainCardProps {
+export interface SortableDomainCardProps extends DomainCardActionHandlers {
   group: TabGroup
-  handleOpenAllTabs: (urls: { url: string; title: string }[]) => void
-  handleDeleteGroup: (id: string) => void
-  handleDeleteGroups?: (ids: string[]) => void
-  handleDeleteUrl: (groupId: string, url: string) => void
-  handleDeleteUrls?: (groupId: string, urls: string[]) => Promise<void>
-  handleOpenTab: (url: string) => void
-  handleUpdateUrls: (groupId: string, updatedUrls: TabGroup['urls']) => void
-  handleDeleteCategory?: (groupId: string, categoryName: string) => void
   categoryId?: string // 親カテゴリID
   isDraggingOver?: boolean // ドラッグオーバー状態
   settings?: UserSettings // 設定プロパティ

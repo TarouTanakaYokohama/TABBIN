@@ -26,7 +26,7 @@ const sortTabGroups = (
   tabGroups: TabGroup[],
   domainCategories: DomainState['domainCategories'],
 ): TabGroup[] => {
-  return [...tabGroups].sort((a, b) => {
+  return tabGroups.toSorted((a, b) => {
     const aHasCategory = Boolean(domainCategories[a.id])
     const bHasCategory = Boolean(domainCategories[b.id])
     if (!aHasCategory && bHasCategory) {
@@ -86,7 +86,7 @@ const DomainCategoryStatus = ({
         aria-label={t('savedTabs.categoryModal.uncategorizedAria')}
         variant='ghost'
       >
-        <span className='mr-1 inline-block h-2 w-2 rounded-full bg-muted-foreground' />
+        <span className='mr-1 inline-block size-2 rounded-full bg-muted-foreground' />
         <span>{t('savedTabs.categoryModal.uncategorized')}</span>
       </Button>
     )
@@ -108,7 +108,7 @@ const DomainCategoryStatus = ({
       )}
       variant='ghost'
     >
-      <span className='mr-1 inline-block h-2 w-2 rounded-full bg-primary' />
+      <span className='mr-1 inline-block size-2 rounded-full bg-primary' />
       <span>
         {t(
           isCurrentCategory
@@ -122,14 +122,21 @@ const DomainCategoryStatus = ({
   )
 }
 
-const renderDomainRow = (params: {
+interface DomainRowProps {
   group: TabGroup
   selection: DomainSelectionState
   domains: DomainState
   isLoading: boolean
   t: (key: string, fallback?: string, values?: Record<string, string>) => string
-}) => {
-  const { group, selection, domains, isLoading, t } = params
+}
+
+const DomainRow = ({
+  group,
+  selection,
+  domains,
+  isLoading,
+  t,
+}: DomainRowProps) => {
   const belongsToCategory = domains.domainCategories[group.id]
   const isInCurrentCategory =
     selection.selectedCategoryId !== null &&
@@ -248,13 +255,13 @@ export const DomainSelectionList = () => {
                 transform: `translateY(${virtualItem.start}px)`,
               }}
             >
-              {renderDomainRow({
-                group,
-                selection,
-                domains,
-                isLoading,
-                t,
-              })}
+              <DomainRow
+                group={group}
+                selection={selection}
+                domains={domains}
+                isLoading={isLoading}
+                t={t}
+              />
             </div>
           )
         })}

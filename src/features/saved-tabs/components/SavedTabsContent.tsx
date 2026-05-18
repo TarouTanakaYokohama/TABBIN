@@ -1,6 +1,4 @@
-import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { ExternalLink, GripVertical, Trash } from 'lucide-react'
+import { GripVertical } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import {
   AlertDialog,
@@ -12,16 +10,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { removeUrlsFromTabGroup } from '@/lib/storage/tabs'
 import type { SortableCategorySectionProps } from '@/types/saved-tabs'
 import type { UserSettings } from '@/types/storage'
-import {
-  SavedTabsResponsiveLabel,
-  SavedTabsResponsiveTooltipContent,
-} from './shared/SavedTabsResponsive'
+import { CategoryBulkActionButtons } from './shared/CategoryBulkActionButtons'
+import { OpenAllTabsConfirmDialog } from './shared/OpenAllTabsConfirmDialog'
+import { useSortableCategoryDrag } from './shared/useSortableCategoryDrag'
 import { CategorySection } from './TimeRemaining'
 
 // 並び替え可能なカテゴリセクションコンポーネント
@@ -36,27 +31,8 @@ export const SortableCategorySection = ({
   handleDeleteAllTabs?: (urls: Array<{ url: string }>) => void // 新しいプロップの型定義
 }) => {
   const { t } = useI18n()
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id,
-    data: {
-      type: 'category-section',
-    },
-  })
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 100 : 'auto',
-    position: isDragging ? 'relative' : 'static',
-    opacity: isDragging ? 0.8 : 1,
-  }
+  const { attributes, listeners, setNodeRef, isDragging, style } =
+    useSortableCategoryDrag(id)
 
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false)
@@ -137,91 +113,41 @@ export const SortableCategorySection = ({
             </h3>
           </div>
 
-          {/* ボタンコンテナ */}
-          <div className='flex items-center gap-2'>
-            <Tooltip>
-              <TooltipTrigger asChild={true}>
-                <Button
-                  variant='secondary'
-                  size='sm'
-                  onClick={e => {
-                    if (urlCount >= 10) {
-                      e.stopPropagation()
-                      setIsOpenAllConfirmOpen(true)
-                      return
-                    }
-                    e.stopPropagation()
-                    handleOpenAllTabs(urls)
-                  }}
-                  className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
-                  style={{ position: 'relative' }}
-                >
-                  <ExternalLink size={14} />
-                  <SavedTabsResponsiveLabel>
-                    {t('savedTabs.openAll')}
-                  </SavedTabsResponsiveLabel>
-                </Button>
-              </TooltipTrigger>
-              <SavedTabsResponsiveTooltipContent side='top'>
-                {t('savedTabs.openAllTabs')}
-              </SavedTabsResponsiveTooltipContent>
-            </Tooltip>
-
-            {/* 削除ボタンを追加 */}
-            {handleDeleteAllTabs && (
-              <Tooltip>
-                <TooltipTrigger asChild={true}>
-                  <Button
-                    variant='secondary'
-                    size='sm'
-                    onClick={onDeleteAllTabs}
-                    className='pointer-events-auto z-20 flex cursor-pointer items-center gap-1'
-                    style={{ position: 'relative' }}
-                    disabled={isDeleting}
-                  >
-                    <Trash size={14} />
-                    <SavedTabsResponsiveLabel>
-                      {isDeleting
-                        ? t('savedTabs.deletingAll')
-                        : t('savedTabs.deleteAll')}
-                    </SavedTabsResponsiveLabel>
-                  </Button>
-                </TooltipTrigger>
-                <SavedTabsResponsiveTooltipContent side='top'>
-                  {t('savedTabs.deleteAllTabs')}
-                </SavedTabsResponsiveTooltipContent>
-              </Tooltip>
-            )}
-          </div>
+          <CategoryBulkActionButtons
+            isDeleting={isDeleting}
+            showDeleteAction={Boolean(handleDeleteAllTabs)}
+            openLabel={t('savedTabs.openAll')}
+            openTooltip={t('savedTabs.openAllTabs')}
+            deleteLabel={t('savedTabs.deleteAll')}
+            deletingLabel={t('savedTabs.deletingAll')}
+            deleteTooltip={t('savedTabs.deleteAllTabs')}
+            onOpenAll={e => {
+              if (urlCount >= 10) {
+                e.stopPropagation()
+                setIsOpenAllConfirmOpen(true)
+                return
+              }
+              e.stopPropagation()
+              handleOpenAllTabs(urls)
+            }}
+            onDeleteAll={onDeleteAllTabs}
+          />
         </div>
 
         <CategorySection {...props} urls={urls} settings={settings} />
       </div>
 
-      {/* 10個以上タブを開く確認ダイアログ */}
-      <AlertDialog
+      <OpenAllTabsConfirmDialog
         open={isOpenAllConfirmOpen}
         onOpenChange={setIsOpenAllConfirmOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('savedTabs.openAllConfirmTitle')}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('savedTabs.openAllConfirmDescription', undefined, {
-                count: '10',
-              })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => handleOpenAllTabs(urls)}>
-              {t('common.open')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title={t('savedTabs.openAllConfirmTitle')}
+        description={t('savedTabs.openAllConfirmDescription', undefined, {
+          count: '10',
+        })}
+        cancelLabel={t('common.cancel')}
+        openLabel={t('common.open')}
+        onConfirm={() => handleOpenAllTabs(urls)}
+      />
 
       {/* カテゴリ全削除確認ダイアログ */}
       <AlertDialog

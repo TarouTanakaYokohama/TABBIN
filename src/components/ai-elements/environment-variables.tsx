@@ -2,21 +2,13 @@
 
 import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon } from 'lucide-react'
 import type { ComponentProps, HTMLAttributes } from 'react'
-import {
-  createContext,
-  use,
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from 'react'
+import { createContext, use, useCallback, useMemo, useReducer } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
+import { useCopyState } from './use-copy-state'
 
 interface EnvironmentVariablesContextType {
   showValues: boolean
@@ -265,9 +257,8 @@ export const EnvironmentVariableCopyButton = ({
   className,
   ...props
 }: EnvironmentVariableCopyButtonProps) => {
-  const [isCopied, setIsCopied] = useState(false)
-  const timeoutRef = useRef<number>(0)
   const { name, value } = use(EnvironmentVariableContext)
+  const { copyText, isCopied } = useCopyState({ onCopy, onError, timeout })
 
   const getTextToCopy = useCallback((): string => {
     const formatMap = {
@@ -278,33 +269,10 @@ export const EnvironmentVariableCopyButton = ({
     return formatMap[copyFormat]()
   }, [name, value, copyFormat])
 
-  const copyToClipboard = useCallback(async () => {
-    if (typeof window === 'undefined' || !navigator?.clipboard?.writeText) {
-      onError?.(new Error('Clipboard API not available'))
-      return
-    }
-
-    try {
-      await navigator.clipboard.writeText(getTextToCopy())
-      setIsCopied(true)
-      onCopy?.()
-      timeoutRef.current = window.setTimeout(() => setIsCopied(false), timeout)
-    } catch (error) {
-      onError?.(error as Error)
-    }
-  }, [getTextToCopy, onCopy, onError, timeout])
-
-  useEffect(
-    () => () => {
-      window.clearTimeout(timeoutRef.current)
-    },
-    [],
-  )
-
   return (
     <Button
       className={cn('size-6 shrink-0', className)}
-      onClick={copyToClipboard}
+      onClick={() => copyText(getTextToCopy())}
       size='icon'
       variant='ghost'
       {...props}

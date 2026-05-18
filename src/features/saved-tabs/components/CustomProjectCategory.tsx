@@ -36,6 +36,7 @@ import type { CustomProjectCategoryProps } from '../types/CustomProjectCategory.
 import { ProjectUrlItem } from './ProjectUrlItem'
 import { CardCollapseControl } from './shared/CardCollapseControl'
 import { CardSortControl } from './shared/CardSortControl'
+import { OpenAllTabsConfirmDialog } from './shared/OpenAllTabsConfirmDialog'
 import {
   SavedTabsResponsiveLabel,
   SavedTabsResponsiveTooltipContent,
@@ -425,29 +426,17 @@ const CategoryBulkConfirmDialogs = ({
 
   return (
     <>
-      <AlertDialog
+      <OpenAllTabsConfirmDialog
         open={isOpenAllConfirmOpen}
         onOpenChange={setIsOpenAllConfirmOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('savedTabs.openAllConfirmTitle')}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('savedTabs.openAllConfirmDescription', undefined, {
-                count: '10',
-              })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={onConfirmOpenAll}>
-              {t('common.open')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title={t('savedTabs.openAllConfirmTitle')}
+        description={t('savedTabs.openAllConfirmDescription', undefined, {
+          count: '10',
+        })}
+        cancelLabel={t('common.cancel')}
+        openLabel={t('common.open')}
+        onConfirm={onConfirmOpenAll}
+      />
 
       <AlertDialog
         open={isDeleteAllConfirmOpen}

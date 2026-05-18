@@ -1,5 +1,4 @@
 import { ThemeProvider as NextThemeProvider } from 'next-themes'
-import { lazy } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,27 +32,15 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-
-const Bar = lazy(() =>
-  import('recharts').then(module => ({ default: module.Bar })),
-)
-const BarChart = lazy(() =>
-  import('recharts').then(module => ({ default: module.BarChart })),
-)
-const CartesianGrid = lazy(() =>
-  import('recharts').then(module => ({ default: module.CartesianGrid })),
-)
-const Pie = lazy(() =>
-  import('recharts').then(module => ({ default: module.Pie })),
-)
-const PieChart = lazy(() =>
-  import('recharts').then(module => ({ default: module.PieChart })),
-)
-const XAxis = lazy(() =>
-  import('recharts').then(module => ({ default: module.XAxis })),
-)
-
 import { Toaster } from '@/components/ui/sonner'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Pie,
+  PieChart,
+  XAxis,
+} from '@/lib/lazy-recharts'
 
 const chartConfig = {
   active: {

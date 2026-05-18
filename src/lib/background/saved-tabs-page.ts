@@ -44,16 +44,15 @@ const activateAndPinTabIfNeeded = async (
   await chrome.tabs.update(tabId, {
     active: true,
   })
-  if (isPinned) {
-    return
-  }
-  try {
-    await chrome.tabs.update(tabId, {
-      pinned: true,
-    })
-    console.log(`タブ ${tabId} をピン留めしました`)
-  } catch (error) {
-    console.error('タブのピン留め設定中にエラー:', error)
+  if (!isPinned) {
+    try {
+      await chrome.tabs.update(tabId, {
+        pinned: true,
+      })
+      console.log(`タブ ${tabId} をピン留めしました`)
+    } catch (error) {
+      console.error('タブのピン留め設定中にエラー:', error)
+    }
   }
 }
 const reuseStoredSavedTabsPageId = async (): Promise<number | null> => {

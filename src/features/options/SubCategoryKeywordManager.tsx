@@ -7,6 +7,46 @@ import { useI18n } from '@/features/i18n/context/I18nProvider'
 import { setCategoryKeywords } from '@/lib/storage/tabs'
 import type { TabGroup } from '@/types/storage'
 
+interface NewSubCategoryFieldProps {
+  value: string
+  label: string
+  placeholder: string
+  onChange: (value: string) => void
+  onAdd: () => void
+}
+
+const NewSubCategoryField = ({
+  value,
+  label,
+  placeholder,
+  onChange,
+  onAdd,
+}: NewSubCategoryFieldProps) => (
+  <div className='mb-4'>
+    <Label
+      htmlFor='new-subcategory'
+      className='mb-1 block font-medium text-foreground text-sm'
+    >
+      {label}
+    </Label>
+    <Input
+      id='new-subcategory'
+      type='text'
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      onBlur={onAdd}
+      placeholder={placeholder}
+      className='w-full rounded border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
+      onKeyDown={e => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onAdd()
+        }
+      }}
+    />
+  </div>
+)
+
 const useSubCategoryKeywordManagerView = ({
   tabGroup,
 }: {
@@ -335,29 +375,13 @@ const useSubCategoryKeywordManagerView = ({
         <p className='mb-3 text-muted-foreground'>
           {t('savedTabs.subCategory.empty')}
         </p>
-        <div className='mb-4'>
-          <Label
-            htmlFor='new-subcategory'
-            className='mb-1 block font-medium text-foreground text-sm'
-          >
-            {t('savedTabs.subCategory.addTitle')}
-          </Label>
-          <Input
-            id='new-subcategory'
-            type='text'
-            value={newSubCategory}
-            onChange={e => setNewSubCategory(e.target.value)}
-            onBlur={handleAddSubCategory}
-            placeholder={t('savedTabs.subCategory.addPlaceholder')}
-            className='w-full rounded border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                handleAddSubCategory()
-              }
-            }}
-          />
-        </div>
+        <NewSubCategoryField
+          value={newSubCategory}
+          label={t('savedTabs.subCategory.addTitle')}
+          placeholder={t('savedTabs.subCategory.addPlaceholder')}
+          onChange={setNewSubCategory}
+          onAdd={handleAddSubCategory}
+        />
       </div>
     )
   }
@@ -369,29 +393,13 @@ const useSubCategoryKeywordManagerView = ({
       </h4>
 
       {/* 新しい子カテゴリの追加フォーム */}
-      <div className='mb-4'>
-        <Label
-          htmlFor='new-subcategory'
-          className='mb-1 block font-medium text-foreground text-sm'
-        >
-          {t('savedTabs.subCategory.addTitle')}
-        </Label>
-        <Input
-          id='new-subcategory'
-          type='text'
-          value={newSubCategory}
-          onChange={e => setNewSubCategory(e.target.value)}
-          onBlur={handleAddSubCategory}
-          placeholder={t('savedTabs.subCategory.addPlaceholder')}
-          className='w-full rounded border border-border bg-input p-2 text-foreground focus:ring-2 focus:ring-ring'
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              handleAddSubCategory()
-            }
-          }}
-        />
-      </div>
+      <NewSubCategoryField
+        value={newSubCategory}
+        label={t('savedTabs.subCategory.addTitle')}
+        placeholder={t('savedTabs.subCategory.addPlaceholder')}
+        onChange={setNewSubCategory}
+        onAdd={handleAddSubCategory}
+      />
 
       {/* 子カテゴリボタン一覧 - レスポンシブ対応を改善 */}
       <div className='mb-3 flex flex-wrap gap-2'>

@@ -1,4 +1,4 @@
-import { Edit, Plus, Trash, Trash2, X } from 'lucide-react'
+import { Edit, Plus, Trash2, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select'
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip'
 import { useI18n } from '@/features/i18n/context/I18nProvider'
+import { DeleteEntityConfirmPanel } from '@/features/saved-tabs/components/shared/DeleteEntityConfirmPanel'
 import {
   SavedTabsResponsiveLabel,
   SavedTabsResponsiveTooltipContent,
@@ -671,63 +672,36 @@ const useCategoryManagementModalView = ({
             )}
           </div>
           {showDeleteConfirm && (
-            <div className='mt-1 mb-3 rounded border p-3'>
-              <p className='mb-2 text-zinc-700 dark:text-zinc-300'>
-                {t(
-                  'savedTabs.categoryManagement.deleteConfirmDescription',
-                  undefined,
-                  {
-                    name: localCategoryName,
-                  },
-                )}
-                {domains.length > 0 ? (
-                  <span className='mt-1 block text-xs'>
-                    {t(
-                      'savedTabs.categoryManagement.deleteConfirmDomains',
-                      undefined,
-                      {
-                        count: String(domains.length),
-                      },
-                    )}
-                  </span>
-                ) : null}
-              </p>
-              <div className='flex justify-end gap-2'>
-                <Tooltip>
-                  <TooltipTrigger asChild={true}>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={() => setShowDeleteConfirm(false)}
-                      disabled={isProcessing}
-                    >
-                      {t('common.cancel')}
-                    </Button>
-                  </TooltipTrigger>
-                  <SavedTabsResponsiveTooltipContent side='top'>
-                    {t('common.cancel')}
-                  </SavedTabsResponsiveTooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild={true}>
-                    <Button
-                      variant='destructive'
-                      size='sm'
-                      onClick={handleDeleteCategory}
-                      disabled={isProcessing}
-                    >
-                      <Trash size={14} />
-                      <SavedTabsResponsiveLabel>
-                        {t('common.delete')}
-                      </SavedTabsResponsiveLabel>
-                    </Button>
-                  </TooltipTrigger>
-                  <SavedTabsResponsiveTooltipContent side='top'>
-                    {t('savedTabs.categoryManagement.deleteAction')}
-                  </SavedTabsResponsiveTooltipContent>
-                </Tooltip>
-              </div>
-            </div>
+            <DeleteEntityConfirmPanel
+              description={
+                <>
+                  {t(
+                    'savedTabs.categoryManagement.deleteConfirmDescription',
+                    undefined,
+                    {
+                      name: localCategoryName,
+                    },
+                  )}
+                  {domains.length > 0 ? (
+                    <span className='mt-1 block text-xs'>
+                      {t(
+                        'savedTabs.categoryManagement.deleteConfirmDomains',
+                        undefined,
+                        {
+                          count: String(domains.length),
+                        },
+                      )}
+                    </span>
+                  ) : null}
+                </>
+              }
+              cancelLabel={t('common.cancel')}
+              deleteLabel={t('common.delete')}
+              deleteTooltip={t('savedTabs.categoryManagement.deleteAction')}
+              isProcessing={isProcessing}
+              onCancel={() => setShowDeleteConfirm(false)}
+              onDelete={handleDeleteCategory}
+            />
           )}
 
           {/* 登録済みドメイン一覧 */}

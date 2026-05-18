@@ -28,6 +28,11 @@ interface JSXPreviewContextValue {
 
 const JSXPreviewContext = createContext<JSXPreviewContextValue | null>(null)
 
+interface JSXPreviewErrorState {
+  processedJsx: string
+  error: Error
+}
+
 const TAG_REGEX = /<\/?([a-zA-Z][a-zA-Z0-9]*)\s*([^>]*?)(\/)?>/
 
 export const useJSXPreview = () => {
@@ -124,18 +129,28 @@ export const JSXPreview = memo(
     children,
     ...props
   }: JSXPreviewProps) => {
-    const [prevJsx, setPrevJsx] = useState(jsx)
-    const [error, setError] = useState<Error | null>(null)
-
-    // Clear error when jsx changes (derived state pattern)
-    if (jsx !== prevJsx) {
-      setPrevJsx(jsx)
-      setError(null)
-    }
+    const [errorState, setErrorState] = useState<JSXPreviewErrorState | null>(
+      null,
+    )
 
     const processedJsx = useMemo(
       () => (isStreaming ? completeJsxTag(jsx) : jsx),
       [jsx, isStreaming],
+    )
+    const error =
+      errorState?.processedJsx === processedJsx ? errorState.error : null
+    const setError = useCallback(
+      (nextError: Error | null) => {
+        setErrorState(
+          nextError
+            ? {
+                error: nextError,
+                processedJsx,
+              }
+            : null,
+        )
+      },
+      [processedJsx],
     )
 
     return (

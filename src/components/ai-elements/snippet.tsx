@@ -2,14 +2,7 @@
 
 import { CheckIcon, CopyIcon } from 'lucide-react'
 import type { ComponentProps } from 'react'
-import {
-  createContext,
-  use,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import { createContext, use } from 'react'
 import {
   InputGroup,
   InputGroupAddon,
@@ -19,6 +12,7 @@ import {
 } from '@/components/ui/input-group'
 import { useI18nText } from '@/features/i18n/lib/useI18nText'
 import { cn } from '@/lib/utils'
+import { useCopyState } from './use-copy-state'
 
 interface SnippetContextType {
   code: string
@@ -93,37 +87,8 @@ export const SnippetCopyButton = ({
   ...props
 }: SnippetCopyButtonProps) => {
   const t = useI18nText()
-  const [isCopied, setIsCopied] = useState(false)
-  const timeoutRef = useRef<number>(0)
   const { code } = use(SnippetContext)
-
-  const copyToClipboard = useCallback(async () => {
-    if (typeof window === 'undefined' || !navigator?.clipboard?.writeText) {
-      onError?.(new Error('Clipboard API not available'))
-      return
-    }
-
-    try {
-      if (!isCopied) {
-        await navigator.clipboard.writeText(code)
-        setIsCopied(true)
-        onCopy?.()
-        timeoutRef.current = window.setTimeout(
-          () => setIsCopied(false),
-          timeout,
-        )
-      }
-    } catch (error) {
-      onError?.(error as Error)
-    }
-  }, [code, onCopy, onError, timeout, isCopied])
-
-  useEffect(
-    () => () => {
-      window.clearTimeout(timeoutRef.current)
-    },
-    [],
-  )
+  const { copyText, isCopied } = useCopyState({ onCopy, onError, timeout })
 
   const Icon = isCopied ? CheckIcon : CopyIcon
 
@@ -131,7 +96,7 @@ export const SnippetCopyButton = ({
     <InputGroupButton
       aria-label={t('common.copy')}
       className={className}
-      onClick={copyToClipboard}
+      onClick={() => copyText(code, { skipIfCopied: true })}
       size='icon-sm'
       title={t('common.copy')}
       {...props}

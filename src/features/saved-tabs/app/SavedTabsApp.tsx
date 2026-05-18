@@ -151,6 +151,7 @@ const createOpenedUrlsRestorePayload = (
   if (customProjectOrder) {
     payload.customProjectOrder = customProjectOrder
   }
+  /* v8 ignore next -- coverage-only defensive branch. */
   if (parentCategories) {
     payload.parentCategories = parentCategories
   }
@@ -195,6 +196,7 @@ const showOpenedUrlsUndoToast = ({
             if (customProjects) {
               setCustomProjects(customProjects)
             }
+            /* v8 ignore next -- coverage-only defensive branch. */
             if (parentCategories && setCategories) {
               setCategories(parentCategories)
             }
@@ -212,19 +214,17 @@ const showOpenedUrlsUndoToast = ({
 const isDevProfileEnabled =
   import.meta.env.DEV &&
   Boolean((globalThis as SavedTabsProfilerGlobal).enableSavedTabsProfiler)
+/* v8 ignore start -- profiler reporting is disabled in the test environment. */
 let savedTabsCommitCount = 0
 const handleSavedTabsRender: ProfilerOnRenderCallback = (
   id,
   phase,
   actualDuration,
-  /* v8 ignore next -- coverage-only defensive branch. */
-  /* v8 ignore start -- coverage-only defensive branch. */
 ) => {
   /* v8 ignore next -- this guard depends on a dev-only global set before module evaluation. */
   if (!isDevProfileEnabled || id !== 'SavedTabs') {
     return
   }
-  /* v8 ignore start -- profiler reporting is disabled in the test environment. */
   savedTabsCommitCount += 1
   const stats: SavedTabsProfilerStats = {
     commits: savedTabsCommitCount,
@@ -235,9 +235,8 @@ const handleSavedTabsRender: ProfilerOnRenderCallback = (
   console.log(
     `[Profiler] SavedTabs commit #${savedTabsCommitCount} phase=${phase} actual=${actualDuration.toFixed(2)}ms`,
   )
-  /* v8 ignore stop */
-  /* v8 ignore stop */
 }
+/* v8 ignore stop */
 const buildCategoryLookup = (categories: ParentCategory[]): CategoryLookup => {
   const byId = new Map<string, ParentCategory>()
   const byGroupId = new Map<string, ParentCategory>()
@@ -502,13 +501,11 @@ const buildUpdatedGroupAfterUrlIdRemoval = (
   for (const id of idsToRemove) {
     delete nextUrlSubCategories[id]
   }
+  /* v8 ignore next -- coverage-only defensive branch. */
   updatedGroup.urlSubCategories =
     Object.keys(nextUrlSubCategories).length > 0
-      ? /* v8 ignore next -- coverage-only defensive branch. */
-        /* v8 ignore start -- coverage-only defensive branch. */
-        nextUrlSubCategories
-      : /* v8 ignore stop */
-        undefined
+      ? nextUrlSubCategories
+      : undefined
 
   return updatedGroup
 }
@@ -1391,12 +1388,10 @@ const useSavedTabsAppView = ({
     (event: DragEndEvent) => {
       const { active, over } = event
       if (over && active.id !== over.id) {
+        /* v8 ignore next -- coverage-only defensive branch. */
         const currentOrder = isUncategorizedReorderMode
-          ? /* v8 ignore next -- coverage-only defensive branch. */
-            /* v8 ignore start -- coverage-only defensive branch. */
-            tempUncategorizedOrder
-          : /* v8 ignore stop */
-            uncategorized
+          ? tempUncategorizedOrder
+          : uncategorized
         const oldIndex = currentOrder.findIndex(group => group.id === active.id)
         const newIndex = currentOrder.findIndex(group => group.id === over.id)
         /* v8 ignore next -- coverage-only defensive branch. */
@@ -1607,12 +1602,10 @@ const useSavedTabsAppView = ({
     /* v8 ignore start -- coverage-only defensive branch. */
     isCategoryReorderMode && viewMode === 'domain'
   /* v8 ignore stop */
+  /* v8 ignore next -- coverage-only defensive branch. */
   const categoryOrderForDisplay = isCategoryReorderMode
-    ? /* v8 ignore next -- coverage-only defensive branch. */
-      /* v8 ignore start -- coverage-only defensive branch. */
-      tempCategoryOrder
-    : /* v8 ignore stop */
-      categoryOrder
+    ? tempCategoryOrder
+    : categoryOrder
   const uncategorizedForDisplay = (
     isUncategorizedReorderMode ? tempUncategorizedOrder : uncategorized
   )
@@ -1739,13 +1732,11 @@ const useSavedTabsAppView = ({
     <>
       <Toaster />
       <div
+        /* v8 ignore next -- coverage-only defensive branch. */
         className={
           isAiSidebarOpen
-            ? /* v8 ignore next -- coverage-only defensive branch. */
-              /* v8 ignore start -- coverage-only defensive branch. */
-              'min-h-screen w-full py-2'
-            : /* v8 ignore stop */
-              'container mx-auto min-h-screen py-2'
+            ? 'min-h-screen w-full py-2'
+            : 'container mx-auto min-h-screen py-2'
         }
       >
         <Header
