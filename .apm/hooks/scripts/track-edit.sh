@@ -4,23 +4,20 @@ set -eu
 project_dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 cd "$project_dir"
 
-hook_input="$(mktemp "${TMPDIR:-/tmp}/apm-format-hook.XXXXXX")"
-format_needed="$(mktemp "${TMPDIR:-/tmp}/apm-format-needed.XXXXXX")"
-format_files="$(mktemp "${TMPDIR:-/tmp}/apm-format-files.XXXXXX")"
-trap 'rm -f "$hook_input" "$format_needed" "$format_files"' EXIT HUP INT TERM
+hook_input="$(mktemp "${TMPDIR:-/tmp}/apm-track-edit-hook.XXXXXX")"
+trap 'rm -f "$hook_input"' EXIT HUP INT TERM
 
 cat >"$hook_input" || true
 
 state_dir=".git/apm-hooks/sessions"
 mkdir -p "$state_dir"
 
-node - "$hook_input" "$project_dir" "$state_dir" "$format_needed" "$format_files" <<'NODE'
+node - "$hook_input" "$project_dir" "$state_dir" <<'NODE'
 const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 
-const [, , inputPath, projectDir, stateDir, formatNeededPath, formatFilesPath] =
-  process.argv
+const [, , inputPath, projectDir, stateDir] = process.argv
 
 const relevantExtensions = new Set([
   '.cjs',
@@ -84,21 +81,20 @@ function firstString(...values) {
 }
 
 function sessionKey(payload) {
-  const rawKey =
-    firstString(
-      payload.session_id,
-      payload.sessionId,
-      payload.run_id,
-      payload.runId,
-      payload.transcript_path,
-      payload.transcriptPath,
-      process.env.CLAUDE_SESSION_ID,
-      process.env.CODEX_SESSION_ID
-    )
-  if (!rawKey) {
-    return null
-  }
-  return crypto.createHash('sha256').update(rawKey).digest('hex').slice(0, 32)
+  const rawKey = firstString(
+    payload.session_id,
+    payload.sessionId,
+    payload.run_id,
+    payload.runId,
+    payload.transcript_path,
+    payload.transcriptPath,
+    process.env.CLAUDE_SESSION_ID,
+    process.env.CODEX_SESSION_ID,
+  )
+
+  return rawKey
+    ? crypto.createHash('sha256').update(rawKey).digest('hex').slice(0, 32)
+    : null
 }
 
 function normalizeProjectPath(candidate) {
@@ -161,6 +157,7 @@ try {
     console.error('APM hook warning: missing session id; skipping touched file tracking.')
     process.exit(0)
   }
+
   const touchedFilesPath = path.join(stateDir, `${key}.txt`)
   const lockPath = `${touchedFilesPath}.lock`
   const nextPaths = collectPaths(payload)
@@ -179,16 +176,8 @@ try {
     const allPaths = [...new Set([...previousPaths, ...nextPaths])].sort()
 
     fs.writeFileSync(touchedFilesPath, `${allPaths.join('\n')}\n`)
-    fs.writeFileSync(formatNeededPath, '1\n')
-    fs.writeFileSync(formatFilesPath, `${nextPaths.join('\n')}\n`)
   })
 } catch (error) {
   console.error(`APM hook warning: failed to record touched files: ${error.message}`)
 }
 NODE
-
-if [ -s "$format_needed" ]; then
-  tr '\n' '\0' <"$format_files" | xargs -0 bunx biome format --write --no-errors-on-unmatched --files-ignore-unknown=true
-else
-  echo "APM hook: no verification-relevant files edited; skipping format."
-fi

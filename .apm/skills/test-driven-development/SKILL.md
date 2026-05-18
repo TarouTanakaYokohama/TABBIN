@@ -109,6 +109,10 @@ Vague name, tests mock not code
 - One behavior
 - Clear name
 - Real code (no mocks unless unavoidable)
+- Include edge, error, and boundary coverage when the behavior can fail at an
+  input boundary, permission boundary, storage boundary, browser API boundary,
+  or user-data boundary. Add the smallest separate test that proves the boundary
+  behavior rather than broadening one vague test.
 
 ### Verify RED - Watch It Fail
 
